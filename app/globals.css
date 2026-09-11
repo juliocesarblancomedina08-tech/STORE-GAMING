@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 * {
   box-sizing: border-box;
 }
@@ -10,11 +6,19 @@ html {
   scroll-behavior: smooth;
 }
 
+html,
 body {
   margin: 0;
-  background: #08090d;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  background: #050505;
   color: white;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  overflow-x: hidden;
 }
 
 button,
@@ -24,9 +28,285 @@ a {
 
 button {
   cursor: pointer;
+  font-family: inherit;
 }
 
 ::selection {
-  background: #22d3ee;
-  color: #000;
+  background: #e50914;
+  color: white;
 }
+
+/* =========================
+   BIENVENIDA
+========================= */
+
+.welcome-page {
+  position: relative;
+  min-height: 100svh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.88),
+      rgba(35, 0, 0, 0.72),
+      rgba(0, 0, 0, 0.92)
+    ),
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+
+  background-color: #080808;
+}
+
+.welcome-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(255, 0, 0, 0.12),
+      transparent 45%
+    ),
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 0, 0, 0.06) 50%,
+      transparent 100%
+    );
+}
+
+/* =========================
+   TARJETA
+========================= */
+
+.welcome-card {
+  position: relative;
+  z-index: 2;
+
+  width: min(100%, 520px);
+
+  padding: 42px 28px 30px;
+
+  text-align: center;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(20, 20, 20, 0.96),
+      rgba(5, 5, 5, 0.94)
+    );
+
+  border: 1px solid rgba(255, 0, 0, 0.45);
+
+  border-radius: 24px;
+
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.75),
+    0 0 35px rgba(220, 0, 0, 0.12);
+
+  backdrop-filter: blur(12px);
+}
+
+.welcome-line {
+  width: 70px;
+  height: 4px;
+  margin: 0 auto 22px;
+
+  border-radius: 20px;
+
+  background: linear-gradient(
+    90deg,
+    #000,
+    #e50914,
+    #000
+  );
+
+  box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
+}
+
+.welcome-small {
+  margin: 0 0 12px;
+
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 5px;
+
+  color: #cfcfcf;
+}
+
+/* =========================
+   TITULO RAYADO
+========================= */
+
+.striped-title {
+  margin: 0;
+
+  font-size: clamp(28px, 8vw, 52px);
+
+  font-weight: 1000;
+
+  line-height: 1.05;
+
+  letter-spacing: -1.5px;
+
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #f5f5f5 0px,
+      #f5f5f5 10px,
+      #111111 10px,
+      #111111 18px,
+      #e50914 18px,
+      #e50914 28px
+    );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  color: transparent;
+
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.12);
+
+  filter:
+    drop-shadow(2px 2px 0 #000)
+    drop-shadow(0 0 12px rgba(229, 9, 20, 0.28));
+}
+
+/* =========================
+   DESCRIPCIÓN
+========================= */
+
+.welcome-description {
+  max-width: 390px;
+
+  margin: 22px auto 30px;
+
+  color: #b8b8b8;
+
+  font-size: 15px;
+
+  line-height: 1.6;
+}
+
+/* =========================
+   BOTONES
+========================= */
+
+.welcome-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+
+  width: 100%;
+}
+
+.gaming-button {
+  width: 100%;
+
+  min-height: 54px;
+
+  border-radius: 13px;
+
+  font-size: 14px;
+  font-weight: 900;
+
+  letter-spacing: 1.5px;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.gaming-button:active {
+  transform: scale(0.97);
+}
+
+.gaming-button.primary {
+  border: 1px solid #ff1a24;
+
+  color: white;
+
+  background:
+    linear-gradient(
+      135deg,
+      #b00008,
+      #e50914,
+      #870006
+    );
+
+  box-shadow:
+    0 8px 25px rgba(229, 9, 20, 0.25);
+}
+
+.gaming-button.primary:hover {
+  box-shadow:
+    0 10px 32px rgba(229, 9, 20, 0.4);
+}
+
+.gaming-button.secondary {
+  border: 1px solid #3b3b3b;
+
+  color: #eeeeee;
+
+  background:
+    linear-gradient(
+      135deg,
+      #171717,
+      #0a0a0a
+    );
+}
+
+.gaming-button.secondary:hover {
+  border-color: #e50914;
+}
+
+/* =========================
+   PIE
+========================= */
+
+.welcome-footer {
+  margin-top: 26px;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  letter-spacing: 3px;
+
+  color: #666;
+}
+
+/* =========================
+   MÓVIL
+========================= */
+
+@media (max-width: 480px) {
+  .welcome-page {
+    padding: 16px;
+  }
+
+  .welcome-card {
+    padding: 34px 20px 26px;
+    border-radius: 20px;
+  }
+
+  .welcome-small {
+    font-size: 11px;
+    letter-spacing: 3px;
+  }
+
+  .welcome-description {
+    font-size: 14px;
+    margin-top: 18px;
+  }
+
+  .gaming-button {
+    min-height: 52px;
+  }
+  }
