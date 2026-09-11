@@ -4,6 +4,7 @@
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
 }
 
 html,
@@ -36,18 +37,21 @@ button {
   color: white;
 }
 
-/* =========================
-   BIENVENIDA
-========================= */
+/* =========================================================
+   PANTALLA DE BIENVENIDA
+========================================================= */
 
 .welcome-page {
   position: relative;
   min-height: 100svh;
   width: 100%;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   padding: 24px;
+
   overflow: hidden;
 
   background:
@@ -81,10 +85,6 @@ button {
     );
 }
 
-/* =========================
-   TARJETA
-========================= */
-
 .welcome-card {
   position: relative;
   z-index: 2;
@@ -116,18 +116,21 @@ button {
 .welcome-line {
   width: 70px;
   height: 4px;
+
   margin: 0 auto 22px;
 
   border-radius: 20px;
 
-  background: linear-gradient(
-    90deg,
-    #000,
-    #e50914,
-    #000
-  );
+  background:
+    linear-gradient(
+      90deg,
+      #000,
+      #e50914,
+      #000
+    );
 
-  box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
+  box-shadow:
+    0 0 15px rgba(229, 9, 20, 0.5);
 }
 
 .welcome-small {
@@ -135,14 +138,11 @@ button {
 
   font-size: 13px;
   font-weight: 800;
+
   letter-spacing: 5px;
 
   color: #cfcfcf;
 }
-
-/* =========================
-   TITULO RAYADO
-========================= */
 
 .striped-title {
   margin: 0;
@@ -178,10 +178,6 @@ button {
     drop-shadow(0 0 12px rgba(229, 9, 20, 0.28));
 }
 
-/* =========================
-   DESCRIPCIÓN
-========================= */
-
 .welcome-description {
   max-width: 390px;
 
@@ -194,13 +190,10 @@ button {
   line-height: 1.6;
 }
 
-/* =========================
-   BOTONES
-========================= */
-
 .welcome-buttons {
   display: flex;
   flex-direction: column;
+
   gap: 13px;
 
   width: 100%;
@@ -267,10 +260,6 @@ button {
   border-color: #e50914;
 }
 
-/* =========================
-   PIE
-========================= */
-
 .welcome-footer {
   margin-top: 26px;
 
@@ -282,9 +271,335 @@ button {
   color: #666;
 }
 
-/* =========================
+/* =========================================================
+   AUTENTICACIÓN / LOGIN
+========================================================= */
+
+.auth-page {
+  position: relative;
+
+  min-height: 100svh;
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.94),
+      rgba(55, 0, 5, 0.78),
+      rgba(0, 0, 0, 0.96)
+    ),
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+
+  background-color: #060606;
+}
+
+.auth-background {
+  position: absolute;
+
+  inset: 0;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(229, 9, 20, 0.14),
+      transparent 50%
+    );
+
+  pointer-events: none;
+}
+
+.auth-card {
+  position: relative;
+  z-index: 2;
+
+  width: min(100%, 460px);
+
+  padding: 28px;
+
+  border-radius: 22px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(18, 18, 18, 0.97),
+      rgba(5, 5, 5, 0.96)
+    );
+
+  border: 1px solid rgba(229, 9, 20, 0.4);
+
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.8),
+    0 0 35px rgba(229, 9, 20, 0.1);
+
+  backdrop-filter: blur(14px);
+}
+
+.back-button {
+  border: 0;
+
+  background: transparent;
+
+  color: #999;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  padding: 0;
+
+  margin-bottom: 24px;
+}
+
+.back-button:hover {
+  color: #fff;
+}
+
+.auth-logo {
+  font-size: 38px;
+
+  margin-bottom: 12px;
+}
+
+.auth-small {
+  margin: 0 0 8px;
+
+  color: #888;
+
+  font-size: 10px;
+  font-weight: 900;
+
+  letter-spacing: 3px;
+}
+
+.auth-title {
+  margin: 0;
+
+  font-size: clamp(28px, 8vw, 40px);
+
+  line-height: 1;
+
+  font-weight: 1000;
+
+  color: white;
+}
+
+.auth-title span {
+  color: #e50914;
+}
+
+.auth-description {
+  margin: 14px 0 28px;
+
+  color: #929292;
+
+  font-size: 14px;
+
+  line-height: 1.5;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 18px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  color: #aaa;
+
+  font-size: 10px;
+  font-weight: 900;
+
+  letter-spacing: 1.5px;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+
+  width: 100%;
+  height: 54px;
+
+  border: 1px solid #292929;
+
+  border-radius: 12px;
+
+  background: #0b0b0b;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.input-wrapper:focus-within {
+  border-color: #e50914;
+
+  box-shadow:
+    0 0 0 3px rgba(229, 9, 20, 0.1);
+}
+
+.input-wrapper span {
+  width: 48px;
+
+  text-align: center;
+
+  color: #777;
+
+  font-size: 16px;
+}
+
+.input-wrapper input {
+  flex: 1;
+
+  min-width: 0;
+
+  height: 100%;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+
+  color: white;
+
+  font-size: 15px;
+}
+
+.input-wrapper input::placeholder {
+  color: #555;
+}
+
+.auth-error {
+  padding: 12px;
+
+  border-radius: 10px;
+
+  border: 1px solid rgba(229, 9, 20, 0.35);
+
+  background: rgba(229, 9, 20, 0.08);
+
+  color: #ff5b63;
+
+  font-size: 13px;
+
+  text-align: center;
+}
+
+.auth-submit {
+  width: 100%;
+  height: 54px;
+
+  border: 1px solid #ff2630;
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #a80008,
+      #e50914,
+      #8b0006
+    );
+
+  color: white;
+
+  font-size: 14px;
+  font-weight: 1000;
+
+  letter-spacing: 2px;
+
+  box-shadow:
+    0 10px 30px rgba(229, 9, 20, 0.2);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.auth-submit:active {
+  transform: scale(0.98);
+}
+
+.auth-submit:hover {
+  box-shadow:
+    0 12px 35px rgba(229, 9, 20, 0.35);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  margin: 25px 0 18px;
+
+  color: #555;
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.auth-divider span {
+  flex: 1;
+
+  height: 1px;
+
+  background: #222;
+}
+
+.auth-register-text {
+  margin: 0 0 12px;
+
+  text-align: center;
+
+  color: #777;
+
+  font-size: 12px;
+}
+
+.auth-register-button {
+  width: 100%;
+  height: 50px;
+
+  border: 1px solid #333;
+
+  border-radius: 12px;
+
+  background: #101010;
+
+  color: #ddd;
+
+  font-size: 12px;
+  font-weight: 900;
+
+  letter-spacing: 1.5px;
+
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.auth-register-button:hover {
+  border-color: #e50914;
+
+  color: white;
+}
+
+/* =========================================================
    MÓVIL
-========================= */
+========================================================= */
 
 @media (max-width: 480px) {
   .welcome-page {
@@ -293,20 +608,46 @@ button {
 
   .welcome-card {
     padding: 34px 20px 26px;
+
     border-radius: 20px;
   }
 
   .welcome-small {
     font-size: 11px;
+
     letter-spacing: 3px;
   }
 
   .welcome-description {
     font-size: 14px;
+
     margin-top: 18px;
   }
 
   .gaming-button {
     min-height: 52px;
   }
+
+  .auth-page {
+    padding: 14px;
   }
+
+  .auth-card {
+    padding: 23px 19px;
+
+    border-radius: 18px;
+  }
+}
+
+/* =========================================================
+   EVITAR EFECTOS DE ZOOM / DESPLAZAMIENTO HORIZONTAL
+========================================================= */
+
+body {
+  touch-action: manipulation;
+}
+
+button,
+input {
+  touch-action: manipulation;
+                }
