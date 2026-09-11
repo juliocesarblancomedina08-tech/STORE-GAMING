@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,17 +34,20 @@ export default function LoginPage() {
       const account = JSON.parse(savedUser);
 
       if (
-        account.username !== cleanUsername ||
+        account.username.toLowerCase() !==
+          cleanUsername.toLowerCase() ||
         account.password !== password
       ) {
         setError("Usuario o contraseña incorrectos.");
         return;
       }
 
+      setLoading(true);
+
       localStorage.setItem(
         "storeGamingAuth",
         JSON.stringify({
-          username: cleanUsername,
+          username: account.username,
           loggedAt: Date.now(),
         })
       );
@@ -51,6 +55,7 @@ export default function LoginPage() {
       router.push("/home");
     } catch {
       setError("No se pudo iniciar sesión. Inténtalo nuevamente.");
+      setLoading(false);
     }
   }
 
@@ -69,7 +74,9 @@ export default function LoginPage() {
 
         <div className="auth-logo">🛒🎮</div>
 
-        <p className="auth-small">BIENVENIDO DE NUEVO</p>
+        <p className="auth-small">
+          BIENVENIDO DE NUEVO
+        </p>
 
         <h1 className="auth-title">
           INICIAR <span>SESIÓN</span>
@@ -79,41 +86,62 @@ export default function LoginPage() {
           Entra a tu cuenta para acceder a STORE GAMING.
         </p>
 
-        <form onSubmit={handleLogin} className="auth-form">
+        <form
+          onSubmit={handleLogin}
+          className="auth-form"
+        >
           <label>
             USUARIO
+
             <div className="input-wrapper">
               <span>@</span>
 
               <input
                 type="text"
                 value={username}
-                onChange={(event) => setUsername(event.target.value)}
+                onChange={(event) =>
+                  setUsername(event.target.value)
+                }
                 placeholder="tuusuario"
                 autoComplete="username"
+                disabled={loading}
               />
             </div>
           </label>
 
           <label>
             CONTRASEÑA
+
             <div className="input-wrapper">
               <span>🔒</span>
 
               <input
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) =>
+                  setPassword(event.target.value)
+                }
                 placeholder="Tu contraseña"
                 autoComplete="current-password"
+                disabled={loading}
               />
             </div>
           </label>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error && (
+            <div className="auth-error">
+              {error}
+            </div>
+          )}
 
-          <button type="submit" className="auth-submit">
-            ENTRAR
+          <button
+            type="submit"
+            className="auth-submit"
+            disabled={loading}
+          >
+            {loading
+              ? "ENTRANDO..."
+              : "ENTRAR"}
           </button>
         </form>
 
@@ -131,10 +159,11 @@ export default function LoginPage() {
           type="button"
           className="auth-register-button"
           onClick={() => router.push("/register")}
+          disabled={loading}
         >
           CREAR CUENTA
         </button>
       </section>
     </main>
   );
-      }
+}
