@@ -1,6 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import {
+  FormEvent,
+  Suspense,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Offer = {
@@ -11,7 +15,7 @@ type Offer = {
   type: string;
 };
 
-export default function FreeFireSelectPage() {
+function FreeFireSelectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -42,7 +46,7 @@ export default function FreeFireSelectPage() {
         offer = decoded;
       }
     } catch {
-      // Se mantiene la oferta predeterminada.
+      // Mantener oferta predeterminada.
     }
   }
 
@@ -259,3 +263,29 @@ export default function FreeFireSelectPage() {
     </main>
   );
 }
+
+export default function FreeFireSelectPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="select-page">
+          <div
+            style={{
+              minHeight: "100vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#ffffff",
+              fontSize: "16px",
+              fontWeight: 800,
+            }}
+          >
+            CARGANDO...
+          </div>
+        </main>
+      }
+    >
+      <FreeFireSelectContent />
+    </Suspense>
+  );
+          }
