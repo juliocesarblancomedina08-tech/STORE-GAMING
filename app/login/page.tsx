@@ -139,9 +139,7 @@ export default function LoginPage() {
             className="auth-submit"
             disabled={loading}
           >
-            {loading
-              ? "ENTRANDO..."
-              : "ENTRAR"}
+            {loading ? "ENTRANDO..." : "ENTRAR"}
           </button>
         </form>
 
@@ -166,4 +164,4 @@ export default function LoginPage() {
       </section>
     </main>
   );
-}
+              }
