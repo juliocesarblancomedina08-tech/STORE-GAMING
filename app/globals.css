@@ -2870,5 +2870,1188 @@ img {
 .orders-page {
   min-height: 100vh;
 
-  background
- 
+  background: #070707;
+
+  color: #ffffff;
+}
+
+.orders-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+  height: 65px;
+
+  display: grid;
+
+  grid-template-columns: 48px 1fr 48px;
+
+  align-items: center;
+
+  padding: 0 12px;
+
+  background: rgba(7, 7, 7, 0.95);
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+
+  backdrop-filter: blur(15px);
+}
+
+.orders-back-button {
+  width: 40px;
+  height: 40px;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  border-radius: 9px;
+
+  background: #111111;
+
+  color: #ffffff;
+
+  font-size: 21px;
+
+  cursor: pointer;
+}
+
+.orders-header-title {
+  text-align: center;
+}
+
+.orders-header-title span {
+  display: block;
+
+  color: #666666;
+
+  font-size: 6px;
+
+  font-weight: 950;
+
+  letter-spacing: 1.8px;
+}
+
+.orders-header-title strong {
+  display: block;
+
+  margin-top: 4px;
+
+  font-size: 15px;
+
+  font-weight: 1000;
+
+  font-style: italic;
+}
+
+.orders-header-icon {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 9px;
+
+  background: #111111;
+
+  color: #ff1744;
+
+  font-size: 18px;
+}
+
+/* =========================================================
+   ORDERS HERO
+   ========================================================= */
+
+.orders-hero {
+  position: relative;
+
+  min-height: 250px;
+
+  display: flex;
+  align-items: center;
+
+  overflow: hidden;
+
+  padding: 35px 17px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.93),
+      rgba(0, 0, 0, 0.45),
+      rgba(0, 0, 0, 0.88)
+    ),
+    url("/images/battle-royale-bg.jpg");
+
+  background-size: cover;
+  background-position: center;
+}
+
+.orders-hero::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  background:
+    radial-gradient(
+      circle at 75% 40%,
+      rgba(255, 23, 68, 0.2),
+      transparent 42%
+    );
+
+  pointer-events: none;
+}
+
+.orders-hero-glow {
+  position: absolute;
+
+  width: 250px;
+  height: 250px;
+
+  right: -100px;
+  top: -80px;
+
+  border-radius: 50%;
+
+  background: rgba(255, 23, 68, 0.13);
+
+  filter: blur(30px);
+}
+
+.orders-hero-content {
+  position: relative;
+  z-index: 2;
+
+  max-width: 650px;
+}
+
+.orders-hero-label {
+  color: #ff1744;
+
+  font-size: 7px;
+
+  font-weight: 1000;
+
+  letter-spacing: 2px;
+}
+
+.orders-hero-content h1 {
+  margin: 7px 0 0;
+
+  font-size: clamp(30px, 8vw, 55px);
+
+  line-height: 0.88;
+
+  font-weight: 1000;
+
+  font-style: italic;
+
+  text-transform: uppercase;
+}
+
+.orders-hero-content h1 strong {
+  color: #ff1744;
+
+  text-shadow:
+    3px 3px 0 #30000a;
+}
+
+.orders-hero-content p {
+  max-width: 430px;
+
+  margin: 11px 0 0;
+
+  color: #aaaaaa;
+
+  font-size: 8px;
+
+  line-height: 1.5;
+}
+
+.orders-total-box {
+  width: fit-content;
+
+  min-width: 170px;
+
+  margin-top: 15px;
+
+  padding: 11px 13px;
+
+  border: 1px solid rgba(255, 23, 68, 0.28);
+
+  border-radius: 9px;
+
+  background: rgba(10, 10, 10, 0.8);
+}
+
+.orders-total-box span {
+  display: block;
+
+  color: #666666;
+
+  font-size: 6px;
+
+  font-weight: 950;
+
+  letter-spacing: 1px;
+}
+
+.orders-total-box strong {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #ff1744;
+
+  font-size: 20px;
+
+  font-weight: 1000;
+}
+
+.orders-total-box small {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #555555;
+
+  font-size: 6px;
+}
+
+/* =========================================================
+   ORDERS STATS
+   ========================================================= */
+
+.orders-stats {
+  max-width: 1050px;
+
+  margin: -20px auto 0;
+
+  padding: 0 14px;
+
+  position: relative;
+  z-index: 5;
+
+  display: grid;
+
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 8px;
+}
+
+.orders-stat {
+  padding: 12px 10px;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+
+  border-radius: 9px;
+
+  background: #101010;
+
+  text-align: center;
+}
+
+.orders-stat.active {
+  border-color: rgba(255, 23, 68, 0.3);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 23, 68, 0.1),
+      #101010
+    );
+}
+
+.orders-stat > span {
+  display: block;
+
+  color: #ff1744;
+
+  font-size: 15px;
+}
+
+.orders-stat div {
+  margin-top: 5px;
+}
+
+.orders-stat strong {
+  display: block;
+
+  color: #ffffff;
+
+  font-size: 13px;
+
+  font-weight: 1000;
+}
+
+.orders-stat small {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #555555;
+
+  font-size: 6px;
+
+  font-weight: 900;
+}
+
+/* =========================================================
+   ORDERS CONTENT
+   ========================================================= */
+
+.orders-content {
+  max-width: 1050px;
+
+  margin: 0 auto;
+
+  padding: 28px 14px 40px;
+}
+
+.orders-content-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  margin-bottom: 14px;
+}
+
+.orders-content-header > div:first-child span {
+  color: #ff1744;
+
+  font-size: 7px;
+
+  font-weight: 1000;
+
+  letter-spacing: 1.5px;
+}
+
+.orders-content-header h2 {
+  margin: 5px 0 0;
+
+  font-size: 22px;
+
+  font-weight: 1000;
+
+  font-style: italic;
+}
+
+.orders-filter-label {
+  min-height: 34px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 10px;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+
+  border-radius: 7px;
+
+  background: #101010;
+
+  color: #777777;
+
+  font-size: 7px;
+
+  font-weight: 900;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 9px;
+}
+
+/* =========================================================
+   ORDER ITEM
+   ========================================================= */
+
+.order-item-card {
+  position: relative;
+
+  overflow: hidden;
+
+  padding: 13px;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+
+  border-radius: 11px;
+
+  background: #101010;
+}
+
+.order-item-card::before {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  top: 0;
+  bottom: 0;
+
+  width: 2px;
+
+  background: #ff1744;
+}
+
+.order-item-top {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.order-game-icon {
+  width: 42px;
+  height: 42px;
+
+  flex: 0 0 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  border-radius: 9px;
+
+  background: #1a1a1a;
+
+  font-size: 20px;
+}
+
+.order-game-info {
+  min-width: 0;
+
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.order-game-info span {
+  color: #666666;
+
+  font-size: 6px;
+
+  font-weight: 900;
+
+  letter-spacing: 0.8px;
+}
+
+.order-game-info strong {
+  margin-top: 4px;
+
+  color: #ffffff;
+
+  font-size: 10px;
+
+  font-weight: 1000;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.order-status {
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 5px;
+
+  padding: 5px 7px;
+
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.06);
+
+  color: #aaaaaa;
+
+  font-size: 6px;
+
+  font-weight: 1000;
+
+  text-transform: uppercase;
+}
+
+.order-status i {
+  width: 5px;
+  height: 5px;
+
+  display: block;
+
+  border-radius: 50%;
+
+  background: #888888;
+}
+
+.order-status.pending {
+  color: #ffb000;
+
+  background: rgba(255, 176, 0, 0.08);
+}
+
+.order-status.pending i {
+  background: #ffb000;
+}
+
+.order-status.completed {
+  color: #41e66a;
+
+  background: rgba(65, 230, 106, 0.08);
+}
+
+.order-status.completed i {
+  background: #41e66a;
+}
+
+.order-status.cancelled {
+  color: #ff526d;
+
+  background: rgba(255, 23, 68, 0.08);
+}
+
+.order-status.cancelled i {
+  background: #ff1744;
+}
+
+.order-item-divider {
+  height: 1px;
+
+  margin: 12px 0;
+
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.order-item-details {
+  display: grid;
+
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 8px;
+}
+
+.order-item-details > div {
+  min-width: 0;
+}
+
+.order-item-details span {
+  display: block;
+
+  color: #555555;
+
+  font-size: 6px;
+
+  font-weight: 900;
+
+  letter-spacing: 0.6px;
+
+  text-transform: uppercase;
+}
+
+.order-item-details strong {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #bbbbbb;
+
+  font-size: 8px;
+
+  font-weight: 950;
+
+  overflow-wrap: anywhere;
+}
+
+.order-item-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  margin-top: 13px;
+}
+
+.order-price {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-price span {
+  color: #555555;
+
+  font-size: 6px;
+
+  font-weight: 900;
+}
+
+.order-price strong {
+  margin-top: 3px;
+
+  color: #ff1744;
+
+  font-size: 16px;
+
+  font-weight: 1000;
+}
+
+.order-details-button {
+  min-height: 36px;
+
+  padding: 0 11px;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 6px;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  border-radius: 7px;
+
+  background: #151515;
+
+  color: #ffffff;
+
+  font-size: 7px;
+
+  font-weight: 950;
+
+  cursor: pointer;
+}
+
+.order-details-button span {
+  color: #ff1744;
+
+  font-size: 13px;
+}
+
+/* =========================================================
+   EMPTY ORDERS
+   ========================================================= */
+
+.orders-empty {
+  padding: 40px 18px;
+
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+
+  border-radius: 12px;
+
+  background: #0d0d0d;
+
+  text-align: center;
+}
+
+.orders-empty-icon {
+  width: 65px;
+  height: 65px;
+
+  margin: 0 auto 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #151515;
+
+  color: #555555;
+
+  font-size: 27px;
+}
+
+.orders-empty h3 {
+  margin: 0;
+
+  font-size: 16px;
+
+  font-weight: 1000;
+
+  font-style: italic;
+}
+
+.orders-empty p {
+  max-width: 350px;
+
+  margin: 8px auto 0;
+
+  color: #555555;
+
+  font-size: 8px;
+
+  line-height: 1.5;
+}
+
+.orders-shop-button {
+  min-height: 43px;
+
+  margin-top: 15px;
+
+  padding: 0 15px;
+
+  border-radius: 8px;
+
+  background: #ff1744;
+
+  color: #ffffff;
+
+  font-size: 8px;
+
+  font-weight: 1000;
+
+  cursor: pointer;
+}
+
+.orders-shop-button b {
+  margin-left: 6px;
+
+  font-size: 14px;
+}
+
+/* =========================================================
+   ORDERS SECURITY
+   ========================================================= */
+
+.orders-security {
+  max-width: 1050px;
+
+  margin: 0 auto;
+
+  padding: 0 14px 25px;
+}
+
+.orders-security > div {
+  padding: 15px;
+
+  border: 1px solid rgba(255, 255, 255, 0.06);
+
+  border-radius: 10px;
+
+  background: #0d0d0d;
+}
+
+.orders-security > div > span {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #ff1744;
+
+  font-size: 19px;
+}
+
+.orders-security strong {
+  display: block;
+
+  font-size: 8px;
+
+  font-weight: 1000;
+}
+
+.orders-security p {
+  margin: 5px 0 0;
+
+  color: #555555;
+
+  font-size: 7px;
+
+  line-height: 1.5;
+}
+
+/* =========================================================
+   ORDERS FOOTER
+   ========================================================= */
+
+.orders-footer {
+  padding: 25px 15px 35px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+
+  text-align: center;
+}
+
+.orders-footer strong {
+  display: block;
+
+  color: #ffffff;
+
+  font-size: 8px;
+
+  font-weight: 1000;
+
+  letter-spacing: 1px;
+}
+
+.orders-footer span {
+  display: block;
+
+  margin-top: 5px;
+
+  color: #444444;
+
+  font-size: 7px;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .welcome-card {
+    padding: 25px 18px;
+  }
+
+  .welcome-card h1 {
+    font-size: 31px;
+  }
+
+  .store-hero {
+    min-height: 285px;
+
+    padding: 25px 15px;
+  }
+
+  .store-hero h1 {
+    font-size: 40px;
+  }
+
+  .games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .games-section {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .game-info {
+    padding: 9px;
+  }
+
+  .game-info h3 {
+    font-size: 10px;
+  }
+
+  .benefits-section {
+    grid-template-columns: 1fr;
+
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .service-info {
+    grid-template-columns: 1fr;
+  }
+
+  .balance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .balance-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .orders-header {
+    grid-template-columns: 44px 1fr 44px;
+  }
+
+  .orders-hero {
+    min-height: 240px;
+
+    padding: 28px 14px;
+  }
+
+  .orders-hero-content h1 {
+    font-size: 39px;
+  }
+
+  .orders-stats {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .orders-content {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .order-item-card {
+    padding: 12px;
+  }
+
+  .order-game-icon {
+    width: 38px;
+    height: 38px;
+
+    flex-basis: 38px;
+  }
+
+  .order-game-info strong {
+    font-size: 9px;
+  }
+
+  .order-status {
+    font-size: 5px;
+  }
+
+  .order-item-details {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .order-item-bottom {
+    align-items: flex-end;
+  }
+
+  .order-price strong {
+    font-size: 15px;
+  }
+
+  .order-details-button {
+    min-height: 34px;
+
+    padding: 0 9px;
+  }
+
+  .orders-security {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .free-fire-main-image {
+    aspect-ratio: 16 / 9;
+
+    min-height: 205px;
+  }
+
+  .free-fire-main-text {
+    left: 15px;
+    bottom: 18px;
+  }
+
+  .free-fire-main-text h1 {
+    font-size: clamp(31px, 10vw, 48px);
+
+    letter-spacing: -1.5px;
+  }
+
+  .free-fire-main-text p {
+    font-size: 8px;
+  }
+}
+
+/* =========================================================
+   SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 390px) {
+  .welcome-page,
+  .auth-page {
+    padding: 12px;
+  }
+
+  .welcome-card,
+  .auth-card {
+    padding: 21px 15px;
+  }
+
+  .welcome-card h1 {
+    font-size: 28px;
+  }
+
+  .store-header {
+    height: 58px;
+  }
+
+  .store-logo strong {
+    font-size: 14px;
+  }
+
+  .store-hero {
+    min-height: 270px;
+  }
+
+  .store-hero h1 {
+    font-size: 34px;
+  }
+
+  .games-grid {
+    gap: 7px;
+  }
+
+  .game-tag,
+  .game-open {
+    font-size: 5px;
+  }
+
+  .game-info {
+    padding: 8px;
+  }
+
+  .game-info p {
+    font-size: 6px;
+  }
+
+  .game-bottom span {
+    font-size: 5px;
+  }
+
+  .game-bottom strong {
+    font-size: 12px;
+  }
+
+  .offers-section {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .offer-card {
+    padding: 9px 10px;
+  }
+
+  .diamond-icon {
+    width: 34px;
+    height: 34px;
+
+    flex-basis: 34px;
+
+    font-size: 17px;
+  }
+
+  .offer-info strong {
+    font-size: 10px;
+  }
+
+  .offer-right strong {
+    font-size: 14px;
+  }
+
+  .orders-stat {
+    padding: 10px 6px;
+  }
+
+  .orders-stat strong {
+    font-size: 11px;
+  }
+
+  .orders-stat small {
+    font-size: 5px;
+  }
+
+  .orders-hero-content h1 {
+    font-size: 34px;
+  }
+
+  .orders-total-box {
+    min-width: 150px;
+  }
+
+  .order-item-details {
+    gap: 6px;
+  }
+
+  .order-item-details strong {
+    font-size: 7px;
+  }
+
+  .free-fire-main-text {
+    left: 12px;
+    bottom: 14px;
+  }
+
+  .free-fire-main-text h1 {
+    font-size: 30px;
+
+    letter-spacing: -1px;
+  }
+
+  .free-fire-main-text p {
+    margin-top: 8px;
+
+    font-size: 7px;
+  }
+
+  .balance-main {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .balance-main-card {
+    padding: 20px 15px;
+  }
+
+  .balance-main-card h1 {
+    font-size: 31px;
+  }
+
+  .balance-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   TOUCH / MOBILE SAFETY
+   ========================================================= */
+
+html,
+body {
+  overscroll-behavior-x: none;
+}
+
+button,
+.game-card,
+.offer-card,
+.orders-stat,
+.balance-action,
+.order-details-button {
+  touch-action: manipulation;
+}
+
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+@media (max-width: 700px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   EXTRA MOBILE SAFETY
+   ========================================================= */
+
+@media (hover: none) {
+  .game-card:hover {
+    border-color: rgba(255, 255, 255, 0.07);
+  }
+
+  .game-card:hover .game-image {
+    transform: none;
+  }
+
+  .offer-card:hover {
+    border-color: rgba(255, 255, 255, 0.07);
+
+    background: #111111;
+  }
+}
+
+/* =========================================================
+   END STORE GAMING GLOBAL CSS
+   ========================================================= */
