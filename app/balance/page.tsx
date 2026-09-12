@@ -17,12 +17,12 @@ export default function BalancePage() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (!session) {
+      if (!session?.user) {
         router.replace("/");
         return;
       }
 
-      setEmail(session.user.email || "");
+      setEmail(session.user.email || "usuario");
 
       const { data, error } = await supabase
         .from("profiles")
@@ -38,14 +38,37 @@ export default function BalancePage() {
     }
 
     loadBalance();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session?.user) {
+          router.replace("/");
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   if (loading) {
     return (
       <main className="balance-page">
+        <div className="balance-background" />
+
         <div className="balance-loading">
-          <div className="balance-spinner">💰</div>
-          <p>CARGANDO BALANCE...</p>
+          <div className="balance-loading-logo">
+            🛒🎮
+          </div>
+
+          <div className="balance-spinner" />
+
+          <p>
+            CARGANDO BILLETERA...
+          </p>
         </div>
       </main>
     );
@@ -55,80 +78,188 @@ export default function BalancePage() {
     <main className="balance-page">
       <div className="balance-background" />
 
+      {/* HEADER */}
+
       <header className="balance-header">
+
         <button
           type="button"
-          className="balance-back"
+          className="balance-back-button"
           onClick={() => router.push("/home")}
+          aria-label="Volver"
         >
-          ←
+          <span>←</span>
         </button>
 
-        <div>
-          <p className="balance-header-small">
+        <div className="balance-header-title">
+          <small>
             STORE GAMING
-          </p>
+          </small>
 
           <h1>
-            💰 MI <span>BALANCE</span>
+            MI <span>BILLETERA</span>
           </h1>
         </div>
+
+        <div className="balance-header-icon">
+          💰
+        </div>
+
       </header>
 
-      <section className="balance-container">
-        <div className="balance-card">
+      {/* CONTENIDO */}
+
+      <section className="balance-content">
+
+        {/* TARJETA PRINCIPAL */}
+
+        <div className="balance-main-card">
+
+          <div className="balance-card-glow" />
+
           <div className="balance-card-top">
-            <span>BALANCE DISPONIBLE</span>
-            <span className="balance-status">
-              ● ACTIVO
-            </span>
+
+            <div>
+              <span className="balance-label">
+                BALANCE DISPONIBLE
+              </span>
+
+              <div className="balance-live">
+                <span />
+                CUENTA ACTIVA
+              </div>
+            </div>
+
+            <div className="balance-wallet-symbol">
+              ◉
+            </div>
+
           </div>
 
           <div className="balance-amount">
-            ${balance.toFixed(2)}
+            <span>$</span>
+            {balance.toFixed(2)}
           </div>
 
-          <p className="balance-email">
-            {email}
-          </p>
+          <div className="balance-card-bottom">
+
+            <div>
+              <small>
+                CUENTA
+              </small>
+
+              <strong>
+                {email}
+              </strong>
+            </div>
+
+            <div className="balance-secure">
+              🔒
+              <span>
+                SEGURO
+              </span>
+            </div>
+
+          </div>
+
         </div>
+
+        {/* INSERTAR BALANCE */}
 
         <button
           type="button"
-          className="balance-add-button"
+          className="balance-deposit-card"
           onClick={() => router.push("/balance/deposit")}
         >
-          <span className="balance-add-icon">＋</span>
 
-          <span>
-            <strong>INSERTAR BALANCE</strong>
-            <small>
-              Agrega fondos a tu cuenta
-            </small>
-          </span>
+          <div className="deposit-icon">
+            +
+          </div>
 
-          <span className="balance-arrow">
-            ›
-          </span>
+          <div className="deposit-text">
+
+            <strong>
+              INSERTAR BALANCE
+            </strong>
+
+            <span>
+              Agrega fondos a tu billetera
+            </span>
+
+          </div>
+
+          <div className="deposit-arrow">
+            →
+          </div>
+
         </button>
 
-        <div className="balance-info-card">
-          <div className="balance-info-icon">
-            🔐
+        {/* HISTORIAL */}
+
+        <button
+          type="button"
+          className="balance-history-card"
+          onClick={() => router.push("/balance/history")}
+        >
+
+          <div className="history-icon">
+            ▣
+          </div>
+
+          <div className="history-text">
+
+            <strong>
+              HISTORIAL DE MOVIMIENTOS
+            </strong>
+
+            <span>
+              Consulta tus depósitos y movimientos
+            </span>
+
+          </div>
+
+          <div className="history-arrow">
+            →
+          </div>
+
+        </button>
+
+        {/* INFORMACIÓN */}
+
+        <div className="balance-security-card">
+
+          <div className="security-icon">
+            🛡️
           </div>
 
           <div>
+
             <strong>
-              BALANCE SEGURO
+              TU DINERO ESTÁ PROTEGIDO
             </strong>
 
             <p>
-              Tu saldo está asociado
-              directamente a tu cuenta.
+              Tu balance está vinculado
+              exclusivamente a tu cuenta de
+              STORE GAMING.
             </p>
+
           </div>
+
         </div>
+
+        {/* VOLVER */}
+
+        <button
+          type="button"
+          className="balance-home-button"
+          onClick={() => router.push("/home")}
+        >
+          ← VOLVER A LA TIENDA
+        </button>
+
       </section>
+
     </main>
   );
-    }
+          }
