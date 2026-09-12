@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 
 type Game = {
   name: string;
@@ -50,33 +51,49 @@ export default function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const auth = localStorage.getItem("storeGamingAuth");
+    async function loadUser() {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
 
-    if (!auth) {
-      router.replace("/");
-      return;
-    }
-
-    try {
-      const account = JSON.parse(auth);
-
-      if (!account?.username) {
-        localStorage.removeItem("storeGamingAuth");
+      if (error || !session?.user) {
         router.replace("/");
         return;
       }
 
-      setUsername(account.username);
+      const email =
+        session.user.email || "usuario";
+
+      const name =
+        email.split("@")[0] || "usuario";
+
+      setUsername(name);
       setLoading(false);
-    } catch {
-      localStorage.removeItem("storeGamingAuth");
-      router.replace("/");
     }
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session?.user) {
+          router.replace("/");
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
-  function logout() {
-    localStorage.removeItem("storeGamingAuth");
+  async function logout() {
     setMenuOpen(false);
+
+    await supabase.auth.signOut();
+
     router.replace("/");
   }
 
@@ -88,9 +105,15 @@ export default function HomePage() {
   if (loading) {
     return (
       <main className="store-loading">
-        <div className="loading-logo">STORE GAMING</div>
+        <div className="loading-logo">
+          STORE GAMING
+        </div>
+
         <div className="loading-line" />
-        <p>CARGANDO STORE GAMING...</p>
+
+        <p>
+          CARGANDO STORE GAMING...
+        </p>
       </main>
     );
   }
@@ -114,8 +137,10 @@ export default function HomePage() {
           <aside className="side-menu">
 
             <div className="side-menu-header">
+
               <div className="side-menu-brand">
                 <span className="side-brand-line" />
+
                 <div>
                   <small>STORE</small>
                   <strong>GAMING</strong>
@@ -130,9 +155,11 @@ export default function HomePage() {
               >
                 ×
               </button>
+
             </div>
 
             <div className="side-menu-user">
+
               <div className="side-user-icon">
                 @
               </div>
@@ -141,6 +168,7 @@ export default function HomePage() {
                 <small>CUENTA</small>
                 <strong>@{username}</strong>
               </div>
+
             </div>
 
             <nav className="side-menu-nav">
@@ -184,14 +212,18 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  alert("Estrellas de Telegram próximamente.");
+                  alert(
+                    "Estrellas de Telegram próximamente."
+                  );
                 }}
               >
                 <span className="menu-icon">
                   ☆
                 </span>
 
-                <span>Estrellas de Telegram</span>
+                <span>
+                  Estrellas de Telegram
+                </span>
               </button>
 
               <button
@@ -199,14 +231,18 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  alert("Tarjetas de regalo próximamente.");
+                  alert(
+                    "Tarjetas de regalo próximamente."
+                  );
                 }}
               >
                 <span className="menu-icon gift-icon">
                   ▱
                 </span>
 
-                <span>Tarjetas de regalo</span>
+                <span>
+                  Tarjetas de regalo
+                </span>
               </button>
 
               <button
@@ -214,6 +250,7 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
+
                   document
                     .querySelector(".games-section")
                     ?.scrollIntoView({
@@ -225,7 +262,9 @@ export default function HomePage() {
                   ◇
                 </span>
 
-                <span>Recargas TOP UP</span>
+                <span>
+                  Recargas TOP UP
+                </span>
               </button>
 
               {/* FINANZAS */}
@@ -241,7 +280,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  alert("Billetera próximamente.");
+                  alert(
+                    "Billetera próximamente."
+                  );
                 }}
               >
                 <span className="menu-icon">
@@ -256,7 +297,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  alert("Estadísticas próximamente.");
+                  alert(
+                    "Estadísticas próximamente."
+                  );
                 }}
               >
                 <span className="menu-icon">
@@ -271,7 +314,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  alert("Perfil próximamente.");
+                  alert(
+                    "Perfil próximamente."
+                  );
                 }}
               >
                 <span className="menu-icon">
@@ -288,7 +333,9 @@ export default function HomePage() {
                 className="side-menu-item support-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  alert("Soporte próximamente.");
+                  alert(
+                    "Soporte próximamente."
+                  );
                 }}
               >
                 <span className="support-headset-icon">
@@ -303,14 +350,19 @@ export default function HomePage() {
             </nav>
 
             <div className="side-menu-bottom">
+
               <button
                 type="button"
                 className="side-menu-logout"
                 onClick={logout}
               >
                 <span>⇥</span>
-                <strong>Cerrar sesión</strong>
+
+                <strong>
+                  Cerrar sesión
+                </strong>
               </button>
+
             </div>
 
           </aside>
@@ -346,6 +398,7 @@ export default function HomePage() {
         </button>
 
         <div className="store-header-actions">
+
           <button
             type="button"
             className="user-button"
@@ -354,6 +407,7 @@ export default function HomePage() {
           >
             ◉
           </button>
+
         </div>
 
       </header>
@@ -363,6 +417,7 @@ export default function HomePage() {
       ========================== */}
 
       <section className="store-hero">
+
         <div className="hero-glow" />
 
         <div className="hero-content">
@@ -378,8 +433,10 @@ export default function HomePage() {
           </h1>
 
           <p className="hero-text">
-            Hola <strong>@{username}</strong>. Compra tus
-            recargas de forma rápida y sencilla.
+            Hola{" "}
+            <strong>@{username}</strong>.
+            Compra tus recargas de forma
+            rápida y sencilla.
           </p>
 
           <div className="hero-stats">
@@ -400,7 +457,9 @@ export default function HomePage() {
             </div>
 
           </div>
+
         </div>
+
       </section>
 
       {/* =========================
@@ -431,7 +490,9 @@ export default function HomePage() {
               key={game.name}
               type="button"
               className="game-card"
-              onClick={() => router.push(game.route)}
+              onClick={() =>
+                router.push(game.route)
+              }
             >
 
               <div className="game-image-container">
@@ -463,8 +524,11 @@ export default function HomePage() {
                 </p>
 
                 <div className="game-bottom">
+
                   <span>TOP UP</span>
+
                   <strong>→</strong>
+
                 </div>
 
               </div>
@@ -473,6 +537,7 @@ export default function HomePage() {
           ))}
 
         </div>
+
       </section>
 
       {/* =========================
@@ -482,36 +547,53 @@ export default function HomePage() {
       <section className="benefits-section">
 
         <div className="benefit">
+
           <span>⚡</span>
 
           <div>
-            <strong>ENTREGA RÁPIDA</strong>
+            <strong>
+              ENTREGA RÁPIDA
+            </strong>
+
             <p>
-              Procesamos tus pedidos rápidamente.
+              Procesamos tus pedidos
+              rápidamente.
             </p>
           </div>
+
         </div>
 
         <div className="benefit">
+
           <span>🛡️</span>
 
           <div>
-            <strong>COMPRA SEGURA</strong>
+            <strong>
+              COMPRA SEGURA
+            </strong>
+
             <p>
               Tu pedido queda registrado.
             </p>
           </div>
+
         </div>
 
         <div className="benefit">
+
           <span>🎮</span>
 
           <div>
-            <strong>TOP UP GAMING</strong>
+            <strong>
+              TOP UP GAMING
+            </strong>
+
             <p>
-              Recargas para tus juegos favoritos.
+              Recargas para tus juegos
+              favoritos.
             </p>
           </div>
+
         </div>
 
       </section>
@@ -521,19 +603,22 @@ export default function HomePage() {
       ========================== */}
 
       <footer className="store-footer">
+
         <div className="footer-brand">
           STORE GAMING
         </div>
 
         <p>
-          TU MEJOR OPCIÓN PARA RECARGAS GAMING
+          TU MEJOR OPCIÓN PARA
+          RECARGAS GAMING
         </p>
 
         <small>
           © 2026 STORE GAMING
         </small>
+
       </footer>
 
     </main>
   );
-}
+                    }
