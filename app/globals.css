@@ -1,6 +1,6 @@
 /* =========================================================
    STORE GAMING
-   GLOBAL CSS — PARTE 1/6
+   GLOBAL CSS
    ========================================================= */
 
 /* =========================================================
@@ -12,38 +12,20 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html {
-  margin: 0;
-  padding: 0;
-  background: #050505;
-  color-scheme: dark;
-  scroll-behavior: smooth;
-}
-
+html,
 body {
   margin: 0;
   padding: 0;
-
-  min-height: 100vh;
-
-  background:
-    radial-gradient(
-      circle at 50% 0%,
-      rgba(255, 23, 68, 0.08),
-      transparent 32%
-    ),
-    #050505;
-
+  min-height: 100%;
+  background: #050505;
   color: #ffffff;
-
   font-family:
     Arial,
     Helvetica,
     sans-serif;
+}
 
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-
+body {
   overflow-x: hidden;
 }
 
@@ -59,44 +41,49 @@ button {
   appearance: none;
 }
 
-img {
-  max-width: 100%;
-}
-
 a {
   color: inherit;
   text-decoration: none;
 }
 
+img {
+  max-width: 100%;
+}
+
 /* =========================================================
-   GLOBAL GAMING TYPOGRAPHY
+   GENERAL GAMING TYPOGRAPHY
    ========================================================= */
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-button,
-strong,
-.logo,
-.brand,
 .store-title,
-.hero-title {
+.store-brand,
+.footer-brand,
+.game-header-title strong,
+.orders-header-title strong,
+.orders-hero-content h1,
+.offers-heading h2,
+.section-title h2,
+.order-success-section h2 {
   font-family:
-    Arial Black,
     Impact,
     Haettenschweiler,
+    "Arial Narrow Bold",
+    Arial,
+    sans-serif;
+  letter-spacing: 0.5px;
+}
+
+button,
+.game-card,
+.offer-card,
+.orders-stat,
+.orders-shop-button,
+.view-orders-button,
+.finish-order-button,
+.confirm-final-button {
+  font-family:
     Arial,
     Helvetica,
     sans-serif;
-
-  letter-spacing: -0.3px;
-}
-
-strong {
-  font-weight: 900;
 }
 
 /* =========================================================
@@ -105,248 +92,165 @@ strong {
 
 .welcome-page {
   position: relative;
-
   min-height: 100vh;
-
+  min-height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 20px;
-
+  overflow: hidden;
   background:
     linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.18),
-      rgba(0, 0, 0, 0.72)
+      135deg,
+      rgba(0, 0, 0, 0.72),
+      rgba(0, 0, 0, 0.48)
     ),
-    url("/images/battle-royale-bg.jpg")
-      center center / cover
-      no-repeat;
-
-  overflow: hidden;
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
 }
 
 .welcome-page::before {
   content: "";
-
   position: absolute;
   inset: 0;
-
   background:
     radial-gradient(
-      circle at center,
-      rgba(255, 23, 68, 0.13),
-      transparent 45%
-    );
-
-  pointer-events: none;
-}
-
-.welcome-page::after {
-  content: "";
-
-  position: absolute;
-  inset: 0;
-
-  background:
+      circle at 50% 30%,
+      rgba(255, 23, 68, 0.14),
+      transparent 38%
+    ),
     linear-gradient(
-      135deg,
-      rgba(0, 0, 0, 0.75),
-      transparent 35%,
-      transparent 65%,
-      rgba(0, 0, 0, 0.8)
+      to bottom,
+      rgba(0, 0, 0, 0.08),
+      rgba(0, 0, 0, 0.78)
     );
-
   pointer-events: none;
 }
 
 .welcome-overlay {
-  position: absolute;
-  inset: 0;
-
-  background:
-    linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.78),
-      rgba(0, 0, 0, 0.28),
-      rgba(0, 0, 0, 0.76)
-    );
-
-  pointer-events: none;
-}
-
-.welcome-card {
   position: relative;
-  z-index: 5;
-
-  width: min(430px, 100%);
-
-  padding: 30px 24px;
-
-  border: 1px solid rgba(255, 23, 68, 0.45);
-
-  border-radius: 18px;
-
+  z-index: 2;
+  width: min(460px, 100%);
+  padding: 32px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 22px;
   background:
     linear-gradient(
       145deg,
-      rgba(8, 8, 8, 0.96),
-      rgba(17, 17, 17, 0.91)
+      rgba(8, 8, 8, 0.9),
+      rgba(17, 17, 17, 0.78)
     );
-
   box-shadow:
-    0 25px 70px rgba(0, 0, 0, 0.7),
-    0 0 45px rgba(255, 23, 68, 0.12);
-
-  backdrop-filter: blur(14px);
-
+    0 30px 80px rgba(0, 0, 0, 0.62),
+    0 0 45px rgba(255, 23, 68, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   text-align: center;
 }
 
-.welcome-card::before {
-  content: "";
+/* =========================================================
+   MAIN STORE BRAND
+   STORE / CART / GAMING
+   ========================================================= */
 
-  position: absolute;
-  top: 0;
-  left: 15%;
+.store-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 0.78;
+  text-align: center;
+  user-select: none;
+}
 
-  width: 70%;
-  height: 2px;
+.store-brand .store-word,
+.store-brand .gaming-word {
+  display: block;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    "Arial Narrow Bold",
+    Arial,
+    sans-serif;
+  font-size: clamp(30px, 7vw, 46px);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 2px;
+  text-shadow:
+    3px 3px 0 #260008,
+    0 0 18px rgba(255, 23, 68, 0.18);
+}
 
+.store-brand .store-word {
+  color: #ffffff;
+}
+
+.store-brand .gaming-word {
+  color: #ff1744;
+  text-shadow:
+    3px 3px 0 #30000a,
+    0 0 20px rgba(255, 23, 68, 0.3);
+}
+
+/* CART CENTRAL */
+
+.store-brand .brand-cart,
+.store-brand .cart-logo,
+.store-brand .brand-icon {
+  width: 42px;
+  height: 42px;
+  margin: 8px 0 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 23, 68, 0.65);
+  border-radius: 12px;
   background:
     linear-gradient(
-      90deg,
-      transparent,
-      #ff1744,
-      #ffffff,
-      #ff1744,
-      transparent
+      145deg,
+      #191919,
+      #090909
     );
-
-  box-shadow:
-    0 0 15px rgba(255, 23, 68, 0.8);
-}
-
-.welcome-logo {
-  margin-bottom: 15px;
-
-  color: #ffffff;
-
-  font-size: clamp(25px, 8vw, 42px);
-
-  font-weight: 1000;
-
-  font-style: italic;
-
-  line-height: 0.9;
-
-  text-shadow:
-    3px 3px 0 #270009,
-    0 0 15px rgba(255, 23, 68, 0.35);
-}
-
-.welcome-logo span {
-  display: block;
-
   color: #ff1744;
-
-  font-size: 0.7em;
-
-  letter-spacing: 3px;
-
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 23px;
+  font-style: normal;
+  line-height: 1;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 7px 20px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(255, 23, 68, 0.14);
   text-shadow:
-    2px 2px 0 #250008,
-    0 0 14px rgba(255, 23, 68, 0.4);
+    0 0 10px rgba(255, 23, 68, 0.55);
+  transform: skewX(-4deg);
 }
 
-.welcome-title {
-  margin: 0;
-
-  color: #ffffff;
-
-  font-size: clamp(25px, 8vw, 40px);
-
-  font-weight: 1000;
-
-  font-style: italic;
-
-  text-transform: uppercase;
-
-  line-height: 0.95;
-
-  text-shadow:
-    2px 3px 0 #000000,
-    0 0 18px rgba(255, 255, 255, 0.1);
-}
-
-.welcome-title strong {
-  display: block;
-
+.store-brand .brand-cart::first-letter,
+.store-brand .cart-logo::first-letter,
+.store-brand .brand-icon::first-letter {
   color: #ff1744;
-
-  text-shadow:
-    3px 3px 0 #310009,
-    0 0 18px rgba(255, 23, 68, 0.5);
 }
 
-.welcome-text {
-  margin: 14px 0 22px;
+/* =========================================================
+   WELCOME BRAND
+   ========================================================= */
 
-  color: #bcbcbc;
-
-  font-size: 10px;
-
-  line-height: 1.55;
-
-  font-weight: 700;
+.welcome-brand {
+  margin-bottom: 25px;
 }
 
-.welcome-button {
-  width: 100%;
+.welcome-brand .store-word,
+.welcome-brand .gaming-word {
+  font-size: clamp(32px, 9vw, 52px);
+}
 
-  min-height: 52px;
-
-  border: 1px solid rgba(255, 23, 68, 0.7);
-
-  border-radius: 10px;
-
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #d50032
-    );
-
-  color: #ffffff;
-
-  font-size: 12px;
-
-  font-weight: 1000;
-
-  letter-spacing: 1px;
-
+.welcome-subtitle {
+  margin: 18px 0 0;
+  color: #bdbdbd;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 2.5px;
   text-transform: uppercase;
-
-  box-shadow:
-    0 10px 30px rgba(255, 23, 68, 0.28);
-
-  cursor: pointer;
-
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.welcome-button:hover {
-  transform: translateY(-2px);
-
-  box-shadow:
-    0 15px 35px rgba(255, 23, 68, 0.38);
-}
-
-.welcome-button:active {
-  transform: scale(0.97);
 }
 
 /* =========================================================
@@ -355,405 +259,345 @@ strong {
 
 .auth-page {
   position: relative;
-
   min-height: 100vh;
-
+  min-height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 20px;
-
+  overflow: hidden;
   background:
     linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.18),
-      rgba(0, 0, 0, 0.78)
+      135deg,
+      rgba(0, 0, 0, 0.72),
+      rgba(0, 0, 0, 0.5)
     ),
-    url("/images/battle-royale-bg.jpg")
-      center center / cover
-      no-repeat;
-
-  overflow-x: hidden;
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
 }
 
-.auth-page::before {
+.auth-page::before,
+.auth-background::before {
   content: "";
-
   position: absolute;
   inset: 0;
-
   background:
     radial-gradient(
-      circle at center,
-      rgba(255, 23, 68, 0.15),
-      transparent 48%
+      circle at 50% 25%,
+      rgba(255, 23, 68, 0.16),
+      transparent 38%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.12),
+      rgba(0, 0, 0, 0.82)
     );
-
   pointer-events: none;
 }
 
 .auth-background {
   position: absolute;
   inset: 0;
-
   background:
     linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.82),
-      rgba(0, 0, 0, 0.32),
-      rgba(0, 0, 0, 0.82)
-    );
-
-  pointer-events: none;
+      135deg,
+      rgba(0, 0, 0, 0.4),
+      rgba(0, 0, 0, 0.72)
+    ),
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
 }
 
 .auth-card {
   position: relative;
-  z-index: 5;
-
-  width: min(440px, 100%);
-
-  padding: 25px 21px;
-
-  border: 1px solid rgba(255, 23, 68, 0.42);
-
-  border-radius: 17px;
-
+  z-index: 3;
+  width: min(430px, 100%);
+  padding: 26px 20px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 20px;
   background:
     linear-gradient(
       145deg,
-      rgba(7, 7, 7, 0.97),
-      rgba(20, 20, 20, 0.93)
+      rgba(10, 10, 10, 0.94),
+      rgba(20, 20, 20, 0.82)
     );
-
   box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.8),
-    0 0 45px rgba(255, 23, 68, 0.1);
-
-  backdrop-filter: blur(16px);
+    0 28px 70px rgba(0, 0, 0, 0.68),
+    0 0 35px rgba(255, 23, 68, 0.07);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-.auth-card::before {
-  content: "";
-
-  position: absolute;
-  top: 0;
-  left: 12%;
-
-  width: 76%;
-  height: 2px;
-
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      #ff1744,
-      #ffffff,
-      #ff1744,
-      transparent
-    );
-
-  box-shadow:
-    0 0 13px rgba(255, 23, 68, 0.75);
-}
-
-.auth-brand {
-  margin: 3px 0 22px;
-
-  text-align: center;
-
-  font-weight: 1000;
-
+.auth-title {
+  margin: 0;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    "Arial Narrow Bold",
+    Arial,
+    sans-serif;
+  font-size: 28px;
   font-style: italic;
-
-  line-height: 0.78;
-
+  letter-spacing: 1px;
+  text-align: center;
   text-transform: uppercase;
-
-  text-shadow:
-    2px 3px 0 #000000,
-    0 0 20px rgba(255, 23, 68, 0.2);
 }
 
-.auth-brand .store {
-  display: block;
-
-  color: #ffffff;
-
-  font-size: 25px;
-
-  letter-spacing: 2px;
-}
-
-.auth-brand .cart {
-  display: block;
-
-  margin: 5px 0;
-
+.auth-title strong {
   color: #ff1744;
-
-  font-size: 22px;
-
-  line-height: 1;
 }
 
-.auth-brand .gaming {
-  display: block;
-
-  color: #ffffff;
-
-  font-size: 25px;
-
-  letter-spacing: 2px;
+.auth-description {
+  margin: 9px 0 22px;
+  color: #777777;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.5;
+  letter-spacing: 1px;
+  text-align: center;
 }
+
+/* AUTH TABS */
 
 .auth-tabs {
   display: grid;
-
   grid-template-columns: 1fr 1fr;
-
-  gap: 6px;
-
-  padding: 5px;
-
+  gap: 8px;
   margin-bottom: 20px;
-
-  border: 1px solid rgba(255, 255, 255, 0.07);
-
-  border-radius: 10px;
-
-  background: #090909;
 }
 
 .auth-tab {
   min-height: 45px;
-
-  border: 1px solid transparent;
-
-  border-radius: 7px;
-
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  background: #090909;
   color: #777777;
-
-  background: transparent;
-
-  font-size: 10px;
-
+  font-size: 8px;
   font-weight: 1000;
-
+  letter-spacing: 1px;
   text-transform: uppercase;
-
   cursor: pointer;
-
   transition:
-    color 0.2s ease,
-    background 0.2s ease,
-    border-color 0.2s ease;
+    transform 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.auth-tab:hover {
+  border-color: rgba(255, 23, 68, 0.4);
+}
+
+.auth-tab:active {
+  transform: scale(0.97);
 }
 
 .auth-tab.active,
-.auth-tab:first-child {
-  color: #ffffff;
-
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255, 23, 68, 0.95),
-      rgba(190, 0, 42, 0.95)
-    );
-
-  border-color: rgba(255, 23, 68, 0.7);
-
-  box-shadow:
-    0 5px 18px rgba(255, 23, 68, 0.2);
-}
-
-.auth-tab:last-child {
-  color: #dddddd;
-
-  background: #111111;
-}
-
-.auth-label {
-  display: block;
-
-  margin: 13px 0 7px;
-
-  color: #ffffff;
-
-  font-size: 8px;
-
-  font-weight: 1000;
-
-  letter-spacing: 1.4px;
-
-  text-transform: uppercase;
-}
-
-.auth-input {
-  width: 100%;
-
-  height: 49px;
-
-  padding: 0 14px;
-
-  border: 1px solid rgba(255, 255, 255, 0.1);
-
-  border-radius: 9px;
-
-  outline: none;
-
-  background:
-    linear-gradient(
-      135deg,
-      #111111,
-      #0b0b0b
-    );
-
-  color: #ffffff;
-
-  font-size: 13px;
-
-  font-weight: 700;
-
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.4);
-
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.auth-input:focus {
+.auth-tab:first-child.active {
   border-color: #ff1744;
-
-  box-shadow:
-    0 0 0 2px rgba(255, 23, 68, 0.1),
-    0 0 15px rgba(255, 23, 68, 0.08);
-}
-
-.auth-input::placeholder {
-  color: #505050;
-}
-
-.auth-error,
-.auth-message {
-  margin-top: 10px;
-
-  padding: 10px 12px;
-
-  border-radius: 8px;
-
-  font-size: 9px;
-
-  font-weight: 700;
-
-  line-height: 1.45;
-}
-
-.auth-error {
-  border: 1px solid rgba(255, 23, 68, 0.3);
-
-  background:
-    rgba(255, 23, 68, 0.08);
-
-  color: #ff7188;
-}
-
-.auth-message {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-
-  background: #101010;
-
-  color: #bdbdbd;
-}
-
-.auth-button,
-.login-button,
-.register-button {
-  width: 100%;
-
-  min-height: 51px;
-
-  margin-top: 16px;
-
-  border-radius: 9px;
-
-  font-size: 10px;
-
-  font-weight: 1000;
-
-  letter-spacing: 1px;
-
-  text-transform: uppercase;
-
-  cursor: pointer;
-
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.login-button {
-  border: 1px solid #ff1744;
-
   background:
     linear-gradient(
       135deg,
       #ff1744,
-      #c90030
+      #c9002d
     );
-
   color: #ffffff;
-
   box-shadow:
-    0 10px 25px rgba(255, 23, 68, 0.23);
+    0 9px 22px rgba(255, 23, 68, 0.2);
 }
 
-.register-button {
-  border: 1px solid rgba(255, 255, 255, 0.15);
+.auth-tab:not(.active) {
+  background: #050505;
+  color: #eeeeee;
+}
 
+/* AUTH FORM */
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-field {
+  position: relative;
+}
+
+.auth-field label {
+  display: block;
+  margin: 0 0 7px 3px;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.auth-field input {
+  width: 100%;
+  min-height: 49px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  outline: none;
+  background:
+    linear-gradient(
+      145deg,
+      #151515,
+      #0b0b0b
+    );
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.auth-field input:focus {
+  border-color: #ff1744;
+  box-shadow:
+    0 0 0 2px rgba(255, 23, 68, 0.12),
+    0 0 18px rgba(255, 23, 68, 0.08);
+}
+
+.auth-field input::placeholder {
+  color: #4f4f4f;
+}
+
+/* =========================================================
+   AUTH MAIN BUTTONS
+   ========================================================= */
+
+.auth-submit,
+.login-button,
+.register-button,
+.auth-enter-button {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 7px;
+  border: 1px solid #ff1744;
+  border-radius: 10px;
   background:
     linear-gradient(
       135deg,
-      #161616,
-      #080808
+      #ff1744,
+      #c9002d
     );
-
   color: #ffffff;
-
-  box-shadow:
-    0 10px 25px rgba(0, 0, 0, 0.35);
-}
-
-.auth-button:hover,
-.login-button:hover,
-.register-button:hover {
-  transform: translateY(-2px);
-}
-
-.auth-button:active,
-.login-button:active,
-.register-button:active {
-  transform: scale(0.97);
-}
-
-.auth-footer {
-  margin-top: 18px;
-
-  text-align: center;
-
-  color: #666666;
-
-  font-size: 8px;
-
-  line-height: 1.5;
-}
-
-.auth-footer a {
-  color: #ff1744;
-
+  font-size: 10px;
   font-weight: 1000;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow:
+    0 12px 28px rgba(255, 23, 68, 0.22);
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease;
+}
+
+.auth-submit:hover,
+.login-button:hover,
+.register-button:hover,
+.auth-enter-button:hover {
+  filter: brightness(1.08);
+}
+
+.auth-submit:active,
+.login-button:active,
+.register-button:active,
+.auth-enter-button:active {
+  transform: scale(0.975);
+}
+
+/* ENTRAR ROJO */
+
+.auth-enter-button {
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #b90029
+    );
+  color: #ffffff;
+}
+
+/* ATRAS NEGRO */
+
+.auth-back-button,
+.auth-register-back,
+.auth-secondary-button {
+  width: 100%;
+  min-height: 49px;
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      135deg,
+      #151515,
+      #050505
+    );
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 18px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.auth-back-button:hover,
+.auth-register-back:hover,
+.auth-secondary-button:hover {
+  border-color: rgba(255, 23, 68, 0.45);
+}
+
+.auth-back-button:active,
+.auth-register-back:active,
+.auth-secondary-button:active {
+  transform: scale(0.975);
+}
+
+/* =========================================================
+   AUTH MESSAGE / ERRORS
+   ========================================================= */
+
+.auth-error,
+.auth-message,
+.auth-success {
+  margin: 10px 0 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.auth-error {
+  border: 1px solid rgba(255, 23, 68, 0.35);
+  background: rgba(255, 23, 68, 0.08);
+  color: #ff6b84;
+}
+
+.auth-message {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  color: #aaaaaa;
+}
+
+.auth-success {
+  border: 1px solid rgba(0, 220, 110, 0.25);
+  background: rgba(0, 220, 110, 0.07);
+  color: #69e6a1;
 }
 
 /* =========================================================
@@ -762,80 +606,72 @@ strong {
 
 .loading-page {
   min-height: 100vh;
-
   display: flex;
-  flex-direction: column;
-
   align-items: center;
   justify-content: center;
+  background: #050505;
+}
 
-  gap: 15px;
-
-  background:
-    radial-gradient(
-      circle,
-      rgba(255, 23, 68, 0.12),
-      transparent 45%
-    ),
-    #050505;
+.loading-card {
+  width: min(330px, calc(100% - 35px));
+  padding: 30px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 17px;
+  background: #0d0d0d;
+  text-align: center;
 }
 
 .loading-logo {
+  margin-bottom: 20px;
   color: #ffffff;
-
-  font-size: 28px;
-
-  font-weight: 1000;
-
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 30px;
   font-style: italic;
-
-  text-shadow:
-    3px 3px 0 #250008,
-    0 0 18px rgba(255, 23, 68, 0.25);
 }
 
 .loading-logo strong {
   color: #ff1744;
 }
 
-.loading-spinner {
-  width: 42px;
-  height: 42px;
-
-  border: 3px solid rgba(255, 255, 255, 0.08);
-
-  border-top-color: #ff1744;
-
-  border-radius: 50%;
-
-  animation:
-    loading-spin 0.8s linear infinite;
+.loading-line {
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #191919;
 }
 
-@keyframes loading-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.loading-line::after {
+  content: "";
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: #ff1744;
+  animation: loadingMove 1.2s infinite ease-in-out;
 }
 
 .loading-page p {
-  margin: 0;
-
+  margin: 14px 0 0;
   color: #666666;
-
   font-size: 8px;
-
-  font-weight: 900;
-
-  letter-spacing: 2px;
-
-  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 1px;
 }
 
-/* =========================================================
-   STORE GAMING
-   GLOBAL CSS — PARTE 2/6
-   ========================================================= */
+@keyframes loadingMove {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(250%);
+  }
+}
 
 /* =========================================================
    STORE HEADER
@@ -843,197 +679,113 @@ strong {
 
 .store-header {
   position: sticky;
-
   top: 0;
-
-  z-index: 500;
-
-  height: 70px;
-
+  z-index: 200;
+  height: 74px;
   display: grid;
-
-  grid-template-columns: 55px 1fr 55px;
-
+  grid-template-columns: 56px 1fr 56px;
   align-items: center;
-
   padding: 0 10px;
-
-  border-bottom: 1px solid rgba(255, 23, 68, 0.18);
-
   background:
     linear-gradient(
       180deg,
-      rgba(8, 8, 8, 0.98),
-      rgba(8, 8, 8, 0.93)
+      rgba(5, 5, 5, 0.98),
+      rgba(8, 8, 8, 0.94)
     );
-
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.55);
-
-  backdrop-filter: blur(16px);
+    0 10px 35px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
-/* evita cualquier fondo blanco del header */
+/* HAMBURGER */
 
-.store-header,
-.store-header * {
-  color-scheme: dark;
-}
-
-.store-menu-button {
+.menu-button,
+.hamburger-button,
+.store-menu-button,
+.menu-toggle {
+  position: relative;
   width: 43px;
   height: 43px;
-
   display: flex;
-
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-
+  gap: 5px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-
-  border-radius: 10px;
-
+  border-radius: 11px;
   background:
     linear-gradient(
       145deg,
-      #161616,
-      #080808
+      #151515,
+      #070707
     );
-
   color: #ffffff;
-
-  font-size: 23px;
-
   cursor: pointer;
-
   box-shadow:
-    0 7px 20px rgba(0, 0, 0, 0.4);
-
-  transition:
-    border-color 0.2s ease,
-    transform 0.2s ease;
+    0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
-.store-menu-button:hover {
-  border-color: #ff1744;
-
-  transform: translateY(-1px);
-}
-
+.menu-button span,
+.hamburger-button span,
 .store-menu-button span,
-.store-menu-button b {
-  color: #ffffff;
+.menu-toggle span {
+  width: 19px;
+  height: 2px;
+  display: block;
+  border-radius: 5px;
+  background: #ffffff;
+  transition:
+    width 0.2s ease,
+    background 0.2s ease;
+}
+
+.menu-button span:nth-child(2),
+.hamburger-button span:nth-child(2),
+.store-menu-button span:nth-child(2),
+.menu-toggle span:nth-child(2) {
+  width: 14px;
+  background: #ff1744;
+}
+
+.menu-button:hover span,
+.hamburger-button:hover span,
+.store-menu-button:hover span,
+.menu-toggle:hover span {
+  background: #ff1744;
+}
+
+.menu-button:active,
+.hamburger-button:active,
+.store-menu-button:active,
+.menu-toggle:active {
+  transform: scale(0.95);
 }
 
 /* =========================================================
-   CENTRO — STORE / 🛒 / GAMING
+   HEADER BRAND
    ========================================================= */
 
-.store-header-brand {
-  display: flex;
-
-  flex-direction: column;
-
-  align-items: center;
-  justify-content: center;
-
-  min-width: 0;
-
-  line-height: 0.78;
-
-  text-align: center;
-
-  background: transparent !important;
-
-  border: 0 !important;
-
-  box-shadow: none !important;
+.store-header .store-brand {
+  justify-self: center;
+  transform: translateY(1px);
 }
 
-.store-header-brand .store {
-  display: block;
-
-  color: #ffffff;
-
-  font-family:
-    Arial Black,
-    Impact,
-    Arial,
-    sans-serif;
-
-  font-size: 20px;
-
-  font-weight: 1000;
-
-  font-style: italic;
-
-  letter-spacing: 2px;
-
-  text-shadow:
-    2px 2px 0 #000000,
-    0 0 12px rgba(255, 255, 255, 0.1);
+.store-header .store-brand .store-word,
+.store-header .store-brand .gaming-word {
+  font-size: 22px;
+  letter-spacing: 1.4px;
 }
 
-.store-header-brand .cart {
-  display: block;
-
-  margin: 4px 0;
-
-  color: #ff1744;
-
-  font-size: 19px;
-
-  line-height: 1;
-
-  filter:
-    drop-shadow(
-      0 0 5px
-      rgba(255, 23, 68, 0.45)
-    );
-}
-
-.store-header-brand .gaming {
-  display: block;
-
-  color: #ffffff;
-
-  font-family:
-    Arial Black,
-    Impact,
-    Arial,
-    sans-serif;
-
-  font-size: 20px;
-
-  font-weight: 1000;
-
-  font-style: italic;
-
-  letter-spacing: 2px;
-
-  text-shadow:
-    2px 2px 0 #000000,
-    0 0 12px rgba(255, 255, 255, 0.1);
-}
-
-.store-header-brand .gaming::first-letter {
-  color: #ff1744;
-}
-
-.store-logo,
-.store-brand,
-.store-title {
-  background: transparent !important;
-
-  color: #ffffff;
-
-  font-weight: 1000;
-
-  font-style: italic;
-
-  text-shadow:
-    2px 2px 0 #000000,
-    0 0 14px rgba(255, 23, 68, 0.16);
+.store-header .store-brand .brand-cart,
+.store-header .store-brand .cart-logo,
+.store-header .store-brand .brand-icon {
+  width: 28px;
+  height: 28px;
+  margin: 4px 0 5px;
+  border-radius: 8px;
+  font-size: 15px;
 }
 
 /* =========================================================
@@ -1042,47 +794,20 @@ strong {
 
 .store-header-right {
   display: flex;
-
+  align-items: center;
   justify-content: flex-end;
-
-  align-items: center;
+  gap: 7px;
 }
 
-.store-header-button {
-  width: 43px;
-  height: 43px;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
-  border: 1px solid rgba(255, 255, 255, 0.09);
-
-  border-radius: 10px;
-
-  background:
-    linear-gradient(
-      145deg,
-      #151515,
-      #080808
-    );
-
-  color: #ffffff;
-
-  cursor: pointer;
-}
-
-/* =========================================================
-   ELIMINAR PUNTO/BOTÓN ROJO DE CERRAR SESIÓN
-   ========================================================= */
+/* Hide corner logout/red dot if present */
 
 .logout-dot,
-.logout-button,
-.session-close-button,
-.close-session-button,
-.store-logout-button,
-.logout-control {
+.logout-corner,
+.logout-corner-button,
+.top-logout,
+.header-logout,
+.logout-indicator,
+.store-logout-dot {
   display: none !important;
 }
 
@@ -1090,223 +815,111 @@ strong {
    SIDE MENU
    ========================================================= */
 
-.side-menu-overlay {
+.side-menu,
+.store-side-menu,
+.menu-panel {
   position: fixed;
-
-  inset: 0;
-
-  z-index: 900;
-
-  background:
-    rgba(0, 0, 0, 0.7);
-
-  backdrop-filter: blur(4px);
-}
-
-.side-menu {
-  position: fixed;
-
   top: 0;
   left: 0;
-  bottom: 0;
-
-  z-index: 901;
-
-  width: min(330px, 88vw);
-
+  z-index: 500;
+  width: min(320px, 86vw);
+  height: 100vh;
+  height: 100svh;
+  padding: 25px 17px;
   overflow-y: auto;
-
-  padding: 20px 16px 30px;
-
-  border-right: 1px solid rgba(255, 23, 68, 0.35);
-
   background:
     linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.62),
-      rgba(4, 4, 4, 0.96)
+      145deg,
+      rgba(0, 0, 0, 0.84),
+      rgba(8, 8, 8, 0.94)
     ),
-    url("/images/battle-royale-bg.jpg")
-      center / cover
-      no-repeat;
-
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+  border-right: 1px solid rgba(255, 23, 68, 0.22);
   box-shadow:
-    20px 0 60px rgba(0, 0, 0, 0.7);
+    20px 0 50px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
 }
 
-.side-menu::before {
+.side-menu::before,
+.store-side-menu::before,
+.menu-panel::before {
   content: "";
-
   position: absolute;
-
   inset: 0;
-
   background:
     linear-gradient(
-      180deg,
-      rgba(255, 23, 68, 0.08),
-      transparent 35%,
-      rgba(0, 0, 0, 0.4)
+      to bottom,
+      rgba(0, 0, 0, 0.15),
+      rgba(0, 0, 0, 0.88)
     );
-
   pointer-events: none;
 }
 
-.side-menu > * {
+.side-menu > *,
+.store-side-menu > *,
+.menu-panel > * {
   position: relative;
-
   z-index: 2;
 }
 
-.side-menu-header {
-  display: flex;
-
-  align-items: center;
-
-  justify-content: space-between;
-
-  padding-bottom: 18px;
-
-  margin-bottom: 14px;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.side-menu-brand {
-  line-height: 0.82;
-
+.side-menu-title,
+.store-side-menu-title,
+.menu-panel-title {
+  margin: 0 0 22px;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 25px;
   font-style: italic;
-
-  font-weight: 1000;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
-.side-menu-brand .store {
-  display: block;
-
-  color: #ffffff;
-
-  font-size: 22px;
-
-  letter-spacing: 2px;
-}
-
-.side-menu-brand .cart {
-  display: block;
-
+.side-menu-title strong,
+.store-side-menu-title strong,
+.menu-panel-title strong {
   color: #ff1744;
-
-  font-size: 17px;
-
-  margin: 4px 0;
 }
 
-.side-menu-brand .gaming {
-  display: block;
-
-  color: #ffffff;
-
-  font-size: 22px;
-
-  letter-spacing: 2px;
-}
-
-.side-menu-close {
-  width: 40px;
-  height: 40px;
-
-  border: 1px solid rgba(255, 255, 255, 0.12);
-
-  border-radius: 9px;
-
-  background: rgba(10, 10, 10, 0.8);
-
-  color: #ffffff;
-
-  font-size: 21px;
-
-  cursor: pointer;
-}
-
-.side-menu-nav {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 8px;
-}
-
-.side-menu-item,
-.menu-item {
+.side-menu button,
+.store-side-menu button,
+.menu-panel button {
   width: 100%;
-
-  min-height: 52px;
-
+  min-height: 48px;
+  margin-bottom: 8px;
   display: flex;
-
   align-items: center;
-
-  gap: 12px;
-
-  padding: 0 14px;
-
+  gap: 11px;
+  padding: 0 13px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-
   border-radius: 10px;
-
   background:
     linear-gradient(
       135deg,
-      rgba(14, 14, 14, 0.94),
-      rgba(8, 8, 8, 0.9)
+      rgba(17, 17, 17, 0.94),
+      rgba(6, 6, 6, 0.94)
     );
-
-  color: #eeeeee;
-
-  font-size: 10px;
-
-  font-weight: 1000;
-
-  letter-spacing: 0.4px;
-
-  text-transform: uppercase;
-
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.8px;
   text-align: left;
-
   cursor: pointer;
-
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.25);
-
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease,
-    background 0.18s ease;
 }
 
-.side-menu-item:hover,
-.menu-item:hover {
-  transform: translateX(3px);
-
-  border-color: rgba(255, 23, 68, 0.5);
-
+.side-menu button:hover,
+.store-side-menu button:hover,
+.menu-panel button:hover {
+  border-color: rgba(255, 23, 68, 0.4);
   background:
     linear-gradient(
-      90deg,
-      rgba(255, 23, 68, 0.16),
+      135deg,
+      rgba(255, 23, 68, 0.12),
       rgba(10, 10, 10, 0.95)
-    );
-}
-
-.side-menu-item span:first-child,
-.menu-item span:first-child {
-  color: #ff1744;
-
-  font-size: 19px;
-
-  filter:
-    drop-shadow(
-      0 0 5px
-      rgba(255, 23, 68, 0.3)
     );
 }
 
@@ -1314,143 +927,86 @@ strong {
    HOME HERO
    ========================================================= */
 
-.store-home,
-.home-page {
-  min-height: 100vh;
-
-  background: #050505;
-
-  color: #ffffff;
-}
-
 .store-hero {
   position: relative;
-
-  min-height: 350px;
-
+  min-height: 330px;
   display: flex;
-
   align-items: flex-end;
-
   overflow: hidden;
-
   background:
     linear-gradient(
       90deg,
-      rgba(0, 0, 0, 0.9),
-      rgba(0, 0, 0, 0.3),
+      rgba(0, 0, 0, 0.84),
+      rgba(0, 0, 0, 0.2),
       rgba(0, 0, 0, 0.72)
     ),
-    url("/images/battle-royale-bg.jpg")
-      center / cover
-      no-repeat;
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
 }
 
 .store-hero::after {
   content: "";
-
   position: absolute;
-
   inset: 0;
-
   background:
     linear-gradient(
-      0deg,
-      #050505 0%,
-      rgba(5, 5, 5, 0.2) 55%,
-      transparent 100%
+      to bottom,
+      transparent 40%,
+      rgba(0, 0, 0, 0.9)
     );
-
   pointer-events: none;
 }
 
 .store-hero-content {
   position: relative;
-
-  z-index: 3;
-
+  z-index: 2;
   width: 100%;
-
-  max-width: 1100px;
-
+  max-width: 1050px;
   margin: 0 auto;
-
-  padding: 55px 20px 35px;
+  padding: 50px 18px 38px;
 }
 
 .store-hero-label {
-  display: inline-flex;
-
-  align-items: center;
-
-  gap: 6px;
-
-  padding: 6px 10px;
-
-  border: 1px solid rgba(255, 23, 68, 0.45);
-
-  border-radius: 5px;
-
-  background:
-    rgba(0, 0, 0, 0.6);
-
   color: #ff1744;
-
-  font-size: 7px;
-
+  font-size: 8px;
   font-weight: 1000;
-
-  letter-spacing: 1.5px;
-
+  letter-spacing: 3px;
   text-transform: uppercase;
 }
 
-.store-hero h1,
-.store-hero-title {
-  margin: 12px 0 0;
-
-  max-width: 700px;
-
+.store-hero h1 {
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
   color: #ffffff;
-
-  font-size: clamp(38px, 9vw, 75px);
-
-  font-weight: 1000;
-
-  font-style: italic;
-
+  font-family:
+    Impact,
+    Haettenschweiler,
+    "Arial Narrow Bold",
+    Arial,
+    sans-serif;
+  font-size: clamp(40px, 10vw, 78px);
   line-height: 0.82;
-
-  text-transform: uppercase;
-
-  letter-spacing: -3px;
-
+  font-style: italic;
+  letter-spacing: -1px;
   text-shadow:
-    4px 4px 0 #000000,
-    0 0 25px rgba(255, 255, 255, 0.08);
+    4px 4px 0 #260008,
+    0 0 25px rgba(0, 0, 0, 0.6);
 }
 
-.store-hero h1 strong,
-.store-hero-title strong {
+.store-hero h1 strong {
   color: #ff1744;
-
   text-shadow:
-    4px 4px 0 #310009,
-    0 0 25px rgba(255, 23, 68, 0.45);
+    4px 4px 0 #32000b,
+    0 0 25px rgba(255, 23, 68, 0.2);
 }
 
 .store-hero p {
-  max-width: 520px;
-
+  max-width: 490px;
   margin: 15px 0 0;
-
-  color: #c4c4c4;
-
+  color: #d4d4d4;
   font-size: 10px;
-
-  line-height: 1.55;
-
   font-weight: 700;
+  line-height: 1.55;
 }
 
 /* =========================================================
@@ -1458,11 +1014,9 @@ strong {
    ========================================================= */
 
 .games-section {
-  max-width: 1100px;
-
+  max-width: 1050px;
   margin: 0 auto;
-
-  padding: 25px 16px 35px;
+  padding: 30px 16px 10px;
 }
 
 .games-heading {
@@ -1471,75 +1025,46 @@ strong {
 
 .games-heading span {
   color: #ff1744;
-
-  font-size: 7px;
-
+  font-size: 8px;
   font-weight: 1000;
-
   letter-spacing: 2px;
-
   text-transform: uppercase;
 }
 
 .games-heading h2 {
   margin: 5px 0 0;
-
   color: #ffffff;
-
-  font-size: 25px;
-
-  font-weight: 1000;
-
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 26px;
   font-style: italic;
-
-  line-height: 0.95;
-
-  text-transform: uppercase;
-
-  text-shadow:
-    2px 2px 0 #000000;
+  letter-spacing: 0.5px;
 }
 
 /* =========================================================
-   GAME GRID — SIEMPRE 2 × 2
+   GAME GRID 2 X 2
    ========================================================= */
 
-.games-grid,
 .game-grid {
   display: grid;
-
   grid-template-columns: repeat(2, minmax(0, 1fr));
-
   gap: 12px;
-
-  width: 100%;
 }
 
 .game-card {
   position: relative;
-
   min-width: 0;
-
   overflow: hidden;
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 12px;
-
-  background:
-    linear-gradient(
-      145deg,
-      #111111,
-      #080808
-    );
-
+  background: #0d0d0d;
   color: #ffffff;
-
   cursor: pointer;
-
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.35);
-
+    0 10px 25px rgba(0, 0, 0, 0.28);
   transition:
     transform 0.2s ease,
     border-color 0.2s ease,
@@ -1547,45 +1072,36 @@ strong {
 }
 
 .game-card:hover {
-  transform: translateY(-3px);
-
-  border-color: rgba(255, 23, 68, 0.5);
-
+  border-color: rgba(255, 23, 68, 0.45);
   box-shadow:
-    0 15px 35px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(255, 23, 68, 0.08);
+    0 15px 35px rgba(0, 0, 0, 0.4),
+    0 0 18px rgba(255, 23, 68, 0.06);
 }
 
 .game-card:active {
   transform: scale(0.975);
 }
 
+/* =========================================================
+   GAME CARDS
+   ========================================================= */
+
 .game-image-container {
   position: relative;
-
   width: 100%;
-
   aspect-ratio: 1 / 1;
-
   overflow: hidden;
-
   background: #151515;
 }
 
 .game-image {
   width: 100%;
   height: 100%;
-
   display: block;
-
   object-fit: contain;
-
   object-position: center;
-
   background: #111111;
-
-  transition:
-    transform 0.35s ease;
+  transition: transform 0.35s ease;
 }
 
 .game-card:hover .game-image {
@@ -1594,9 +1110,7 @@ strong {
 
 .game-image-dark {
   position: absolute;
-
   inset: 0;
-
   background:
     linear-gradient(
       to bottom,
@@ -1604,135 +1118,81 @@ strong {
       rgba(0, 0, 0, 0.12) 55%,
       rgba(0, 0, 0, 0.82) 100%
     );
-
   pointer-events: none;
 }
 
 .game-tag {
   position: absolute;
-
   top: 8px;
   left: 8px;
-
   padding: 5px 7px;
-
   border-radius: 5px;
-
-  background:
-    rgba(0, 0, 0, 0.78);
-
-  border: 1px solid rgba(255, 23, 68, 0.45);
-
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 23, 68, 0.5);
   color: #ffffff;
-
   font-size: 6px;
-
-  font-weight: 1000;
-
-  letter-spacing: 0.7px;
+  font-weight: 950;
+  letter-spacing: 0.6px;
 }
 
 .game-open {
   position: absolute;
-
   right: 8px;
   bottom: 8px;
-
   padding: 6px 8px;
-
-  border-radius: 5px;
-
+  border-radius: 6px;
   background:
     linear-gradient(
       135deg,
       #ff1744,
-      #d50032
+      #bd002d
     );
-
   color: #ffffff;
-
   font-size: 6px;
-
   font-weight: 1000;
-
-  letter-spacing: 0.6px;
-
+  letter-spacing: 0.5px;
   box-shadow:
-    0 5px 15px rgba(255, 23, 68, 0.25);
+    0 5px 12px rgba(255, 23, 68, 0.2);
 }
 
 .game-info {
-  padding: 11px;
+  padding: 10px;
 }
 
 .game-info h3 {
   margin: 0;
-
   color: #ffffff;
-
-  font-size: 12px;
-
+  font-size: 11px;
   line-height: 1.1;
-
   font-weight: 1000;
-
-  text-transform: uppercase;
-
-  text-shadow:
-    1px 1px 0 #000000;
 }
 
 .game-info p {
   margin: 5px 0 9px;
-
   color: #777777;
-
   font-size: 7px;
-
-  line-height: 1.4;
-
-  font-weight: 700;
+  line-height: 1.35;
 }
 
 .game-bottom {
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
-
   padding-top: 8px;
-
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .game-bottom span {
   color: #777777;
-
   font-size: 6px;
-
-  font-weight: 1000;
-
+  font-weight: 950;
   letter-spacing: 1px;
-
-  text-transform: uppercase;
 }
 
 .game-bottom strong {
   color: #ff1744;
-
-  font-size: 15px;
-
-  font-weight: 1000;
-
-  text-shadow:
-    0 0 8px rgba(255, 23, 68, 0.25);
-   }
-
-/* =========================================================
-   STORE GAMING
-   GLOBAL CSS — PARTE 3/6
-   ========================================================= */
+  font-size: 14px;
+}
 
 /* =========================================================
    BENEFITS
@@ -1740,76 +1200,44 @@ strong {
 
 .benefits-section {
   max-width: 1050px;
-
   margin: 0 auto;
-
   display: grid;
-
   grid-template-columns: repeat(3, 1fr);
-
   gap: 10px;
-
   padding: 20px 16px 30px;
 }
 
 .benefit {
   display: flex;
-
   align-items: flex-start;
-
   gap: 10px;
-
-  padding: 15px;
-
-  border: 1px solid rgba(255, 255, 255, 0.07);
-
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
-
   background:
     linear-gradient(
       145deg,
       #111111,
-      #0a0a0a
+      #090909
     );
-
-  box-shadow:
-    0 10px 25px rgba(0, 0, 0, 0.3);
 }
 
 .benefit > span {
-  color: #ff1744;
-
   font-size: 20px;
-
-  filter:
-    drop-shadow(
-      0 0 6px
-      rgba(255, 23, 68, 0.3)
-    );
 }
 
 .benefit strong {
   display: block;
-
   color: #ffffff;
-
   font-size: 8px;
-
-  font-weight: 1000;
-
-  text-transform: uppercase;
+  font-weight: 950;
 }
 
 .benefit p {
   margin: 4px 0 0;
-
   color: #666666;
-
   font-size: 7px;
-
   line-height: 1.4;
-
-  font-weight: 700;
 }
 
 /* =========================================================
@@ -1818,59 +1246,31 @@ strong {
 
 .store-footer {
   display: flex;
-
   flex-direction: column;
-
   align-items: center;
-
   gap: 7px;
-
-  padding: 30px 16px;
-
+  padding: 28px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-
-  background:
-    linear-gradient(
-      180deg,
-      #080808,
-      #030303
-    );
-
   text-align: center;
 }
 
 .footer-brand {
   color: #ffffff;
-
-  font-size: 17px;
-
+  font-size: 15px;
   font-weight: 1000;
-
   font-style: italic;
-
-  text-shadow:
-    2px 2px 0 #000000;
-}
-
-.footer-brand::first-letter {
-  color: #ff1744;
 }
 
 .store-footer p {
   margin: 0;
-
-  color: #555555;
-
+  color: #666666;
   font-size: 7px;
-
   font-weight: 900;
-
   letter-spacing: 1.5px;
 }
 
 .store-footer small {
-  color: #333333;
-
+  color: #3d3d3d;
   font-size: 7px;
 }
 
@@ -1880,153 +1280,109 @@ strong {
 
 .game-service-page {
   min-height: 100vh;
-
   background: #080808;
-
   color: #ffffff;
-
   overflow-x: hidden;
 }
 
 .game-service-header {
   position: sticky;
-
   top: 0;
-
   z-index: 100;
-
   height: 66px;
-
   display: grid;
-
   grid-template-columns: 50px 1fr 50px;
-
   align-items: center;
-
   padding: 0 12px;
-
   background:
     rgba(8, 8, 8, 0.96);
-
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-
   backdrop-filter: blur(15px);
 }
 
 .game-back-button {
   width: 40px;
   height: 40px;
-
   border: 1px solid rgba(255, 255, 255, 0.1);
-
   border-radius: 10px;
-
   background:
     linear-gradient(
       145deg,
-      #151515,
-      #090909
+      #171717,
+      #050505
     );
-
   color: #ffffff;
-
   font-size: 24px;
-
   cursor: pointer;
+}
+
+.game-back-button:hover {
+  border-color: #ff1744;
+  color: #ff1744;
 }
 
 .game-header-title {
   min-width: 0;
-
   display: flex;
-
   flex-direction: column;
-
   align-items: center;
-
   line-height: 1;
 }
 
 .game-header-title span {
   color: #777777;
-
   font-size: 7px;
-
   font-weight: 900;
-
   letter-spacing: 2px;
 }
 
 .game-header-title strong {
   margin-top: 5px;
-
   color: #ffffff;
-
   font-size: 13px;
-
   font-weight: 1000;
-
   letter-spacing: 0.8px;
 }
 
 .game-cart-button {
   width: 40px;
   height: 40px;
-
   border: 1px solid rgba(255, 255, 255, 0.1);
-
   border-radius: 10px;
-
-  background: #111111;
-
-  color: #ffffff;
-
+  background:
+    linear-gradient(
+      145deg,
+      #181818,
+      #050505
+    );
+  color: #ffcc33;
   cursor: pointer;
 }
 
 /* =========================================================
-   OCULTAR CARRITO ANTIGUO
-   ========================================================= */
-
-.store-header .cart-button,
-.game-service-header .game-cart-button {
-  display: none !important;
-}
-
-/* =========================================================
-   FREE FIRE / GAME MAIN IMAGE
+   FREE FIRE MAIN IMAGE
    ========================================================= */
 
 .free-fire-main-image {
   position: relative;
-
   width: 100%;
-
   aspect-ratio: 16 / 8;
-
   min-height: 220px;
-
   overflow: hidden;
-
   background: #111111;
 }
 
 .free-fire-main-image img {
   width: 100%;
   height: 100%;
-
   display: block;
-
   object-fit: cover;
-
   object-position: center;
 }
 
 .free-fire-main-overlay {
   position: absolute;
-
   inset: 0;
-
   background:
     linear-gradient(
       90deg,
@@ -2043,64 +1399,38 @@ strong {
 
 .free-fire-main-text {
   position: absolute;
-
   left: 20px;
   bottom: 24px;
-
   z-index: 2;
 }
 
 .free-fire-main-text > span {
   color: #ff1744;
-
   font-size: 8px;
-
   font-weight: 950;
-
   letter-spacing: 1.5px;
 }
 
 .free-fire-main-text h1 {
   margin: 8px 0 0;
-
   display: flex;
-
   flex-direction: column;
-
-  color: #ffffff;
-
   font-size: clamp(32px, 9vw, 65px);
-
   line-height: 0.82;
-
   font-weight: 1000;
-
   font-style: italic;
-
   letter-spacing: -2px;
-
-  text-transform: uppercase;
-
-  text-shadow:
-    3px 3px 0 #000000;
 }
 
 .free-fire-main-text h1 strong {
   color: #ff1744;
-
-  text-shadow:
-    3px 3px 0 #30000a,
-    0 0 15px rgba(255, 23, 68, 0.3);
+  text-shadow: 3px 3px 0 #30000a;
 }
 
 .free-fire-main-text p {
   margin: 11px 0 0;
-
   color: #d0d0d0;
-
   font-size: 10px;
-
-  font-weight: 700;
 }
 
 /* =========================================================
@@ -2109,66 +1439,41 @@ strong {
 
 .offers-toggle {
   width: 100%;
-
   min-height: 54px;
-
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
-
   padding: 0 18px;
-
   border: 0;
-
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-
   background:
     linear-gradient(
       90deg,
-      #121212,
-      #0c0c0c
+      #111111,
+      #090909
     );
-
   color: #ffffff;
-
   cursor: pointer;
 }
 
 .offers-toggle-text {
   display: flex;
-
   align-items: center;
-
   gap: 9px;
-
   color: #ffffff;
-
   font-size: 9px;
-
-  font-weight: 1000;
-
+  font-weight: 950;
   letter-spacing: 0.6px;
 }
 
 .offers-toggle-pencil {
   color: #ff1744;
-
   font-size: 19px;
-
-  filter:
-    drop-shadow(
-      0 0 5px
-      rgba(255, 23, 68, 0.35)
-    );
 }
 
 .offers-section {
   max-width: 950px;
-
   margin: 0 auto;
-
   padding: 24px 14px;
 }
 
@@ -2178,184 +1483,120 @@ strong {
 
 .offers-heading span {
   color: #ff1744;
-
   font-size: 8px;
-
-  font-weight: 1000;
-
+  font-weight: 950;
   letter-spacing: 1.5px;
-
-  text-transform: uppercase;
 }
 
 .offers-heading h2 {
   margin: 5px 0 0;
-
   color: #ffffff;
-
   font-size: 22px;
-
   font-weight: 1000;
-
   font-style: italic;
-
-  text-transform: uppercase;
-
-  text-shadow:
-    2px 2px 0 #000000;
 }
 
 .offers-list {
   display: flex;
-
   flex-direction: column;
-
   gap: 8px;
 }
 
 .offer-card {
   width: 100%;
-
   min-height: 66px;
-
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
-
   gap: 12px;
-
   padding: 10px 13px;
-
   border: 1px solid rgba(255, 255, 255, 0.07);
-
   border-radius: 10px;
-
   background:
     linear-gradient(
       145deg,
       #151515,
-      #0c0c0c
+      #090909
     );
-
   color: #ffffff;
-
   text-align: left;
-
   cursor: pointer;
-
   transition:
     border-color 0.2s ease,
     background 0.2s ease,
-    transform 0.2s ease;
+    transform 0.18s ease;
 }
 
 .offer-card:hover,
 .offer-card.selected {
-  transform: translateY(-1px);
-
-  border-color: rgba(255, 23, 68, 0.55);
-
+  border-color: rgba(255, 23, 68, 0.5);
   background:
     linear-gradient(
       90deg,
-      rgba(255, 23, 68, 0.12),
+      rgba(255, 23, 68, 0.1),
       #111111
     );
+}
 
-  box-shadow:
-    0 8px 25px rgba(0, 0, 0, 0.35);
+.offer-card:active {
+  transform: scale(0.985);
 }
 
 .offer-left {
   min-width: 0;
-
   display: flex;
-
   align-items: center;
-
   gap: 10px;
 }
 
 .diamond-icon {
   width: 38px;
   height: 38px;
-
   flex: 0 0 38px;
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   border-radius: 9px;
-
-  background:
-    linear-gradient(
-      145deg,
-      #1b1b1b,
-      #0d0d0d
-    );
-
+  background: #191919;
   font-size: 19px;
-
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .offer-info {
   min-width: 0;
-
   display: flex;
-
   flex-direction: column;
 }
 
 .offer-info strong {
   color: #ffffff;
-
   font-size: 12px;
-
-  font-weight: 1000;
+  font-weight: 950;
 }
 
 .offer-info span {
   margin-top: 3px;
-
   color: #666666;
-
   font-size: 7px;
-
   font-weight: 800;
 }
 
 .offer-right {
   flex: 0 0 auto;
-
   display: flex;
-
   flex-direction: column;
-
   align-items: flex-end;
 }
 
 .offer-right strong {
   color: #ffffff;
-
   font-size: 16px;
-
   font-weight: 1000;
 }
 
 .offer-right span {
   margin-top: 3px;
-
   color: #ff1744;
-
   font-size: 6px;
-
   font-weight: 950;
 }
 
@@ -2367,125 +1608,88 @@ strong {
 .confirmation-section,
 .order-success-section {
   max-width: 950px;
-
   margin: 0 auto;
-
   padding: 30px 14px;
 }
 
 .section-title {
   display: flex;
-
   align-items: center;
-
   gap: 12px;
-
   margin-bottom: 16px;
 }
 
 .section-title > span {
   color: #ff1744;
-
   font-size: 18px;
-
   font-weight: 1000;
-
   font-style: italic;
 }
 
 .section-title small {
   color: #666666;
-
   font-size: 7px;
-
   font-weight: 900;
-
   letter-spacing: 1.5px;
 }
 
 .section-title h2 {
   margin: 3px 0 0;
-
   color: #ffffff;
-
   font-size: 21px;
-
   font-weight: 1000;
-
   font-style: italic;
 }
 
 .selected-order-card {
   display: flex;
-
   align-items: center;
-
   gap: 11px;
-
   padding: 13px;
-
   border: 1px solid rgba(255, 255, 255, 0.07);
-
   border-radius: 11px;
-
   background:
     linear-gradient(
       145deg,
       #151515,
-      #0c0c0c
+      #090909
     );
 }
 
 .selected-order-icon {
   width: 42px;
   height: 42px;
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   border-radius: 10px;
-
   background: #1a1a1a;
-
   font-size: 20px;
 }
 
 .selected-order-info {
   min-width: 0;
-
   flex: 1;
-
   display: flex;
-
   flex-direction: column;
 }
 
 .selected-order-info span {
   color: #666666;
-
   font-size: 7px;
-
   font-weight: 900;
 }
 
 .selected-order-info strong {
   margin-top: 4px;
-
   color: #ffffff;
-
   font-size: 12px;
-
   font-weight: 950;
 }
 
 .selected-order-price {
   color: #ff1744;
-
   font-size: 16px;
-
   font-weight: 1000;
 }
 
@@ -2495,68 +1699,49 @@ strong {
 
 .player-id-label {
   display: block;
-
   color: #ffffff;
-
   font-size: 9px;
-
   font-weight: 950;
-
   letter-spacing: 1px;
 }
 
 .player-id-description {
   margin: 6px 0 10px;
-
   color: #666666;
-
   font-size: 9px;
-
   line-height: 1.5;
 }
 
 .player-id-input-wrapper {
   width: 100%;
-
   min-height: 50px;
-
   display: flex;
-
   align-items: center;
-
-  background: #101010;
-
+  background:
+    linear-gradient(
+      145deg,
+      #151515,
+      #090909
+    );
   border: 1px solid rgba(255, 255, 255, 0.09);
-
   border-radius: 9px;
 }
 
 .player-id-input-wrapper span {
   width: 43px;
-
   display: flex;
-
   justify-content: center;
-
   color: #ff1744;
 }
 
 .player-id-input-wrapper input {
   flex: 1;
-
   min-width: 0;
-
   border: 0;
-
   outline: 0;
-
   background: transparent;
-
   color: #ffffff;
-
   font-size: 13px;
-
-  font-weight: 700;
 }
 
 .player-id-input-wrapper input::placeholder {
@@ -2565,97 +1750,73 @@ strong {
 
 .order-error {
   margin-top: 9px;
-
   padding: 10px;
-
   border: 1px solid rgba(255, 23, 68, 0.25);
-
   border-radius: 7px;
-
   background: rgba(255, 23, 68, 0.07);
-
   color: #ff657d;
-
   font-size: 9px;
-}
+   }
+
+/* =========================================================
+   ORDER TOTAL
+   ========================================================= */
 
 .order-total-preview {
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
-
   margin-top: 15px;
-
   padding: 14px;
-
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .order-total-preview span {
   color: #777777;
-
   font-size: 8px;
-
   font-weight: 900;
-
   letter-spacing: 1px;
 }
 
 .order-total-preview strong {
   color: #ffffff;
-
   font-size: 22px;
-
   font-weight: 1000;
 }
+
+/* =========================================================
+   FINISH / CONFIRM BUTTONS
+   ========================================================= */
 
 .finish-order-button,
 .confirm-final-button {
   width: 100%;
-
   min-height: 52px;
-
   margin-top: 14px;
-
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
-
   padding: 0 17px;
-
-  border: 1px solid rgba(255, 23, 68, 0.7);
-
+  border: 1px solid #ff1744;
   border-radius: 9px;
-
   background:
     linear-gradient(
       135deg,
       #ff1744,
-      #d50032
+      #bd002d
     );
-
   color: #ffffff;
-
   font-size: 10px;
-
   font-weight: 950;
-
   letter-spacing: 0.8px;
-
   cursor: pointer;
-
   box-shadow:
-    0 10px 25px rgba(255, 23, 68, 0.22);
+    0 10px 25px rgba(255, 23, 68, 0.18);
 }
 
 .finish-order-button b {
-  font-size: 20px;
+  font-size: 19px;
 }
 
 /* =========================================================
@@ -2664,11 +1825,8 @@ strong {
 
 .confirmation-card {
   padding: 18px;
-
   border: 1px solid rgba(255, 255, 255, 0.08);
-
   border-radius: 13px;
-
   background:
     linear-gradient(
       145deg,
@@ -2679,101 +1837,68 @@ strong {
 
 .confirmation-card h3 {
   margin: 0 0 20px;
-
   color: #ffffff;
-
   font-size: 16px;
-
   line-height: 1.35;
 }
 
 .confirmation-row {
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
-
   gap: 15px;
-
   padding: 12px 0;
-
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .confirmation-row span {
   color: #666666;
-
   font-size: 7px;
-
   font-weight: 900;
-
   letter-spacing: 1px;
 }
 
 .confirmation-row strong {
   color: #ffffff;
-
   font-size: 10px;
-
   text-align: right;
-
   overflow-wrap: anywhere;
 }
 
 .confirmation-warning {
   margin: 17px 0 0;
-
   padding: 10px;
-
   border-left: 2px solid #ff1744;
-
   background: rgba(255, 23, 68, 0.05);
-
   color: #777777;
-
   font-size: 9px;
-
   line-height: 1.5;
-   }
-
-/* =========================================================
-   STORE GAMING
-   GLOBAL CSS — PARTE 4/6
-   ========================================================= */
+}
 
 /* =========================================================
    SUCCESS
    ========================================================= */
 
 .success-circle {
-  width: 74px;
-  height: 74px;
-
-  margin: 0 auto 18px;
-
+  width: 75px;
+  height: 75px;
+  margin: 0 auto 20px;
   display: flex;
-
   align-items: center;
   justify-content: center;
-
   border: 2px solid #ff1744;
-
   border-radius: 50%;
-
   background:
     radial-gradient(
       circle,
-      rgba(255, 23, 68, 0.18),
+      rgba(255, 23, 68, 0.2),
       rgba(255, 23, 68, 0.03)
     );
-
   color: #ff1744;
-
-  font-size: 32px;
-
+  font-size: 30px;
+  font-weight: 1000;
   box-shadow:
-    0 0 30px rgba(255, 23, 68, 0.2);
+    0 0 30px rgba(255, 23, 68, 0.14);
 }
 
 .order-success-section {
@@ -2781,106 +1906,75 @@ strong {
 }
 
 .order-success-section h2 {
+  margin: 0;
   color: #ffffff;
-
-  font-size: 26px;
-
-  font-weight: 1000;
-
+  font-size: 27px;
   font-style: italic;
-
-  text-transform: uppercase;
-
-  text-shadow:
-    2px 2px 0 #000000;
-}
-
-.order-success-section h2 strong {
-  color: #ff1744;
 }
 
 .order-success-section > p {
-  color: #888888;
-
+  margin: 10px auto 20px;
+  max-width: 470px;
+  color: #777777;
   font-size: 9px;
-
   line-height: 1.5;
 }
 
 .success-order-number {
-  max-width: 330px;
-
-  margin: 20px auto;
-
+  width: min(400px, 100%);
+  margin: 0 auto;
   padding: 15px;
-
-  border: 1px solid rgba(255, 23, 68, 0.22);
-
+  border: 1px solid rgba(255, 23, 68, 0.18);
   border-radius: 10px;
-
   background:
     linear-gradient(
       145deg,
       #141414,
-      #090909
+      #080808
     );
 }
 
 .success-order-number span {
   display: block;
-
   color: #666666;
-
   font-size: 7px;
-
   font-weight: 900;
-
-  letter-spacing: 1.5px;
+  letter-spacing: 1.4px;
 }
 
 .success-order-number strong {
   display: block;
-
-  margin-top: 5px;
-
+  margin-top: 6px;
   color: #ff1744;
-
-  font-size: 17px;
-
-  font-weight: 1000;
+  font-size: 18px;
+  letter-spacing: 1px;
 }
 
 .view-orders-button {
-  width: 100%;
-
-  max-width: 330px;
-
-  min-height: 50px;
-
-  border: 1px solid rgba(255, 23, 68, 0.6);
-
-  border-radius: 9px;
-
+  width: min(400px, 100%);
+  min-height: 51px;
+  margin: 14px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border: 1px solid #ff1744;
+  border-radius: 10px;
   background:
     linear-gradient(
       135deg,
-      #151515,
-      #090909
+      #ff1744,
+      #b90029
     );
-
   color: #ffffff;
-
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 1px;
   cursor: pointer;
 }
 
 .view-orders-button span {
   color: #ffffff;
-
-  font-size: 9px;
-
-  font-weight: 1000;
-
-  letter-spacing: 1px;
 }
 
 /* =========================================================
@@ -2889,91 +1983,72 @@ strong {
 
 .service-info {
   max-width: 950px;
-
   margin: 0 auto;
-
-  padding: 15px 14px 30px;
-
+  padding: 0 14px 30px;
   display: grid;
-
   grid-template-columns: repeat(3, 1fr);
-
   gap: 10px;
 }
 
 .service-info-item {
   padding: 14px;
-
-  border: 1px solid rgba(255, 255, 255, 0.06);
-
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 10px;
-
   background:
     linear-gradient(
       145deg,
-      #111111,
-      #090909
+      #121212,
+      #080808
     );
 }
 
 .service-info-item > span {
+  display: block;
+  margin-bottom: 7px;
   color: #ff1744;
-
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .service-info-item strong {
   display: block;
-
-  margin-top: 8px;
-
   color: #ffffff;
-
-  font-size: 8px;
-
+  font-size: 9px;
   font-weight: 1000;
-
-  text-transform: uppercase;
 }
 
 .service-info-item p {
   margin: 5px 0 0;
-
   color: #666666;
-
   font-size: 7px;
-
   line-height: 1.45;
 }
 
 .game-service-footer {
-  padding: 25px 15px;
-
+  padding: 25px 15px 35px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-
   text-align: center;
-
-  background: #050505;
 }
 
 .game-service-footer strong {
   display: block;
-
   color: #ffffff;
-
-  font-size: 13px;
-
-  font-weight: 1000;
+  font-size: 12px;
 }
 
 .game-service-footer span {
   display: block;
-
-  margin-top: 6px;
-
-  color: #444444;
-
+  margin-top: 5px;
+  color: #555555;
   font-size: 7px;
+}
+
+/* =========================================================
+   HIDE OLD GAME CART
+   ========================================================= */
+
+.store-header .cart-button,
+.game-service-header .game-cart-button {
+  display: none !important;
 }
 
 /* =========================================================
@@ -2982,467 +2057,470 @@ strong {
 
 .balance-page {
   position: relative;
-
   min-height: 100vh;
-
+  min-height: 100svh;
   overflow-x: hidden;
-
   background:
     linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.22),
+      145deg,
+      rgba(0, 0, 0, 0.8),
       rgba(0, 0, 0, 0.9)
     ),
-    url("/images/battle-royale-bg.jpg")
-      center center / cover
-      fixed
-      no-repeat;
-
+    url("/images/battle-royale-bg.jpg") center / cover fixed no-repeat;
   color: #ffffff;
-}
-
-.balance-page::before {
-  content: "";
-
-  position: fixed;
-
-  inset: 0;
-
-  z-index: 0;
-
-  background:
-    radial-gradient(
-      circle at 50% 20%,
-      rgba(255, 23, 68, 0.14),
-      transparent 38%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.2),
-      rgba(0, 0, 0, 0.75)
-    );
-
-  pointer-events: none;
 }
 
 .balance-background {
   position: fixed;
-
   inset: 0;
-
   z-index: 0;
-
   background:
     linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.65),
-      rgba(0, 0, 0, 0.2),
-      rgba(0, 0, 0, 0.72)
-    );
-
+      145deg,
+      rgba(0, 0, 0, 0.72),
+      rgba(0, 0, 0, 0.9)
+    ),
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
   pointer-events: none;
 }
 
-.balance-page > * {
-  position: relative;
-
-  z-index: 2;
+.balance-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(
+      circle at 50% 15%,
+      rgba(255, 23, 68, 0.14),
+      transparent 35%
+    );
+  pointer-events: none;
 }
-
-/* =========================================================
-   BALANCE HEADER
-   ========================================================= */
 
 .balance-header {
   position: sticky;
-
   top: 0;
-
-  z-index: 100;
-
-  height: 68px;
-
-  display: grid;
-
-  grid-template-columns: 52px 1fr 52px;
-
+  z-index: 20;
+  min-height: 68px;
+  display: flex;
   align-items: center;
-
-  padding: 0 10px;
-
-  border-bottom: 1px solid rgba(255, 23, 68, 0.22);
-
+  justify-content: space-between;
+  padding: 0 14px;
   background:
-    rgba(5, 5, 5, 0.9);
-
-  backdrop-filter: blur(15px);
-
-  box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.45);
+    rgba(5, 5, 5, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
 }
 
-.balance-menu-button {
-  width: 42px;
-  height: 42px;
+.balance-header h1 {
+  margin: 0;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 22px;
+  font-style: italic;
+  letter-spacing: 1px;
+}
 
+.balance-header h1 strong {
+  color: #ff1744;
+}
+
+.balance-back-button,
+.balance-header button {
+  min-width: 43px;
+  min-height: 43px;
   display: flex;
-
   align-items: center;
   justify-content: center;
-
-  border: 1px solid rgba(255, 255, 255, 0.1);
-
-  border-radius: 10px;
-
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 11px;
   background:
     linear-gradient(
       145deg,
-      #161616,
-      #080808
+      #191919,
+      #050505
     );
-
   color: #ffffff;
-
-  font-size: 22px;
-
-  cursor: pointer;
-}
-
-.balance-header-title {
-  text-align: center;
-
-  line-height: 0.82;
-
+  font-size: 20px;
   font-weight: 1000;
-
-  font-style: italic;
+  cursor: pointer;
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.4);
 }
 
-.balance-header-title .store {
-  display: block;
-
-  color: #ffffff;
-
-  font-size: 18px;
-
-  letter-spacing: 2px;
-}
-
-.balance-header-title .cart {
-  display: block;
-
-  margin: 3px 0;
-
+.balance-back-button:hover,
+.balance-header button:hover {
+  border-color: #ff1744;
   color: #ff1744;
-
-  font-size: 16px;
-}
-
-.balance-header-title .gaming {
-  display: block;
-
-  color: #ffffff;
-
-  font-size: 18px;
-
-  letter-spacing: 2px;
 }
 
 .balance-main {
-  width: 100%;
-
-  max-width: 850px;
-
+  position: relative;
+  z-index: 2;
+  max-width: 760px;
   margin: 0 auto;
-
-  padding: 24px 15px 45px;
+  padding: 25px 15px 45px;
 }
-
-/* =========================================================
-   MAIN BALANCE CARD
-   ========================================================= */
 
 .balance-main-card {
   position: relative;
-
   overflow: hidden;
-
-  padding: 25px 20px;
-
-  border: 1px solid rgba(255, 23, 68, 0.3);
-
-  border-radius: 17px;
-
+  padding: 27px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
   background:
     linear-gradient(
       145deg,
-      rgba(14, 14, 14, 0.94),
-      rgba(4, 4, 4, 0.92)
+      rgba(14, 14, 14, 0.92),
+      rgba(7, 7, 7, 0.84)
     );
-
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.55),
-    0 0 35px rgba(255, 23, 68, 0.08);
-
-  backdrop-filter: blur(14px);
+    0 25px 55px rgba(0, 0, 0, 0.48),
+    0 0 30px rgba(255, 23, 68, 0.05);
+  backdrop-filter: blur(18px);
 }
 
 .balance-main-card::before {
   content: "";
-
   position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  background: rgba(255, 23, 68, 0.08);
+  filter: blur(10px);
+}
 
-  top: 0;
-  left: 12%;
-
-  width: 76%;
-  height: 2px;
-
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      #ff1744,
-      #ffffff,
-      #ff1744,
-      transparent
-    );
-
-  box-shadow:
-    0 0 15px rgba(255, 23, 68, 0.7);
+.balance-main-card > * {
+  position: relative;
+  z-index: 2;
 }
 
 .balance-label {
   color: #777777;
-
   font-size: 8px;
-
-  font-weight: 1000;
-
+  font-weight: 950;
   letter-spacing: 2px;
-
   text-transform: uppercase;
-
-  text-align: center;
 }
 
-/* =========================================================
-   BALANCE — NÚMERO MEDIANO Y MUY VISIBLE
-   ========================================================= */
-
 .balance-amount {
-  margin: 10px 0 3px;
-
+  margin: 8px 0 0;
   color: #ffffff;
-
   font-family:
-    Arial Black,
     Impact,
+    Haettenschweiler,
     Arial,
     sans-serif;
-
-  font-size: clamp(34px, 9vw, 50px);
-
+  font-size: clamp(34px, 9vw, 54px);
   line-height: 1;
-
-  font-weight: 1000;
-
-  letter-spacing: -1px;
-
-  text-align: center;
-
+  font-style: italic;
+  letter-spacing: 1px;
   text-shadow:
-    2px 3px 0 #000000,
-    0 0 18px rgba(255, 255, 255, 0.08);
+    0 0 22px rgba(255, 255, 255, 0.06);
 }
 
 .balance-amount strong {
   color: #ff1744;
-
-  font-size: 0.55em;
-
-  vertical-align: middle;
-
-  text-shadow:
-    2px 2px 0 #30000a,
-    0 0 12px rgba(255, 23, 68, 0.35);
 }
 
-.balance-currency {
-  color: #888888;
-
+.balance-subtitle {
+  margin: 7px 0 20px;
+  color: #777777;
   font-size: 8px;
-
-  font-weight: 900;
-
-  letter-spacing: 1.5px;
-
-  text-align: center;
+  font-weight: 800;
 }
 
-/* =========================================================
-   INSERTAR BALANCE
-   ========================================================= */
+/* SOLO INSERTAR BALANCE DEBAJO DEL MONTO */
 
 .balance-insert-button,
 .insert-balance-button {
   width: 100%;
-
-  min-height: 51px;
-
-  margin-top: 20px;
-
-  border: 1px solid rgba(255, 23, 68, 0.65);
-
-  border-radius: 10px;
-
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #16d875;
+  border-radius: 11px;
   background:
     linear-gradient(
       135deg,
-      #ff1744,
-      #c90030
+      #16d875,
+      #07994d
     );
-
   color: #ffffff;
-
   font-size: 10px;
-
   font-weight: 1000;
-
-  letter-spacing: 1px;
-
+  letter-spacing: 1.2px;
   text-transform: uppercase;
-
   cursor: pointer;
-
   box-shadow:
-    0 10px 28px rgba(255, 23, 68, 0.22);
-
+    0 12px 28px rgba(22, 216, 117, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transition:
     transform 0.18s ease,
-    box-shadow 0.18s ease;
+    filter 0.18s ease;
 }
 
 .balance-insert-button:hover,
 .insert-balance-button:hover {
-  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
 
-  box-shadow:
-    0 15px 32px rgba(255, 23, 68, 0.3);
+.balance-insert-button:active,
+.insert-balance-button:active {
+  transform: scale(0.975);
+}
+
+.balance-insert-button span,
+.insert-balance-button span {
+  font-size: 17px;
 }
 
 /* =========================================================
-   OCULTAR HISTORIAL DENTRO DE BILLETERA
+   BALANCE CARDS
    ========================================================= */
 
-.balance-history,
-.balance-history-card,
-.balance-history-button,
-.balance-main-card .history-button,
-.balance-main-card .view-history,
-.balance-main-card .history-link {
-  display: none !important;
+.balance-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+  margin-top: 13px;
 }
 
-/* =========================================================
-   DEPOSIT CARD
-   ========================================================= */
-
-.balance-deposit-card,
-.balance-deposit-section {
-  margin-top: 14px;
-
-  padding: 17px;
-
-  border: 1px solid rgba(255, 255, 255, 0.07);
-
-  border-radius: 12px;
-
+.balance-card,
+.deposit-card,
+.history-card,
+.security-card {
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
   background:
     linear-gradient(
       145deg,
-      rgba(16, 16, 16, 0.96),
-      rgba(7, 7, 7, 0.94)
+      rgba(17, 17, 17, 0.92),
+      rgba(7, 7, 7, 0.9)
+    );
+  box-shadow:
+    0 12px 25px rgba(0, 0, 0, 0.28);
+}
+
+.balance-card > span,
+.deposit-card > span,
+.history-card > span,
+.security-card > span {
+  color: #ff1744;
+  font-size: 18px;
+}
+
+.balance-card strong,
+.deposit-card strong,
+.history-card strong,
+.security-card strong {
+  display: block;
+  margin-top: 7px;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 1000;
+}
+
+.balance-card p,
+.deposit-card p,
+.history-card p,
+.security-card p {
+  margin: 5px 0 0;
+  color: #666666;
+  font-size: 7px;
+  line-height: 1.45;
+}
+
+/* =========================================================
+   BALANCE / DEPOSIT
+   ========================================================= */
+
+.balance-deposit-section {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 23, 68, 0.045),
+      rgba(8, 8, 8, 0.93)
     );
 }
 
-.balance-deposit-card h3,
-.balance-deposit-section h3 {
+.balance-deposit-section h2 {
   margin: 0;
-
   color: #ffffff;
-
-  font-size: 14px;
-
-  font-weight: 1000;
-
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 20px;
   font-style: italic;
-
-  text-transform: uppercase;
 }
 
-.balance-deposit-card h3::first-letter,
-.balance-deposit-section h3::first-letter {
+.balance-deposit-section h2 strong {
   color: #ff1744;
 }
 
-.balance-deposit-card p,
 .balance-deposit-section p {
-  margin: 7px 0 0;
-
+  margin: 7px 0 15px;
   color: #6f6f6f;
-
   font-size: 8px;
-
   line-height: 1.5;
 }
 
-/* =========================================================
-   BALANCE SECURITY
-   ========================================================= */
-
-.balance-security-card,
-.balance-security-section {
-  margin-top: 12px;
-
-  padding: 15px;
-
-  border: 1px solid rgba(255, 255, 255, 0.06);
-
-  border-radius: 11px;
-
-  background:
-    rgba(8, 8, 8, 0.88);
-}
-
-.balance-security-card strong,
-.balance-security-section strong {
-  display: block;
-
+.balance-deposit-input {
+  width: 100%;
+  min-height: 49px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  outline: none;
+  background: #0b0b0b;
   color: #ffffff;
-
-  font-size: 8px;
-
-  font-weight: 1000;
-
-  text-transform: uppercase;
+  font-size: 14px;
 }
 
-.balance-security-card p,
-.balance-security-section p {
-  margin: 5px 0 0;
-
-  color: #5f5f5f;
-
-  font-size: 7px;
-
-  line-height: 1.45;
-   }
+.balance-deposit-input:focus {
+  border-color: #16d875;
+  box-shadow:
+    0 0 0 2px rgba(22, 216, 117, 0.1);
+}
 
 /* =========================================================
-   STORE GAMING
-   GLOBAL CSS — PARTE 5/6
+   DEPOSIT METHODS
    ========================================================= */
+
+.deposit-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.deposit-method {
+  min-height: 70px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      145deg,
+      #151515,
+      #080808
+    );
+  color: #ffffff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.deposit-method:hover,
+.deposit-method.selected {
+  border-color: #16d875;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(22, 216, 117, 0.1),
+      #090909
+    );
+}
+
+.deposit-method span {
+  color: #16d875;
+  font-size: 17px;
+}
+
+.deposit-method strong {
+  display: block;
+  margin-top: 5px;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 1000;
+}
+
+.deposit-method small {
+  display: block;
+  margin-top: 3px;
+  color: #666666;
+  font-size: 6px;
+}
+
+/* =========================================================
+   WALLET BUTTONS
+   ========================================================= */
+
+.wallet-button,
+.balance-action-button {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      145deg,
+      #181818,
+      #050505
+    );
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.wallet-button:hover,
+.balance-action-button:hover {
+  border-color: #ff1744;
+  color: #ff1744;
+}
+
+/* =========================================================
+   WALLET SECURITY
+   ========================================================= */
+
+.balance-security {
+  margin-top: 13px;
+  padding: 15px;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border: 1px solid rgba(22, 216, 117, 0.14);
+  border-radius: 11px;
+  background:
+    rgba(22, 216, 117, 0.035);
+}
+
+.balance-security > span {
+  color: #16d875;
+  font-size: 19px;
+}
+
+.balance-security strong {
+  display: block;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 1000;
+}
+
+.balance-security p {
+  margin: 4px 0 0;
+  color: #666666;
+  font-size: 7px;
+  line-height: 1.45;
+}
 
 /* =========================================================
    ORDERS PAGE
@@ -3450,107 +2528,79 @@ strong {
 
 .orders-page {
   min-height: 100vh;
-
-  background:
-    radial-gradient(
-      circle at 50% 0%,
-      rgba(255, 23, 68, 0.1),
-      transparent 32%
-    ),
-    #050505;
-
+  background: #070707;
   color: #ffffff;
-
   overflow-x: hidden;
 }
 
 .orders-header {
   position: sticky;
-
   top: 0;
-
   z-index: 100;
-
   height: 68px;
-
   display: grid;
-
   grid-template-columns: 50px 1fr 50px;
-
   align-items: center;
-
   padding: 0 12px;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-
   background:
-    rgba(7, 7, 7, 0.95);
-
-  backdrop-filter: blur(15px);
+    rgba(7, 7, 7, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(16px);
 }
 
 .orders-back-button {
   width: 40px;
   height: 40px;
-
   border: 1px solid rgba(255, 255, 255, 0.1);
-
-  border-radius: 9px;
-
+  border-radius: 10px;
   background:
     linear-gradient(
       145deg,
-      #161616,
-      #090909
+      #171717,
+      #050505
     );
-
   color: #ffffff;
-
   font-size: 22px;
-
   cursor: pointer;
 }
 
+.orders-back-button:hover {
+  border-color: #ff1744;
+  color: #ff1744;
+}
+
 .orders-header-title {
-  text-align: center;
-
-  line-height: 0.85;
-
-  font-style: italic;
-
-  font-weight: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
 }
 
 .orders-header-title span {
-  display: block;
-
-  color: #ff1744;
-
+  color: #777777;
   font-size: 7px;
-
+  font-weight: 900;
   letter-spacing: 2px;
 }
 
 .orders-header-title strong {
-  display: block;
-
-  margin-top: 4px;
-
+  margin-top: 5px;
   color: #ffffff;
-
-  font-size: 17px;
-
-  letter-spacing: 1px;
+  font-size: 14px;
+  font-weight: 1000;
 }
 
 .orders-header-icon {
+  width: 40px;
+  height: 40px;
   display: flex;
-
-  justify-content: flex-end;
-
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 23, 68, 0.25);
+  border-radius: 10px;
+  background: #111111;
   color: #ff1744;
-
-  font-size: 22px;
+  font-size: 18px;
 }
 
 /* =========================================================
@@ -3559,173 +2609,109 @@ strong {
 
 .orders-hero {
   position: relative;
-
+  min-height: 250px;
   overflow: hidden;
-
-  min-height: 235px;
-
   display: flex;
-
-  align-items: center;
-
-  padding: 30px 17px;
-
+  align-items: flex-end;
   background:
     linear-gradient(
       90deg,
-      rgba(0, 0, 0, 0.92),
-      rgba(0, 0, 0, 0.45),
-      rgba(0, 0, 0, 0.8)
+      rgba(0, 0, 0, 0.9),
+      rgba(0, 0, 0, 0.35),
+      rgba(0, 0, 0, 0.85)
     ),
-    url("/images/battle-royale-bg.jpg")
-      center / cover
-      no-repeat;
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
 }
 
 .orders-hero::after {
   content: "";
-
   position: absolute;
-
   inset: 0;
-
   background:
     linear-gradient(
-      0deg,
-      #050505,
-      transparent 50%
+      to bottom,
+      transparent,
+      rgba(0, 0, 0, 0.92)
     );
-
-  pointer-events: none;
 }
 
 .orders-hero-glow {
   position: absolute;
-
-  width: 260px;
-  height: 260px;
-
-  right: -80px;
-  top: -80px;
-
+  right: -90px;
+  top: -100px;
+  width: 250px;
+  height: 250px;
   border-radius: 50%;
-
-  background:
-    rgba(255, 23, 68, 0.18);
-
-  filter: blur(50px);
+  background: rgba(255, 23, 68, 0.14);
+  filter: blur(35px);
 }
 
 .orders-hero-content {
   position: relative;
-
-  z-index: 3;
-
+  z-index: 2;
   width: 100%;
-
   max-width: 1050px;
-
   margin: 0 auto;
+  padding: 35px 18px 27px;
 }
 
 .orders-hero-label {
   color: #ff1744;
-
-  font-size: 7px;
-
+  font-size: 8px;
   font-weight: 1000;
-
-  letter-spacing: 2px;
-
-  text-transform: uppercase;
+  letter-spacing: 2.5px;
 }
 
 .orders-hero-content h1 {
   margin: 8px 0 0;
-
   color: #ffffff;
-
-  font-size: clamp(35px, 9vw, 65px);
-
-  line-height: 0.82;
-
-  font-weight: 1000;
-
+  font-size: clamp(34px, 9vw, 65px);
+  line-height: 0.85;
   font-style: italic;
-
-  text-transform: uppercase;
-
-  text-shadow:
-    4px 4px 0 #000000;
 }
 
 .orders-hero-content h1 strong {
   color: #ff1744;
-
-  text-shadow:
-    4px 4px 0 #320009,
-    0 0 18px rgba(255, 23, 68, 0.35);
 }
 
 .orders-hero-content p {
-  max-width: 450px;
-
+  max-width: 480px;
   margin: 12px 0 0;
-
-  color: #999999;
-
-  font-size: 8px;
-
+  color: #b7b7b7;
+  font-size: 9px;
   line-height: 1.5;
 }
 
 .orders-total-box {
+  width: min(300px, 100%);
   margin-top: 18px;
-
-  width: fit-content;
-
-  min-width: 175px;
-
-  padding: 11px 15px;
-
-  border: 1px solid rgba(255, 23, 68, 0.35);
-
-  border-radius: 9px;
-
-  background:
-    rgba(0, 0, 0, 0.65);
+  padding: 13px;
+  border: 1px solid rgba(255, 23, 68, 0.25);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .orders-total-box span {
   display: block;
-
-  color: #666666;
-
-  font-size: 6px;
-
+  color: #777777;
+  font-size: 7px;
   font-weight: 900;
-
   letter-spacing: 1.5px;
 }
 
 .orders-total-box strong {
   display: block;
-
-  margin-top: 4px;
-
+  margin-top: 5px;
   color: #ffffff;
-
-  font-size: 21px;
-
+  font-size: 22px;
   font-weight: 1000;
 }
 
 .orders-total-box small {
+  display: block;
+  margin-top: 3px;
   color: #ff1744;
-
   font-size: 6px;
-
-  font-weight: 900;
 }
 
 /* =========================================================
@@ -3734,83 +2720,52 @@ strong {
 
 .orders-stats {
   max-width: 1050px;
-
-  margin: 0 auto;
-
-  padding: 15px;
-
+  margin: -18px auto 0;
+  position: relative;
+  z-index: 5;
+  padding: 0 16px;
   display: grid;
-
   grid-template-columns: repeat(3, 1fr);
-
-  gap: 8px;
+  gap: 9px;
 }
 
 .orders-stat {
   min-height: 82px;
-
-  display: flex;
-
-  flex-direction: column;
-
-  justify-content: center;
-
   padding: 12px;
-
-  border: 1px solid rgba(255, 255, 255, 0.07);
-
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-
   background:
     linear-gradient(
       145deg,
-      #121212,
-      #090909
+      #151515,
+      #080808
     );
+  cursor: pointer;
 }
 
 .orders-stat.active {
   border-color: rgba(255, 23, 68, 0.45);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 23, 68, 0.1),
-      #0d0d0d
-    );
 }
 
 .orders-stat > span {
   color: #ff1744;
-
-  font-size: 6px;
-
-  font-weight: 1000;
-
-  letter-spacing: 1px;
-
-  text-transform: uppercase;
+  font-size: 17px;
 }
 
 .orders-stat div {
-  margin-top: 5px;
+  margin-top: 7px;
 }
 
 .orders-stat strong {
   color: #ffffff;
-
-  font-size: 20px;
-
+  font-size: 15px;
   font-weight: 1000;
 }
 
 .orders-stat small {
   display: block;
-
   margin-top: 3px;
-
-  color: #555555;
-
+  color: #666666;
   font-size: 6px;
 }
 
@@ -3820,222 +2775,154 @@ strong {
 
 .orders-content {
   max-width: 1050px;
-
   margin: 0 auto;
-
-  padding: 10px 15px 35px;
+  padding: 28px 16px;
 }
 
 .orders-content-header {
   display: flex;
-
   align-items: flex-end;
-
   justify-content: space-between;
-
-  gap: 10px;
-
+  gap: 15px;
   margin-bottom: 15px;
 }
 
 .orders-content-header > div:first-child span {
   color: #ff1744;
-
-  font-size: 6px;
-
+  font-size: 7px;
   font-weight: 1000;
-
-  letter-spacing: 1.5px;
+  letter-spacing: 1.8px;
 }
 
 .orders-content-header h2 {
-  margin: 4px 0 0;
-
+  margin: 5px 0 0;
   color: #ffffff;
-
-  font-size: 21px;
-
-  font-weight: 1000;
-
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 23px;
   font-style: italic;
-
-  text-transform: uppercase;
 }
 
 .orders-filter-label {
-  padding: 7px 10px;
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-
-  border-radius: 6px;
-
-  background: #101010;
-
   color: #777777;
-
-  font-size: 6px;
-
+  font-size: 7px;
   font-weight: 900;
 }
 
 .orders-list {
   display: flex;
-
   flex-direction: column;
-
   gap: 9px;
 }
 
 /* =========================================================
-   ORDER CARD
+   ORDER ITEM CARD
    ========================================================= */
 
 .order-item-card {
   position: relative;
-
   overflow: hidden;
-
-  padding: 14px;
-
+  padding: 15px;
   border: 1px solid rgba(255, 255, 255, 0.07);
-
-  border-radius: 11px;
-
+  border-radius: 12px;
   background:
     linear-gradient(
       145deg,
-      #131313,
-      #090909
+      #141414,
+      #080808
     );
 }
 
 .order-item-card::before {
   content: "";
-
   position: absolute;
-
   left: 0;
   top: 0;
   bottom: 0;
-
-  width: 2px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #ff1744,
-      transparent
-    );
+  width: 3px;
+  background: #ff1744;
 }
 
 .order-item-top {
   display: flex;
-
   align-items: center;
-
-  gap: 10px;
+  gap: 11px;
 }
 
 .order-game-icon {
-  width: 42px;
-  height: 42px;
-
+  width: 43px;
+  height: 43px;
+  flex: 0 0 43px;
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
-  border-radius: 9px;
-
-  background: #191919;
-
+  border-radius: 10px;
+  background: #1a1a1a;
   font-size: 20px;
 }
 
 .order-game-info {
   min-width: 0;
-
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .order-game-info span {
-  display: block;
-
   color: #666666;
-
-  font-size: 6px;
-
+  font-size: 7px;
   font-weight: 900;
-
-  letter-spacing: 1px;
 }
 
 .order-game-info strong {
-  display: block;
-
   margin-top: 4px;
-
   color: #ffffff;
-
   font-size: 11px;
-
   font-weight: 1000;
-
-  text-transform: uppercase;
 }
 
 .order-status {
   display: inline-flex;
-
   align-items: center;
-
   gap: 5px;
-
   padding: 5px 7px;
-
   border-radius: 6px;
-
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
   font-size: 6px;
-
   font-weight: 1000;
-
-  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .order-status i {
-  width: 5px;
-  height: 5px;
-
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-
-  background: currentColor;
+  background: #777777;
 }
 
 .order-status.pending {
-  color: #ffc107;
-
-  background: rgba(255, 193, 7, 0.08);
+  color: #ffd45a;
 }
 
 .order-status.pending i {
-  background: #ffc107;
+  background: #ffd45a;
 }
 
 .order-status.completed {
-  color: #48e27b;
-
-  background: rgba(72, 226, 123, 0.08);
+  color: #16d875;
 }
 
 .order-status.completed i {
-  background: #48e27b;
+  background: #16d875;
 }
 
 .order-status.cancelled {
   color: #ff1744;
-
-  background: rgba(255, 23, 68, 0.08);
 }
 
 .order-status.cancelled i {
@@ -4043,17 +2930,15 @@ strong {
 }
 
 .order-item-divider {
-  margin: 12px 0;
-
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  height: 1px;
+  margin: 13px 0;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .order-item-details {
   display: grid;
-
-  grid-template-columns: repeat(2, 1fr);
-
-  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
 }
 
 .order-item-details > div {
@@ -4062,80 +2947,70 @@ strong {
 
 .order-item-details span {
   display: block;
-
   color: #555555;
-
   font-size: 6px;
-
   font-weight: 900;
-
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 .order-item-details strong {
   display: block;
-
-  margin-top: 3px;
-
-  color: #bbbbbb;
-
+  margin-top: 4px;
+  color: #d5d5d5;
   font-size: 8px;
-
   overflow-wrap: anywhere;
 }
 
 .order-item-bottom {
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
 
-  margin-top: 13px;
+.order-price {
+  display: flex;
+  flex-direction: column;
 }
 
 .order-price span {
-  display: block;
-
-  color: #555555;
-
+  color: #666666;
   font-size: 6px;
 }
 
 .order-price strong {
-  display: block;
-
-  margin-top: 2px;
-
+  margin-top: 3px;
   color: #ff1744;
-
-  font-size: 18px;
-
+  font-size: 17px;
   font-weight: 1000;
 }
 
 .order-details-button {
-  min-height: 34px;
-
-  padding: 0 11px;
-
-  border: 1px solid rgba(255, 23, 68, 0.35);
-
-  border-radius: 7px;
-
-  background: #101010;
-
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      145deg,
+      #171717,
+      #050505
+    );
   color: #ffffff;
-
   cursor: pointer;
 }
 
+.order-details-button:hover {
+  border-color: #ff1744;
+  color: #ff1744;
+}
+
 .order-details-button span {
-  color: #ffffff;
-
   font-size: 7px;
-
   font-weight: 1000;
+  letter-spacing: 0.8px;
 }
 
 /* =========================================================
@@ -4143,85 +3018,67 @@ strong {
    ========================================================= */
 
 .orders-empty {
-  padding: 35px 20px;
-
-  border: 1px solid rgba(255, 255, 255, 0.06);
-
-  border-radius: 13px;
-
-  background:
-    linear-gradient(
-      145deg,
-      #111111,
-      #080808
-    );
-
+  padding: 45px 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: #0b0b0b;
   text-align: center;
 }
 
 .orders-empty-icon {
+  width: 65px;
+  height: 65px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 23, 68, 0.25);
+  border-radius: 50%;
+  background: rgba(255, 23, 68, 0.05);
   color: #ff1744;
-
-  font-size: 42px;
-
-  filter:
-    drop-shadow(
-      0 0 12px
-      rgba(255, 23, 68, 0.25)
-    );
+  font-size: 26px;
 }
 
 .orders-empty h3 {
-  margin: 12px 0 0;
-
+  margin: 0;
   color: #ffffff;
-
-  font-size: 17px;
-
-  font-weight: 1000;
-
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 21px;
   font-style: italic;
 }
 
 .orders-empty p {
-  margin: 7px auto 17px;
-
-  max-width: 330px;
-
+  max-width: 360px;
+  margin: 8px auto 18px;
   color: #666666;
-
   font-size: 8px;
-
   line-height: 1.5;
 }
 
 .orders-shop-button {
-  min-height: 44px;
-
+  min-height: 47px;
   padding: 0 17px;
-
   border: 1px solid #ff1744;
-
-  border-radius: 8px;
-
+  border-radius: 9px;
   background:
     linear-gradient(
       135deg,
       #ff1744,
-      #c90030
+      #bd002d
     );
-
   color: #ffffff;
-
+  font-size: 8px;
+  font-weight: 1000;
+  letter-spacing: 1px;
   cursor: pointer;
 }
 
 .orders-shop-button b {
-  font-size: 8px;
-
-  font-weight: 1000;
-
-  letter-spacing: 1px;
+  font-size: 15px;
 }
 
 /* =========================================================
@@ -4230,76 +3087,60 @@ strong {
 
 .orders-security {
   max-width: 1050px;
-
   margin: 0 auto;
-
-  padding: 0 15px 30px;
+  padding: 0 16px 30px;
 }
 
 .orders-security > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
   padding: 15px;
-
-  border: 1px solid rgba(255, 255, 255, 0.06);
-
-  border-radius: 10px;
-
-  background: #0b0b0b;
+  border: 1px solid rgba(22, 216, 117, 0.12);
+  border-radius: 11px;
+  background: rgba(22, 216, 117, 0.035);
 }
 
 .orders-security > div > span {
-  color: #ff1744;
-
-  font-size: 18px;
+  color: #16d875;
+  font-size: 19px;
 }
 
 .orders-security strong {
   display: block;
-
-  margin-top: 6px;
-
   color: #ffffff;
-
   font-size: 8px;
-
   font-weight: 1000;
 }
 
 .orders-security p {
-  margin: 5px 0 0;
-
-  color: #555555;
-
+  margin: 4px 0 0;
+  color: #666666;
   font-size: 7px;
-
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
+/* =========================================================
+   ORDERS FOOTER
+   ========================================================= */
+
 .orders-footer {
-  padding: 25px 15px;
-
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-
+  padding: 25px 16px 35px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   text-align: center;
 }
 
 .orders-footer strong {
   display: block;
-
   color: #ffffff;
-
   font-size: 11px;
-
-  font-weight: 1000;
 }
 
 .orders-footer span {
   display: block;
-
   margin-top: 5px;
-
-  color: #333333;
-
-  font-size: 6px;
+  color: #444444;
+  font-size: 7px;
 }
 
 /* =========================================================
@@ -4308,26 +3149,21 @@ strong {
 
 .orders-loading-page {
   min-height: 100vh;
-
   display: flex;
-
   flex-direction: column;
-
   align-items: center;
   justify-content: center;
-
-  gap: 15px;
-
   background: #050505;
 }
 
 .orders-loading-logo {
   color: #ffffff;
-
-  font-size: 25px;
-
-  font-weight: 1000;
-
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 29px;
   font-style: italic;
 }
 
@@ -4336,56 +3172,115 @@ strong {
 }
 
 .orders-loading-line {
-  width: 130px;
-  height: 2px;
-
+  width: min(280px, 75%);
+  height: 4px;
+  margin-top: 18px;
   overflow: hidden;
-
+  border-radius: 20px;
   background: #171717;
 }
 
 .orders-loading-line::after {
   content: "";
-
   display: block;
-
-  width: 50%;
+  width: 45%;
   height: 100%;
-
   background: #ff1744;
-
-  animation:
-    loading-line 1s ease-in-out infinite;
-}
-
-@keyframes loading-line {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(300%);
-  }
+  animation: ordersLoading 1.1s infinite ease-in-out;
 }
 
 .orders-loading-page p {
-  margin: 0;
-
+  margin: 13px 0 0;
   color: #555555;
-
   font-size: 7px;
-
   font-weight: 900;
+  letter-spacing: 1px;
+}
 
-  letter-spacing: 1.5px;
+@keyframes ordersLoading {
+  0% {
+    transform: translateX(-120%);
+  }
 
-  text-transform: uppercase;
-   }
+  100% {
+    transform: translateX(260%);
+  }
+}
 
 /* =========================================================
-   STORE GAMING
-   GLOBAL CSS — PARTE 6/6
+   EXTRA BUTTON OVERRIDES
    ========================================================= */
+
+/* Evita botones blancos/default del navegador */
+
+button {
+  color: #ffffff;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Botones comunes que puedan venir sin clase específica */
+
+.back-button,
+.btn-back,
+.button-back {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background:
+    linear-gradient(
+      145deg,
+      #171717,
+      #050505
+    );
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.primary-button,
+.btn-primary {
+  min-height: 50px;
+  border: 1px solid #ff1744;
+  border-radius: 9px;
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #bd002d
+    );
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+}
+
+/* =========================================================
+   INPUT SAFETY
+   ========================================================= */
+
+input {
+  font-size: 16px;
+}
+
+textarea,
+select {
+  border-radius: 9px;
+  background: #101010;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #ff1744;
+}
 
 /* =========================================================
    RESPONSIVE
@@ -4393,105 +3288,108 @@ strong {
 
 @media (max-width: 700px) {
 
-  /* -------------------------------------------------------
-     HEADER
-     ------------------------------------------------------- */
+  /* =======================================================
+     WELCOME
+     ======================================================= */
 
-  .store-header {
-    height: 66px;
-
-    grid-template-columns: 48px 1fr 48px;
-
-    padding: 0 8px;
+  .welcome-page {
+    padding: 15px;
   }
 
-  .store-menu-button {
-    width: 40px;
-    height: 40px;
-
-    font-size: 21px;
+  .welcome-overlay {
+    padding: 27px 18px;
+    border-radius: 18px;
   }
 
-  .store-header-brand .store,
-  .store-header-brand .gaming {
-    font-size: 18px;
-
-    letter-spacing: 1.8px;
-  }
-
-  .store-header-brand .cart {
-    font-size: 17px;
-
-    margin: 3px 0;
-  }
-
-  /* -------------------------------------------------------
+  /* =======================================================
      AUTH
-     ------------------------------------------------------- */
+     ======================================================= */
 
   .auth-page {
-    padding: 13px;
-
-    background-position: center center;
+    padding: 14px;
   }
 
   .auth-card {
-    padding: 23px 17px;
-
-    border-radius: 15px;
+    padding: 24px 16px 20px;
+    border-radius: 17px;
   }
 
-  .auth-brand .store,
-  .auth-brand .gaming {
-    font-size: 23px;
+  .auth-title {
+    font-size: 25px;
   }
 
-  .auth-brand .cart {
-    font-size: 20px;
+  .auth-tab {
+    min-height: 44px;
   }
 
-  /* -------------------------------------------------------
-     HOME HERO
-     ------------------------------------------------------- */
+  .auth-field input {
+    min-height: 49px;
+  }
+
+  /* =======================================================
+     HEADER
+     ======================================================= */
+
+  .store-header {
+    height: 72px;
+    grid-template-columns: 52px 1fr 52px;
+    padding: 0 7px;
+  }
+
+  .store-header .store-brand .store-word,
+  .store-header .store-brand .gaming-word {
+    font-size: 19px;
+    letter-spacing: 1px;
+  }
+
+  .store-header .store-brand .brand-cart,
+  .store-header .store-brand .cart-logo,
+  .store-header .store-brand .brand-icon {
+    width: 27px;
+    height: 27px;
+    margin: 4px 0;
+    font-size: 14px;
+  }
+
+  .menu-button,
+  .hamburger-button,
+  .store-menu-button,
+  .menu-toggle {
+    width: 42px;
+    height: 42px;
+  }
+
+  /* =======================================================
+     HERO
+     ======================================================= */
 
   .store-hero {
-    min-height: 320px;
-
-    background-position: center center;
+    min-height: 300px;
   }
 
   .store-hero-content {
-    padding: 45px 16px 30px;
+    padding: 45px 15px 30px;
   }
 
-  .store-hero h1,
-  .store-hero-title {
-    font-size: clamp(37px, 12vw, 55px);
-
-    letter-spacing: -2px;
+  .store-hero h1 {
+    font-size: clamp(38px, 14vw, 62px);
   }
 
-  .store-hero p {
-    font-size: 9px;
-  }
-
-  /* -------------------------------------------------------
-     GAMES — 2 × 2
-     ------------------------------------------------------- */
+  /* =======================================================
+     GAMES 2 X 2
+     ======================================================= */
 
   .games-section {
-    padding: 22px 10px 28px;
+    padding: 25px 12px 8px;
   }
 
-  .games-grid,
+  .games-heading h2 {
+    font-size: 23px;
+  }
+
   .game-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-
-    gap: 8px;
-  }
-
-  .game-card {
-    border-radius: 9px;
+    gap: 9px;
   }
 
   .game-info {
@@ -4504,131 +3402,173 @@ strong {
 
   .game-info p {
     font-size: 6px;
-
-    margin-bottom: 7px;
-  }
-
-  .game-bottom {
-    padding-top: 6px;
-  }
-
-  .game-bottom span {
-    font-size: 5px;
   }
 
   .game-bottom strong {
-    font-size: 13px;
+    font-size: 12px;
   }
 
-  .game-tag {
-    top: 5px;
-    left: 5px;
-
-    padding: 4px 5px;
-
-    font-size: 5px;
-  }
-
-  .game-open {
-    right: 5px;
-    bottom: 5px;
-
-    padding: 5px 6px;
-
-    font-size: 5px;
-  }
-
-  /* -------------------------------------------------------
+  /* =======================================================
      BENEFITS
-     ------------------------------------------------------- */
+     ======================================================= */
 
   .benefits-section {
     grid-template-columns: 1fr;
-
     gap: 8px;
-
-    padding: 15px 10px 25px;
+    padding: 17px 12px 25px;
   }
 
-  /* -------------------------------------------------------
-     SERVICE INFO
-     ------------------------------------------------------- */
+  /* =======================================================
+     SERVICE
+     ======================================================= */
 
   .service-info {
     grid-template-columns: 1fr;
-
-    padding-left: 10px;
-    padding-right: 10px;
   }
 
-  /* -------------------------------------------------------
-     BALANCE
-     ------------------------------------------------------- */
+  .free-fire-main-image {
+    min-height: 205px;
+  }
+
+  .free-fire-main-text {
+    left: 15px;
+    bottom: 19px;
+  }
+
+  .free-fire-main-text h1 {
+    font-size: clamp(31px, 12vw, 54px);
+  }
+
+  /* =======================================================
+     OFFERS
+     ======================================================= */
+
+  .offers-section {
+    padding: 20px 11px;
+  }
+
+  .offer-card {
+    min-height: 62px;
+    padding: 9px 10px;
+  }
+
+  .offer-info strong {
+    font-size: 11px;
+  }
+
+  .offer-right strong {
+    font-size: 14px;
+  }
+
+  /* =======================================================
+     ORDER
+     ======================================================= */
+
+  .order-section,
+  .confirmation-section,
+  .order-success-section {
+    padding: 24px 11px;
+  }
+
+  .selected-order-card {
+    padding: 11px;
+  }
+
+  .section-title h2 {
+    font-size: 19px;
+  }
+
+  .order-total-preview strong {
+    font-size: 20px;
+  }
+
+  /* =======================================================
+     BILLETERA
+     ======================================================= */
 
   .balance-header {
-    height: 64px;
+    min-height: 64px;
+    padding: 0 10px;
+  }
 
-    grid-template-columns: 46px 1fr 46px;
-
-    padding: 0 8px;
+  .balance-header h1 {
+    font-size: 19px;
   }
 
   .balance-main {
-    padding: 18px 10px 35px;
+    padding: 18px 11px 35px;
   }
 
   .balance-main-card {
     padding: 23px 15px;
-
-    border-radius: 14px;
+    border-radius: 15px;
   }
 
   .balance-amount {
-    font-size: clamp(35px, 10vw, 46px);
+    font-size: 39px;
+  }
+
+  .balance-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .deposit-methods {
+    grid-template-columns: 1fr;
   }
 
   .balance-insert-button,
   .insert-balance-button {
-    min-height: 50px;
+    min-height: 53px;
   }
 
-  /* -------------------------------------------------------
+  /* =======================================================
      ORDERS
-     ------------------------------------------------------- */
+     ======================================================= */
+
+  .orders-header {
+    height: 64px;
+    grid-template-columns: 46px 1fr 46px;
+    padding: 0 9px;
+  }
 
   .orders-hero {
-    min-height: 250px;
+    min-height: 260px;
+  }
 
-    padding: 30px 13px;
+  .orders-hero-content {
+    padding: 35px 14px 25px;
   }
 
   .orders-hero-content h1 {
-    font-size: clamp(35px, 11vw, 55px);
+    font-size: clamp(34px, 12vw, 56px);
   }
 
   .orders-total-box {
-    min-width: 160px;
+    width: 100%;
+    max-width: 290px;
   }
 
   .orders-stats {
-    padding: 10px;
-
-    gap: 6px;
+    margin-top: -12px;
+    padding: 0 11px;
+    gap: 7px;
   }
 
   .orders-stat {
-    min-height: 72px;
-
-    padding: 9px;
+    min-height: 76px;
+    padding: 10px;
   }
 
   .orders-stat strong {
-    font-size: 17px;
+    font-size: 13px;
   }
 
   .orders-content {
-    padding-left: 10px;
-    padding-right: 10px;
+    padding: 23px 11px;
+  }
+
+  .orders-content-header h2 {
+    font-size: 21px;
   }
 
   .order-item-card {
@@ -4636,154 +3576,72 @@ strong {
   }
 
   .order-game-icon {
-    width: 38px;
-    height: 38px;
-
-    font-size: 17px;
+    width: 39px;
+    height: 39px;
+    flex-basis: 39px;
   }
 
   .order-game-info strong {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .order-status {
     padding: 4px 5px;
-
     font-size: 5px;
   }
 
   .order-item-details {
-    gap: 7px;
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .order-item-details strong {
-    font-size: 7px;
+  .order-item-bottom {
+    align-items: flex-end;
   }
 
-  .order-price strong {
-    font-size: 16px;
-  }
-
-  /* -------------------------------------------------------
-     GAME SERVICE
-     ------------------------------------------------------- */
-
-  .free-fire-main-image {
-    aspect-ratio: 16 / 9;
-
-    min-height: 205px;
-  }
-
-  .free-fire-main-text {
-    left: 14px;
-    bottom: 18px;
-  }
-
-  .free-fire-main-text h1 {
-    font-size: clamp(31px, 11vw, 52px);
-
-    letter-spacing: -1.5px;
-  }
-
-  .free-fire-main-text p {
-    font-size: 8px;
-  }
-
-  .offers-section {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  .offer-card {
-    min-height: 61px;
-
-    padding: 8px 10px;
-  }
-
-  .diamond-icon {
-    width: 34px;
-    height: 34px;
-
-    flex-basis: 34px;
-
-    font-size: 17px;
-  }
-
-  .offer-info strong {
-    font-size: 10px;
-  }
-
-  .offer-info span {
-    font-size: 6px;
-  }
-
-  .offer-right strong {
-    font-size: 14px;
-  }
-
-  /* -------------------------------------------------------
-     CONFIRMATION
-     ------------------------------------------------------- */
-
-  .confirmation-section {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  .confirmation-card {
-    padding: 15px;
-  }
-
-  /* -------------------------------------------------------
-     SIDE MENU
-     ------------------------------------------------------- */
-
-  .side-menu {
-    width: min(315px, 88vw);
+  .orders-security {
+    padding: 0 11px 25px;
   }
 }
 
 /* =========================================================
-   VERY SMALL PHONES
+   SMALL PHONES
    ========================================================= */
 
 @media (max-width: 390px) {
 
   .store-header {
-    grid-template-columns: 43px 1fr 43px;
+    grid-template-columns: 47px 1fr 47px;
   }
 
-  .store-header-brand .store,
-  .store-header-brand .gaming {
-    font-size: 16px;
-
-    letter-spacing: 1.4px;
+  .store-header .store-brand .store-word,
+  .store-header .store-brand .gaming-word {
+    font-size: 17px;
   }
 
-  .store-header-brand .cart {
-    font-size: 15px;
+  .store-header .store-brand .brand-cart,
+  .store-header .store-brand .cart-logo,
+  .store-header .store-brand .brand-icon {
+    width: 25px;
+    height: 25px;
+    font-size: 13px;
   }
 
-  .games-grid,
   .game-grid {
-    gap: 6px;
-  }
-
-  .game-info {
-    padding: 7px;
+    gap: 7px;
   }
 
   .game-info h3 {
     font-size: 9px;
   }
 
-  .game-bottom strong {
-    font-size: 12px;
+  .game-info p {
+    font-size: 5.5px;
   }
 
-  .store-hero h1,
-  .store-hero-title {
-    font-size: 35px;
+  .game-tag,
+  .game-open {
+    font-size: 5px;
+    padding: 4px 5px;
   }
 
   .balance-amount {
@@ -4791,23 +3649,28 @@ strong {
   }
 
   .orders-stats {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .orders-stat > span {
-    font-size: 5px;
+  .orders-stat {
+    min-height: 70px;
+    padding: 8px;
   }
 
   .orders-stat strong {
-    font-size: 15px;
+    font-size: 11px;
+  }
+
+  .orders-stat small {
+    font-size: 5px;
   }
 
   .free-fire-main-text h1 {
-    font-size: 30px;
+    font-size: clamp(29px, 13vw, 48px);
   }
 
-  .free-fire-main-text p {
-    font-size: 7px;
+  .order-item-details {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -4838,54 +3701,86 @@ input {
 }
 
 /* =========================================================
-   EXTRA FINISH — ELIMINAR FONDOS BLANCOS
+   FINAL VISUAL OVERRIDES
    ========================================================= */
 
-.store-header *,
-.balance-header *,
-.side-menu *,
-.auth-card *,
-.balance-main-card * {
-  -webkit-text-fill-color: currentColor;
-}
+/* Nunca permitir el fondo blanco de botones */
 
-.auth-card,
-.auth-tabs,
-.auth-tab,
-.balance-main-card,
-.balance-deposit-card,
-.balance-security-card,
-.side-menu,
-.side-menu-item,
-.menu-item,
-.store-header-brand {
-  color-scheme: dark;
-}
-
-/* Fuerza fondos oscuros en elementos que pudieran venir
-   con estilos anteriores del navegador o componentes */
-
-.auth-tab,
-.auth-input,
-.balance-main-card button,
+.auth-card button,
 .balance-page button,
-.side-menu button {
-  background-color: #0b0b0b;
+.orders-page button,
+.game-service-page button,
+.store-header button {
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Restaurar rojo en botones principales */
+/* Refuerzo del branding */
 
-.login-button,
-.auth-button,
+.store-brand .store-word {
+  color: #ffffff !important;
+}
+
+.store-brand .gaming-word {
+  color: #ff1744 !important;
+}
+
+/* Carrito central: NO queda como emoji plano */
+
+.store-brand .brand-cart,
+.store-brand .cart-logo,
+.store-brand .brand-icon {
+  background:
+    linear-gradient(
+      145deg,
+      #252525,
+      #090909
+    ) !important;
+  border-color: #ff1744 !important;
+  color: #ffcc33 !important;
+}
+
+/* Entrar */
+
+.auth-enter-button,
+.login-button {
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #b90029
+    ) !important;
+  color: #ffffff !important;
+}
+
+/* Atrás */
+
+.auth-back-button,
+.auth-register-back,
+.auth-secondary-button,
+.balance-back-button {
+  background:
+    linear-gradient(
+      145deg,
+      #181818,
+      #030303
+    ) !important;
+  color: #ffffff !important;
+}
+
+/* Insertar balance */
+
 .balance-insert-button,
-.insert-balance-button,
-.welcome-button,
-.finish-order-button,
-.confirm-final-button,
-.orders-shop-button {
-  background-color: #ff1744;
+.insert-balance-button {
+  background:
+    linear-gradient(
+      135deg,
+      #16d875,
+      #078d48
+    ) !important;
+  border-color: #16d875 !important;
+  color: #ffffff !important;
 }
 
 /* =========================================================
-   FIN — STORE GAMING
+   FIN DE GLOBAL CSS
    ========================================================= */
