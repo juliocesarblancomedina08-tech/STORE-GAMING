@@ -105,6 +105,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <main className="store-loading">
+
         <div className="loading-logo">
           STORE GAMING
         </div>
@@ -114,6 +115,7 @@ export default function HomePage() {
         <p>
           CARGANDO STORE GAMING...
         </p>
+
       </main>
     );
   }
@@ -139,12 +141,19 @@ export default function HomePage() {
             <div className="side-menu-header">
 
               <div className="side-menu-brand">
+
                 <span className="side-brand-line" />
 
                 <div>
-                  <small>STORE</small>
-                  <strong>GAMING</strong>
+                  <small>
+                    STORE
+                  </small>
+
+                  <strong>
+                    GAMING
+                  </strong>
                 </div>
+
               </div>
 
               <button
@@ -165,8 +174,13 @@ export default function HomePage() {
               </div>
 
               <div>
-                <small>CUENTA</small>
-                <strong>@{username}</strong>
+                <small>
+                  CUENTA
+                </small>
+
+                <strong>
+                  @{username}
+                </strong>
               </div>
 
             </div>
@@ -184,7 +198,9 @@ export default function HomePage() {
                   ⌂
                 </span>
 
-                <span>Hogar</span>
+                <span>
+                  Hogar
+                </span>
               </button>
 
               <button
@@ -196,15 +212,21 @@ export default function HomePage() {
                   ▣
                 </span>
 
-                <span>Órdenes</span>
+                <span>
+                  Órdenes
+                </span>
               </button>
 
               {/* SERVICIOS */}
 
               <div className="side-menu-section-title">
+
                 <span />
+
                 SERVICIOS
+
                 <span />
+
               </div>
 
               <button
@@ -225,6 +247,7 @@ export default function HomePage() {
                 <span>
                   Estrellas de Telegram
                 </span>
+
               </button>
 
               <button
@@ -245,6 +268,7 @@ export default function HomePage() {
                 <span>
                   Tarjetas de regalo
                 </span>
+
               </button>
 
               <button
@@ -267,14 +291,19 @@ export default function HomePage() {
                 <span>
                   Recargas TOP UP
                 </span>
+
               </button>
 
               {/* FINANZAS */}
 
               <div className="side-menu-section-title">
+
                 <span />
+
                 FINANZAS
+
                 <span />
+
               </div>
 
               <button
@@ -289,6 +318,7 @@ export default function HomePage() {
                 <span>
                   Billetera
                 </span>
+
               </button>
 
               <button
@@ -309,6 +339,7 @@ export default function HomePage() {
                 <span>
                   Estadísticas
                 </span>
+
               </button>
 
               <button
@@ -329,6 +360,7 @@ export default function HomePage() {
                 <span>
                   Perfil
                 </span>
+
               </button>
 
               {/* SOPORTE */}
@@ -345,14 +377,19 @@ export default function HomePage() {
                 }}
               >
                 <span className="support-headset-icon">
+
                   <span className="support-head" />
+
                   <span className="support-headset" />
+
                   <span className="support-mic" />
+
                 </span>
 
                 <span>
                   Soporte
                 </span>
+
               </button>
 
             </nav>
@@ -371,6 +408,7 @@ export default function HomePage() {
                 <strong>
                   Cerrar sesión
                 </strong>
+
               </button>
 
             </div>
@@ -385,6 +423,8 @@ export default function HomePage() {
 
       <header className="store-header">
 
+        {/* MENÚ HAMBURGUESA */}
+
         <button
           type="button"
           className="menu-button"
@@ -396,33 +436,37 @@ export default function HomePage() {
           <span />
         </button>
 
+        {/* LOGO CENTRAL */}
+
         <button
           type="button"
           className="store-logo"
           onClick={() => router.push("/home")}
+          aria-label="STORE GAMING"
         >
+
           <span className="store-logo-text">
+
             <strong>
               STORE
             </strong>
 
+            <span className="store-logo-cart">
+              🛒
+            </span>
+
             <b>
               GAMING
             </b>
+
           </span>
+
         </button>
 
+        {/* LADO DERECHO */}
+
         <div className="store-header-actions">
-
-          <button
-            type="button"
-            className="user-button"
-            onClick={logout}
-            aria-label="Cerrar sesión"
-          >
-            ◉
-          </button>
-
+          {/* El antiguo punto de logout fue eliminado. */}
         </div>
 
       </header>
@@ -442,25 +486,34 @@ export default function HomePage() {
           </div>
 
           <h1 className="hero-title">
+
             TU MUNDO
+
             <br />
+
             <span>
               GAMING
             </span>
+
           </h1>
 
           <p className="hero-text">
+
             Hola{" "}
+
             <strong>
               @{username}
             </strong>.
+
             Compra tus recargas de forma
             rápida y sencilla.
+
           </p>
 
           <div className="hero-stats">
 
             <div>
+
               <strong>
                 ⚡
               </strong>
@@ -468,9 +521,11 @@ export default function HomePage() {
               <span>
                 RÁPIDO
               </span>
+
             </div>
 
             <div>
+
               <strong>
                 🔒
               </strong>
@@ -478,9 +533,11 @@ export default function HomePage() {
               <span>
                 SEGURO
               </span>
+
             </div>
 
             <div>
+
               <strong>
                 🎮
               </strong>
@@ -488,6 +545,7 @@ export default function HomePage() {
               <span>
                 GAMING
               </span>
+
             </div>
 
           </div>
@@ -505,6 +563,7 @@ export default function HomePage() {
         <div className="catalog-header">
 
           <div>
+
             <span>
               STORE GAMING
             </span>
@@ -512,12 +571,15 @@ export default function HomePage() {
             <h2>
               ELIGE TU JUEGO
             </h2>
+
           </div>
 
           <div className="catalog-decoration">
+
             <i />
             <i />
             <i />
+
           </div>
 
         </div>
@@ -525,6 +587,7 @@ export default function HomePage() {
         <div className="games-grid">
 
           {games.map((game) => (
+
             <button
               key={game.name}
               type="button"
@@ -579,6 +642,7 @@ export default function HomePage() {
               </div>
 
             </button>
+
           ))}
 
         </div>
@@ -598,6 +662,7 @@ export default function HomePage() {
           </span>
 
           <div>
+
             <strong>
               ENTREGA RÁPIDA
             </strong>
@@ -606,6 +671,7 @@ export default function HomePage() {
               Procesamos tus pedidos
               rápidamente.
             </p>
+
           </div>
 
         </div>
@@ -617,6 +683,7 @@ export default function HomePage() {
           </span>
 
           <div>
+
             <strong>
               COMPRA SEGURA
             </strong>
@@ -624,6 +691,7 @@ export default function HomePage() {
             <p>
               Tu pedido queda registrado.
             </p>
+
           </div>
 
         </div>
@@ -635,6 +703,7 @@ export default function HomePage() {
           </span>
 
           <div>
+
             <strong>
               TOP UP GAMING
             </strong>
@@ -643,6 +712,7 @@ export default function HomePage() {
               Recargas para tus juegos
               favoritos.
             </p>
+
           </div>
 
         </div>
