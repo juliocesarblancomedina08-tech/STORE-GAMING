@@ -2161,3 +2161,3275 @@ button,
     );
   pointer-events: none;
 }
+
+/* =========================================================
+   BALANCE HEADER
+   ========================================================= */
+
+.balance-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  background:
+    rgba(5, 5, 5, 0.94);
+  border-bottom: 1px solid rgba(255, 23, 68, 0.14);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.balance-header h1 {
+  margin: 0;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 22px;
+  font-style: italic;
+  letter-spacing: 1px;
+  text-shadow:
+    2px 2px 0 #260008;
+}
+
+.balance-header h1 strong {
+  color: #ff1744;
+}
+
+.balance-back-button,
+.balance-header button {
+  min-width: 43px;
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 11px;
+  background:
+    linear-gradient(
+      145deg,
+      #191919,
+      #050505
+    );
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 1000;
+  cursor: pointer;
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.balance-back-button:hover,
+.balance-header button:hover {
+  border-color: #ff1744;
+  color: #ff1744;
+}
+
+/* =========================================================
+   BALANCE MAIN
+   ========================================================= */
+
+.balance-main {
+  position: relative;
+  z-index: 2;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 25px 15px 45px;
+}
+
+.balance-main-card {
+  position: relative;
+  overflow: hidden;
+  padding: 27px 20px;
+  border: 1px solid rgba(255, 23, 68, 0.18);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(14, 14, 14, 0.94),
+      rgba(7, 7, 7, 0.86)
+    );
+  box-shadow:
+    0 25px 55px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(255, 23, 68, 0.07);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.balance-main-card::before {
+  content: "";
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  background: rgba(255, 23, 68, 0.1);
+  filter: blur(10px);
+}
+
+.balance-main-card::after {
+  content: "";
+  position: absolute;
+  left: -80px;
+  bottom: -100px;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: rgba(255, 23, 68, 0.05);
+  filter: blur(25px);
+}
+
+.balance-main-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.balance-label {
+  color: #777777;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.balance-amount {
+  margin: 8px 0 0;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: clamp(34px, 9vw, 52px);
+  line-height: 1;
+  font-style: italic;
+  letter-spacing: 1px;
+  text-shadow:
+    0 0 22px rgba(255, 255, 255, 0.07);
+}
+
+.balance-amount strong {
+  color: #ff1744;
+}
+
+.balance-subtitle {
+  margin: 7px 0 20px;
+  color: #777777;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   SOLO INSERTAR BALANCE
+   ========================================================= */
+
+.balance-insert-button,
+.insert-balance-button {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #16d875;
+  border-radius: 11px;
+  background:
+    linear-gradient(
+      135deg,
+      #16d875,
+      #07994d
+    );
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow:
+    0 12px 28px rgba(22, 216, 117, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.balance-insert-button:hover,
+.insert-balance-button:hover {
+  filter: brightness(1.08);
+  box-shadow:
+    0 14px 30px rgba(22, 216, 117, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.balance-insert-button:active,
+.insert-balance-button:active {
+  transform: scale(0.975);
+}
+
+.balance-insert-button span,
+.insert-balance-button span {
+  font-size: 17px;
+}
+
+/* =========================================================
+   BALANCE CARDS
+   ========================================================= */
+
+.balance-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+  margin-top: 13px;
+}
+
+.balance-card,
+.deposit-card,
+.history-card,
+.security-card {
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(17, 17, 17, 0.94),
+      rgba(7, 7, 7, 0.9)
+    );
+  box-shadow:
+    0 12px 25px rgba(0, 0, 0, 0.28);
+}
+
+.balance-card > span,
+.deposit-card > span,
+.history-card > span,
+.security-card > span {
+  color: #ff1744;
+  font-size: 18px;
+}
+
+.balance-card strong,
+.deposit-card strong,
+.history-card strong,
+.security-card strong {
+  display: block;
+  margin-top: 7px;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 1000;
+}
+
+.balance-card p,
+.deposit-card p,
+.history-card p,
+.security-card p {
+  margin: 5px 0 0;
+  color: #666666;
+  font-size: 7px;
+  line-height: 1.45;
+}
+
+/* =========================================================
+   BALANCE / DEPOSIT
+   ========================================================= */
+
+.balance-deposit-section {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 23, 68, 0.12);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 23, 68, 0.05),
+      rgba(8, 8, 8, 0.94)
+    );
+}
+
+.balance-deposit-section h2 {
+  margin: 0;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 20px;
+  font-style: italic;
+}
+
+.balance-deposit-section h2 strong {
+  color: #ff1744;
+}
+
+.balance-deposit-section p {
+  margin: 7px 0 15px;
+  color: #6f6f6f;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.balance-deposit-input {
+  width: 100%;
+  min-height: 49px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  outline: none;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.balance-deposit-input:focus {
+  border-color: #16d875;
+  box-shadow:
+    0 0 0 2px rgba(22, 216, 117, 0.1);
+}
+
+/* =========================================================
+   DEPOSIT METHODS
+   ========================================================= */
+
+.deposit-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.deposit-method {
+  min-height: 70px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      145deg,
+      #151515,
+      #080808
+    );
+  color: #ffffff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.deposit-method:hover,
+.deposit-method.selected {
+  border-color: #16d875;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(22, 216, 117, 0.1),
+      #090909
+    );
+}
+
+.deposit-method span {
+  color: #16d875;
+  font-size: 17px;
+}
+
+.deposit-method strong {
+  display: block;
+  margin-top: 5px;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 1000;
+}
+
+.deposit-method small {
+  display: block;
+  margin-top: 3px;
+  color: #666666;
+  font-size: 6px;
+}
+
+/* =========================================================
+   WALLET BUTTONS
+   ========================================================= */
+
+.wallet-button,
+.balance-action-button {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      145deg,
+      #181818,
+      #050505
+    );
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.wallet-button:hover,
+.balance-action-button:hover {
+  border-color: #ff1744;
+  color: #ff1744;
+}
+
+/* =========================================================
+   WALLET SECURITY
+   ========================================================= */
+
+.balance-security {
+  margin-top: 13px;
+  padding: 15px;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border: 1px solid rgba(22, 216, 117, 0.14);
+  border-radius: 11px;
+  background:
+    rgba(22, 216, 117, 0.035);
+}
+
+.balance-security > span {
+  color: #16d875;
+  font-size: 19px;
+}
+
+.balance-security strong {
+  display: block;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 1000;
+}
+
+.balance-security p {
+  margin: 4px 0 0;
+  color: #666666;
+  font-size: 7px;
+  line-height: 1.45;
+}
+
+/* =========================================================
+   ORDERS PAGE
+   ========================================================= */
+
+.orders-page {
+  min-height: 100vh;
+  background: #070707;
+  color: #ffffff;
+  overflow-x: hidden;
+}
+
+.orders-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 68px;
+  display: grid;
+  grid-template-columns: 50px 1fr 50px;
+  align-items: center;
+  padding: 0 12px;
+  background:
+    rgba(7, 7, 7, 0.96);
+  border-bottom: 1px solid rgba(255, 23, 68, 0.12);
+  backdrop-filter: blur(16px);
+}
+
+.orders-back-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      145deg,
+      #171717,
+      #050505
+    );
+  color: #ffffff;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.orders-back-button:hover {
+  border-color: #ff1744;
+  color: #ff1744;
+}
+
+.orders-header-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.orders-header-title span {
+  color: #777777;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.orders-header-title strong {
+  margin-top: 5px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 1000;
+}
+
+.orders-header-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 23, 68, 0.25);
+  border-radius: 10px;
+  background: #111111;
+  color: #ff1744;
+  font-size: 18px;
+}
+
+/* =========================================================
+   ORDERS HERO
+   ========================================================= */
+
+.orders-hero {
+  position: relative;
+  min-height: 250px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.9),
+      rgba(0, 0, 0, 0.35),
+      rgba(0, 0, 0, 0.85)
+    ),
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+}
+
+.orders-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      transparent,
+      rgba(0, 0, 0, 0.92)
+    );
+}
+
+.orders-hero-glow {
+  position: absolute;
+  right: -90px;
+  top: -100px;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: rgba(255, 23, 68, 0.14);
+  filter: blur(35px);
+}
+
+.orders-hero-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1050px;
+  margin: 0 auto;
+  padding: 35px 18px 27px;
+}
+
+.orders-hero-label {
+  color: #ff1744;
+  font-size: 8px;
+  font-weight: 1000;
+  letter-spacing: 2.5px;
+}
+
+.orders-hero-content h1 {
+  margin: 8px 0 0;
+  color: #ffffff;
+  font-size: clamp(34px, 9vw, 65px);
+  line-height: 0.85;
+  font-style: italic;
+}
+
+.orders-hero-content h1 strong {
+  color: #ff1744;
+}
+
+.orders-hero-content p {
+  max-width: 480px;
+  margin: 12px 0 0;
+  color: #b7b7b7;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.orders-total-box {
+  width: min(300px, 100%);
+  margin-top: 18px;
+  padding: 13px;
+  border: 1px solid rgba(255, 23, 68, 0.25);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.orders-total-box span {
+  display: block;
+  color: #777777;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+.orders-total-box strong {
+  display: block;
+  margin-top: 5px;
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 1000;
+}
+
+.orders-total-box small {
+  display: block;
+  margin-top: 3px;
+  color: #ff1744;
+  font-size: 6px;
+}
+
+/* =========================================================
+   ORDERS STATS
+   ========================================================= */
+
+.orders-stats {
+  max-width: 1050px;
+  margin: -18px auto 0;
+  position: relative;
+  z-index: 5;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.orders-stat {
+  min-height: 82px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      145deg,
+      #151515,
+      #080808
+    );
+  cursor: pointer;
+}
+
+.orders-stat.active {
+  border-color: rgba(255, 23, 68, 0.45);
+}
+
+.orders-stat > span {
+  color: #ff1744;
+  font-size: 17px;
+}
+
+.orders-stat div {
+  margin-top: 7px;
+}
+
+.orders-stat strong {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 1000;
+}
+
+.orders-stat small {
+  display: block;
+  margin-top: 3px;
+  color: #666666;
+  font-size: 6px;
+}
+
+/* =========================================================
+   ORDERS CONTENT
+   ========================================================= */
+
+.orders-content {
+  max-width: 1050px;
+  margin: 0 auto;
+  padding: 28px 16px;
+}
+
+.orders-content-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.orders-content-header > div:first-child span {
+  color: #ff1744;
+  font-size: 7px;
+  font-weight: 1000;
+  letter-spacing: 1.8px;
+}
+
+.orders-content-header h2 {
+  margin: 5px 0 0;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 23px;
+  font-style: italic;
+}
+
+.orders-filter-label {
+  color: #777777;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* =========================================================
+   ORDER ITEM CARD
+   ========================================================= */
+
+.order-item-card {
+  position: relative;
+  overflow: hidden;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      145deg,
+      #141414,
+      #080808
+    );
+}
+
+.order-item-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #ff1744;
+}
+
+.order-item-top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.order-game-icon {
+  width: 43px;
+  height: 43px;
+  flex: 0 0 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #1a1a1a;
+  font-size: 20px;
+}
+
+.order-game-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-game-info span {
+  color: #666666;
+  font-size: 7px;
+  font-weight: 900;
+}
+
+.order-game-info strong {
+  margin-top: 4px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.order-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-size: 6px;
+  font-weight: 1000;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.order-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #777777;
+}
+
+.order-status.pending {
+  color: #ffd45a;
+}
+
+.order-status.pending i {
+  background: #ffd45a;
+}
+
+.order-status.completed {
+  color: #16d875;
+}
+
+.order-status.completed i {
+  background: #16d875;
+}
+
+.order-status.cancelled {
+  color: #ff1744;
+}
+
+.order-status.cancelled i {
+  background: #ff1744;
+   }
+
+/* =========================================================
+   ORDER ITEM CONTINUED
+   ========================================================= */
+
+.order-item-divider {
+  height: 1px;
+  margin: 13px 0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.order-item-details {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.order-item-details > div {
+  min-width: 0;
+}
+
+.order-item-details span {
+  display: block;
+  color: #555555;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.order-item-details strong {
+  display: block;
+  margin-top: 4px;
+  color: #d5d5d5;
+  font-size: 8px;
+  overflow-wrap: anywhere;
+}
+
+.order-item-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.order-price {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-price span {
+  color: #666666;
+  font-size: 6px;
+}
+
+.order-price strong {
+  margin-top: 3px;
+  color: #ff1744;
+  font-size: 17px;
+  font-weight: 1000;
+}
+
+.order-details-button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      145deg,
+      #171717,
+      #050505
+    );
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.order-details-button:hover {
+  border-color: #ff1744;
+  color: #ff1744;
+}
+
+.order-details-button span {
+  font-size: 7px;
+  font-weight: 1000;
+  letter-spacing: 0.8px;
+}
+
+/* =========================================================
+   EMPTY ORDERS
+   ========================================================= */
+
+.orders-empty {
+  padding: 45px 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: #0b0b0b;
+  text-align: center;
+}
+
+.orders-empty-icon {
+  width: 65px;
+  height: 65px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 23, 68, 0.25);
+  border-radius: 50%;
+  background: rgba(255, 23, 68, 0.05);
+  color: #ff1744;
+  font-size: 26px;
+}
+
+.orders-empty h3 {
+  margin: 0;
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 21px;
+  font-style: italic;
+}
+
+.orders-empty p {
+  max-width: 360px;
+  margin: 8px auto 18px;
+  color: #666666;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.orders-shop-button {
+  min-height: 47px;
+  padding: 0 17px;
+  border: 1px solid #ff1744;
+  border-radius: 9px;
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #bd002d
+    );
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.orders-shop-button b {
+  font-size: 15px;
+}
+
+/* =========================================================
+   ORDERS SECURITY
+   ========================================================= */
+
+.orders-security {
+  max-width: 1050px;
+  margin: 0 auto;
+  padding: 0 16px 30px;
+}
+
+.orders-security > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 15px;
+  border: 1px solid rgba(22, 216, 117, 0.12);
+  border-radius: 11px;
+  background: rgba(22, 216, 117, 0.035);
+}
+
+.orders-security > div > span {
+  color: #16d875;
+  font-size: 19px;
+}
+
+.orders-security strong {
+  display: block;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 1000;
+}
+
+.orders-security p {
+  margin: 4px 0 0;
+  color: #666666;
+  font-size: 7px;
+  line-height: 1.45;
+}
+
+/* =========================================================
+   ORDERS FOOTER
+   ========================================================= */
+
+.orders-footer {
+  padding: 25px 16px 35px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: center;
+}
+
+.orders-footer strong {
+  display: block;
+  color: #ffffff;
+  font-size: 11px;
+}
+
+.orders-footer span {
+  display: block;
+  margin-top: 5px;
+  color: #444444;
+  font-size: 7px;
+}
+
+/* =========================================================
+   ORDERS LOADING
+   ========================================================= */
+
+.orders-loading-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #050505;
+}
+
+.orders-loading-logo {
+  color: #ffffff;
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 29px;
+  font-style: italic;
+}
+
+.orders-loading-logo strong {
+  color: #ff1744;
+}
+
+.orders-loading-line {
+  width: min(280px, 75%);
+  height: 4px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #171717;
+}
+
+.orders-loading-line::after {
+  content: "";
+  display: block;
+  width: 45%;
+  height: 100%;
+  background: #ff1744;
+  animation: ordersLoading 1.1s infinite ease-in-out;
+}
+
+.orders-loading-page p {
+  margin: 13px 0 0;
+  color: #555555;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+@keyframes ordersLoading {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+/* =========================================================
+   EXTRA BUTTON OVERRIDES
+   ========================================================= */
+
+button {
+  color: #ffffff;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.back-button,
+.btn-back,
+.button-back {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background:
+    linear-gradient(
+      145deg,
+      #171717,
+      #050505
+    );
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.primary-button,
+.btn-primary {
+  min-height: 50px;
+  border: 1px solid #ff1744;
+  border-radius: 9px;
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #bd002d
+    );
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+}
+
+/* =========================================================
+   INPUT SAFETY
+   ========================================================= */
+
+input {
+  font-size: 16px;
+}
+
+textarea,
+select {
+  border-radius: 9px;
+  background: #101010;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #ff1744;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+  /* =======================================================
+     WELCOME
+     ======================================================= */
+
+  .welcome-page {
+    padding: 15px;
+  }
+
+  .welcome-overlay {
+    padding: 27px 18px;
+    border-radius: 18px;
+  }
+
+  /* =======================================================
+     AUTH
+     ======================================================= */
+
+  .auth-page {
+    padding: 14px;
+  }
+
+  .auth-card {
+    padding: 24px 16px 20px;
+    border-radius: 17px;
+  }
+
+  .auth-title {
+    font-size: 25px;
+  }
+
+  .auth-tab {
+    min-height: 44px;
+  }
+
+  .auth-field input {
+    min-height: 49px;
+  }
+
+  /* =======================================================
+     HEADER
+     ======================================================= */
+
+  .store-header {
+    height: 72px;
+    grid-template-columns: 52px 1fr 52px;
+    padding: 0 7px;
+  }
+
+  .store-header .store-brand .store-word,
+  .store-header .store-brand .gaming-word {
+    font-size: 19px;
+    letter-spacing: 1px;
+  }
+
+  .store-header .store-brand .brand-cart,
+  .store-header .store-brand .cart-logo,
+  .store-header .store-brand .brand-icon {
+    width: 27px;
+    height: 27px;
+    margin: 4px 0;
+    font-size: 14px;
+  }
+
+  .menu-button,
+  .hamburger-button,
+  .store-menu-button,
+  .menu-toggle {
+    width: 42px;
+    height: 42px;
+  }
+
+  /* =======================================================
+     HERO
+     ======================================================= */
+
+  .store-hero {
+    min-height: 300px;
+  }
+
+  .store-hero-content {
+    padding: 45px 15px 30px;
+  }
+
+  .store-hero h1 {
+    font-size: clamp(38px, 14vw, 62px);
+  }
+
+  /* =======================================================
+     GAMES 2 X 2
+     ======================================================= */
+
+  .games-section {
+    padding: 25px 12px 8px;
+  }
+
+  .games-heading h2 {
+    font-size: 23px;
+  }
+
+  .game-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .game-info {
+    padding: 8px;
+  }
+
+  .game-info h3 {
+    font-size: 10px;
+  }
+
+  .game-info p {
+    font-size: 6px;
+  }
+
+  .game-bottom strong {
+    font-size: 12px;
+  }
+
+  /* =======================================================
+     BENEFITS
+     ======================================================= */
+
+  .benefits-section {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 17px 12px 25px;
+  }
+
+  /* =======================================================
+     SERVICE
+     ======================================================= */
+
+  .service-info {
+    grid-template-columns: 1fr;
+  }
+
+  .free-fire-main-image {
+    min-height: 205px;
+  }
+
+  .free-fire-main-text {
+    left: 15px;
+    bottom: 19px;
+  }
+
+  .free-fire-main-text h1 {
+    font-size: clamp(31px, 12vw, 54px);
+  }
+
+  /* =======================================================
+     OFFERS
+     ======================================================= */
+
+  .offers-section {
+    padding: 20px 11px;
+  }
+
+  .offer-card {
+    min-height: 62px;
+    padding: 9px 10px;
+  }
+
+  .offer-info strong {
+    font-size: 11px;
+  }
+
+  .offer-right strong {
+    font-size: 14px;
+  }
+
+  /* =======================================================
+     ORDER
+     ======================================================= */
+
+  .order-section,
+  .confirmation-section,
+  .order-success-section {
+    padding: 24px 11px;
+  }
+
+  .selected-order-card {
+    padding: 11px;
+  }
+
+  .section-title h2 {
+    font-size: 19px;
+  }
+
+  .order-total-preview strong {
+    font-size: 20px;
+  }
+
+  /* =======================================================
+     BILLETERA
+     ======================================================= */
+
+  .balance-header {
+    min-height: 64px;
+    padding: 0 10px;
+  }
+
+  .balance-header h1 {
+    font-size: 19px;
+  }
+
+  .balance-main {
+    padding: 18px 11px 35px;
+  }
+
+  .balance-main-card {
+    padding: 23px 15px;
+    border-radius: 15px;
+  }
+
+  .balance-amount {
+    font-size: 39px;
+  }
+
+  .balance-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .deposit-methods {
+    grid-template-columns: 1fr;
+  }
+
+  .balance-insert-button,
+  .insert-balance-button {
+    min-height: 53px;
+  }
+
+  /* =======================================================
+     ORDERS
+     ======================================================= */
+
+  .orders-header {
+    height: 64px;
+    grid-template-columns: 46px 1fr 46px;
+    padding: 0 9px;
+  }
+
+  .orders-hero {
+    min-height: 260px;
+  }
+
+  .orders-hero-content {
+    padding: 35px 14px 25px;
+  }
+
+  .orders-hero-content h1 {
+    font-size: clamp(34px, 12vw, 56px);
+  }
+
+  .orders-total-box {
+    width: 100%;
+    max-width: 290px;
+  }
+
+  .orders-stats {
+    margin-top: -12px;
+    padding: 0 11px;
+    gap: 7px;
+  }
+
+  .orders-stat {
+    min-height: 76px;
+    padding: 10px;
+  }
+
+  .orders-stat strong {
+    font-size: 13px;
+  }
+
+  .orders-content {
+    padding: 23px 11px;
+  }
+
+  .orders-content-header h2 {
+    font-size: 21px;
+  }
+
+  .order-item-card {
+    padding: 12px;
+  }
+
+  .order-game-icon {
+    width: 39px;
+    height: 39px;
+    flex-basis: 39px;
+  }
+
+  .order-game-info strong {
+    font-size: 10px;
+  }
+
+  .order-status {
+    padding: 4px 5px;
+    font-size: 5px;
+  }
+
+  .order-item-details {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .order-item-bottom {
+    align-items: flex-end;
+  }
+
+  .orders-security {
+    padding: 0 11px 25px;
+  }
+   }
+
+/* =========================================================
+   SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 390px) {
+
+  .store-header {
+    grid-template-columns: 47px 1fr 47px;
+  }
+
+  .store-header .store-brand .store-word,
+  .store-header .store-brand .gaming-word {
+    font-size: 17px;
+  }
+
+  .store-header .store-brand .brand-cart,
+  .store-header .store-brand .cart-logo,
+  .store-header .store-brand .brand-icon {
+    width: 25px;
+    height: 25px;
+    font-size: 13px;
+  }
+
+  .game-grid {
+    gap: 7px;
+  }
+
+  .game-info h3 {
+    font-size: 9px;
+  }
+
+  .game-info p {
+    font-size: 5.5px;
+  }
+
+  .game-tag,
+  .game-open {
+    font-size: 5px;
+    padding: 4px 5px;
+  }
+
+  .balance-amount {
+    font-size: 34px;
+  }
+
+  .orders-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .orders-stat {
+    min-height: 70px;
+    padding: 8px;
+  }
+
+  .orders-stat strong {
+    font-size: 11px;
+  }
+
+  .orders-stat small {
+    font-size: 5px;
+  }
+
+  .free-fire-main-text h1 {
+    font-size: clamp(29px, 13vw, 48px);
+  }
+
+  .order-item-details {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* =========================================================
+   TOUCH / MOBILE SAFETY
+   ========================================================= */
+
+html,
+body {
+  overscroll-behavior-x: none;
+}
+
+button,
+.game-card,
+.offer-card,
+.orders-stat {
+  touch-action: manipulation;
+}
+
+input {
+  font-size: 16px;
+}
+
+@media (max-width: 700px) {
+  input {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   FINAL VISUAL OVERRIDES
+   ========================================================= */
+
+/* Nunca permitir el fondo blanco de botones */
+
+.auth-card button,
+.balance-page button,
+.orders-page button,
+.game-service-page button,
+.store-header button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================================================
+   BRANDING FINAL
+   ========================================================= */
+
+.store-brand {
+  text-shadow:
+    0 0 20px rgba(255, 23, 68, 0.08);
+}
+
+.store-brand .store-word {
+  color: #ffffff !important;
+  text-shadow:
+    3px 3px 0 #260008,
+    0 0 18px rgba(255, 255, 255, 0.08);
+}
+
+.store-brand .gaming-word {
+  color: #ff1744 !important;
+  text-shadow:
+    3px 3px 0 #30000a,
+    0 0 22px rgba(255, 23, 68, 0.35);
+}
+
+/* =========================================================
+   CARRITO CENTRAL
+   ========================================================= */
+
+.store-brand .brand-cart,
+.store-brand .cart-logo,
+.store-brand .brand-icon {
+  background:
+    linear-gradient(
+      145deg,
+      #292929,
+      #080808
+    ) !important;
+  border-color: #ff1744 !important;
+  color: #ffcc33 !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 8px 22px rgba(0, 0, 0, 0.55),
+    0 0 22px rgba(255, 23, 68, 0.2);
+}
+
+/* =========================================================
+   BOTONES GENERALES GAMING
+   ========================================================= */
+
+.auth-submit,
+.login-button,
+.register-button,
+.auth-enter-button,
+.primary-button,
+.btn-primary,
+.finish-order-button,
+.confirm-final-button,
+.view-orders-button,
+.orders-shop-button,
+.game-open {
+  font-family:
+    Impact,
+    Haettenschweiler,
+    "Arial Narrow Bold",
+    Arial,
+    sans-serif;
+  font-style: italic;
+  letter-spacing: 1.2px;
+}
+
+/* =========================================================
+   ENTRAR ROJO
+   ========================================================= */
+
+.auth-enter-button,
+.login-button {
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #b90029
+    ) !important;
+  border-color: #ff1744 !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 12px 30px rgba(255, 23, 68, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* =========================================================
+   REGISTRAR ROJO
+   ========================================================= */
+
+.register-button,
+.auth-submit {
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #b90029
+    ) !important;
+  border-color: #ff1744 !important;
+  color: #ffffff !important;
+}
+
+/* =========================================================
+   ATRÁS NEGRO
+   ========================================================= */
+
+.auth-back-button,
+.auth-register-back,
+.auth-secondary-button,
+.balance-back-button,
+.back-button,
+.btn-back,
+.button-back {
+  background:
+    linear-gradient(
+      145deg,
+      #181818,
+      #030303
+    ) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+
+.auth-back-button:hover,
+.auth-register-back:hover,
+.auth-secondary-button:hover,
+.balance-back-button:hover {
+  border-color: #ff1744 !important;
+  color: #ff1744 !important;
+}
+
+/* =========================================================
+   INSERTAR BALANCE VERDE
+   ========================================================= */
+
+.balance-insert-button,
+.insert-balance-button {
+  background:
+    linear-gradient(
+      135deg,
+      #16d875,
+      #078d48
+    ) !important;
+  border-color: #16d875 !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 12px 30px rgba(22, 216, 117, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* =========================================================
+   WALLET / BILLETERA
+   ========================================================= */
+
+.balance-page {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(0, 0, 0, 0.82),
+      rgba(0, 0, 0, 0.92)
+    ),
+    url("/images/battle-royale-bg.jpg") center / cover fixed no-repeat;
+}
+
+.balance-main-card {
+  border-color: rgba(255, 23, 68, 0.2);
+}
+
+.balance-amount {
+  font-size: clamp(32px, 8vw, 48px);
+}
+
+/* =========================================================
+   MENU HAMBURGUESA
+   ========================================================= */
+
+.menu-button,
+.hamburger-button,
+.store-menu-button,
+.menu-toggle {
+  background:
+    linear-gradient(
+      145deg,
+      #1b1b1b,
+      #050505
+    );
+  border-color: rgba(255, 23, 68, 0.3);
+}
+
+.menu-button span,
+.hamburger-button span,
+.store-menu-button span,
+.menu-toggle span {
+  background: #ffffff;
+}
+
+.menu-button span:nth-child(2),
+.hamburger-button span:nth-child(2),
+.store-menu-button span:nth-child(2),
+.menu-toggle span:nth-child(2) {
+  background: #ff1744;
+}
+
+/* =========================================================
+   MENU LATERAL GAMING
+   ========================================================= */
+
+.side-menu,
+.store-side-menu,
+.menu-panel {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(0, 0, 0, 0.76),
+      rgba(5, 5, 5, 0.95)
+    ),
+    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+  border-right-color: rgba(255, 23, 68, 0.3);
+}
+
+.side-menu-title,
+.store-side-menu-title,
+.menu-panel-title {
+  text-shadow:
+    2px 2px 0 #260008,
+    0 0 18px rgba(255, 23, 68, 0.12);
+}
+
+.side-menu button,
+.store-side-menu button,
+.menu-panel button {
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+  font-weight: 1000;
+}
+
+/* =========================================================
+   JUEGOS: SIEMPRE 2 COLUMNAS
+   ========================================================= */
+
+.game-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* =========================================================
+   ELIMINAR LOGOUT SUPERIOR EN ROJO
+   ========================================================= */
+
+.logout-dot,
+.logout-corner,
+.logout-corner-button,
+.top-logout,
+.header-logout,
+.logout-indicator,
+.store-logout-dot {
+  display: none !important;
+}
+
+/* =========================================================
+   ACABADO DE TARJETAS
+   ========================================================= */
+
+.game-card,
+.offer-card,
+.balance-main-card,
+.balance-card,
+.deposit-card,
+.history-card,
+.security-card,
+.orders-stat,
+.order-item-card {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* =========================================================
+   FIN DE AJUSTES VISUALES PARTE 4
+   ========================================================= */
+
+/* =========================================================
+   EXTRA GAMING POLISH
+   ========================================================= */
+
+/* Títulos principales más visibles */
+
+.games-heading h2,
+.offers-heading h2,
+.section-title h2,
+.orders-content-header h2,
+.balance-deposit-section h2 {
+  text-shadow:
+    2px 2px 0 #260008,
+    0 0 15px rgba(255, 23, 68, 0.08);
+}
+
+/* Texto importante */
+
+.game-info h3,
+.offer-info strong,
+.selected-order-info strong,
+.orders-stat strong,
+.order-game-info strong,
+.balance-card strong,
+.deposit-card strong,
+.history-card strong,
+.security-card strong {
+  letter-spacing: 0.2px;
+}
+
+/* =========================================================
+   GAME CARDS - GAMING STYLE
+   ========================================================= */
+
+.game-card {
+  background:
+    linear-gradient(
+      145deg,
+      #141414,
+      #070707
+    );
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.game-card:hover {
+  border-color: #ff1744;
+  transform: translateY(-2px);
+}
+
+.game-card:active {
+  transform: scale(0.975);
+}
+
+.game-image-container {
+  background:
+    radial-gradient(
+      circle,
+      #202020,
+      #0a0a0a 75%
+    );
+}
+
+.game-tag {
+  background: rgba(0, 0, 0, 0.82);
+  border-color: rgba(255, 23, 68, 0.7);
+  color: #ffffff;
+  box-shadow:
+    0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.game-open {
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #a80027
+    );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* =========================================================
+   GAME INFO
+   ========================================================= */
+
+.game-info h3 {
+  font-family:
+    Impact,
+    Haettenschweiler,
+    "Arial Narrow Bold",
+    Arial,
+    sans-serif;
+  font-size: 13px;
+  font-style: italic;
+  letter-spacing: 0.5px;
+}
+
+.game-info p {
+  color: #858585;
+}
+
+.game-bottom strong {
+  text-shadow:
+    0 0 12px rgba(255, 23, 68, 0.25);
+}
+
+/* =========================================================
+   BENEFITS
+   ========================================================= */
+
+.benefit {
+  border-color: rgba(255, 23, 68, 0.08);
+}
+
+.benefit > span {
+  filter:
+    drop-shadow(
+      0 0 6px rgba(255, 23, 68, 0.2)
+    );
+}
+
+.benefit strong {
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+}
+
+/* =========================================================
+   OFFERS
+   ========================================================= */
+
+.offer-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 7px 18px rgba(0, 0, 0, 0.22);
+}
+
+.offer-card:hover,
+.offer-card.selected {
+  border-color: #ff1744;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    0 0 16px rgba(255, 23, 68, 0.08);
+}
+
+.offer-info strong {
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.offer-right strong {
+  color: #ffffff;
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.05);
+}
+
+.diamond-icon {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* =========================================================
+   ORDER SECTION
+   ========================================================= */
+
+.selected-order-card {
+  border-color: rgba(255, 23, 68, 0.1);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.selected-order-icon {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.selected-order-price {
+  text-shadow:
+    0 0 12px rgba(255, 23, 68, 0.22);
+}
+
+/* =========================================================
+   INPUTS GAMING
+   ========================================================= */
+
+.player-id-input-wrapper,
+.balance-deposit-input,
+.auth-field input {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 5px 18px rgba(0, 0, 0, 0.15);
+}
+
+.player-id-input-wrapper:focus-within {
+  border-color: #ff1744;
+  box-shadow:
+    0 0 0 2px rgba(255, 23, 68, 0.1),
+    0 0 18px rgba(255, 23, 68, 0.07);
+}
+
+/* =========================================================
+   TOTAL
+   ========================================================= */
+
+.order-total-preview strong {
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-style: italic;
+}
+
+/* =========================================================
+   FINISH BUTTON
+   ========================================================= */
+
+.finish-order-button,
+.confirm-final-button {
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #ae0029
+    );
+  border-color: #ff1744;
+  box-shadow:
+    0 12px 28px rgba(255, 23, 68, 0.23),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.finish-order-button:hover,
+.confirm-final-button:hover {
+  filter: brightness(1.07);
+}
+
+/* =========================================================
+   CONFIRMATION
+   ========================================================= */
+
+.confirmation-card {
+  border-color: rgba(255, 23, 68, 0.12);
+  box-shadow:
+    0 15px 35px rgba(0, 0, 0, 0.25);
+}
+
+.confirmation-card h3 {
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-style: italic;
+}
+
+/* =========================================================
+   SUCCESS
+   ========================================================= */
+
+.success-circle {
+  animation:
+    successPulse 2.2s infinite ease-in-out;
+}
+
+@keyframes successPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 25px rgba(255, 23, 68, 0.12);
+  }
+
+  50% {
+    box-shadow:
+      0 0 40px rgba(255, 23, 68, 0.25);
+  }
+}
+
+.success-order-number {
+  box-shadow:
+    0 12px 25px rgba(0, 0, 0, 0.25);
+}
+
+/* =========================================================
+   SERVICE INFO
+   ========================================================= */
+
+.service-info-item {
+  border-color: rgba(255, 23, 68, 0.08);
+}
+
+.service-info-item strong {
+  font-family:
+    Impact,
+    Haettenschweiler,
+    Arial,
+    sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+}
+
+/* =========================================================
+   BALANCE EXTRA DESIGN
+   ========================================================= */
+
+.balance-label {
+  color: #8a8a8a;
+}
+
+.balance-amount {
+  color: #ffffff;
+}
+
+.balance-amount strong {
+  color: #ff1744;
+  text-shadow:
+    0 0 18px rgba(255, 23, 68, 0.18);
+}
+
+/* El botón verde debe destacar */
+
+.balance-insert-button,
+.insert-balance-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.balance-insert-button::before,
+.insert-balance-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 70%;
+  height: 100%;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.18),
+      transparent
+    );
+  transform: skewX(-20deg);
+  animation:
+    balanceButtonShine 3.5s infinite;
+}
+
+@keyframes balanceButtonShine {
+  0% {
+    left: -120%;
+  }
+
+  45%,
+  100% {
+    left: 150%;
+  }
+}
+
+.balance-insert-button span,
+.insert-balance-button span {
+  position: relative;
+  z-index: 2;
+}
+
+/* =========================================================
+   BALANCE CARDS
+   ========================================================= */
+
+.balance-card,
+.deposit-card,
+.history-card,
+.security-card {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.balance-card:hover,
+.deposit-card:hover,
+.history-card:hover,
+.security-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 23, 68, 0.18);
+}
+
+/* =========================================================
+   DEPOSIT METHODS
+   ========================================================= */
+
+.deposit-method {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.deposit-method:hover {
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   ORDERS PAGE EXTRA
+   ========================================================= */
+
+.orders-page {
+  background:
+    linear-gradient(
+      180deg,
+      #070707,
+      #050505
+    );
+}
+
+.orders-header {
+  border-bottom-color: rgba(255, 23, 68, 0.13);
+}
+
+.orders-header-title strong {
+  text-shadow:
+    2px 2px 0 #260008;
+}
+
+.orders-hero-content h1 {
+  text-shadow:
+    4px 4px 0 #260008,
+    0 0 25px rgba(0, 0, 0, 0.5);
+}
+
+.orders-total-box {
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+.orders-stat {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.orders-stat:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 23, 68, 0.3);
+}
+
+/* =========================================================
+   ORDER ITEM
+   ========================================================= */
+
+.order-item-card {
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.25);
+}
+
+.order-item-card:hover {
+  border-color: rgba(255, 23, 68, 0.18);
+}
+
+.order-price strong {
+  text-shadow:
+    0 0 12px rgba(255, 23, 68, 0.2);
+}
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.order-status {
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* =========================================================
+   EMPTY ORDERS
+   ========================================================= */
+
+.orders-empty {
+  box-shadow:
+    0 15px 35px rgba(0, 0, 0, 0.22);
+}
+
+/* =========================================================
+   SECURITY
+   ========================================================= */
+
+.orders-security > div,
+.balance-security {
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.18);
+}
+
+/* =========================================================
+   FOOTERS
+   ========================================================= */
+
+.store-footer,
+.game-service-footer,
+.orders-footer {
+  background:
+    linear-gradient(
+      180deg,
+      transparent,
+      rgba(255, 23, 68, 0.015)
+    );
+   }
+
+/* =========================================================
+   RESPONSIVE VISUAL REFINEMENT
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+  /* =======================================================
+     STORE BRAND
+     ======================================================= */
+
+  .store-header .store-brand {
+    transform: translateY(0);
+  }
+
+  .store-header .store-brand .store-word,
+  .store-header .store-brand .gaming-word {
+    font-size: 19px;
+    line-height: 0.82;
+  }
+
+  .store-header .store-brand .brand-cart,
+  .store-header .store-brand .cart-logo,
+  .store-header .store-brand .brand-icon {
+    width: 27px;
+    height: 27px;
+    margin: 4px 0;
+    font-size: 14px;
+  }
+
+  /* =======================================================
+     AUTH MOBILE
+     ======================================================= */
+
+  .auth-card {
+    width: 100%;
+    box-shadow:
+      0 20px 55px rgba(0, 0, 0, 0.7),
+      0 0 25px rgba(255, 23, 68, 0.08);
+  }
+
+  .auth-title {
+    font-size: 25px;
+  }
+
+  .auth-submit,
+  .login-button,
+  .register-button,
+  .auth-enter-button {
+    min-height: 53px;
+    font-size: 10px;
+  }
+
+  .auth-back-button,
+  .auth-register-back,
+  .auth-secondary-button {
+    min-height: 50px;
+  }
+
+  /* =======================================================
+     HERO MOBILE
+     ======================================================= */
+
+  .store-hero {
+    min-height: 300px;
+  }
+
+  .store-hero-content {
+    padding: 45px 15px 30px;
+  }
+
+  .store-hero h1 {
+    font-size: clamp(38px, 14vw, 62px);
+  }
+
+  /* =======================================================
+     GAME CARDS MOBILE
+     ======================================================= */
+
+  .game-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 9px;
+  }
+
+  .game-card {
+    border-radius: 11px;
+  }
+
+  .game-image-container {
+    aspect-ratio: 1 / 1;
+  }
+
+  .game-info h3 {
+    font-size: 10px;
+  }
+
+  /* =======================================================
+     BILLETERA MOBILE
+     ======================================================= */
+
+  .balance-main-card {
+    box-shadow:
+      0 20px 45px rgba(0, 0, 0, 0.5),
+      0 0 22px rgba(255, 23, 68, 0.06);
+  }
+
+  .balance-amount {
+    font-size: 39px;
+  }
+
+  .balance-insert-button,
+  .insert-balance-button {
+    min-height: 53px;
+  }
+
+  /* =======================================================
+     SIDE MENU MOBILE
+     ======================================================= */
+
+  .side-menu,
+  .store-side-menu,
+  .menu-panel {
+    width: min(320px, 88vw);
+  }
+
+  .side-menu button,
+  .store-side-menu button,
+  .menu-panel button {
+    min-height: 50px;
+  }
+
+  /* =======================================================
+     ORDERS MOBILE
+     ======================================================= */
+
+  .orders-hero-content h1 {
+    font-size: clamp(34px, 12vw, 56px);
+  }
+
+  .orders-stat {
+    border-radius: 9px;
+  }
+
+  .orders-stat strong {
+    font-size: 13px;
+  }
+
+  .order-item-card {
+    border-radius: 11px;
+  }
+}
+
+/* =========================================================
+   SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 390px) {
+
+  .welcome-overlay {
+    padding: 25px 15px;
+  }
+
+  .welcome-brand .store-word,
+  .welcome-brand .gaming-word {
+    font-size: 32px;
+  }
+
+  .store-header {
+    grid-template-columns: 47px 1fr 47px;
+  }
+
+  .store-header .store-brand .store-word,
+  .store-header .store-brand .gaming-word {
+    font-size: 17px;
+  }
+
+  .store-header .store-brand .brand-cart,
+  .store-header .store-brand .cart-logo,
+  .store-header .store-brand .brand-icon {
+    width: 25px;
+    height: 25px;
+    font-size: 13px;
+  }
+
+  .game-grid {
+    gap: 7px;
+  }
+
+  .game-info {
+    padding: 7px;
+  }
+
+  .game-info h3 {
+    font-size: 9px;
+  }
+
+  .game-info p {
+    font-size: 5.5px;
+  }
+
+  .game-tag,
+  .game-open {
+    font-size: 5px;
+    padding: 4px 5px;
+  }
+
+  .balance-amount {
+    font-size: 34px;
+  }
+
+  .balance-main-card {
+    padding: 21px 13px;
+  }
+
+  .orders-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .orders-stat {
+    min-height: 70px;
+    padding: 8px;
+  }
+
+  .orders-stat strong {
+    font-size: 11px;
+  }
+
+  .orders-stat small {
+    font-size: 5px;
+  }
+
+  .free-fire-main-text h1 {
+    font-size: clamp(29px, 13vw, 48px);
+  }
+
+  .order-item-details {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* =========================================================
+   TOUCH / MOBILE SAFETY
+   ========================================================= */
+
+html,
+body {
+  overscroll-behavior-x: none;
+}
+
+button,
+.game-card,
+.offer-card,
+.orders-stat {
+  touch-action: manipulation;
+}
+
+input {
+  font-size: 16px;
+}
+
+textarea,
+select {
+  font-size: 16px;
+}
+
+@media (max-width: 700px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   BUTTON PRESS EFFECT
+   ========================================================= */
+
+button:not(:disabled):active {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.primary-button:not(:disabled):active,
+.btn-primary:not(:disabled):active,
+.login-button:not(:disabled):active,
+.register-button:not(:disabled):active,
+.auth-enter-button:not(:disabled):active,
+.auth-back-button:not(:disabled):active,
+.auth-register-back:not(:disabled):active,
+.balance-insert-button:not(:disabled):active,
+.insert-balance-button:not(:disabled):active {
+  transform: scale(0.975);
+}
+
+/* =========================================================
+   GLOBAL SELECTION
+   ========================================================= */
+
+::selection {
+  background: #ff1744;
+  color: #ffffff;
+}
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      180deg,
+      #ff1744,
+      #80001f
+    );
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff1744;
+}
+
+/* =========================================================
+   FORM AUTOFILL
+   ========================================================= */
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-box-shadow:
+    0 0 0 1000px #0d0d0d inset;
+  transition:
+    background-color 5000s ease-in-out 0s;
+}
+
+/* =========================================================
+   FOCUS ACCESSIBILITY
+   ========================================================= */
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #ff1744;
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   NO WHITE BACKGROUNDS
+   ========================================================= */
+
+.auth-card button,
+.balance-page button,
+.orders-page button,
+.game-service-page button,
+.store-header button,
+.side-menu button,
+.store-side-menu button,
+.menu-panel button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================================================
+   FINAL COLOR SYSTEM
+   ========================================================= */
+
+strong {
+  color: inherit;
+}
+
+a:hover {
+  color: inherit;
+}
+
+/* =========================================================
+   FINAL BRAND SHADOW
+   ========================================================= */
+
+.store-brand .store-word,
+.store-brand .gaming-word {
+  filter:
+    drop-shadow(
+      0 0 2px rgba(0, 0, 0, 0.5)
+    );
+}
+
+/* =========================================================
+   FINAL CARD FINISH
+   ========================================================= */
+
+.game-card,
+.offer-card,
+.selected-order-card,
+.confirmation-card,
+.balance-main-card,
+.balance-card,
+.deposit-card,
+.history-card,
+.security-card,
+.orders-stat,
+.order-item-card,
+.orders-empty {
+  isolation: isolate;
+}
+
+/* =========================================================
+   PREVENT CONTENT SELECTION ON UI
+   ========================================================= */
+
+.game-card,
+.offer-card,
+.orders-stat,
+.game-open,
+.menu-button,
+.hamburger-button,
+.store-menu-button,
+.menu-toggle,
+.balance-insert-button,
+.insert-balance-button {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* =========================================================
+   ANIMATED RED ACCENTS
+   ========================================================= */
+
+.store-header::after,
+.balance-header::after,
+.orders-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 23, 68, 0.55),
+      transparent
+    );
+  pointer-events: none;
+     }
+
+/* =========================================================
+   FINAL MOBILE FIXES
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+  /* =======================================================
+     CENTRAL STORE / CART / GAMING
+     ======================================================= */
+
+  .welcome-brand .store-word,
+  .welcome-brand .gaming-word {
+    letter-spacing: 2px;
+  }
+
+  .welcome-brand .brand-cart,
+  .welcome-brand .cart-logo,
+  .welcome-brand .brand-icon {
+    width: 42px;
+    height: 39px;
+    font-size: 20px;
+  }
+
+  /* =======================================================
+     LOGIN / REGISTER
+     ======================================================= */
+
+  .auth-card {
+    max-height: calc(100svh - 28px);
+    overflow-y: auto;
+  }
+
+  .auth-form {
+    gap: 11px;
+  }
+
+  .auth-field label {
+    font-size: 8px;
+  }
+
+  .auth-field input {
+    min-height: 49px;
+  }
+
+  /* =======================================================
+     STORE HEADER
+     ======================================================= */
+
+  .store-header {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+  }
+
+  .store-header .store-brand {
+    transform: scale(0.98);
+  }
+
+  /* =======================================================
+     GAME GRID
+     ======================================================= */
+
+  .games-section {
+    width: 100%;
+  }
+
+  .game-grid {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .game-card {
+    width: 100%;
+  }
+
+  /* =======================================================
+     WALLET
+     ======================================================= */
+
+  .balance-page {
+    background-attachment: scroll;
+  }
+
+  .balance-background {
+    position: fixed;
+  }
+
+  .balance-main {
+    width: 100%;
+  }
+
+  .balance-amount {
+    font-size: 39px;
+  }
+
+  /* =======================================================
+     ORDERS
+     ======================================================= */
+
+  .orders-page {
+    min-width: 0;
+  }
+
+  .orders-content {
+    width: 100%;
+  }
+
+  .orders-content-header {
+    align-items: flex-start;
+  }
+
+  .order-item-details {
+    gap: 8px;
+  }
+}
+
+/* =========================================================
+   VERY SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 350px) {
+
+  .store-header {
+    grid-template-columns: 43px 1fr 43px;
+  }
+
+  .menu-button,
+  .hamburger-button,
+  .store-menu-button,
+  .menu-toggle {
+    width: 39px;
+    height: 39px;
+  }
+
+  .store-header .store-brand .store-word,
+  .store-header .store-brand .gaming-word {
+    font-size: 15px;
+  }
+
+  .store-header .store-brand .brand-cart,
+  .store-header .store-brand .cart-logo,
+  .store-header .store-brand .brand-icon {
+    width: 23px;
+    height: 23px;
+    font-size: 12px;
+  }
+
+  .game-info h3 {
+    font-size: 8px;
+  }
+
+  .game-info p {
+    font-size: 5px;
+  }
+
+  .game-bottom strong {
+    font-size: 11px;
+  }
+
+  .balance-amount {
+    font-size: 31px;
+  }
+
+  .balance-insert-button,
+  .insert-balance-button {
+    font-size: 9px;
+  }
+}
+
+/* =========================================================
+   FINAL OVERRIDES
+   ========================================================= */
+
+/* No mostrar el antiguo botón de carrito del header */
+
+.store-header .cart-button,
+.game-service-header .game-cart-button {
+  display: none !important;
+}
+
+/* No mostrar logout rojo de esquina */
+
+.logout-dot,
+.logout-corner,
+.logout-corner-button,
+.top-logout,
+.header-logout,
+.logout-indicator,
+.store-logout-dot {
+  display: none !important;
+}
+
+/* =========================================================
+   STORE TITLE FINAL
+   ========================================================= */
+
+.store-brand .store-word {
+  color: #ffffff !important;
+}
+
+.store-brand .gaming-word {
+  color: #ff1744 !important;
+}
+
+.store-brand .brand-cart,
+.store-brand .cart-logo,
+.store-brand .brand-icon {
+  color: #ffcc33 !important;
+  background:
+    linear-gradient(
+      145deg,
+      #292929,
+      #080808
+    ) !important;
+  border: 1px solid #ff1744 !important;
+}
+
+/* =========================================================
+   RED PRIMARY
+   ========================================================= */
+
+.auth-submit,
+.login-button,
+.register-button,
+.auth-enter-button,
+.primary-button,
+.btn-primary,
+.finish-order-button,
+.confirm-final-button,
+.view-orders-button,
+.orders-shop-button {
+  background:
+    linear-gradient(
+      135deg,
+      #ff1744,
+      #b90029
+    ) !important;
+  color: #ffffff !important;
+  border-color: #ff1744 !important;
+}
+
+/* =========================================================
+   BLACK SECONDARY
+   ========================================================= */
+
+.auth-back-button,
+.auth-register-back,
+.auth-secondary-button,
+.balance-back-button,
+.back-button,
+.btn-back,
+.button-back {
+  background:
+    linear-gradient(
+      145deg,
+      #191919,
+      #030303
+    ) !important;
+  color: #ffffff !important;
+}
+
+/* =========================================================
+   GREEN BALANCE
+   ========================================================= */
+
+.balance-insert-button,
+.insert-balance-button {
+  background:
+    linear-gradient(
+      135deg,
+      #16d875,
+      #078d48
+    ) !important;
+  border-color: #16d875 !important;
+  color: #ffffff !important;
+}
+
+/* =========================================================
+   BATTLE ROYALE BACKGROUND
+   ========================================================= */
+
+.auth-page,
+.welcome-page,
+.store-hero,
+.side-menu,
+.store-side-menu,
+.menu-panel,
+.balance-page,
+.balance-background,
+.orders-hero {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+
+/* =========================================================
+   FINAL TYPOGRAPHY
+   ========================================================= */
+
+.auth-title,
+.balance-header h1,
+.balance-deposit-section h2,
+.orders-content-header h2,
+.orders-empty h3,
+.games-heading h2,
+.offers-heading h2,
+.section-title h2 {
+  font-style: italic;
+}
+
+/* =========================================================
+   FINAL RED GLOW
+   ========================================================= */
+
+.game-bottom strong,
+.offer-right span,
+.selected-order-price,
+.order-price strong,
+.orders-hero-label,
+.orders-content-header > div:first-child span {
+  text-shadow:
+    0 0 10px rgba(255, 23, 68, 0.18);
+}
+
+/* =========================================================
+   FINAL BLACK / RED BACKGROUND
+   ========================================================= */
+
+body {
+  background:
+    #050505;
+}
+
+/* =========================================================
+   FINAL BUTTON SAFETY
+   ========================================================= */
+
+button {
+  border-style: solid;
+}
+
+button:disabled {
+  filter: grayscale(0.35);
+}
+
+/* =========================================================
+   FINAL INPUT SAFETY
+   ========================================================= */
+
+input,
+textarea,
+select {
+  color-scheme: dark;
+}
+
+/* =========================================================
+   FINAL IMAGE SAFETY
+   ========================================================= */
+
+img {
+  -webkit-user-drag: none;
+}
+
+/* =========================================================
+   FINAL MOBILE GAME GRID
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .game-grid {
+    display: grid !important;
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr) !important;
+  }
+}
+
+/* =========================================================
+   FIN DE GLOBAL CSS
+   ========================================================= */
