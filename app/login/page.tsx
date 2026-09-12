@@ -70,50 +70,99 @@ export default function LoginPage() {
   }
 
   function handleForgotPassword() {
+    if (loading) return;
+
     router.push("/forgot-password");
   }
 
   return (
-    <main className="auth-page">
+    <main className="auth-page login-page">
+
       <div className="auth-background" />
 
-      <section className="auth-card">
+      <section className="auth-card login-card">
+
+        {/* BOTÓN ATRÁS */}
+
         <button
           type="button"
-          className="back-button"
+          className="back-button auth-back-button login-back-button"
           onClick={() => router.push("/")}
           disabled={loading}
         >
-          ← Volver
+          <span className="back-arrow">
+            ←
+          </span>
+
+          <span>
+            ATRÁS
+          </span>
         </button>
 
-        <div className="auth-logo">
-          🛒🎮
+        {/* LOGO */}
+
+        <div className="login-logo">
+
+          <div className="login-logo-cart">
+            🛒
+          </div>
+
+          <div className="login-logo-text">
+            <span>
+              STORE
+            </span>
+
+            <strong>
+              GAMING
+            </strong>
+          </div>
+
         </div>
 
-        <p className="auth-small">
-          BIENVENIDO DE NUEVO
-        </p>
+        {/* ENCABEZADO */}
 
-        <h1 className="auth-title">
-          INICIAR <span>SESIÓN</span>
-        </h1>
+        <div className="login-heading">
 
-        <p className="auth-description">
-          Entra a tu cuenta para acceder a STORE GAMING.
-        </p>
+          <p className="auth-small">
+            BIENVENIDO DE NUEVO
+          </p>
+
+          <h1 className="auth-title">
+            INICIAR <span>SESIÓN</span>
+          </h1>
+
+          <div className="login-title-line" />
+
+          <p className="auth-description">
+            Entra a tu cuenta para acceder a
+            <strong> STORE GAMING</strong>.
+          </p>
+
+        </div>
+
+        {/* FORMULARIO */}
 
         <form
           onSubmit={handleLogin}
-          className="auth-form"
+          className="auth-form login-form"
         >
-          <label>
-            CORREO ELECTRÓNICO
 
-            <div className="input-wrapper">
-              <span>✉️</span>
+          {/* CORREO */}
+
+          <div className="login-field">
+
+            <label htmlFor="login-email">
+              CORREO ELECTRÓNICO
+            </label>
+
+            <div className="input-wrapper login-input-wrapper">
+
+              <span className="input-icon">
+                ✉
+              </span>
 
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(event) =>
@@ -124,16 +173,27 @@ export default function LoginPage() {
                 inputMode="email"
                 disabled={loading}
               />
+
             </div>
-          </label>
 
-          <label>
-            CONTRASEÑA
+          </div>
 
-            <div className="input-wrapper">
-              <span>🔒</span>
+          {/* CONTRASEÑA */}
+
+          <div className="login-field">
+
+            <label htmlFor="login-password">
+              CONTRASEÑA
+            </label>
+
+            <div className="input-wrapper login-input-wrapper">
+
+              <span className="input-icon">
+                🔒
+              </span>
 
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(event) =>
@@ -143,54 +203,119 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 disabled={loading}
               />
-            </div>
-          </label>
 
-          <button
-            type="button"
-            className="forgot-password-button"
-            onClick={handleForgotPassword}
-            disabled={loading}
-          >
-            ¿OLVIDASTE TU CONTRASEÑA?
-          </button>
+            </div>
+
+          </div>
+
+          {/* RECUPERAR CONTRASEÑA */}
+
+          <div className="login-forgot-wrapper">
+
+            <button
+              type="button"
+              className="forgot-password-button login-forgot-button"
+              onClick={handleForgotPassword}
+              disabled={loading}
+            >
+              <span>
+                ¿OLVIDASTE TU CONTRASEÑA?
+              </span>
+
+              <b>
+                →
+              </b>
+            </button>
+
+          </div>
+
+          {/* ERROR */}
 
           {error && (
-            <div className="auth-error">
-              {error}
+            <div className="auth-error login-message">
+
+              <span>
+                ⚠
+              </span>
+
+              <p>
+                {error}
+              </p>
+
             </div>
           )}
 
+          {/* ENTRAR */}
+
           <button
             type="submit"
-            className="auth-submit"
+            className="auth-submit login-submit"
             disabled={loading}
           >
-            {loading
-              ? "ENTRANDO..."
-              : "ENTRAR"}
+
+            <span>
+              {loading
+                ? "ENTRANDO..."
+                : "ENTRAR"}
+            </span>
+
+            {!loading && (
+              <b>
+                →
+              </b>
+            )}
+
           </button>
+
         </form>
 
-        <div className="auth-divider">
+        {/* DIVISOR */}
+
+        <div className="auth-divider login-divider">
+
           <span />
-          O
+
+          <strong>
+            O
+          </strong>
+
           <span />
+
         </div>
 
-        <p className="auth-register-text">
-          ¿Todavía no tienes una cuenta?
-        </p>
+        {/* REGISTRO */}
 
-        <button
-          type="button"
-          className="auth-register-button"
-          onClick={() => router.push("/register")}
-          disabled={loading}
-        >
-          CREAR CUENTA
-        </button>
+        <div className="login-register-area">
+
+          <p className="auth-register-text">
+            ¿TODAVÍA NO TIENES UNA CUENTA?
+          </p>
+
+          <button
+            type="button"
+            className="auth-register-button login-register-button"
+            onClick={() => router.push("/register")}
+            disabled={loading}
+          >
+            <span>
+              CREAR CUENTA
+            </span>
+
+            <b>
+              →
+            </b>
+          </button>
+
+        </div>
+
+        {/* PIE */}
+
+        <div className="login-footer">
+          STORE GAMING • RECARGAS GAMING
+        </div>
+
       </section>
+
     </main>
   );
                 }
