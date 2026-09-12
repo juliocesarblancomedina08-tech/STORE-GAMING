@@ -2,96 +2,186 @@
 
 import { useRouter } from "next/navigation";
 
+type GiftCard = {
+  name: string;
+  image: string;
+  route: string;
+};
 
-export default function GiftCardsPage(){
-
-const router = useRouter();
-
-
-const cards=[
-"Google Play",
-"Steam",
-"PlayStation",
-"Xbox",
-"Netflix"
+const giftCards: GiftCard[] = [
+  {
+    name: "GARENA FREE FIRE (GLOBAL)",
+    image: "",
+    route: "/gift-cards/garena-free-fire-global",
+  },
+  {
+    name: "ROBLOX (GLOBAL)",
+    image: "",
+    route: "/gift-cards/roblox-global",
+  },
+  {
+    name: "ROBLOX (RU)",
+    image: "",
+    route: "/gift-cards/roblox-ru",
+  },
+  {
+    name: "ROBLOX (EE.UU)",
+    image: "",
+    route: "/gift-cards/roblox-eeuu",
+  },
+  {
+    name: "ROBLOX (ID)",
+    image: "",
+    route: "/gift-cards/roblox-id",
+  },
+  {
+    name: "ARENA BREAKOUT",
+    image: "",
+    route: "/gift-cards/arena-breakout",
+  },
+  {
+    name: "FORTNITE (AE)",
+    image: "",
+    route: "/gift-cards/fortnite-ae",
+  },
+  {
+    name: "FORTNITE (SUIZA)",
+    image: "",
+    route: "/gift-cards/fortnite-suiza",
+  },
+  {
+    name: "FORTNITE (EE.UU)",
+    image: "",
+    route: "/gift-cards/fortnite-eeuu",
+  },
+  {
+    name: "FORTNITE (DE)",
+    image: "",
+    route: "/gift-cards/fortnite-de",
+  },
+  {
+    name: "FORTNITE (UE)",
+    image: "",
+    route: "/gift-cards/fortnite-ue",
+  },
+  {
+    name: "GOOGLE PLAY (EE.UU)",
+    image: "",
+    route: "/gift-cards/google-play-eeuu",
+  },
+  {
+    name: "GOOGLE PLAY (BRASIL)",
+    image: "",
+    route: "/gift-cards/google-play-brasil",
+  },
+  {
+    name: "GOOGLE PLAY (ES)",
+    image: "",
+    route: "/gift-cards/google-play-es",
+  },
+  {
+    name: "GOOGLE PLAY (AE)",
+    image: "",
+    route: "/gift-cards/google-play-ae",
+  },
+  {
+    name: "GOOGLE PLAY (ID)",
+    image: "",
+    route: "/gift-cards/google-play-id",
+  },
+  {
+    name: "LEAGUE OF LEGENDS (EE.UU)",
+    image: "",
+    route: "/gift-cards/league-of-legends-eeuu",
+  },
+  {
+    name: "LEAGUE OF LEGENDS (RU)",
+    image: "",
+    route: "/gift-cards/league-of-legends-ru",
+  },
+  {
+    name: "RAZER GOLD (EE.UU)",
+    image: "",
+    route: "/gift-cards/razer-gold-eeuu",
+  },
+  {
+    name: "RAZER GOLD (GLOBAL)",
+    image: "",
+    route: "/gift-cards/razer-gold-global",
+  },
+  {
+    name: "RAZER GOLD (ID)",
+    image: "",
+    route: "/gift-cards/razer-gold-id",
+  },
+  {
+    name: "RAZER GOLD (MX)",
+    image: "",
+    route: "/gift-cards/razer-gold-mx",
+  },
 ];
 
+export default function GiftCardsPage() {
+  const router = useRouter();
 
-return(
+  return (
+    <main className="gift-cards-page">
 
-<main className="service-page">
+      <header className="gift-cards-header">
 
+        <button
+          type="button"
+          className="gift-cards-back-button"
+          onClick={() => router.push("/home")}
+          aria-label="Volver"
+        >
+          ←
+        </button>
 
-<header className="service-header">
+        <h1>
+          TARJETAS DE REGALO Y CODIGOS
+        </h1>
 
-<button
-className="back-button"
-onClick={()=>router.push("/home")}
->
-←
-</button>
-
-
-<h1>
-🎁 TARJETAS
-</h1>
-
-
-</header>
-
-
-
-<section className="service-hero">
-
-<span>
-GIFT CARDS
-</span>
+      </header>
 
 
-<h2>
-PRÓXIMAMENTE
-</h2>
+      <section className="gift-cards-grid">
+
+        {giftCards.map((card) => (
+
+          <button
+            key={card.name}
+            type="button"
+            className="gift-card"
+            onClick={() => router.push(card.route)}
+          >
+
+            <div className="gift-card-image">
+
+              {card.image ? (
+                <img
+                  src={card.image}
+                  alt={card.name}
+                />
+              ) : (
+                <div className="gift-card-image-placeholder">
+                  🎁
+                </div>
+              )}
+
+            </div>
 
 
-<p>
-Estamos preparando las mejores tarjetas digitales.
-</p>
+            <div className="gift-card-name">
+              {card.name}
+            </div>
 
+          </button>
 
-</section>
+        ))}
 
+      </section>
 
-
-<section className="service-grid">
-
-{cards.map(card=>(
-
-<div
-key={card}
-className="service-card"
->
-
-<strong>
-🎁 {card}
-</strong>
-
-
-<span>
-DISPONIBLE PRONTO
-</span>
-
-
-</div>
-
-))}
-
-
-</section>
-
-
-
-</main>
-
-)
-
-}
+    </main>
+  );
+            }
