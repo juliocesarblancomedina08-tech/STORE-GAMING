@@ -47,6 +47,7 @@ export default function HomePage() {
 
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const auth = localStorage.getItem("storeGamingAuth");
@@ -75,21 +76,20 @@ export default function HomePage() {
 
   function logout() {
     localStorage.removeItem("storeGamingAuth");
+    setMenuOpen(false);
     router.replace("/");
   }
 
-  function openMenu() {
-    // El menú lateral lo construiremos en el siguiente paso.
-    // Por ahora el botón ya está preparado.
+  function goTo(path: string) {
+    setMenuOpen(false);
+    router.push(path);
   }
 
   if (loading) {
     return (
       <main className="store-loading">
-        <div className="loading-logo">🛒🎮</div>
-
+        <div className="loading-logo">STORE GAMING</div>
         <div className="loading-line" />
-
         <p>CARGANDO STORE GAMING...</p>
       </main>
     );
@@ -97,12 +97,236 @@ export default function HomePage() {
 
   return (
     <main className="store-home">
+
+      {/* =========================
+          MENÚ LATERAL
+      ========================== */}
+
+      {menuOpen && (
+        <>
+          <button
+            type="button"
+            className="menu-backdrop"
+            aria-label="Cerrar menú"
+            onClick={() => setMenuOpen(false)}
+          />
+
+          <aside className="side-menu">
+
+            <div className="side-menu-header">
+              <div className="side-menu-brand">
+                <span className="side-brand-line" />
+                <div>
+                  <small>STORE</small>
+                  <strong>GAMING</strong>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="side-menu-close"
+                onClick={() => setMenuOpen(false)}
+                aria-label="Cerrar menú"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="side-menu-user">
+              <div className="side-user-icon">
+                @
+              </div>
+
+              <div>
+                <small>CUENTA</small>
+                <strong>@{username}</strong>
+              </div>
+            </div>
+
+            <nav className="side-menu-nav">
+
+              {/* PRINCIPAL */}
+
+              <button
+                type="button"
+                className="side-menu-item active"
+                onClick={() => goTo("/home")}
+              >
+                <span className="menu-icon home-icon">
+                  ⌂
+                </span>
+
+                <span>Hogar</span>
+              </button>
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/orders")}
+              >
+                <span className="menu-icon">
+                  ▣
+                </span>
+
+                <span>Órdenes</span>
+              </button>
+
+              {/* SERVICIOS */}
+
+              <div className="side-menu-section-title">
+                <span />
+                SERVICIOS
+                <span />
+              </div>
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  alert("Estrellas de Telegram próximamente.");
+                }}
+              >
+                <span className="menu-icon">
+                  ☆
+                </span>
+
+                <span>Estrellas de Telegram</span>
+              </button>
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  alert("Tarjetas de regalo próximamente.");
+                }}
+              >
+                <span className="menu-icon gift-icon">
+                  ▱
+                </span>
+
+                <span>Tarjetas de regalo</span>
+              </button>
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  document
+                    .querySelector(".games-section")
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                    });
+                }}
+              >
+                <span className="menu-icon">
+                  ◇
+                </span>
+
+                <span>Recargas TOP UP</span>
+              </button>
+
+              {/* FINANZAS */}
+
+              <div className="side-menu-section-title">
+                <span />
+                FINANZAS
+                <span />
+              </div>
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  alert("Billetera próximamente.");
+                }}
+              >
+                <span className="menu-icon">
+                  ◉
+                </span>
+
+                <span>Billetera</span>
+              </button>
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  alert("Estadísticas próximamente.");
+                }}
+              >
+                <span className="menu-icon">
+                  ▥
+                </span>
+
+                <span>Estadísticas</span>
+              </button>
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  alert("Perfil próximamente.");
+                }}
+              >
+                <span className="menu-icon">
+                  ♙
+                </span>
+
+                <span>Perfil</span>
+              </button>
+
+              {/* SOPORTE */}
+
+              <button
+                type="button"
+                className="side-menu-item support-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  alert("Soporte próximamente.");
+                }}
+              >
+                <span className="support-headset-icon">
+                  <span className="support-head" />
+                  <span className="support-headset" />
+                  <span className="support-mic" />
+                </span>
+
+                <span>Soporte</span>
+              </button>
+
+            </nav>
+
+            <div className="side-menu-bottom">
+              <button
+                type="button"
+                className="side-menu-logout"
+                onClick={logout}
+              >
+                <span>⇥</span>
+                <strong>Cerrar sesión</strong>
+              </button>
+            </div>
+
+          </aside>
+        </>
+      )}
+
+      {/* =========================
+          HEADER
+      ========================== */}
+
       <header className="store-header">
-        {/* MENÚ ☰ */}
+
         <button
           type="button"
           className="menu-button"
-          onClick={openMenu}
+          onClick={() => setMenuOpen(true)}
           aria-label="Abrir menú"
         >
           <span />
@@ -110,21 +334,17 @@ export default function HomePage() {
           <span />
         </button>
 
-        {/* LOGO */}
         <button
           type="button"
           className="store-logo"
           onClick={() => router.push("/home")}
         >
-          <span className="store-logo-cart">🛒</span>
-
           <span className="store-logo-text">
             <strong>STORE</strong>
             <b>GAMING</b>
           </span>
         </button>
 
-        {/* USUARIO */}
         <div className="store-header-actions">
           <button
             type="button"
@@ -132,15 +352,21 @@ export default function HomePage() {
             onClick={logout}
             aria-label="Cerrar sesión"
           >
-            👤
+            ◉
           </button>
         </div>
+
       </header>
+
+      {/* =========================
+          HERO
+      ========================== */}
 
       <section className="store-hero">
         <div className="hero-glow" />
 
         <div className="hero-content">
+
           <div className="hero-badge">
             ⚡ TOP UP GAMING
           </div>
@@ -157,6 +383,7 @@ export default function HomePage() {
           </p>
 
           <div className="hero-stats">
+
             <div>
               <strong>⚡</strong>
               <span>RÁPIDO</span>
@@ -171,15 +398,21 @@ export default function HomePage() {
               <strong>🎮</strong>
               <span>GAMING</span>
             </div>
+
           </div>
         </div>
       </section>
 
+      {/* =========================
+          JUEGOS
+      ========================== */}
+
       <section className="games-section">
+
         <div className="catalog-header">
+
           <div>
             <span>STORE GAMING</span>
-
             <h2>ELIGE TU JUEGO</h2>
           </div>
 
@@ -188,9 +421,11 @@ export default function HomePage() {
             <i />
             <i />
           </div>
+
         </div>
 
         <div className="games-grid">
+
           {games.map((game) => (
             <button
               key={game.name}
@@ -198,7 +433,9 @@ export default function HomePage() {
               className="game-card"
               onClick={() => router.push(game.route)}
             >
+
               <div className="game-image-container">
+
                 <img
                   src={game.image}
                   alt={game.name}
@@ -214,31 +451,41 @@ export default function HomePage() {
                 <div className="game-open">
                   VER →
                 </div>
+
               </div>
 
               <div className="game-info">
+
                 <h3>{game.name}</h3>
 
-                <p>{game.description}</p>
+                <p>
+                  {game.description}
+                </p>
 
                 <div className="game-bottom">
                   <span>TOP UP</span>
-
                   <strong>→</strong>
                 </div>
+
               </div>
+
             </button>
           ))}
+
         </div>
       </section>
 
+      {/* =========================
+          BENEFICIOS
+      ========================== */}
+
       <section className="benefits-section">
+
         <div className="benefit">
           <span>⚡</span>
 
           <div>
             <strong>ENTREGA RÁPIDA</strong>
-
             <p>
               Procesamos tus pedidos rápidamente.
             </p>
@@ -250,7 +497,6 @@ export default function HomePage() {
 
           <div>
             <strong>COMPRA SEGURA</strong>
-
             <p>
               Tu pedido queda registrado.
             </p>
@@ -262,17 +508,21 @@ export default function HomePage() {
 
           <div>
             <strong>TOP UP GAMING</strong>
-
             <p>
               Recargas para tus juegos favoritos.
             </p>
           </div>
         </div>
+
       </section>
+
+      {/* =========================
+          FOOTER
+      ========================== */}
 
       <footer className="store-footer">
         <div className="footer-brand">
-          🛒STORE GAMING🎮
+          STORE GAMING
         </div>
 
         <p>
@@ -283,6 +533,7 @@ export default function HomePage() {
           © 2026 STORE GAMING
         </small>
       </footer>
+
     </main>
   );
-                  }
+}
