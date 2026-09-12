@@ -212,6 +212,7 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
+
                   alert(
                     "Estrellas de Telegram próximamente."
                   );
@@ -231,6 +232,7 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
+
                   alert(
                     "Tarjetas de regalo próximamente."
                   );
@@ -278,18 +280,15 @@ export default function HomePage() {
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={() => {
-                  setMenuOpen(false);
-                  alert(
-                    "Billetera próximamente."
-                  );
-                }}
+                onClick={() => goTo("/balance")}
               >
                 <span className="menu-icon">
                   ◉
                 </span>
 
-                <span>Billetera</span>
+                <span>
+                  Billetera
+                </span>
               </button>
 
               <button
@@ -297,6 +296,7 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
+
                   alert(
                     "Estadísticas próximamente."
                   );
@@ -306,7 +306,9 @@ export default function HomePage() {
                   ▥
                 </span>
 
-                <span>Estadísticas</span>
+                <span>
+                  Estadísticas
+                </span>
               </button>
 
               <button
@@ -314,6 +316,7 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
+
                   alert(
                     "Perfil próximamente."
                   );
@@ -323,7 +326,9 @@ export default function HomePage() {
                   ♙
                 </span>
 
-                <span>Perfil</span>
+                <span>
+                  Perfil
+                </span>
               </button>
 
               {/* SOPORTE */}
@@ -333,6 +338,7 @@ export default function HomePage() {
                 className="side-menu-item support-item"
                 onClick={() => {
                   setMenuOpen(false);
+
                   alert(
                     "Soporte próximamente."
                   );
@@ -344,7 +350,9 @@ export default function HomePage() {
                   <span className="support-mic" />
                 </span>
 
-                <span>Soporte</span>
+                <span>
+                  Soporte
+                </span>
               </button>
 
             </nav>
@@ -356,7 +364,9 @@ export default function HomePage() {
                 className="side-menu-logout"
                 onClick={logout}
               >
-                <span>⇥</span>
+                <span>
+                  ⇥
+                </span>
 
                 <strong>
                   Cerrar sesión
@@ -392,8 +402,13 @@ export default function HomePage() {
           onClick={() => router.push("/home")}
         >
           <span className="store-logo-text">
-            <strong>STORE</strong>
-            <b>GAMING</b>
+            <strong>
+              STORE
+            </strong>
+
+            <b>
+              GAMING
+            </b>
           </span>
         </button>
 
@@ -429,12 +444,16 @@ export default function HomePage() {
           <h1 className="hero-title">
             TU MUNDO
             <br />
-            <span>GAMING</span>
+            <span>
+              GAMING
+            </span>
           </h1>
 
           <p className="hero-text">
             Hola{" "}
-            <strong>@{username}</strong>.
+            <strong>
+              @{username}
+            </strong>.
             Compra tus recargas de forma
             rápida y sencilla.
           </p>
@@ -442,18 +461,33 @@ export default function HomePage() {
           <div className="hero-stats">
 
             <div>
-              <strong>⚡</strong>
-              <span>RÁPIDO</span>
+              <strong>
+                ⚡
+              </strong>
+
+              <span>
+                RÁPIDO
+              </span>
             </div>
 
             <div>
-              <strong>🔒</strong>
-              <span>SEGURO</span>
+              <strong>
+                🔒
+              </strong>
+
+              <span>
+                SEGURO
+              </span>
             </div>
 
             <div>
-              <strong>🎮</strong>
-              <span>GAMING</span>
+              <strong>
+                🎮
+              </strong>
+
+              <span>
+                GAMING
+              </span>
             </div>
 
           </div>
@@ -471,8 +505,13 @@ export default function HomePage() {
         <div className="catalog-header">
 
           <div>
-            <span>STORE GAMING</span>
-            <h2>ELIGE TU JUEGO</h2>
+            <span>
+              STORE GAMING
+            </span>
+
+            <h2>
+              ELIGE TU JUEGO
+            </h2>
           </div>
 
           <div className="catalog-decoration">
@@ -517,7 +556,9 @@ export default function HomePage() {
 
               <div className="game-info">
 
-                <h3>{game.name}</h3>
+                <h3>
+                  {game.name}
+                </h3>
 
                 <p>
                   {game.description}
@@ -525,9 +566,13 @@ export default function HomePage() {
 
                 <div className="game-bottom">
 
-                  <span>TOP UP</span>
+                  <span>
+                    TOP UP
+                  </span>
 
-                  <strong>→</strong>
+                  <strong>
+                    →
+                  </strong>
 
                 </div>
 
@@ -548,7 +593,9 @@ export default function HomePage() {
 
         <div className="benefit">
 
-          <span>⚡</span>
+          <span>
+            ⚡
+          </span>
 
           <div>
             <strong>
@@ -565,7 +612,9 @@ export default function HomePage() {
 
         <div className="benefit">
 
-          <span>🛡️</span>
+          <span>
+            🛡️
+          </span>
 
           <div>
             <strong>
@@ -581,7 +630,9 @@ export default function HomePage() {
 
         <div className="benefit">
 
-          <span>🎮</span>
+          <span>
+            🎮
+          </span>
 
           <div>
             <strong>
@@ -621,4 +672,4 @@ export default function HomePage() {
 
     </main>
   );
-                    }
+                }
