@@ -2,61 +2,75 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     setError("");
 
-    const cleanUsername = username.trim().replace(/^@/, "");
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanUsername || !password) {
+    if (!cleanEmail || !password) {
       setError("Completa todos los campos.");
       return;
     }
 
-    const savedUser = localStorage.getItem("storeGamingUser");
-
-    if (!savedUser) {
-      setError("No existe una cuenta. Regístrate primero.");
+    if (!cleanEmail.includes("@")) {
+      setError("Introduce un correo electrónico válido.");
       return;
     }
 
-    try {
-      const account = JSON.parse(savedUser);
+    setLoading(true);
 
-      if (
-        account.username.toLowerCase() !==
-          cleanUsername.toLowerCase() ||
-        account.password !== password
-      ) {
-        setError("Usuario o contraseña incorrectos.");
+    try {
+      const { error: loginError } =
+        await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+
+      if (loginError) {
+        if (
+          loginError.message
+            .toLowerCase()
+            .includes("email not confirmed")
+        ) {
+          setError(
+            "Tu correo todavía no está confirmado. Revisa tu email y pulsa el enlace de confirmación."
+          );
+        } else {
+          setError(
+            "Correo o contraseña incorrectos."
+          );
+        }
+
+        setLoading(false);
         return;
       }
 
-      setLoading(true);
-
-      localStorage.setItem(
-        "storeGamingAuth",
-        JSON.stringify({
-          username: account.username,
-          loggedAt: Date.now(),
-        })
-      );
-
       router.push("/home");
     } catch {
-      setError("No se pudo iniciar sesión. Inténtalo nuevamente.");
+      setError(
+        "No se pudo iniciar sesión. Inténtalo nuevamente."
+      );
+
       setLoading(false);
     }
+  }
+
+  function handleForgotPassword() {
+    router.push("/forgot-password");
   }
 
   return (
@@ -68,6 +82,7 @@ export default function LoginPage() {
           type="button"
           className="back-button"
           onClick={() => router.push("/")}
+          disabled={loading}
         >
           ← Volver
         </button>
@@ -91,19 +106,20 @@ export default function LoginPage() {
           className="auth-form"
         >
           <label>
-            USUARIO
+            CORREO ELECTRÓNICO
 
             <div className="input-wrapper">
-              <span>@</span>
+              <span>✉️</span>
 
               <input
-                type="text"
-                value={username}
+                type="email"
+                value={email}
                 onChange={(event) =>
-                  setUsername(event.target.value)
+                  setEmail(event.target.value)
                 }
-                placeholder="tuusuario"
-                autoComplete="username"
+                placeholder="tucorreo@gmail.com"
+                autoComplete="email"
+                inputMode="email"
                 disabled={loading}
               />
             </div>
@@ -127,6 +143,15 @@ export default function LoginPage() {
               />
             </div>
           </label>
+
+          <button
+            type="button"
+            className="forgot-password-button"
+            onClick={handleForgotPassword}
+            disabled={loading}
+          >
+            ¿OLVIDASTE TU CONTRASEÑA?
+          </button>
 
           {error && (
             <div className="auth-error">
@@ -164,4 +189,4 @@ export default function LoginPage() {
       </section>
     </main>
   );
-              }
+      }
