@@ -2,34 +2,35 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function RegisterPage() {
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleRegister(event: FormEvent<HTMLFormElement>) {
+  async function handleRegister(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     setError("");
+    setSuccess("");
 
-    const cleanUsername = username.trim().replace(/^@/, "");
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanUsername || !password || !confirmPassword) {
+    if (!cleanEmail || !password || !confirmPassword) {
       setError("Completa todos los campos.");
       return;
     }
 
-    if (cleanUsername.length < 3) {
-      setError("El usuario debe tener al menos 3 caracteres.");
-      return;
-    }
-
-    if (/\s/.test(cleanUsername)) {
-      setError("El usuario no puede contener espacios.");
+    if (!cleanEmail.includes("@")) {
+      setError("Introduce un correo electrónico válido.");
       return;
     }
 
@@ -43,44 +44,49 @@ export default function RegisterPage() {
       return;
     }
 
-    const existingUser = localStorage.getItem("storeGamingUser");
+    setLoading(true);
 
-    if (existingUser) {
-      try {
-        const account = JSON.parse(existingUser);
+    try {
+      const { data, error: signUpError } =
+        await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+        });
 
-        if (
-          account.username.toLowerCase() ===
-          cleanUsername.toLowerCase()
-        ) {
-          setError("Ese usuario ya está registrado.");
-          return;
-        }
-      } catch {
-        localStorage.removeItem("storeGamingUser");
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
       }
+
+      if (data.user && !data.session) {
+        setSuccess(
+          "Cuenta creada correctamente. Revisa tu correo electrónico y pulsa el enlace de confirmación para activar tu cuenta."
+        );
+
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+
+        setLoading(false);
+        return;
+      }
+
+      if (data.session) {
+        router.push("/home");
+        return;
+      }
+
+      setSuccess(
+        "Revisa tu correo electrónico para confirmar tu cuenta."
+      );
+    } catch {
+      setError(
+        "Ocurrió un error al crear la cuenta. Inténtalo nuevamente."
+      );
     }
 
-    const account = {
-      username: cleanUsername,
-      password: password,
-      createdAt: Date.now(),
-    };
-
-    localStorage.setItem(
-      "storeGamingUser",
-      JSON.stringify(account)
-    );
-
-    localStorage.setItem(
-      "storeGamingAuth",
-      JSON.stringify({
-        username: cleanUsername,
-        loggedAt: Date.now(),
-      })
-    );
-
-    router.push("/home");
+    setLoading(false);
   }
 
   return (
@@ -109,21 +115,24 @@ export default function RegisterPage() {
           gaming.
         </p>
 
-        <form onSubmit={handleRegister} className="auth-form">
+        <form
+          onSubmit={handleRegister}
+          className="auth-form"
+        >
           <label>
-            USUARIO
+            CORREO ELECTRÓNICO
             <div className="input-wrapper">
-              <span>@</span>
+              <span>✉️</span>
 
               <input
-                type="text"
-                value={username}
+                type="email"
+                value={email}
                 onChange={(event) =>
-                  setUsername(event.target.value)
+                  setEmail(event.target.value)
                 }
-                placeholder="tuusuario"
-                autoComplete="username"
-                maxLength={30}
+                placeholder="tucorreo@gmail.com"
+                autoComplete="email"
+                inputMode="email"
               />
             </div>
           </label>
@@ -168,11 +177,18 @@ export default function RegisterPage() {
             </div>
           )}
 
+          {success && (
+            <div className="auth-success">
+              {success}
+            </div>
+          )}
+
           <button
             type="submit"
             className="auth-submit"
+            disabled={loading}
           >
-            CREAR CUENTA
+            {loading ? "CREANDO CUENTA..." : "CREAR CUENTA"}
           </button>
         </form>
 
@@ -196,4 +212,4 @@ export default function RegisterPage() {
       </section>
     </main>
   );
-                                }
+                    }
