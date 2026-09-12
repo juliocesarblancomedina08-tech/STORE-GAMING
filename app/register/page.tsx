@@ -35,7 +35,9 @@ export default function RegisterPage() {
     }
 
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+      setError(
+        "La contraseña debe tener al menos 6 caracteres."
+      );
       return;
     }
 
@@ -90,44 +92,79 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="auth-page">
+    <main className="auth-page register-page">
       <div className="auth-background" />
 
-      <section className="auth-card">
+      <section className="auth-card register-card">
+
+        {/* BOTÓN ATRÁS */}
+
         <button
           type="button"
-          className="back-button"
+          className="back-button auth-back-button register-back-button"
           onClick={() => router.push("/")}
         >
-          ← Volver
+          <span className="back-arrow">←</span>
+          <span>ATRÁS</span>
         </button>
 
-        <div className="auth-logo">🛒🎮</div>
+        {/* LOGO */}
 
-        <p className="auth-small">
-          ÚNETE A LA COMUNIDAD
-        </p>
+        <div className="register-logo">
+          <div className="register-logo-cart">
+            🛒
+          </div>
 
-        <h1 className="auth-title">
-          CREAR <span>CUENTA</span>
-        </h1>
+          <div className="register-logo-text">
+            <span>STORE</span>
+            <strong>GAMING</strong>
+          </div>
+        </div>
 
-        <p className="auth-description">
-          Crea tu cuenta para comenzar a comprar tus recargas
-          gaming.
-        </p>
+        {/* ENCABEZADO */}
+
+        <div className="register-heading">
+
+          <p className="auth-small">
+            ÚNETE A LA COMUNIDAD
+          </p>
+
+          <h1 className="auth-title">
+            CREAR <span>CUENTA</span>
+          </h1>
+
+          <div className="register-title-line" />
+
+          <p className="auth-description">
+            Crea tu cuenta para comenzar a comprar
+            tus recargas gaming.
+          </p>
+
+        </div>
+
+        {/* FORMULARIO */}
 
         <form
           onSubmit={handleRegister}
-          className="auth-form"
+          className="auth-form register-form"
         >
-          <label>
-            CORREO ELECTRÓNICO
 
-            <div className="input-wrapper">
-              <span>✉️</span>
+          {/* CORREO */}
+
+          <div className="register-field">
+
+            <label htmlFor="register-email">
+              CORREO ELECTRÓNICO
+            </label>
+
+            <div className="input-wrapper register-input-wrapper">
+
+              <span className="input-icon">
+                ✉
+              </span>
 
               <input
+                id="register-email"
                 type="email"
                 value={email}
                 onChange={(event) =>
@@ -137,16 +174,27 @@ export default function RegisterPage() {
                 autoComplete="email"
                 inputMode="email"
               />
+
             </div>
-          </label>
 
-          <label>
-            CONTRASEÑA
+          </div>
 
-            <div className="input-wrapper">
-              <span>🔒</span>
+          {/* CONTRASEÑA */}
+
+          <div className="register-field">
+
+            <label htmlFor="register-password">
+              CONTRASEÑA
+            </label>
+
+            <div className="input-wrapper register-input-wrapper">
+
+              <span className="input-icon">
+                🔒
+              </span>
 
               <input
+                id="register-password"
                 type="password"
                 value={password}
                 onChange={(event) =>
@@ -155,16 +203,27 @@ export default function RegisterPage() {
                 placeholder="Mínimo 6 caracteres"
                 autoComplete="new-password"
               />
+
             </div>
-          </label>
 
-          <label>
-            VERIFICAR CONTRASEÑA
+          </div>
 
-            <div className="input-wrapper">
-              <span>✓</span>
+          {/* CONFIRMAR CONTRASEÑA */}
+
+          <div className="register-field">
+
+            <label htmlFor="register-confirm-password">
+              VERIFICAR CONTRASEÑA
+            </label>
+
+            <div className="input-wrapper register-input-wrapper">
+
+              <span className="input-icon">
+                ✓
+              </span>
 
               <input
+                id="register-confirm-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(event) =>
@@ -173,50 +232,87 @@ export default function RegisterPage() {
                 placeholder="Repite tu contraseña"
                 autoComplete="new-password"
               />
+
             </div>
-          </label>
+
+          </div>
+
+          {/* ERROR */}
 
           {error && (
-            <div className="auth-error">
-              {error}
+            <div className="auth-error register-message">
+              <span>⚠</span>
+              <p>{error}</p>
             </div>
           )}
 
+          {/* ÉXITO */}
+
           {success && (
-            <div className="auth-success">
-              {success}
+            <div className="auth-success register-message">
+              <span>✓</span>
+              <p>{success}</p>
             </div>
           )}
+
+          {/* CREAR CUENTA */}
 
           <button
             type="submit"
-            className="auth-submit"
+            className="auth-submit register-submit"
             disabled={loading}
           >
-            {loading
-              ? "CREANDO CUENTA..."
-              : "CREAR CUENTA"}
+            <span>
+              {loading
+                ? "CREANDO CUENTA..."
+                : "CREAR CUENTA"}
+            </span>
+
+            {!loading && (
+              <b>→</b>
+            )}
           </button>
+
         </form>
 
-        <div className="auth-divider">
+        {/* DIVISOR */}
+
+        <div className="auth-divider register-divider">
+
           <span />
-          O
+
+          <strong>O</strong>
+
           <span />
+
         </div>
 
-        <p className="auth-register-text">
-          ¿Ya tienes una cuenta?
-        </p>
+        {/* LOGIN */}
 
-        <button
-          type="button"
-          className="auth-register-button"
-          onClick={() => router.push("/login")}
-        >
-          INICIAR SESIÓN
-        </button>
+        <div className="register-login-area">
+
+          <p className="auth-register-text">
+            ¿YA TIENES UNA CUENTA?
+          </p>
+
+          <button
+            type="button"
+            className="auth-register-button register-login-button"
+            onClick={() => router.push("/login")}
+          >
+            <span>INICIAR SESIÓN</span>
+            <b>→</b>
+          </button>
+
+        </div>
+
+        {/* PIE */}
+
+        <div className="register-footer">
+          STORE GAMING • RECARGAS GAMING
+        </div>
+
       </section>
     </main>
   );
-      }
+}
