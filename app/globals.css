@@ -1,5435 +1,3008 @@
 /* =========================================================
-   STORE GAMING
-   GLOBAL CSS
-   ========================================================= */
+   STORE GAMING 🎮
+   GLOBAL CSS UPDATE
+   PARTE 1/8
+   WELCOME + AUTH BASE
+========================================================= */
+
 
 /* =========================================================
-   GLOBAL RESET
-   ========================================================= */
+   RESET GENERAL
+========================================================= */
 
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html,
-body {
   margin: 0;
   padding: 0;
-  min-height: 100%;
+}
+
+
+html {
+  scroll-behavior: smooth;
   background: #050505;
+}
+
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(255,23,68,0.15),
+      transparent 35%
+    ),
+    #050505;
+
   color: #ffffff;
+
   font-family:
+    Inter,
     Arial,
     Helvetica,
     sans-serif;
-}
 
-body {
   overflow-x: hidden;
 }
 
+
 button,
-input,
-textarea,
-select {
-  font: inherit;
+input {
+  font-family: inherit;
 }
+
 
 button {
-  -webkit-appearance: none;
-  appearance: none;
+  cursor: pointer;
+  border: none;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
 
 img {
-  max-width: 100%;
+  max-width:100%;
+  display:block;
 }
+
 
 /* =========================================================
-   GENERAL GAMING TYPOGRAPHY
-   ========================================================= */
+   VARIABLES STORE GAMING
+========================================================= */
 
-.store-title,
-.store-brand,
-.footer-brand,
-.game-header-title strong,
-.orders-header-title strong,
-.orders-hero-content h1,
-.offers-heading h2,
-.section-title h2,
-.order-success-section h2 {
-  font-family:
-    Impact,
-    Haettenschweiler,
-    "Arial Narrow Bold",
-    Arial,
-    sans-serif;
-  letter-spacing: 0.7px;
+:root {
+
+  --red:#ff1744;
+
+  --red-dark:#b90032;
+
+  --black:#050505;
+
+  --card:#101010;
+
+  --card-light:#171717;
+
+  --border:
+    rgba(255,255,255,0.08);
+
+  --green:#16d875;
+
+  --gray:#777;
+
 }
 
-button,
-.game-card,
-.offer-card,
-.orders-stat,
-.orders-shop-button,
-.view-orders-button,
-.finish-order-button,
-.confirm-final-button {
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
-}
 
 /* =========================================================
-   WELCOME
-   ========================================================= */
+   WELCOME PAGE
+========================================================= */
+
 
 .welcome-page {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100svh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  overflow: hidden;
+
+  min-height:100vh;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  padding:20px;
+
+  position:relative;
+
   background:
-    linear-gradient(
-      135deg,
-      rgba(0, 0, 0, 0.72),
-      rgba(0, 0, 0, 0.48)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+
+  linear-gradient(
+    rgba(0,0,0,.65),
+    rgba(0,0,0,.9)
+  ),
+
+  url("/images/gaming-background.jpg");
+
+  background-size:cover;
+
+  background-position:center;
+
 }
+
+
+/* capa oscura */
 
 .welcome-page::before {
-  content: "";
-  position: absolute;
-  inset: 0;
+
+  content:"";
+
+  position:absolute;
+
+  inset:0;
+
   background:
-    radial-gradient(
-      circle at 50% 30%,
-      rgba(255, 23, 68, 0.18),
-      transparent 38%
-    ),
-    linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.08),
-      rgba(0, 0, 0, 0.8)
-    );
-  pointer-events: none;
+  radial-gradient(
+    circle,
+    rgba(255,23,68,.25),
+    transparent 45%
+  );
+
 }
 
+
+/* tarjeta central */
+
+
+.welcome-card,
 .welcome-overlay {
-  position: relative;
-  z-index: 2;
-  width: min(460px, 100%);
-  padding: 34px 24px;
-  border: 1px solid rgba(255, 23, 68, 0.18);
-  border-radius: 22px;
+
+  position:relative;
+
+  z-index:2;
+
+  width:min(420px,100%);
+
+  padding:35px 25px;
+
+  border-radius:22px;
+
+
   background:
-    linear-gradient(
-      145deg,
-      rgba(8, 8, 8, 0.94),
-      rgba(17, 17, 17, 0.82)
-    );
+
+  linear-gradient(
+    145deg,
+    rgba(25,25,25,.95),
+    rgba(5,5,5,.95)
+  );
+
+
+  border:
+
+  1px solid
+
+  rgba(255,23,68,.35);
+
+
   box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.65),
-    0 0 45px rgba(255, 23, 68, 0.1);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  text-align: center;
+
+  0 0 35px
+
+  rgba(255,23,68,.18);
+
+  text-align:center;
+
 }
+
+
+/* logo bienvenida */
+
+
+.welcome-logo {
+
+  font-size:42px;
+
+  margin-bottom:15px;
+
+  filter:
+  drop-shadow(
+    0 0 10px
+    rgba(255,23,68,.5)
+  );
+
+}
+
+
+
+.welcome-title {
+
+
+  font-size:32px;
+
+  font-weight:1000;
+
+  line-height:1;
+
+  letter-spacing:2px;
+
+}
+
+
+.welcome-title span {
+
+  color:var(--red);
+
+}
+
+
+
+.welcome-description {
+
+
+  margin-top:15px;
+
+  color:#999;
+
+  font-size:14px;
+
+  line-height:1.5;
+
+}
+
 
 /* =========================================================
-   MAIN STORE BRAND
-   STORE / CART / GAMING
-   ========================================================= */
+   BOTONES DE ENTRADA
+========================================================= */
 
-.store-brand {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 0.78;
-  text-align: center;
-  user-select: none;
+
+.welcome-buttons {
+
+  display:flex;
+
+  flex-direction:column;
+
+  gap:12px;
+
+  margin-top:30px;
+
 }
 
-.store-brand .store-word,
-.store-brand .gaming-word {
-  display: block;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    "Arial Narrow Bold",
-    Arial,
-    sans-serif;
-  font-size: clamp(31px, 7vw, 48px);
-  font-weight: 900;
-  font-style: italic;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  text-shadow:
-    3px 3px 0 #260008,
-    0 0 18px rgba(255, 23, 68, 0.2);
+
+
+.welcome-login,
+.welcome-register {
+
+
+  width:100%;
+
+  min-height:55px;
+
+  border-radius:12px;
+
+  font-size:14px;
+
+  font-weight:1000;
+
+  letter-spacing:1px;
+
+  transition:.25s;
+
+
 }
 
-.store-brand .store-word {
-  color: #ffffff;
-}
 
-.store-brand .gaming-word {
-  color: #ff1744;
-  text-shadow:
-    3px 3px 0 #30000a,
-    0 0 20px rgba(255, 23, 68, 0.35);
-}
 
-/* =========================================================
-   CENTRAL CART
-   ========================================================= */
+.welcome-login {
 
-.store-brand .brand-cart,
-.store-brand .cart-logo,
-.store-brand .brand-icon {
-  position: relative;
-  width: 46px;
-  height: 42px;
-  margin: 9px 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 23, 68, 0.72);
-  border-radius: 12px;
+
   background:
-    linear-gradient(
-      145deg,
-      #242424,
-      #080808
-    );
-  color: #ffcc33;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 22px;
-  font-style: normal;
-  line-height: 1;
+
+  linear-gradient(
+    135deg,
+    #ff1744,
+    #b90032
+  );
+
+
+  color:white;
+
+
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 8px 22px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(255, 23, 68, 0.18);
-  text-shadow:
-    0 0 9px rgba(255, 204, 51, 0.4);
-  transform: skewX(-4deg);
+
+  0 8px 25px
+
+  rgba(255,23,68,.35);
+
 }
 
-.store-brand .brand-cart::after,
-.store-brand .cart-logo::after,
-.store-brand .brand-icon::after {
-  content: "";
-  position: absolute;
-  left: 7px;
-  right: 7px;
-  bottom: 5px;
-  height: 2px;
-  border-radius: 20px;
-  background: #ff1744;
-  opacity: 0.85;
-  box-shadow:
-    0 0 8px rgba(255, 23, 68, 0.55);
+
+
+.welcome-register {
+
+
+  background:
+
+  linear-gradient(
+    145deg,
+    #181818,
+    #050505
+  );
+
+
+  border:
+
+  1px solid
+
+  rgba(255,255,255,.15);
+
+
+  color:white;
+
+
 }
 
-.store-brand .brand-cart::first-letter,
-.store-brand .cart-logo::first-letter,
-.store-brand .brand-icon::first-letter {
-  color: #ffcc33;
+
+
+.welcome-login:hover,
+.welcome-register:hover {
+
+
+  transform:translateY(-2px);
+
 }
+
+
 
 /* =========================================================
-   WELCOME BRAND
-   ========================================================= */
+   AUTH PAGE GENERAL
+========================================================= */
 
-.welcome-brand {
-  margin-bottom: 25px;
-}
-
-.welcome-brand .store-word,
-.welcome-brand .gaming-word {
-  font-size: clamp(34px, 9vw, 54px);
-}
-
-.welcome-subtitle {
-  margin: 18px 0 0;
-  color: #c8c8c8;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-}
-
-/* =========================================================
-   AUTH
-   ========================================================= */
 
 .auth-page {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100svh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  overflow: hidden;
+
+  min-height:100vh;
+
+  display:flex;
+
+  justify-content:center;
+
+  align-items:center;
+
+  padding:20px;
+
+
   background:
-    linear-gradient(
-      135deg,
-      rgba(0, 0, 0, 0.72),
-      rgba(0, 0, 0, 0.5)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+
+
+  linear-gradient(
+    rgba(0,0,0,.75),
+    rgba(0,0,0,.95)
+  ),
+
+  url("/images/gaming-background.jpg");
+
+
+  background-size:cover;
+
+  background-position:center;
+
 }
 
-.auth-page::before,
-.auth-background::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(
-      circle at 50% 25%,
-      rgba(255, 23, 68, 0.18),
-      transparent 38%
-    ),
-    linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.12),
-      rgba(0, 0, 0, 0.84)
-    );
-  pointer-events: none;
-}
+
+
+/* fondo extra */
+
 
 .auth-background {
-  position: absolute;
-  inset: 0;
+
+  position:absolute;
+
+  inset:0;
+
   background:
-    linear-gradient(
-      135deg,
-      rgba(0, 0, 0, 0.4),
-      rgba(0, 0, 0, 0.72)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+
+  radial-gradient(
+    circle at center,
+    rgba(255,23,68,.18),
+    transparent 45%
+  );
+
 }
+
+
+
+/* tarjeta login registro */
+
 
 .auth-card {
-  position: relative;
-  z-index: 3;
-  width: min(430px, 100%);
-  padding: 28px 20px 23px;
-  border: 1px solid rgba(255, 23, 68, 0.18);
-  border-radius: 20px;
+
+
+  position:relative;
+
+  z-index:2;
+
+
+  width:min(430px,100%);
+
+
+  padding:30px 22px;
+
+
+  border-radius:22px;
+
+
   background:
-    linear-gradient(
-      145deg,
-      rgba(10, 10, 10, 0.95),
-      rgba(20, 20, 20, 0.84)
-    );
+
+  linear-gradient(
+    145deg,
+    #151515,
+    #070707
+  );
+
+
+  border:
+
+  1px solid
+
+  rgba(255,23,68,.25);
+
+
   box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.7),
-    0 0 35px rgba(255, 23, 68, 0.09);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+
+  0 0 35px
+
+  rgba(0,0,0,.8);
+
+
 }
+
+
+/* logo auth */
+
+
+.auth-logo {
+
+
+  text-align:center;
+
+  font-size:45px;
+
+  margin-bottom:10px;
+
+
+}
+
+
+
+.auth-small {
+
+
+  text-align:center;
+
+  color:#888;
+
+  font-size:11px;
+
+  font-weight:900;
+
+  letter-spacing:2px;
+
+
+}
+
 
 .auth-title {
-  margin: 0;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    "Arial Narrow Bold",
-    Arial,
-    sans-serif;
-  font-size: 30px;
-  font-style: italic;
-  letter-spacing: 1.2px;
-  text-align: center;
-  text-transform: uppercase;
-  text-shadow:
-    2px 2px 0 #260008;
+
+
+  text-align:center;
+
+
+  margin-top:10px;
+
+
+  font-size:32px;
+
+
+  font-weight:1000;
+
+  letter-spacing:1px;
+
+
 }
 
-.auth-title strong {
-  color: #ff1744;
+
+.auth-title span {
+
+
+  color:var(--red);
+
 }
+
 
 .auth-description {
-  margin: 9px 0 22px;
-  color: #8d8d8d;
-  font-size: 8px;
-  font-weight: 800;
-  line-height: 1.5;
-  letter-spacing: 1px;
-  text-align: center;
-}
 
-/* =========================================================
-   AUTH TABS
-   ========================================================= */
 
-.auth-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 20px;
-}
+  text-align:center;
 
-.auth-tab {
-  min-height: 45px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 9px;
-  background: #090909;
-  color: #777777;
-  font-size: 8px;
-  font-weight: 1000;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    background 0.18s ease,
-    color 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
-}
+  margin:12px 0 25px;
 
-.auth-tab:hover {
-  border-color: rgba(255, 23, 68, 0.5);
-}
 
-.auth-tab:active {
-  transform: scale(0.97);
-}
+  color:#888;
 
-.auth-tab.active,
-.auth-tab:first-child.active {
-  border-color: #ff1744;
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #c9002d
-    );
-  color: #ffffff;
-  box-shadow:
-    0 9px 22px rgba(255, 23, 68, 0.25);
-}
+  font-size:13px;
 
-.auth-tab:not(.active) {
-  background: #050505;
-  color: #eeeeee;
-}
+  line-height:1.5;
+
+
+     }
 
 /* =========================================================
    AUTH FORM
-   ========================================================= */
+========================================================= */
 
 .auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+
+  display:flex;
+
+  flex-direction:column;
+
+  gap:16px;
+
 }
 
-.auth-field {
-  position: relative;
+
+.auth-form label {
+
+  color:#aaa;
+
+  font-size:11px;
+
+  font-weight:900;
+
+  letter-spacing:1px;
+
 }
 
-.auth-field label {
-  display: block;
-  margin: 0 0 7px 3px;
-  color: #ffffff;
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
+
+
+/* INPUT WRAPPER */
+
+.input-wrapper {
+
+  margin-top:8px;
+
+  display:flex;
+
+  align-items:center;
+
+  gap:10px;
+
+  height:52px;
+
+  padding:0 15px;
+
+
+  background:#090909;
+
+
+  border:
+
+  1px solid
+
+  rgba(255,255,255,.10);
+
+
+  border-radius:12px;
+
+
+  transition:.25s;
+
 }
 
-.auth-field input {
-  width: 100%;
-  min-height: 49px;
-  padding: 0 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 9px;
-  outline: none;
+
+.input-wrapper span {
+
+  font-size:18px;
+
+}
+
+
+
+.input-wrapper:focus-within {
+
+
+  border-color:#ff1744;
+
+
+  box-shadow:
+
+  0 0 12px
+
+  rgba(255,23,68,.25);
+
+
+}
+
+
+
+.input-wrapper input {
+
+
+  width:100%;
+
+  background:none;
+
+  border:none;
+
+  outline:none;
+
+
+  color:white;
+
+  font-size:16px;
+
+
+}
+
+
+
+.input-wrapper input::placeholder {
+
+
+  color:#555;
+
+
+}
+
+
+
+/* BOTÓN PRINCIPAL AUTH */
+
+
+.auth-submit {
+
+
+  margin-top:10px;
+
+
+  min-height:55px;
+
+
+  border-radius:12px;
+
+
   background:
-    linear-gradient(
-      145deg,
-      #151515,
-      #0b0b0b
-    );
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
+
+  linear-gradient(
+    135deg,
+    #ff1744,
+    #b90032
+  );
+
+
+  color:white;
+
+
+  font-size:14px;
+
+
+  font-weight:1000;
+
+
+  letter-spacing:1px;
+
+
   box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.2);
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+
+  0 10px 25px
+
+  rgba(255,23,68,.3);
+
+
 }
 
-.auth-field input:focus {
-  border-color: #ff1744;
-  box-shadow:
-    0 0 0 2px rgba(255, 23, 68, 0.12),
-    0 0 18px rgba(255, 23, 68, 0.1);
+
+
+.auth-submit:hover {
+
+
+  transform:translateY(-2px);
+
+
 }
 
-.auth-field input::placeholder {
-  color: #4f4f4f;
-}
 
-/* =========================================================
-   AUTH MAIN BUTTONS
-   ========================================================= */
 
-.auth-submit,
-.login-button,
-.register-button,
-.auth-enter-button {
-  width: 100%;
-  min-height: 53px;
-  margin-top: 7px;
-  border: 1px solid #ff1744;
-  border-radius: 10px;
+/* BOTON VOLVER */
+
+
+.back-button {
+
+
+  width:100%;
+
+
+  min-height:45px;
+
+
+  margin-bottom:20px;
+
+
+  border-radius:10px;
+
+
   background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #c9002d
-    );
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 1000;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow:
-    0 12px 28px rgba(255, 23, 68, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transition:
-    transform 0.18s ease,
-    filter 0.18s ease,
-    box-shadow 0.18s ease;
+
+
+  linear-gradient(
+    145deg,
+    #191919,
+    #050505
+  );
+
+
+  border:
+
+  1px solid
+
+  rgba(255,255,255,.12);
+
+
+  color:white;
+
+
+  font-size:12px;
+
+
+  font-weight:900;
+
+
 }
 
-.auth-submit:hover,
-.login-button:hover,
-.register-button:hover,
-.auth-enter-button:hover {
-  filter: brightness(1.08);
-  box-shadow:
-    0 14px 32px rgba(255, 23, 68, 0.3);
-}
 
-.auth-submit:active,
-.login-button:active,
-.register-button:active,
-.auth-enter-button:active {
-  transform: scale(0.975);
-}
 
-/* ENTRAR ROJO */
+/* ERROR */
 
-.auth-enter-button,
-.login-button {
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #b90029
-    );
-  color: #ffffff;
-}
-
-/* ATRAS NEGRO */
-
-.auth-back-button,
-.auth-register-back,
-.auth-secondary-button {
-  width: 100%;
-  min-height: 50px;
-  margin-top: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      135deg,
-      #151515,
-      #050505
-    );
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 1000;
-  letter-spacing: 1.3px;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 8px 18px rgba(0, 0, 0, 0.35);
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.auth-back-button:hover,
-.auth-register-back:hover,
-.auth-secondary-button:hover {
-  border-color: rgba(255, 23, 68, 0.55);
-  box-shadow:
-    0 10px 22px rgba(0, 0, 0, 0.45),
-    0 0 14px rgba(255, 23, 68, 0.08);
-}
-
-.auth-back-button:active,
-.auth-register-back:active,
-.auth-secondary-button:active {
-  transform: scale(0.975);
-}
-
-/* =========================================================
-   AUTH MESSAGE / ERRORS
-   ========================================================= */
-
-.auth-error,
-.auth-message,
-.auth-success {
-  margin: 10px 0 0;
-  padding: 11px 12px;
-  border-radius: 8px;
-  font-size: 8px;
-  font-weight: 800;
-  line-height: 1.45;
-}
 
 .auth-error {
-  border: 1px solid rgba(255, 23, 68, 0.35);
-  background: rgba(255, 23, 68, 0.08);
-  color: #ff6b84;
+
+
+  padding:12px;
+
+
+  border-radius:10px;
+
+
+  background:
+
+  rgba(255,23,68,.12);
+
+
+  border:
+
+  1px solid
+
+  rgba(255,23,68,.35);
+
+
+  color:#ff5575;
+
+
+  font-size:12px;
+
+
 }
 
-.auth-message {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.035);
-  color: #aaaaaa;
-}
+
+
+/* SUCCESS */
+
 
 .auth-success {
-  border: 1px solid rgba(0, 220, 110, 0.25);
-  background: rgba(0, 220, 110, 0.07);
-  color: #69e6a1;
+
+
+  padding:12px;
+
+
+  border-radius:10px;
+
+
+  background:
+
+  rgba(22,216,117,.10);
+
+
+  border:
+
+  1px solid
+
+  rgba(22,216,117,.3);
+
+
+  color:#16d875;
+
+
+  font-size:12px;
+
+
 }
+
+
+
+/* OLVIDAR PASSWORD */
+
+
+.forgot-password-button {
+
+
+  background:none;
+
+
+  color:#ff1744;
+
+
+  text-align:right;
+
+
+  font-size:11px;
+
+
+  font-weight:900;
+
+
+  letter-spacing:.5px;
+
+
+}
+
+
+
+/* DIVISOR */
+
+
+.auth-divider {
+
+
+  display:flex;
+
+  align-items:center;
+
+  gap:12px;
+
+
+  margin:25px 0;
+
+
+  color:#555;
+
+
+  font-size:12px;
+
+}
+
+
+.auth-divider span {
+
+
+  flex:1;
+
+
+  height:1px;
+
+
+  background:
+
+  rgba(255,255,255,.12);
+
+
+}
+
+
+
+/* REGISTRO ABAJO */
+
+
+.auth-register-text {
+
+
+  text-align:center;
+
+  color:#777;
+
+  font-size:12px;
+
+
+}
+
+
+
+.auth-register-button {
+
+
+  margin-top:12px;
+
+
+  width:100%;
+
+
+  min-height:50px;
+
+
+  border-radius:12px;
+
+
+  background:#111;
+
+
+  border:
+
+  1px solid
+
+  rgba(255,255,255,.15);
+
+
+  color:white;
+
+
+  font-weight:1000;
+
+
+}
+
+
 
 /* =========================================================
    LOADING
-   ========================================================= */
+========================================================= */
 
-.loading-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #050505;
+
+.store-loading,
+.orders-loading-page {
+
+
+ min-height:100vh;
+
+
+ display:flex;
+
+
+ flex-direction:column;
+
+
+ justify-content:center;
+
+
+ align-items:center;
+
+
+ background:#050505;
+
+
 }
 
-.loading-card {
-  width: min(330px, calc(100% - 35px));
-  padding: 30px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 17px;
-  background: #0d0d0d;
-  text-align: center;
+
+
+.loading-logo,
+.orders-loading-logo {
+
+
+ font-size:32px;
+
+ font-weight:1000;
+
+ letter-spacing:2px;
+
+
 }
 
-.loading-logo {
-  margin-bottom: 20px;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 30px;
-  font-style: italic;
+
+
+.loading-line,
+.orders-loading-line {
+
+
+ width:260px;
+
+ height:4px;
+
+ margin-top:20px;
+
+
+ background:#191919;
+
+ border-radius:20px;
+
+
+ overflow:hidden;
+
+
 }
 
-.loading-logo strong {
-  color: #ff1744;
+
+
+.loading-line::after,
+.orders-loading-line::after {
+
+
+ content:"";
+
+
+ display:block;
+
+
+ width:40%;
+
+
+ height:100%;
+
+
+ background:#ff1744;
+
+
+ animation:loadingMove 1s infinite;
+
+
 }
 
-.loading-line {
-  width: 100%;
-  height: 4px;
-  overflow: hidden;
-  border-radius: 20px;
-  background: #191919;
-}
 
-.loading-line::after {
-  content: "";
-  display: block;
-  width: 42%;
-  height: 100%;
-  border-radius: inherit;
-  background: #ff1744;
-  animation: loadingMove 1.2s infinite ease-in-out;
-}
-
-.loading-page p {
-  margin: 14px 0 0;
-  color: #666666;
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 1px;
-}
 
 @keyframes loadingMove {
-  0% {
-    transform: translateX(-120%);
-  }
 
-  100% {
-    transform: translateX(250%);
-  }
-}
+
+ from{
+
+ transform:translateX(-120%);
+
+ }
+
+
+ to{
+
+ transform:translateX(300%);
+
+ }
+
+
+   }
 
 /* =========================================================
-   STORE HEADER
-   ========================================================= */
+   HEADER STORE GAMING
+========================================================= */
+
 
 .store-header {
-  position: sticky;
-  top: 0;
-  z-index: 200;
-  height: 74px;
-  display: grid;
-  grid-template-columns: 56px 1fr 56px;
-  align-items: center;
-  padding: 0 10px;
+
+  position:relative;
+
+  z-index:20;
+
+  height:75px;
+
+  display:grid;
+
+  grid-template-columns:60px 1fr 60px;
+
+  align-items:center;
+
+  padding:0 15px;
+
+
   background:
-    linear-gradient(
-      180deg,
-      rgba(5, 5, 5, 0.99),
-      rgba(8, 8, 8, 0.95)
-    );
-  border-bottom: 1px solid rgba(255, 23, 68, 0.14);
-  box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+
+  rgba(5,5,5,.85);
+
+
+  backdrop-filter:blur(15px);
+
+
+  border-bottom:
+
+  1px solid
+
+  rgba(255,255,255,.06);
+
+
 }
 
-/* HAMBURGER */
 
-.menu-button,
-.hamburger-button,
-.store-menu-button,
-.menu-toggle {
-  position: relative;
-  width: 43px;
-  height: 43px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  border: 1px solid rgba(255, 23, 68, 0.25);
-  border-radius: 11px;
-  background:
-    linear-gradient(
-      145deg,
-      #191919,
-      #070707
-    );
-  color: #ffffff;
-  cursor: pointer;
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.4),
-    0 0 14px rgba(255, 23, 68, 0.05);
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
+/* MENU BUTTON */
+
+
+.menu-button {
+
+
+ width:45px;
+
+ height:45px;
+
+
+ display:flex;
+
+ flex-direction:column;
+
+ justify-content:center;
+
+ align-items:center;
+
+ gap:5px;
+
+
+ background:#111;
+
+
+ border-radius:12px;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,23,68,.35);
+
+
 }
 
-.menu-button span,
-.hamburger-button span,
-.store-menu-button span,
-.menu-toggle span {
-  width: 20px;
-  height: 2px;
-  display: block;
-  border-radius: 5px;
-  background: #ffffff;
-  transition:
-    width 0.2s ease,
-    background 0.2s ease,
-    transform 0.2s ease;
+
+
+.menu-button span {
+
+
+ width:22px;
+
+ height:2px;
+
+
+ background:white;
+
+
+ border-radius:10px;
+
+
 }
 
-.menu-button span:nth-child(2),
-.hamburger-button span:nth-child(2),
-.store-menu-button span:nth-child(2),
-.menu-toggle span:nth-child(2) {
-  width: 15px;
-  background: #ff1744;
+
+/* LOGO CENTRAL */
+
+
+.store-logo {
+
+
+ background:none;
+
+
+ display:flex;
+
+ justify-content:center;
+
+
 }
 
-.menu-button:hover,
-.hamburger-button:hover,
-.store-menu-button:hover,
-.menu-toggle:hover {
-  border-color: #ff1744;
-  box-shadow:
-    0 10px 25px rgba(0, 0, 0, 0.45),
-    0 0 18px rgba(255, 23, 68, 0.12);
+
+
+.store-logo-text {
+
+
+ display:flex;
+
+ flex-direction:column;
+
+
+ align-items:center;
+
+
+ line-height:.85;
+
+
+ font-weight:1000;
+
+
+ letter-spacing:2px;
+
+
 }
 
-.menu-button:hover span,
-.hamburger-button:hover span,
-.store-menu-button:hover span,
-.menu-toggle:hover span {
-  background: #ff1744;
+
+
+.store-logo-text strong {
+
+
+ font-size:24px;
+
+
+ color:white;
+
+
 }
 
-.menu-button:active,
-.hamburger-button:active,
-.store-menu-button:active,
-.menu-toggle:active {
-  transform: scale(0.95);
+
+
+.store-logo-text b {
+
+
+ font-size:24px;
+
+
+ color:#ff1744;
+
+
 }
 
-/* =========================================================
-   HEADER BRAND
-   ========================================================= */
 
-.store-header .store-brand {
-  justify-self: center;
-  transform: translateY(1px);
+
+/* QUITAR FONDO BLANCO LOGO */
+
+
+.store-logo,
+.store-logo:hover {
+
+
+ background:transparent;
+
+
 }
 
-.store-header .store-brand .store-word,
-.store-header .store-brand .gaming-word {
-  font-size: 22px;
-  letter-spacing: 1.4px;
+
+/* HEADER ACTIONS */
+
+
+.store-header-actions {
+
+
+ display:flex;
+
+ justify-content:flex-end;
+
+
 }
 
-.store-header .store-brand .brand-cart,
-.store-header .store-brand .cart-logo,
-.store-header .store-brand .brand-icon {
-  width: 30px;
-  height: 29px;
-  margin: 4px 0 5px;
-  border-radius: 8px;
-  font-size: 15px;
+
+
+.user-button {
+
+
+ width:40px;
+
+ height:40px;
+
+
+ border-radius:50%;
+
+
+ background:
+
+ linear-gradient(
+ 145deg,
+ #171717,
+ #050505
+ );
+
+
+ color:#ff1744;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,23,68,.3);
+
+
 }
 
-/* =========================================================
-   HEADER RIGHT
-   ========================================================= */
-
-.store-header-right {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 7px;
-}
-
-/* Hide corner logout/red dot if present */
-
-.logout-dot,
-.logout-corner,
-.logout-corner-button,
-.top-logout,
-.header-logout,
-.logout-indicator,
-.store-logout-dot {
-  display: none !important;
-}
 
 /* =========================================================
    SIDE MENU
-   ========================================================= */
+========================================================= */
 
-.side-menu,
-.store-side-menu,
-.menu-panel {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 500;
-  width: min(320px, 86vw);
-  height: 100vh;
-  height: 100svh;
-  padding: 25px 17px;
-  overflow-y: auto;
+
+.menu-backdrop {
+
+
+ position:fixed;
+
+ inset:0;
+
+ z-index:30;
+
+
+ background:
+
+ rgba(0,0,0,.75);
+
+
+ backdrop-filter:blur(5px);
+
+
+}
+
+
+
+.side-menu {
+
+
+ position:fixed;
+
+ z-index:40;
+
+
+ left:0;
+
+ top:0;
+
+
+ width:min(320px,85vw);
+
+
+ height:100vh;
+
+
+ display:flex;
+
+ flex-direction:column;
+
+
+ background:
+
+
+ linear-gradient(
+ 180deg,
+ #111,
+ #050505
+ );
+
+
+ border-right:
+
+ 1px solid
+
+ rgba(255,23,68,.25);
+
+
+ padding:20px;
+
+
+ animation:
+
+ menuOpen .25s ease;
+
+
+}
+
+
+
+@keyframes menuOpen {
+
+
+ from{
+
+ transform:translateX(-100%);
+
+ }
+
+
+ to{
+
+ transform:translateX(0);
+
+ }
+
+
+}
+
+
+
+/* MENU HEADER */
+
+
+.side-menu-header {
+
+
+ display:flex;
+
+ justify-content:space-between;
+
+ align-items:center;
+
+
+ margin-bottom:25px;
+
+
+}
+
+
+
+.side-menu-brand {
+
+
+ display:flex;
+
+ align-items:center;
+
+ gap:12px;
+
+
+}
+
+
+
+.side-brand-line {
+
+
+ width:4px;
+
+ height:45px;
+
+
+ background:#ff1744;
+
+
+ border-radius:10px;
+
+
+}
+
+
+
+.side-menu-brand small {
+
+
+ display:block;
+
+ color:white;
+
+ font-size:14px;
+
+ font-weight:1000;
+
+
+}
+
+
+
+.side-menu-brand strong {
+
+
+ display:block;
+
+ color:#ff1744;
+
+ font-size:20px;
+
+ font-weight:1000;
+
+
+}
+
+
+
+.side-menu-close {
+
+
+ width:38px;
+
+ height:38px;
+
+
+ border-radius:10px;
+
+
+ background:#191919;
+
+
+ color:white;
+
+
+ font-size:25px;
+
+
+}
+
+
+
+/* USER MENU */
+
+
+.side-menu-user {
+
+
+ display:flex;
+
+ align-items:center;
+
+ gap:12px;
+
+
+ padding:15px;
+
+
+ background:#0a0a0a;
+
+
+ border-radius:15px;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,255,255,.08);
+
+
+ margin-bottom:20px;
+
+
+}
+
+
+
+.side-user-icon {
+
+
+ width:40px;
+
+ height:40px;
+
+
+ display:flex;
+
+ align-items:center;
+
+ justify-content:center;
+
+
+ border-radius:50%;
+
+
+ background:#ff1744;
+
+
+ font-weight:1000;
+
+
+}
+
+
+
+.side-menu-user small {
+
+
+ color:#777;
+
+ font-size:10px;
+
+
+}
+
+
+
+.side-menu-user strong {
+
+
+ display:block;
+
+ color:white;
+
+
+   }
+
+/* =========================================================
+   SIDE MENU NAV
+========================================================= */
+
+
+.side-menu-nav {
+
+  flex:1;
+
+  overflow-y:auto;
+
+  display:flex;
+
+  flex-direction:column;
+
+  gap:8px;
+
+}
+
+
+
+.side-menu-section-title {
+
+
+  display:flex;
+
+  align-items:center;
+
+  gap:10px;
+
+
+  margin:18px 0 8px;
+
+
+  color:#666;
+
+
+  font-size:10px;
+
+  font-weight:1000;
+
+  letter-spacing:2px;
+
+
+}
+
+
+
+.side-menu-section-title span {
+
+
+  height:1px;
+
+  flex:1;
+
   background:
-    linear-gradient(
-      145deg,
-      rgba(0, 0, 0, 0.84),
-      rgba(8, 8, 8, 0.94)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
-  border-right: 1px solid rgba(255, 23, 68, 0.28);
+
+  rgba(255,255,255,.1);
+
+
+}
+
+
+
+.side-menu-item {
+
+
+  width:100%;
+
+
+  min-height:50px;
+
+
+  display:flex;
+
+  align-items:center;
+
+
+  gap:15px;
+
+
+  padding:0 15px;
+
+
+  border-radius:12px;
+
+
+  background:transparent;
+
+
+  color:#aaa;
+
+
+  font-size:13px;
+
+
+  font-weight:800;
+
+
+  transition:.25s;
+
+
+}
+
+
+
+.side-menu-item:hover {
+
+
+  background:
+
+  rgba(255,23,68,.08);
+
+
+  color:white;
+
+
+}
+
+
+
+/* BOTÓN ACTIVO */
+
+
+.side-menu-item.active {
+
+
+  background:
+
+  linear-gradient(
+    135deg,
+    rgba(255,23,68,.25),
+    rgba(255,23,68,.05)
+  );
+
+
+  border:
+
+  1px solid
+
+  rgba(255,23,68,.6);
+
+
+  color:white;
+
+
   box-shadow:
-    20px 0 50px rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
+
+  0 0 15px
+
+  rgba(255,23,68,.18);
+
+
 }
 
-.side-menu::before,
-.store-side-menu::before,
-.menu-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.15),
-      rgba(0, 0, 0, 0.9)
-    );
-  pointer-events: none;
+
+
+.menu-icon {
+
+
+  width:30px;
+
+  height:30px;
+
+
+  display:flex;
+
+  justify-content:center;
+
+  align-items:center;
+
+
+  border-radius:8px;
+
+
+  background:#181818;
+
+
+  color:#ff1744;
+
+
 }
 
-.side-menu > *,
-.store-side-menu > *,
-.menu-panel > * {
-  position: relative;
-  z-index: 2;
+
+
+/* SOPORTE */
+
+
+.support-headset-icon {
+
+
+ width:30px;
+
+ height:30px;
+
+
+ position:relative;
+
+
 }
 
-.side-menu-title,
-.store-side-menu-title,
-.menu-panel-title {
-  margin: 0 0 22px;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 25px;
-  font-style: italic;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  text-shadow:
-    2px 2px 0 #260008;
+
+
+.support-head {
+
+
+ position:absolute;
+
+ width:18px;
+
+ height:18px;
+
+ border:3px solid #ff1744;
+
+ border-radius:50%;
+
+ left:5px;
+
+ top:3px;
+
+
 }
 
-.side-menu-title strong,
-.store-side-menu-title strong,
-.menu-panel-title strong {
-  color: #ff1744;
+
+
+.support-headset {
+
+
+ position:absolute;
+
+ width:24px;
+
+ height:8px;
+
+ border-bottom:3px solid white;
+
+ left:3px;
+
+ bottom:4px;
+
+
 }
 
-.side-menu button,
-.store-side-menu button,
-.menu-panel button {
-  width: 100%;
-  min-height: 49px;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 0 13px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(17, 17, 17, 0.95),
-      rgba(6, 6, 6, 0.96)
-    );
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 950;
-  letter-spacing: 0.8px;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease,
-    background 0.18s ease;
+
+
+/* CERRAR SESIÓN */
+
+
+.side-menu-bottom {
+
+
+ margin-top:auto;
+
+ padding-top:25px;
+
+
 }
 
-.side-menu button:hover,
-.store-side-menu button:hover,
-.menu-panel button:hover {
-  border-color: rgba(255, 23, 68, 0.5);
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255, 23, 68, 0.14),
-      rgba(10, 10, 10, 0.96)
-    );
+
+
+.side-menu-logout {
+
+
+ width:100%;
+
+
+ min-height:55px;
+
+
+ display:flex;
+
+ align-items:center;
+
+ justify-content:center;
+
+
+ gap:12px;
+
+
+ border-radius:12px;
+
+
+ background:
+
+ linear-gradient(
+ 135deg,
+ #ff1744,
+ #a90028
+ );
+
+
+ color:white;
+
+
+ font-weight:1000;
+
+
+ box-shadow:
+
+ 0 10px 25px
+
+ rgba(255,23,68,.25);
+
+
 }
 
-.side-menu button:active,
-.store-side-menu button:active,
-.menu-panel button:active {
-  transform: scale(0.98);
-}
 
 /* =========================================================
    HOME HERO
-   ========================================================= */
+========================================================= */
+
 
 .store-hero {
-  position: relative;
-  min-height: 330px;
-  display: flex;
-  align-items: flex-end;
-  overflow: hidden;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.84),
-      rgba(0, 0, 0, 0.2),
-      rgba(0, 0, 0, 0.72)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
+
+
+ position:relative;
+
+
+ min-height:420px;
+
+
+ display:flex;
+
+ align-items:center;
+
+
+ overflow:hidden;
+
+
+ background:
+
+
+ linear-gradient(
+ rgba(0,0,0,.35),
+ rgba(0,0,0,.85)
+ ),
+
+ url("/images/gaming-background.jpg");
+
+
+ background-size:cover;
+
+ background-position:center;
+
+
 }
 
-.store-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(
-      to bottom,
-      transparent 40%,
-      rgba(0, 0, 0, 0.92)
-    );
-  pointer-events: none;
+
+
+.hero-glow {
+
+
+ position:absolute;
+
+
+ width:500px;
+
+ height:500px;
+
+
+ background:
+
+ radial-gradient(
+ circle,
+ rgba(255,23,68,.35),
+ transparent 70%
+ );
+
+
+ top:-150px;
+
+ right:-150px;
+
+
 }
 
-.store-hero-content {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  max-width: 1050px;
-  margin: 0 auto;
-  padding: 50px 18px 38px;
+
+
+.hero-content {
+
+
+ position:relative;
+
+ z-index:2;
+
+
+ width:100%;
+
+
+ padding:60px 20px;
+
+
 }
 
-.store-hero-label {
-  color: #ff1744;
-  font-size: 8px;
-  font-weight: 1000;
-  letter-spacing: 3px;
-  text-transform: uppercase;
+
+
+.hero-badge {
+
+
+ display:inline-flex;
+
+
+ padding:8px 15px;
+
+
+ border-radius:20px;
+
+
+ background:
+
+ rgba(255,23,68,.15);
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,23,68,.5);
+
+
+ color:#ff1744;
+
+
+ font-size:11px;
+
+
+ font-weight:1000;
+
+
 }
 
-.store-hero h1 {
-  margin: 8px 0 0;
-  display: flex;
-  flex-direction: column;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    "Arial Narrow Bold",
-    Arial,
-    sans-serif;
-  font-size: clamp(40px, 10vw, 78px);
-  line-height: 0.82;
-  font-style: italic;
-  letter-spacing: -1px;
-  text-shadow:
-    4px 4px 0 #260008,
-    0 0 25px rgba(0, 0, 0, 0.6);
+
+
+.hero-title {
+
+
+ margin-top:20px;
+
+
+ font-size:65px;
+
+
+ line-height:.9;
+
+
+ font-weight:1000;
+
+
+ letter-spacing:2px;
+
+
 }
 
-.store-hero h1 strong {
-  color: #ff1744;
-  text-shadow:
-    4px 4px 0 #32000b,
-    0 0 25px rgba(255, 23, 68, 0.25);
+
+
+.hero-title span {
+
+
+ color:#ff1744;
+
+
 }
 
-.store-hero p {
-  max-width: 490px;
-  margin: 15px 0 0;
-  color: #d4d4d4;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.55;
+
+
+.hero-text {
+
+
+ margin-top:20px;
+
+
+ max-width:420px;
+
+
+ color:#aaa;
+
+
+ font-size:15px;
+
+
 }
+
+
+
+.hero-text strong {
+
+
+ color:white;
+
+
+}
+
+
+
+.hero-stats {
+
+
+ display:flex;
+
+ gap:10px;
+
+
+ margin-top:35px;
+
+
+}
+
+
+
+.hero-stats div {
+
+
+ padding:12px;
+
+
+ min-width:90px;
+
+
+ text-align:center;
+
+
+ background:#101010;
+
+
+ border-radius:12px;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,255,255,.08);
+
+
+}
+
+
+
+.hero-stats strong {
+
+
+ display:block;
+
+
+ font-size:20px;
+
+
+}
+
+
+
+.hero-stats span {
+
+
+ font-size:9px;
+
+ color:#aaa;
+
+ font-weight:1000;
+
+
+}
+
 
 /* =========================================================
    GAMES SECTION
-   ========================================================= */
+========================================================= */
+
 
 .games-section {
-  max-width: 1050px;
-  margin: 0 auto;
-  padding: 30px 16px 10px;
+
+
+ padding:35px 20px;
+
+
 }
 
-.games-heading {
-  margin-bottom: 16px;
+
+
+.catalog-header {
+
+
+ display:flex;
+
+ justify-content:space-between;
+
+ align-items:center;
+
+
+ margin-bottom:25px;
+
+
 }
 
-.games-heading span {
-  color: #ff1744;
-  font-size: 8px;
-  font-weight: 1000;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+
+
+.catalog-header span {
+
+
+ color:#ff1744;
+
+
+ font-size:11px;
+
+
+ font-weight:1000;
+
+
 }
 
-.games-heading h2 {
-  margin: 5px 0 0;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 26px;
-  font-style: italic;
-  letter-spacing: 0.5px;
+
+
+.catalog-header h2 {
+
+
+ font-size:28px;
+
+
+ font-weight:1000;
+
+
 }
 
-/* =========================================================
-   GAME GRID 2 X 2
-   ========================================================= */
 
-.game-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+
+.games-grid {
+
+
+ display:grid;
+
+
+ grid-template-columns:
+
+ repeat(4,1fr);
+
+
+ gap:15px;
+
+
 }
+
+
 
 .game-card {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 13px;
-  background: #0d0d0d;
-  color: #ffffff;
-  cursor: pointer;
-  box-shadow:
-    0 10px 25px rgba(0, 0, 0, 0.3);
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+
+
+ overflow:hidden;
+
+
+ border-radius:18px;
+
+
+ background:#101010;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,255,255,.08);
+
+
+ text-align:left;
+
+
+ transition:.25s;
+
+
 }
+
+
 
 .game-card:hover {
-  border-color: rgba(255, 23, 68, 0.5);
-  box-shadow:
-    0 15px 35px rgba(0, 0, 0, 0.42),
-    0 0 18px rgba(255, 23, 68, 0.08);
-}
 
-.game-card:active {
-  transform: scale(0.975);
+
+ transform:translateY(-5px);
+
+
+ border-color:#ff1744;
+
+
 }
 
 /* =========================================================
    GAME CARDS
-   ========================================================= */
+========================================================= */
+
 
 .game-image-container {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  background: #151515;
+
+  position:relative;
+
+  height:180px;
+
+  overflow:hidden;
+
 }
+
+
 
 .game-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-  object-position: center;
-  background: #111111;
-  transition: transform 0.35s ease;
+
+
+ width:100%;
+
+ height:100%;
+
+
+ object-fit:cover;
+
+
+ transition:.4s;
+
+
 }
+
+
 
 .game-card:hover .game-image {
-  transform: scale(1.025);
+
+
+ transform:scale(1.08);
+
+
 }
+
+
 
 .game-image-dark {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(
-      to bottom,
-      transparent 35%,
-      rgba(0, 0, 0, 0.12) 55%,
-      rgba(0, 0, 0, 0.82) 100%
-    );
-  pointer-events: none;
+
+
+ position:absolute;
+
+ inset:0;
+
+
+ background:
+
+ linear-gradient(
+ transparent,
+ rgba(0,0,0,.85)
+ );
+
+
 }
+
+
 
 .game-tag {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 5px 7px;
-  border-radius: 5px;
-  background: rgba(0, 0, 0, 0.76);
-  border: 1px solid rgba(255, 23, 68, 0.55);
-  color: #ffffff;
-  font-size: 6px;
-  font-weight: 950;
-  letter-spacing: 0.6px;
+
+
+ position:absolute;
+
+
+ top:10px;
+
+ left:10px;
+
+
+ padding:5px 10px;
+
+
+ border-radius:20px;
+
+
+ background:#ff1744;
+
+
+ color:white;
+
+
+ font-size:9px;
+
+
+ font-weight:1000;
+
+
 }
 
+
+
 .game-open {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #bd002d
-    );
-  color: #ffffff;
-  font-size: 6px;
-  font-weight: 1000;
-  letter-spacing: 0.5px;
-  box-shadow:
-    0 5px 12px rgba(255, 23, 68, 0.24);
+
+
+ position:absolute;
+
+
+ bottom:10px;
+
+ right:10px;
+
+
+ padding:6px 12px;
+
+
+ border-radius:20px;
+
+
+ background:#ffffff;
+
+
+ color:#050505;
+
+
+ font-size:9px;
+
+
+ font-weight:1000;
+
+
 }
+
+
 
 .game-info {
-  padding: 10px;
+
+
+ padding:15px;
+
+
 }
+
+
 
 .game-info h3 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 11px;
-  line-height: 1.1;
-  font-weight: 1000;
+
+
+ color:white;
+
+
+ font-size:14px;
+
+
+ font-weight:1000;
+
+
 }
 
+
+
 .game-info p {
-  margin: 5px 0 9px;
-  color: #777777;
-  font-size: 7px;
-  line-height: 1.35;
+
+
+ margin-top:7px;
+
+
+ color:#777;
+
+
+ font-size:11px;
+
+
 }
+
+
 
 .game-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+
+
+ display:flex;
+
+
+ justify-content:space-between;
+
+
+ align-items:center;
+
+
+ margin-top:15px;
+
+
 }
+
+
 
 .game-bottom span {
-  color: #777777;
-  font-size: 6px;
-  font-weight: 950;
-  letter-spacing: 1px;
+
+
+ color:#ff1744;
+
+
+ font-size:10px;
+
+
+ font-weight:1000;
+
+
 }
 
+
+
 .game-bottom strong {
-  color: #ff1744;
-  font-size: 14px;
+
+
+ color:white;
+
+
 }
+
 
 /* =========================================================
    BENEFITS
-   ========================================================= */
+========================================================= */
+
 
 .benefits-section {
-  max-width: 1050px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding: 20px 16px 30px;
+
+
+ display:grid;
+
+
+ grid-template-columns:
+
+ repeat(3,1fr);
+
+
+ gap:15px;
+
+
+ padding:25px 20px;
+
+
 }
+
+
 
 .benefit {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #111111,
-      #090909
-    );
+
+
+ display:flex;
+
+ gap:15px;
+
+
+ padding:18px;
+
+
+ background:#101010;
+
+
+ border-radius:15px;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,255,255,.08);
+
+
 }
 
-.benefit > span {
-  font-size: 20px;
+
+
+.benefit span {
+
+
+ font-size:25px;
+
+
 }
+
+
 
 .benefit strong {
-  display: block;
-  color: #ffffff;
-  font-size: 8px;
-  font-weight: 950;
+
+
+ color:white;
+
+
+ font-size:12px;
+
+
 }
+
+
 
 .benefit p {
-  margin: 4px 0 0;
-  color: #666666;
-  font-size: 7px;
-  line-height: 1.4;
+
+
+ margin-top:6px;
+
+
+ color:#777;
+
+
+ font-size:11px;
+
+
 }
+
+
 
 /* =========================================================
-   FOOTER
-   ========================================================= */
+   TOP UP SERVICE PAGE
+========================================================= */
 
-.store-footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  padding: 28px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  text-align: center;
-}
-
-.footer-brand {
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 1000;
-  font-style: italic;
-}
-
-.store-footer p {
-  margin: 0;
-  color: #666666;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 1.5px;
-}
-
-.store-footer small {
-  color: #3d3d3d;
-  font-size: 7px;
-}
-
-/* =========================================================
-   GAME SERVICE PAGES
-   ========================================================= */
-
-.game-service-page {
-  min-height: 100vh;
-  background: #080808;
-  color: #ffffff;
-  overflow-x: hidden;
-}
-
-.game-service-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  height: 66px;
-  display: grid;
-  grid-template-columns: 50px 1fr 50px;
-  align-items: center;
-  padding: 0 12px;
-  background:
-    rgba(8, 8, 8, 0.96);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(15px);
-}
-
-.game-back-button {
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #171717,
-      #050505
-    );
-  color: #ffffff;
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.game-back-button:hover {
-  border-color: #ff1744;
-  color: #ff1744;
-}
-
-.game-header-title {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-}
-
-.game-header-title span {
-  color: #777777;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 2px;
-}
-
-.game-header-title strong {
-  margin-top: 5px;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 1000;
-  letter-spacing: 0.8px;
-}
-
-.game-cart-button {
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #181818,
-      #050505
-    );
-  color: #ffcc33;
-  cursor: pointer;
-}
-
-/* =========================================================
-   FREE FIRE MAIN IMAGE
-   ========================================================= */
-
-.free-fire-main-image {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 8;
-  min-height: 220px;
-  overflow: hidden;
-  background: #111111;
-}
-
-.free-fire-main-image img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-  object-position: center;
-}
-
-.free-fire-main-overlay {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.78),
-      rgba(0, 0, 0, 0.18),
-      rgba(0, 0, 0, 0.7)
-    ),
-    linear-gradient(
-      0deg,
-      rgba(0, 0, 0, 0.75),
-      transparent 55%
-    );
-}
-
-.free-fire-main-text {
-  position: absolute;
-  left: 20px;
-  bottom: 24px;
-  z-index: 2;
-}
-
-.free-fire-main-text > span {
-  color: #ff1744;
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: 1.5px;
-}
-
-.free-fire-main-text h1 {
-  margin: 8px 0 0;
-  display: flex;
-  flex-direction: column;
-  font-size: clamp(32px, 9vw, 65px);
-  line-height: 0.82;
-  font-weight: 1000;
-  font-style: italic;
-  letter-spacing: -2px;
-}
-
-.free-fire-main-text h1 strong {
-  color: #ff1744;
-  text-shadow: 3px 3px 0 #30000a;
-}
-
-.free-fire-main-text p {
-  margin: 11px 0 0;
-  color: #d0d0d0;
-  font-size: 10px;
-}
-
-/* =========================================================
-   OFFERS
-   ========================================================= */
-
-.offers-toggle {
-  width: 100%;
-  min-height: 54px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 18px;
-  border: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background:
-    linear-gradient(
-      90deg,
-      #111111,
-      #090909
-    );
-  color: #ffffff;
-  cursor: pointer;
-}
-
-.offers-toggle-text {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 950;
-  letter-spacing: 0.6px;
-}
-
-.offers-toggle-pencil {
-  color: #ff1744;
-  font-size: 19px;
-}
-
-.offers-section {
-  max-width: 950px;
-  margin: 0 auto;
-  padding: 24px 14px;
-}
-
-.offers-heading {
-  margin-bottom: 14px;
-}
-
-.offers-heading span {
-  color: #ff1744;
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: 1.5px;
-}
-
-.offers-heading h2 {
-  margin: 5px 0 0;
-  color: #ffffff;
-  font-size: 22px;
-  font-weight: 1000;
-  font-style: italic;
-}
-
-.offers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.offer-card {
-  width: 100%;
-  min-height: 66px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 13px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #151515,
-      #090909
-    );
-  color: #ffffff;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    transform 0.18s ease;
-}
-
-.offer-card:hover,
-.offer-card.selected {
-  border-color: rgba(255, 23, 68, 0.5);
-  background:
-    linear-gradient(
-      90deg,
-      rgba(255, 23, 68, 0.1),
-      #111111
-    );
-}
-
-.offer-card:active {
-  transform: scale(0.985);
-}
-
-.offer-left {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.diamond-icon {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9px;
-  background: #191919;
-  font-size: 19px;
-}
-
-.offer-info {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.offer-info strong {
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.offer-info span {
-  margin-top: 3px;
-  color: #666666;
-  font-size: 7px;
-  font-weight: 800;
-}
-
-.offer-right {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.offer-right strong {
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 1000;
-}
-
-.offer-right span {
-  margin-top: 3px;
-  color: #ff1744;
-  font-size: 6px;
-  font-weight: 950;
-}
-
-/* =========================================================
-   ORDER SECTION
-   ========================================================= */
-
-.order-section,
-.confirmation-section,
-.order-success-section {
-  max-width: 950px;
-  margin: 0 auto;
-  padding: 30px 14px;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.section-title > span {
-  color: #ff1744;
-  font-size: 18px;
-  font-weight: 1000;
-  font-style: italic;
-}
-
-.section-title small {
-  color: #666666;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 1.5px;
-}
-
-.section-title h2 {
-  margin: 3px 0 0;
-  color: #ffffff;
-  font-size: 21px;
-  font-weight: 1000;
-  font-style: italic;
-}
-
-.selected-order-card {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 11px;
-  background:
-    linear-gradient(
-      145deg,
-      #151515,
-      #090909
-    );
-}
-
-.selected-order-icon {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: #1a1a1a;
-  font-size: 20px;
-}
-
-.selected-order-info {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.selected-order-info span {
-  color: #666666;
-  font-size: 7px;
-  font-weight: 900;
-}
-
-.selected-order-info strong {
-  margin-top: 4px;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.selected-order-price {
-  color: #ff1744;
-  font-size: 16px;
-  font-weight: 1000;
-}
-
-.order-form {
-  margin-top: 20px;
-}
-
-.player-id-label {
-  display: block;
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 950;
-  letter-spacing: 1px;
-}
-
-.player-id-description {
-  margin: 6px 0 10px;
-  color: #666666;
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-.player-id-input-wrapper {
-  width: 100%;
-  min-height: 50px;
-  display: flex;
-  align-items: center;
-  background:
-    linear-gradient(
-      145deg,
-      #151515,
-      #090909
-    );
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 9px;
-}
-
-.player-id-input-wrapper span {
-  width: 43px;
-  display: flex;
-  justify-content: center;
-  color: #ff1744;
-}
-
-.player-id-input-wrapper input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #ffffff;
-  font-size: 13px;
-}
 
-.player-id-input-wrapper input::placeholder {
-  color: #4d4d4d;
-}
-
-.order-error {
-  margin-top: 9px;
-  padding: 10px;
-  border: 1px solid rgba(255, 23, 68, 0.25);
-  border-radius: 7px;
-  background: rgba(255, 23, 68, 0.07);
-  color: #ff657d;
-  font-size: 9px;
-}
-
-/* =========================================================
-   ORDER TOTAL
-   ========================================================= */
-
-.order-total-preview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 15px;
-  padding: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.order-total-preview span {
-  color: #777777;
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
-
-.order-total-preview strong {
-  color: #ffffff;
-  font-size: 22px;
-  font-weight: 1000;
-}
-
-/* =========================================================
-   FINISH / CONFIRM BUTTONS
-   ========================================================= */
-
-.finish-order-button,
-.confirm-final-button {
-  width: 100%;
-  min-height: 52px;
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 17px;
-  border: 1px solid #ff1744;
-  border-radius: 9px;
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #bd002d
-    );
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: 0.8px;
-  cursor: pointer;
-  box-shadow:
-    0 10px 25px rgba(255, 23, 68, 0.18);
-}
-
-.finish-order-button b {
-  font-size: 19px;
-}
-
-/* =========================================================
-   CONFIRMATION
-   ========================================================= */
-
-.confirmation-card {
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 13px;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 23, 68, 0.05),
-      #111111
-    );
-}
-
-.confirmation-card h3 {
-  margin: 0 0 20px;
-  color: #ffffff;
-  font-size: 16px;
-  line-height: 1.35;
-}
-
-.confirmation-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 12px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.confirmation-row span {
-  color: #666666;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
-
-.confirmation-row strong {
-  color: #ffffff;
-  font-size: 10px;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
-.confirmation-warning {
-  margin: 17px 0 0;
-  padding: 10px;
-  border-left: 2px solid #ff1744;
-  background: rgba(255, 23, 68, 0.05);
-  color: #777777;
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-/* =========================================================
-   SUCCESS
-   ========================================================= */
+.service-page {
 
-.success-circle {
-  width: 75px;
-  height: 75px;
-  margin: 0 auto 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #ff1744;
-  border-radius: 50%;
-  background:
-    radial-gradient(
-      circle,
-      rgba(255, 23, 68, 0.2),
-      rgba(255, 23, 68, 0.03)
-    );
-  color: #ff1744;
-  font-size: 30px;
-  font-weight: 1000;
-  box-shadow:
-    0 0 30px rgba(255, 23, 68, 0.14);
-}
-
-.order-success-section {
-  text-align: center;
-}
-
-.order-success-section h2 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 27px;
-  font-style: italic;
-}
 
-.order-success-section > p {
-  margin: 10px auto 20px;
-  max-width: 470px;
-  color: #777777;
-  font-size: 9px;
-  line-height: 1.5;
-}
+ min-height:100vh;
 
-.success-order-number {
-  width: min(400px, 100%);
-  margin: 0 auto;
-  padding: 15px;
-  border: 1px solid rgba(255, 23, 68, 0.18);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #141414,
-      #080808
-    );
-}
 
-.success-order-number span {
-  display: block;
-  color: #666666;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 1.4px;
-}
+ background:#050505;
 
-.success-order-number strong {
-  display: block;
-  margin-top: 6px;
-  color: #ff1744;
-  font-size: 18px;
-  letter-spacing: 1px;
-}
 
-.view-orders-button {
-  width: min(400px, 100%);
-  min-height: 51px;
-  margin: 14px auto 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  border: 1px solid #ff1744;
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #b90029
-    );
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 1000;
-  letter-spacing: 1px;
-  cursor: pointer;
 }
 
-.view-orders-button span {
-  color: #ffffff;
-}
 
-/* =========================================================
-   SERVICE INFO
-   ========================================================= */
 
 .service-info {
-  max-width: 950px;
-  margin: 0 auto;
-  padding: 0 14px 30px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.service-info-item {
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #121212,
-      #080808
-    );
-}
-
-.service-info-item > span {
-  display: block;
-  margin-bottom: 7px;
-  color: #ff1744;
-  font-size: 18px;
-}
-
-.service-info-item strong {
-  display: block;
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 1000;
-}
-
-.service-info-item p {
-  margin: 5px 0 0;
-  color: #666666;
-  font-size: 7px;
-  line-height: 1.45;
-}
-
-.game-service-footer {
-  padding: 25px 15px 35px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  text-align: center;
-}
-
-.game-service-footer strong {
-  display: block;
-  color: #ffffff;
-  font-size: 12px;
-}
-
-.game-service-footer span {
-  display: block;
-  margin-top: 5px;
-  color: #555555;
-  font-size: 7px;
-}
-
-/* =========================================================
-   HIDE OLD GAME CART
-   ========================================================= */
-
-.store-header .cart-button,
-.game-service-header .game-cart-button {
-  display: none !important;
-}
-
-/* =========================================================
-   BILLETERA / BALANCE
-   ========================================================= */
-
-.balance-page {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100svh;
-  overflow-x: hidden;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(0, 0, 0, 0.8),
-      rgba(0, 0, 0, 0.9)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover fixed no-repeat;
-  color: #ffffff;
-}
-
-.balance-background {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(0, 0, 0, 0.72),
-      rgba(0, 0, 0, 0.9)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
-  pointer-events: none;
-}
-
-.balance-page::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(
-      circle at 50% 15%,
-      rgba(255, 23, 68, 0.14),
-      transparent 35%
-    );
-  pointer-events: none;
-}
-
-/* =========================================================
-   BALANCE HEADER
-   ========================================================= */
-
-.balance-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  min-height: 68px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  background:
-    rgba(5, 5, 5, 0.94);
-  border-bottom: 1px solid rgba(255, 23, 68, 0.14);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-.balance-header h1 {
-  margin: 0;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 22px;
-  font-style: italic;
-  letter-spacing: 1px;
-  text-shadow:
-    2px 2px 0 #260008;
-}
-
-.balance-header h1 strong {
-  color: #ff1744;
-}
-
-.balance-back-button,
-.balance-header button {
-  min-width: 43px;
-  min-height: 43px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 11px;
-  background:
-    linear-gradient(
-      145deg,
-      #191919,
-      #050505
-    );
-  color: #ffffff;
-  font-size: 20px;
-  font-weight: 1000;
-  cursor: pointer;
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.4);
-}
-
-.balance-back-button:hover,
-.balance-header button:hover {
-  border-color: #ff1744;
-  color: #ff1744;
-}
-
-/* =========================================================
-   BALANCE MAIN
-   ========================================================= */
-
-.balance-main {
-  position: relative;
-  z-index: 2;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 25px 15px 45px;
-}
-
-.balance-main-card {
-  position: relative;
-  overflow: hidden;
-  padding: 27px 20px;
-  border: 1px solid rgba(255, 23, 68, 0.18);
-  border-radius: 18px;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(14, 14, 14, 0.94),
-      rgba(7, 7, 7, 0.86)
-    );
-  box-shadow:
-    0 25px 55px rgba(0, 0, 0, 0.5),
-    0 0 30px rgba(255, 23, 68, 0.07);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-.balance-main-card::before {
-  content: "";
-  position: absolute;
-  top: -100px;
-  right: -100px;
-  width: 230px;
-  height: 230px;
-  border-radius: 50%;
-  background: rgba(255, 23, 68, 0.1);
-  filter: blur(10px);
-}
-
-.balance-main-card::after {
-  content: "";
-  position: absolute;
-  left: -80px;
-  bottom: -100px;
-  width: 190px;
-  height: 190px;
-  border-radius: 50%;
-  background: rgba(255, 23, 68, 0.05);
-  filter: blur(25px);
-}
-
-.balance-main-card > * {
-  position: relative;
-  z-index: 2;
-}
-
-.balance-label {
-  color: #777777;
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.balance-amount {
-  margin: 8px 0 0;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: clamp(34px, 9vw, 52px);
-  line-height: 1;
-  font-style: italic;
-  letter-spacing: 1px;
-  text-shadow:
-    0 0 22px rgba(255, 255, 255, 0.07);
-}
-
-.balance-amount strong {
-  color: #ff1744;
-}
-
-.balance-subtitle {
-  margin: 7px 0 20px;
-  color: #777777;
-  font-size: 8px;
-  font-weight: 800;
-}
-
-/* =========================================================
-   SOLO INSERTAR BALANCE
-   ========================================================= */
-
-.balance-insert-button,
-.insert-balance-button {
-  width: 100%;
-  min-height: 54px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  border: 1px solid #16d875;
-  border-radius: 11px;
-  background:
-    linear-gradient(
-      135deg,
-      #16d875,
-      #07994d
-    );
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 1000;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow:
-    0 12px 28px rgba(22, 216, 117, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  transition:
-    transform 0.18s ease,
-    filter 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.balance-insert-button:hover,
-.insert-balance-button:hover {
-  filter: brightness(1.08);
-  box-shadow:
-    0 14px 30px rgba(22, 216, 117, 0.26),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.balance-insert-button:active,
-.insert-balance-button:active {
-  transform: scale(0.975);
-}
-
-.balance-insert-button span,
-.insert-balance-button span {
-  font-size: 17px;
-}
-
-/* =========================================================
-   BALANCE CARDS
-   ========================================================= */
-
-.balance-cards {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 13px;
-}
-
-.balance-card,
-.deposit-card,
-.history-card,
-.security-card {
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 13px;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(17, 17, 17, 0.94),
-      rgba(7, 7, 7, 0.9)
-    );
-  box-shadow:
-    0 12px 25px rgba(0, 0, 0, 0.28);
-}
-
-.balance-card > span,
-.deposit-card > span,
-.history-card > span,
-.security-card > span {
-  color: #ff1744;
-  font-size: 18px;
-}
-
-.balance-card strong,
-.deposit-card strong,
-.history-card strong,
-.security-card strong {
-  display: block;
-  margin-top: 7px;
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 1000;
-}
-
-.balance-card p,
-.deposit-card p,
-.history-card p,
-.security-card p {
-  margin: 5px 0 0;
-  color: #666666;
-  font-size: 7px;
-  line-height: 1.45;
-}
-
-/* =========================================================
-   BALANCE / DEPOSIT
-   ========================================================= */
-
-.balance-deposit-section {
-  margin-top: 14px;
-  padding: 18px;
-  border: 1px solid rgba(255, 23, 68, 0.12);
-  border-radius: 14px;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 23, 68, 0.05),
-      rgba(8, 8, 8, 0.94)
-    );
-}
-
-.balance-deposit-section h2 {
-  margin: 0;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 20px;
-  font-style: italic;
-}
-
-.balance-deposit-section h2 strong {
-  color: #ff1744;
-}
-
-.balance-deposit-section p {
-  margin: 7px 0 15px;
-  color: #6f6f6f;
-  font-size: 8px;
-  line-height: 1.5;
-}
-
-.balance-deposit-input {
-  width: 100%;
-  min-height: 49px;
-  padding: 0 13px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 9px;
-  outline: none;
-  background: #0b0b0b;
-  color: #ffffff;
-  font-size: 14px;
-}
-
-.balance-deposit-input:focus {
-  border-color: #16d875;
-  box-shadow:
-    0 0 0 2px rgba(22, 216, 117, 0.1);
-}
-
-/* =========================================================
-   DEPOSIT METHODS
-   ========================================================= */
-
-.deposit-methods {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-  margin-top: 12px;
-}
-
-.deposit-method {
-  min-height: 70px;
-  padding: 11px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #151515,
-      #080808
-    );
-  color: #ffffff;
-  cursor: pointer;
-  text-align: left;
-}
-
-.deposit-method:hover,
-.deposit-method.selected {
-  border-color: #16d875;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(22, 216, 117, 0.1),
-      #090909
-    );
-}
-
-.deposit-method span {
-  color: #16d875;
-  font-size: 17px;
-}
-
-.deposit-method strong {
-  display: block;
-  margin-top: 5px;
-  color: #ffffff;
-  font-size: 8px;
-  font-weight: 1000;
-}
-
-.deposit-method small {
-  display: block;
-  margin-top: 3px;
-  color: #666666;
-  font-size: 6px;
-}
-
-/* =========================================================
-   WALLET BUTTONS
-   ========================================================= */
-
-.wallet-button,
-.balance-action-button {
-  width: 100%;
-  min-height: 50px;
-  margin-top: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #181818,
-      #050505
-    );
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 1000;
-  letter-spacing: 1px;
-  cursor: pointer;
-}
-
-.wallet-button:hover,
-.balance-action-button:hover {
-  border-color: #ff1744;
-  color: #ff1744;
-}
-
-/* =========================================================
-   WALLET SECURITY
-   ========================================================= */
-
-.balance-security {
-  margin-top: 13px;
-  padding: 15px;
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  border: 1px solid rgba(22, 216, 117, 0.14);
-  border-radius: 11px;
-  background:
-    rgba(22, 216, 117, 0.035);
-}
-
-.balance-security > span {
-  color: #16d875;
-  font-size: 19px;
-}
-
-.balance-security strong {
-  display: block;
-  color: #ffffff;
-  font-size: 8px;
-  font-weight: 1000;
-}
-
-.balance-security p {
-  margin: 4px 0 0;
-  color: #666666;
-  font-size: 7px;
-  line-height: 1.45;
-}
-
-/* =========================================================
-   ORDERS PAGE
-   ========================================================= */
-
-.orders-page {
-  min-height: 100vh;
-  background: #070707;
-  color: #ffffff;
-  overflow-x: hidden;
-}
-
-.orders-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  height: 68px;
-  display: grid;
-  grid-template-columns: 50px 1fr 50px;
-  align-items: center;
-  padding: 0 12px;
-  background:
-    rgba(7, 7, 7, 0.96);
-  border-bottom: 1px solid rgba(255, 23, 68, 0.12);
-  backdrop-filter: blur(16px);
-}
-
-.orders-back-button {
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #171717,
-      #050505
-    );
-  color: #ffffff;
-  font-size: 22px;
-  cursor: pointer;
-}
-
-.orders-back-button:hover {
-  border-color: #ff1744;
-  color: #ff1744;
-}
-
-.orders-header-title {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-}
-
-.orders-header-title span {
-  color: #777777;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 2px;
-}
-
-.orders-header-title strong {
-  margin-top: 5px;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 1000;
-}
-
-.orders-header-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 23, 68, 0.25);
-  border-radius: 10px;
-  background: #111111;
-  color: #ff1744;
-  font-size: 18px;
-}
-
-/* =========================================================
-   ORDERS HERO
-   ========================================================= */
-
-.orders-hero {
-  position: relative;
-  min-height: 250px;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.9),
-      rgba(0, 0, 0, 0.35),
-      rgba(0, 0, 0, 0.85)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
-}
-
-.orders-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(
-      to bottom,
-      transparent,
-      rgba(0, 0, 0, 0.92)
-    );
-}
-
-.orders-hero-glow {
-  position: absolute;
-  right: -90px;
-  top: -100px;
-  width: 250px;
-  height: 250px;
-  border-radius: 50%;
-  background: rgba(255, 23, 68, 0.14);
-  filter: blur(35px);
-}
-
-.orders-hero-content {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  max-width: 1050px;
-  margin: 0 auto;
-  padding: 35px 18px 27px;
-}
-
-.orders-hero-label {
-  color: #ff1744;
-  font-size: 8px;
-  font-weight: 1000;
-  letter-spacing: 2.5px;
-}
-
-.orders-hero-content h1 {
-  margin: 8px 0 0;
-  color: #ffffff;
-  font-size: clamp(34px, 9vw, 65px);
-  line-height: 0.85;
-  font-style: italic;
-}
-
-.orders-hero-content h1 strong {
-  color: #ff1744;
-}
-
-.orders-hero-content p {
-  max-width: 480px;
-  margin: 12px 0 0;
-  color: #b7b7b7;
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-.orders-total-box {
-  width: min(300px, 100%);
-  margin-top: 18px;
-  padding: 13px;
-  border: 1px solid rgba(255, 23, 68, 0.25);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.orders-total-box span {
-  display: block;
-  color: #777777;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 1.5px;
-}
-
-.orders-total-box strong {
-  display: block;
-  margin-top: 5px;
-  color: #ffffff;
-  font-size: 22px;
-  font-weight: 1000;
-}
-
-.orders-total-box small {
-  display: block;
-  margin-top: 3px;
-  color: #ff1744;
-  font-size: 6px;
-}
-
-/* =========================================================
-   ORDERS STATS
-   ========================================================= */
-
-.orders-stats {
-  max-width: 1050px;
-  margin: -18px auto 0;
-  position: relative;
-  z-index: 5;
-  padding: 0 16px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 9px;
-}
-
-.orders-stat {
-  min-height: 82px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background:
-    linear-gradient(
-      145deg,
-      #151515,
-      #080808
-    );
-  cursor: pointer;
-}
 
-.orders-stat.active {
-  border-color: rgba(255, 23, 68, 0.45);
-}
-
-.orders-stat > span {
-  color: #ff1744;
-  font-size: 17px;
-}
-
-.orders-stat div {
-  margin-top: 7px;
-}
-
-.orders-stat strong {
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 1000;
-}
-
-.orders-stat small {
-  display: block;
-  margin-top: 3px;
-  color: #666666;
-  font-size: 6px;
-}
-
-/* =========================================================
-   ORDERS CONTENT
-   ========================================================= */
-
-.orders-content {
-  max-width: 1050px;
-  margin: 0 auto;
-  padding: 28px 16px;
-}
-
-.orders-content-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.orders-content-header > div:first-child span {
-  color: #ff1744;
-  font-size: 7px;
-  font-weight: 1000;
-  letter-spacing: 1.8px;
-}
-
-.orders-content-header h2 {
-  margin: 5px 0 0;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 23px;
-  font-style: italic;
-}
-
-.orders-filter-label {
-  color: #777777;
-  font-size: 7px;
-  font-weight: 900;
-}
-
-.orders-list {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-/* =========================================================
-   ORDER ITEM CARD
-   ========================================================= */
-
-.order-item-card {
-  position: relative;
-  overflow: hidden;
-  padding: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
-  background:
-    linear-gradient(
-      145deg,
-      #141414,
-      #080808
-    );
-}
-
-.order-item-card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: #ff1744;
-}
-
-.order-item-top {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.order-game-icon {
-  width: 43px;
-  height: 43px;
-  flex: 0 0 43px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: #1a1a1a;
-  font-size: 20px;
-}
-
-.order-game-info {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.order-game-info span {
-  color: #666666;
-  font-size: 7px;
-  font-weight: 900;
-}
-
-.order-game-info strong {
-  margin-top: 4px;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 1000;
-}
-
-.order-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 7px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  font-size: 6px;
-  font-weight: 1000;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-}
-
-.order-status i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #777777;
-}
-
-.order-status.pending {
-  color: #ffd45a;
-}
-
-.order-status.pending i {
-  background: #ffd45a;
-}
-
-.order-status.completed {
-  color: #16d875;
-}
-
-.order-status.completed i {
-  background: #16d875;
-}
-
-.order-status.cancelled {
-  color: #ff1744;
-}
-
-.order-status.cancelled i {
-  background: #ff1744;
-   }
-
-/* =========================================================
-   ORDER ITEM CONTINUED
-   ========================================================= */
-
-.order-item-divider {
-  height: 1px;
-  margin: 13px 0;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.order-item-details {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 9px;
-}
-
-.order-item-details > div {
-  min-width: 0;
-}
-
-.order-item-details span {
-  display: block;
-  color: #555555;
-  font-size: 6px;
-  font-weight: 900;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-}
-
-.order-item-details strong {
-  display: block;
-  margin-top: 4px;
-  color: #d5d5d5;
-  font-size: 8px;
-  overflow-wrap: anywhere;
-}
-
-.order-item-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.order-price {
-  display: flex;
-  flex-direction: column;
-}
-
-.order-price span {
-  color: #666666;
-  font-size: 6px;
-}
-
-.order-price strong {
-  margin-top: 3px;
-  color: #ff1744;
-  font-size: 17px;
-  font-weight: 1000;
-}
-
-.order-details-button {
-  min-height: 38px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background:
-    linear-gradient(
-      145deg,
-      #171717,
-      #050505
-    );
-  color: #ffffff;
-  cursor: pointer;
-}
-
-.order-details-button:hover {
-  border-color: #ff1744;
-  color: #ff1744;
-}
-
-.order-details-button span {
-  font-size: 7px;
-  font-weight: 1000;
-  letter-spacing: 0.8px;
-}
-
-/* =========================================================
-   EMPTY ORDERS
-   ========================================================= */
-
-.orders-empty {
-  padding: 45px 20px;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  background: #0b0b0b;
-  text-align: center;
-}
 
-.orders-empty-icon {
-  width: 65px;
-  height: 65px;
-  margin: 0 auto 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 23, 68, 0.25);
-  border-radius: 50%;
-  background: rgba(255, 23, 68, 0.05);
-  color: #ff1744;
-  font-size: 26px;
-}
-
-.orders-empty h3 {
-  margin: 0;
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 21px;
-  font-style: italic;
-}
-
-.orders-empty p {
-  max-width: 360px;
-  margin: 8px auto 18px;
-  color: #666666;
-  font-size: 8px;
-  line-height: 1.5;
-}
-
-.orders-shop-button {
-  min-height: 47px;
-  padding: 0 17px;
-  border: 1px solid #ff1744;
-  border-radius: 9px;
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #bd002d
-    );
-  color: #ffffff;
-  font-size: 8px;
-  font-weight: 1000;
-  letter-spacing: 1px;
-  cursor: pointer;
-}
-
-.orders-shop-button b {
-  font-size: 15px;
-}
-
-/* =========================================================
-   ORDERS SECURITY
-   ========================================================= */
-
-.orders-security {
-  max-width: 1050px;
-  margin: 0 auto;
-  padding: 0 16px 30px;
-}
-
-.orders-security > div {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  padding: 15px;
-  border: 1px solid rgba(22, 216, 117, 0.12);
-  border-radius: 11px;
-  background: rgba(22, 216, 117, 0.035);
-}
-
-.orders-security > div > span {
-  color: #16d875;
-  font-size: 19px;
-}
-
-.orders-security strong {
-  display: block;
-  color: #ffffff;
-  font-size: 8px;
-  font-weight: 1000;
-}
-
-.orders-security p {
-  margin: 4px 0 0;
-  color: #666666;
-  font-size: 7px;
-  line-height: 1.45;
-}
-
-/* =========================================================
-   ORDERS FOOTER
-   ========================================================= */
-
-.orders-footer {
-  padding: 25px 16px 35px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  text-align: center;
-}
-
-.orders-footer strong {
-  display: block;
-  color: #ffffff;
-  font-size: 11px;
-}
+ padding:20px;
 
-.orders-footer span {
-  display: block;
-  margin-top: 5px;
-  color: #444444;
-  font-size: 7px;
-}
 
-/* =========================================================
-   ORDERS LOADING
-   ========================================================= */
-
-.orders-loading-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #050505;
 }
 
-.orders-loading-logo {
-  color: #ffffff;
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 29px;
-  font-style: italic;
-}
 
-.orders-loading-logo strong {
-  color: #ff1744;
-}
 
-.orders-loading-line {
-  width: min(280px, 75%);
-  height: 4px;
-  margin-top: 18px;
-  overflow: hidden;
-  border-radius: 20px;
-  background: #171717;
-}
+.free-fire-main-image {
 
-.orders-loading-line::after {
-  content: "";
-  display: block;
-  width: 45%;
-  height: 100%;
-  background: #ff1744;
-  animation: ordersLoading 1.1s infinite ease-in-out;
-}
 
-.orders-loading-page p {
-  margin: 13px 0 0;
-  color: #555555;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 1px;
-}
+ position:relative;
 
-@keyframes ordersLoading {
-  0% {
-    transform: translateX(-120%);
-  }
-
-  100% {
-    transform: translateX(260%);
-  }
-}
 
-/* =========================================================
-   EXTRA BUTTON OVERRIDES
-   ========================================================= */
+ min-height:300px;
 
-button {
-  color: #ffffff;
-}
 
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+ border-radius:20px;
 
-.back-button,
-.btn-back,
-.button-back {
-  min-height: 48px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 9px;
-  background:
-    linear-gradient(
-      145deg,
-      #171717,
-      #050505
-    );
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 1000;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
 
-.primary-button,
-.btn-primary {
-  min-height: 50px;
-  border: 1px solid #ff1744;
-  border-radius: 9px;
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #bd002d
-    );
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 1000;
-  letter-spacing: 1px;
-}
+ overflow:hidden;
 
-/* =========================================================
-   INPUT SAFETY
-   ========================================================= */
 
-input {
-  font-size: 16px;
-}
+ background-size:cover;
 
-textarea,
-select {
-  border-radius: 9px;
-  background: #101010;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-}
+ background-position:center;
 
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: #ff1744;
-}
 
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
-@media (max-width: 700px) {
-
-  /* =======================================================
-     WELCOME
-     ======================================================= */
-
-  .welcome-page {
-    padding: 15px;
-  }
-
-  .welcome-overlay {
-    padding: 27px 18px;
-    border-radius: 18px;
-  }
-
-  /* =======================================================
-     AUTH
-     ======================================================= */
-
-  .auth-page {
-    padding: 14px;
-  }
-
-  .auth-card {
-    padding: 24px 16px 20px;
-    border-radius: 17px;
-  }
-
-  .auth-title {
-    font-size: 25px;
-  }
-
-  .auth-tab {
-    min-height: 44px;
-  }
-
-  .auth-field input {
-    min-height: 49px;
-  }
-
-  /* =======================================================
-     HEADER
-     ======================================================= */
-
-  .store-header {
-    height: 72px;
-    grid-template-columns: 52px 1fr 52px;
-    padding: 0 7px;
-  }
-
-  .store-header .store-brand .store-word,
-  .store-header .store-brand .gaming-word {
-    font-size: 19px;
-    letter-spacing: 1px;
-  }
-
-  .store-header .store-brand .brand-cart,
-  .store-header .store-brand .cart-logo,
-  .store-header .store-brand .brand-icon {
-    width: 27px;
-    height: 27px;
-    margin: 4px 0;
-    font-size: 14px;
-  }
-
-  .menu-button,
-  .hamburger-button,
-  .store-menu-button,
-  .menu-toggle {
-    width: 42px;
-    height: 42px;
-  }
-
-  /* =======================================================
-     HERO
-     ======================================================= */
-
-  .store-hero {
-    min-height: 300px;
-  }
-
-  .store-hero-content {
-    padding: 45px 15px 30px;
-  }
-
-  .store-hero h1 {
-    font-size: clamp(38px, 14vw, 62px);
-  }
-
-  /* =======================================================
-     GAMES 2 X 2
-     ======================================================= */
-
-  .games-section {
-    padding: 25px 12px 8px;
-  }
-
-  .games-heading h2 {
-    font-size: 23px;
-  }
-
-  .game-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
-  }
-
-  .game-info {
-    padding: 8px;
-  }
-
-  .game-info h3 {
-    font-size: 10px;
-  }
-
-  .game-info p {
-    font-size: 6px;
-  }
-
-  .game-bottom strong {
-    font-size: 12px;
-  }
-
-  /* =======================================================
-     BENEFITS
-     ======================================================= */
-
-  .benefits-section {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 17px 12px 25px;
-  }
-
-  /* =======================================================
-     SERVICE
-     ======================================================= */
-
-  .service-info {
-    grid-template-columns: 1fr;
-  }
-
-  .free-fire-main-image {
-    min-height: 205px;
-  }
-
-  .free-fire-main-text {
-    left: 15px;
-    bottom: 19px;
-  }
-
-  .free-fire-main-text h1 {
-    font-size: clamp(31px, 12vw, 54px);
-  }
-
-  /* =======================================================
-     OFFERS
-     ======================================================= */
-
-  .offers-section {
-    padding: 20px 11px;
-  }
-
-  .offer-card {
-    min-height: 62px;
-    padding: 9px 10px;
-  }
-
-  .offer-info strong {
-    font-size: 11px;
-  }
-
-  .offer-right strong {
-    font-size: 14px;
-  }
-
-  /* =======================================================
-     ORDER
-     ======================================================= */
-
-  .order-section,
-  .confirmation-section,
-  .order-success-section {
-    padding: 24px 11px;
-  }
-
-  .selected-order-card {
-    padding: 11px;
-  }
-
-  .section-title h2 {
-    font-size: 19px;
-  }
-
-  .order-total-preview strong {
-    font-size: 20px;
-  }
-
-  /* =======================================================
-     BILLETERA
-     ======================================================= */
-
-  .balance-header {
-    min-height: 64px;
-    padding: 0 10px;
-  }
-
-  .balance-header h1 {
-    font-size: 19px;
-  }
-
-  .balance-main {
-    padding: 18px 11px 35px;
-  }
-
-  .balance-main-card {
-    padding: 23px 15px;
-    border-radius: 15px;
-  }
-
-  .balance-amount {
-    font-size: 39px;
-  }
-
-  .balance-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .deposit-methods {
-    grid-template-columns: 1fr;
-  }
-
-  .balance-insert-button,
-  .insert-balance-button {
-    min-height: 53px;
-  }
-
-  /* =======================================================
-     ORDERS
-     ======================================================= */
-
-  .orders-header {
-    height: 64px;
-    grid-template-columns: 46px 1fr 46px;
-    padding: 0 9px;
-  }
-
-  .orders-hero {
-    min-height: 260px;
-  }
-
-  .orders-hero-content {
-    padding: 35px 14px 25px;
-  }
-
-  .orders-hero-content h1 {
-    font-size: clamp(34px, 12vw, 56px);
-  }
-
-  .orders-total-box {
-    width: 100%;
-    max-width: 290px;
-  }
-
-  .orders-stats {
-    margin-top: -12px;
-    padding: 0 11px;
-    gap: 7px;
-  }
-
-  .orders-stat {
-    min-height: 76px;
-    padding: 10px;
-  }
-
-  .orders-stat strong {
-    font-size: 13px;
-  }
-
-  .orders-content {
-    padding: 23px 11px;
-  }
-
-  .orders-content-header h2 {
-    font-size: 21px;
-  }
-
-  .order-item-card {
-    padding: 12px;
-  }
-
-  .order-game-icon {
-    width: 39px;
-    height: 39px;
-    flex-basis: 39px;
-  }
-
-  .order-game-info strong {
-    font-size: 10px;
-  }
-
-  .order-status {
-    padding: 4px 5px;
-    font-size: 5px;
-  }
-
-  .order-item-details {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .order-item-bottom {
-    align-items: flex-end;
-  }
-
-  .orders-security {
-    padding: 0 11px 25px;
-  }
-   }
-
-/* =========================================================
-   SMALL PHONES
-   ========================================================= */
-
-@media (max-width: 390px) {
-
-  .store-header {
-    grid-template-columns: 47px 1fr 47px;
-  }
-
-  .store-header .store-brand .store-word,
-  .store-header .store-brand .gaming-word {
-    font-size: 17px;
-  }
-
-  .store-header .store-brand .brand-cart,
-  .store-header .store-brand .cart-logo,
-  .store-header .store-brand .brand-icon {
-    width: 25px;
-    height: 25px;
-    font-size: 13px;
-  }
-
-  .game-grid {
-    gap: 7px;
-  }
-
-  .game-info h3 {
-    font-size: 9px;
-  }
-
-  .game-info p {
-    font-size: 5.5px;
-  }
-
-  .game-tag,
-  .game-open {
-    font-size: 5px;
-    padding: 4px 5px;
-  }
-
-  .balance-amount {
-    font-size: 34px;
-  }
-
-  .orders-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .orders-stat {
-    min-height: 70px;
-    padding: 8px;
-  }
-
-  .orders-stat strong {
-    font-size: 11px;
-  }
-
-  .orders-stat small {
-    font-size: 5px;
-  }
-
-  .free-fire-main-text h1 {
-    font-size: clamp(29px, 13vw, 48px);
-  }
-
-  .order-item-details {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 
-/* =========================================================
-   TOUCH / MOBILE SAFETY
-   ========================================================= */
 
-html,
-body {
-  overscroll-behavior-x: none;
-}
 
-button,
-.game-card,
-.offer-card,
-.orders-stat {
-  touch-action: manipulation;
-}
+.free-fire-main-image::after {
 
-input {
-  font-size: 16px;
-}
 
-@media (max-width: 700px) {
-  input {
-    font-size: 16px;
-  }
-}
+ content:"";
 
-/* =========================================================
-   FINAL VISUAL OVERRIDES
-   ========================================================= */
-
-/* Nunca permitir el fondo blanco de botones */
-
-.auth-card button,
-.balance-page button,
-.orders-page button,
-.game-service-page button,
-.store-header button {
-  -webkit-tap-highlight-color: transparent;
-}
 
-/* =========================================================
-   BRANDING FINAL
-   ========================================================= */
+ position:absolute;
 
-.store-brand {
-  text-shadow:
-    0 0 20px rgba(255, 23, 68, 0.08);
-}
+ inset:0;
 
-.store-brand .store-word {
-  color: #ffffff !important;
-  text-shadow:
-    3px 3px 0 #260008,
-    0 0 18px rgba(255, 255, 255, 0.08);
-}
 
-.store-brand .gaming-word {
-  color: #ff1744 !important;
-  text-shadow:
-    3px 3px 0 #30000a,
-    0 0 22px rgba(255, 23, 68, 0.35);
-}
+ background:
 
-/* =========================================================
-   CARRITO CENTRAL
-   ========================================================= */
-
-.store-brand .brand-cart,
-.store-brand .cart-logo,
-.store-brand .brand-icon {
-  background:
-    linear-gradient(
-      145deg,
-      #292929,
-      #080808
-    ) !important;
-  border-color: #ff1744 !important;
-  color: #ffcc33 !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 8px 22px rgba(0, 0, 0, 0.55),
-    0 0 22px rgba(255, 23, 68, 0.2);
-}
+ linear-gradient(
+ transparent,
+ rgba(0,0,0,.9)
+ );
 
-/* =========================================================
-   BOTONES GENERALES GAMING
-   ========================================================= */
-
-.auth-submit,
-.login-button,
-.register-button,
-.auth-enter-button,
-.primary-button,
-.btn-primary,
-.finish-order-button,
-.confirm-final-button,
-.view-orders-button,
-.orders-shop-button,
-.game-open {
-  font-family:
-    Impact,
-    Haettenschweiler,
-    "Arial Narrow Bold",
-    Arial,
-    sans-serif;
-  font-style: italic;
-  letter-spacing: 1.2px;
-}
 
-/* =========================================================
-   ENTRAR ROJO
-   ========================================================= */
-
-.auth-enter-button,
-.login-button {
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #b90029
-    ) !important;
-  border-color: #ff1744 !important;
-  color: #ffffff !important;
-  box-shadow:
-    0 12px 30px rgba(255, 23, 68, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
-/* =========================================================
-   REGISTRAR ROJO
-   ========================================================= */
-
-.register-button,
-.auth-submit {
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #b90029
-    ) !important;
-  border-color: #ff1744 !important;
-  color: #ffffff !important;
-}
 
-/* =========================================================
-   ATRÁS NEGRO
-   ========================================================= */
-
-.auth-back-button,
-.auth-register-back,
-.auth-secondary-button,
-.balance-back-button,
-.back-button,
-.btn-back,
-.button-back {
-  background:
-    linear-gradient(
-      145deg,
-      #181818,
-      #030303
-    ) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  color: #ffffff !important;
-}
 
-.auth-back-button:hover,
-.auth-register-back:hover,
-.auth-secondary-button:hover,
-.balance-back-button:hover {
-  border-color: #ff1744 !important;
-  color: #ff1744 !important;
-}
+.free-fire-main-text {
 
-/* =========================================================
-   INSERTAR BALANCE VERDE
-   ========================================================= */
-
-.balance-insert-button,
-.insert-balance-button {
-  background:
-    linear-gradient(
-      135deg,
-      #16d875,
-      #078d48
-    ) !important;
-  border-color: #16d875 !important;
-  color: #ffffff !important;
-  box-shadow:
-    0 12px 30px rgba(22, 216, 117, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-}
 
-/* =========================================================
-   WALLET / BILLETERA
-   ========================================================= */
-
-.balance-page {
-  background:
-    linear-gradient(
-      145deg,
-      rgba(0, 0, 0, 0.82),
-      rgba(0, 0, 0, 0.92)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover fixed no-repeat;
-}
+ position:absolute;
 
-.balance-main-card {
-  border-color: rgba(255, 23, 68, 0.2);
-}
 
-.balance-amount {
-  font-size: clamp(32px, 8vw, 48px);
-}
+ z-index:2;
 
-/* =========================================================
-   MENU HAMBURGUESA
-   ========================================================= */
-
-.menu-button,
-.hamburger-button,
-.store-menu-button,
-.menu-toggle {
-  background:
-    linear-gradient(
-      145deg,
-      #1b1b1b,
-      #050505
-    );
-  border-color: rgba(255, 23, 68, 0.3);
-}
 
-.menu-button span,
-.hamburger-button span,
-.store-menu-button span,
-.menu-toggle span {
-  background: #ffffff;
-}
+ bottom:25px;
 
-.menu-button span:nth-child(2),
-.hamburger-button span:nth-child(2),
-.store-menu-button span:nth-child(2),
-.menu-toggle span:nth-child(2) {
-  background: #ff1744;
-}
 
-/* =========================================================
-   MENU LATERAL GAMING
-   ========================================================= */
-
-.side-menu,
-.store-side-menu,
-.menu-panel {
-  background:
-    linear-gradient(
-      145deg,
-      rgba(0, 0, 0, 0.76),
-      rgba(5, 5, 5, 0.95)
-    ),
-    url("/images/battle-royale-bg.jpg") center / cover no-repeat;
-  border-right-color: rgba(255, 23, 68, 0.3);
-}
+ left:25px;
 
-.side-menu-title,
-.store-side-menu-title,
-.menu-panel-title {
-  text-shadow:
-    2px 2px 0 #260008,
-    0 0 18px rgba(255, 23, 68, 0.12);
-}
 
-.side-menu button,
-.store-side-menu button,
-.menu-panel button {
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
-  font-weight: 1000;
 }
-
-/* =========================================================
-   JUEGOS: SIEMPRE 2 COLUMNAS
-   ========================================================= */
 
-.game-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-}
 
-/* =========================================================
-   ELIMINAR LOGOUT SUPERIOR EN ROJO
-   ========================================================= */
-
-.logout-dot,
-.logout-corner,
-.logout-corner-button,
-.top-logout,
-.header-logout,
-.logout-indicator,
-.store-logout-dot {
-  display: none !important;
-}
 
-/* =========================================================
-   ACABADO DE TARJETAS
-   ========================================================= */
-
-.game-card,
-.offer-card,
-.balance-main-card,
-.balance-card,
-.deposit-card,
-.history-card,
-.security-card,
-.orders-stat,
-.order-item-card {
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
+.free-fire-main-text h1 {
 
-/* =========================================================
-   FIN DE AJUSTES VISUALES PARTE 4
-   ========================================================= */
-
-/* =========================================================
-   EXTRA GAMING POLISH
-   ========================================================= */
-
-/* Títulos principales más visibles */
-
-.games-heading h2,
-.offers-heading h2,
-.section-title h2,
-.orders-content-header h2,
-.balance-deposit-section h2 {
-  text-shadow:
-    2px 2px 0 #260008,
-    0 0 15px rgba(255, 23, 68, 0.08);
-}
 
-/* Texto importante */
-
-.game-info h3,
-.offer-info strong,
-.selected-order-info strong,
-.orders-stat strong,
-.order-game-info strong,
-.balance-card strong,
-.deposit-card strong,
-.history-card strong,
-.security-card strong {
-  letter-spacing: 0.2px;
-}
+ font-size:55px;
 
-/* =========================================================
-   GAME CARDS - GAMING STYLE
-   ========================================================= */
-
-.game-card {
-  background:
-    linear-gradient(
-      145deg,
-      #141414,
-      #070707
-    );
-  border-color: rgba(255, 255, 255, 0.08);
-}
 
-.game-card:hover {
-  border-color: #ff1744;
-  transform: translateY(-2px);
-}
+ font-weight:1000;
 
-.game-card:active {
-  transform: scale(0.975);
-}
 
-.game-image-container {
-  background:
-    radial-gradient(
-      circle,
-      #202020,
-      #0a0a0a 75%
-    );
 }
 
-.game-tag {
-  background: rgba(0, 0, 0, 0.82);
-  border-color: rgba(255, 23, 68, 0.7);
-  color: #ffffff;
-  box-shadow:
-    0 5px 15px rgba(0, 0, 0, 0.3);
-}
 
-.game-open {
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #a80027
-    );
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
 
-/* =========================================================
-   GAME INFO
-   ========================================================= */
-
-.game-info h3 {
-  font-family:
-    Impact,
-    Haettenschweiler,
-    "Arial Narrow Bold",
-    Arial,
-    sans-serif;
-  font-size: 13px;
-  font-style: italic;
-  letter-spacing: 0.5px;
-}
+.free-fire-main-text h1 span {
 
-.game-info p {
-  color: #858585;
-}
 
-.game-bottom strong {
-  text-shadow:
-    0 0 12px rgba(255, 23, 68, 0.25);
-}
+ color:#ff1744;
 
-/* =========================================================
-   BENEFITS
-   ========================================================= */
 
-.benefit {
-  border-color: rgba(255, 23, 68, 0.08);
 }
 
-.benefit > span {
-  filter:
-    drop-shadow(
-      0 0 6px rgba(255, 23, 68, 0.2)
-    );
-}
 
-.benefit strong {
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.4px;
-}
 
 /* =========================================================
    OFFERS
-   ========================================================= */
+========================================================= */
+
+
+.offers-section {
+
+
+ padding:20px;
+
+
+}
+
+
 
 .offer-card {
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 7px 18px rgba(0, 0, 0, 0.22);
+
+
+ min-height:75px;
+
+
+ display:flex;
+
+
+ justify-content:space-between;
+
+
+ align-items:center;
+
+
+ padding:15px;
+
+
+ margin-bottom:10px;
+
+
+ background:#111;
+
+
+ border-radius:14px;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,255,255,.08);
+
+
+ transition:.25s;
+
+
 }
 
-.offer-card:hover,
-.offer-card.selected {
-  border-color: #ff1744;
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.35),
-    0 0 16px rgba(255, 23, 68, 0.08);
+
+
+.offer-card:hover {
+
+
+ border-color:#ff1744;
+
+
+ transform:translateX(4px);
+
+
 }
+
+
 
 .offer-info strong {
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 13px;
-  font-style: italic;
+
+
+ color:white;
+
+
+ font-size:15px;
+
+
 }
+
+
+
+.offer-info span {
+
+
+ display:block;
+
+
+ color:#777;
+
+
+ font-size:11px;
+
+
+ margin-top:5px;
+
+
+}
+
+
 
 .offer-right strong {
-  color: #ffffff;
-  text-shadow:
-    0 0 10px rgba(255, 255, 255, 0.05);
+
+
+ color:#16d875;
+
+
+ font-size:18px;
+
+
 }
 
-.diamond-icon {
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
 
 /* =========================================================
-   ORDER SECTION
-   ========================================================= */
+   ORDER FORM
+========================================================= */
 
-.selected-order-card {
-  border-color: rgba(255, 23, 68, 0.1);
-  box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.25);
+
+.order-section {
+
+
+ padding:25px 20px;
+
+
 }
 
-.selected-order-icon {
-  border: 1px solid rgba(255, 255, 255, 0.05);
+
+
+.order-section input {
+
+
+ width:100%;
+
+
+ height:52px;
+
+
+ padding:0 15px;
+
+
+ background:#111;
+
+
+ border-radius:12px;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,255,255,.1);
+
+
+ color:white;
+
+
+ margin-bottom:15px;
+
+
 }
 
-.selected-order-price {
-  text-shadow:
-    0 0 12px rgba(255, 23, 68, 0.22);
+
+
+.order-section input:focus {
+
+
+ outline:none;
+
+
+ border-color:#ff1744;
+
+
 }
+
+
+
+.primary-button {
+
+
+ width:100%;
+
+
+ min-height:55px;
+
+
+ border-radius:12px;
+
+
+ background:
+
+ linear-gradient(
+ 135deg,
+ #ff1744,
+ #b90032
+ );
+
+
+ color:white;
+
+
+ font-weight:1000;
+
+
+}
+
 
 /* =========================================================
-   INPUTS GAMING
-   ========================================================= */
+   ORDER CARDS
+========================================================= */
 
-.player-id-input-wrapper,
-.balance-deposit-input,
-.auth-field input {
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.25),
-    0 5px 18px rgba(0, 0, 0, 0.15);
-}
-
-.player-id-input-wrapper:focus-within {
-  border-color: #ff1744;
-  box-shadow:
-    0 0 0 2px rgba(255, 23, 68, 0.1),
-    0 0 18px rgba(255, 23, 68, 0.07);
-}
-
-/* =========================================================
-   TOTAL
-   ========================================================= */
-
-.order-total-preview strong {
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-style: italic;
-}
-
-/* =========================================================
-   FINISH BUTTON
-   ========================================================= */
-
-.finish-order-button,
-.confirm-final-button {
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #ae0029
-    );
-  border-color: #ff1744;
-  box-shadow:
-    0 12px 28px rgba(255, 23, 68, 0.23),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-}
-
-.finish-order-button:hover,
-.confirm-final-button:hover {
-  filter: brightness(1.07);
-}
-
-/* =========================================================
-   CONFIRMATION
-   ========================================================= */
-
-.confirmation-card {
-  border-color: rgba(255, 23, 68, 0.12);
-  box-shadow:
-    0 15px 35px rgba(0, 0, 0, 0.25);
-}
-
-.confirmation-card h3 {
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-style: italic;
-}
-
-/* =========================================================
-   SUCCESS
-   ========================================================= */
-
-.success-circle {
-  animation:
-    successPulse 2.2s infinite ease-in-out;
-}
-
-@keyframes successPulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 25px rgba(255, 23, 68, 0.12);
-  }
-
-  50% {
-    box-shadow:
-      0 0 40px rgba(255, 23, 68, 0.25);
-  }
-}
-
-.success-order-number {
-  box-shadow:
-    0 12px 25px rgba(0, 0, 0, 0.25);
-}
-
-/* =========================================================
-   SERVICE INFO
-   ========================================================= */
-
-.service-info-item {
-  border-color: rgba(255, 23, 68, 0.08);
-}
-
-.service-info-item strong {
-  font-family:
-    Impact,
-    Haettenschweiler,
-    Arial,
-    sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.3px;
-}
-
-/* =========================================================
-   BALANCE EXTRA DESIGN
-   ========================================================= */
-
-.balance-label {
-  color: #8a8a8a;
-}
-
-.balance-amount {
-  color: #ffffff;
-}
-
-.balance-amount strong {
-  color: #ff1744;
-  text-shadow:
-    0 0 18px rgba(255, 23, 68, 0.18);
-}
-
-/* El botón verde debe destacar */
-
-.balance-insert-button,
-.insert-balance-button {
-  position: relative;
-  overflow: hidden;
-}
-
-.balance-insert-button::before,
-.insert-balance-button::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -120%;
-  width: 70%;
-  height: 100%;
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.18),
-      transparent
-    );
-  transform: skewX(-20deg);
-  animation:
-    balanceButtonShine 3.5s infinite;
-}
-
-@keyframes balanceButtonShine {
-  0% {
-    left: -120%;
-  }
-
-  45%,
-  100% {
-    left: 150%;
-  }
-}
-
-.balance-insert-button span,
-.insert-balance-button span {
-  position: relative;
-  z-index: 2;
-}
-
-/* =========================================================
-   BALANCE CARDS
-   ========================================================= */
-
-.balance-card,
-.deposit-card,
-.history-card,
-.security-card {
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease;
-}
-
-.balance-card:hover,
-.deposit-card:hover,
-.history-card:hover,
-.security-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 23, 68, 0.18);
-}
-
-/* =========================================================
-   DEPOSIT METHODS
-   ========================================================= */
-
-.deposit-method {
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease,
-    background 0.18s ease;
-}
-
-.deposit-method:hover {
-  transform: translateY(-1px);
-}
-
-/* =========================================================
-   ORDERS PAGE EXTRA
-   ========================================================= */
-
-.orders-page {
-  background:
-    linear-gradient(
-      180deg,
-      #070707,
-      #050505
-    );
-}
-
-.orders-header {
-  border-bottom-color: rgba(255, 23, 68, 0.13);
-}
-
-.orders-header-title strong {
-  text-shadow:
-    2px 2px 0 #260008;
-}
-
-.orders-hero-content h1 {
-  text-shadow:
-    4px 4px 0 #260008,
-    0 0 25px rgba(0, 0, 0, 0.5);
-}
-
-.orders-total-box {
-  box-shadow:
-    0 10px 25px rgba(0, 0, 0, 0.35);
-}
-
-.orders-stat {
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease;
-}
-
-.orders-stat:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 23, 68, 0.3);
-}
-
-/* =========================================================
-   ORDER ITEM
-   ========================================================= */
 
 .order-item-card {
-  box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.25);
+
+
+ background:#101010;
+
+
+ border-radius:18px;
+
+
+ padding:18px;
+
+
+ border:
+
+ 1px solid
+
+ rgba(255,255,255,.08);
+
+
+ margin-bottom:15px;
+
+
 }
 
-.order-item-card:hover {
-  border-color: rgba(255, 23, 68, 0.18);
+
+
+.order-item-top {
+
+
+ display:flex;
+
+
+ align-items:center;
+
+
+ gap:12px;
+
+
 }
 
-.order-price strong {
-  text-shadow:
-    0 0 12px rgba(255, 23, 68, 0.2);
+
+
+.order-game-icon {
+
+
+ width:45px;
+
+ height:45px;
+
+
+ display:flex;
+
+ align-items:center;
+
+ justify-content:center;
+
+
+ border-radius:12px;
+
+
+ background:#181818;
+
+
+ font-size:22px;
+
+
 }
 
-/* =========================================================
-   STATUS
-   ========================================================= */
 
-.order-status {
-  border: 1px solid rgba(255, 255, 255, 0.04);
+
+.order-game-info {
+
+
+ flex:1;
+
+
 }
 
-/* =========================================================
-   EMPTY ORDERS
-   ========================================================= */
 
-.orders-empty {
-  box-shadow:
-    0 15px 35px rgba(0, 0, 0, 0.22);
+
+.order-game-info span {
+
+
+ color:#777;
+
+
+ font-size:10px;
+
+
 }
 
-/* =========================================================
-   SECURITY
-   ========================================================= */
 
-.orders-security > div,
-.balance-security {
-  box-shadow:
-    0 8px 22px rgba(0, 0, 0, 0.18);
-}
 
-/* =========================================================
-   FOOTERS
-   ========================================================= */
+.order-game-info strong {
 
-.store-footer,
-.game-service-footer,
-.orders-footer {
-  background:
-    linear-gradient(
-      180deg,
-      transparent,
-      rgba(255, 23, 68, 0.015)
-    );
-   }
 
-/* =========================================================
-   RESPONSIVE VISUAL REFINEMENT
-   ========================================================= */
+ display:block;
 
-@media (max-width: 700px) {
 
-  /* =======================================================
-     STORE BRAND
-     ======================================================= */
+ color:white;
 
-  .store-header .store-brand {
-    transform: translateY(0);
-  }
 
-  .store-header .store-brand .store-word,
-  .store-header .store-brand .gaming-word {
-    font-size: 19px;
-    line-height: 0.82;
-  }
+ font-size:13px;
 
-  .store-header .store-brand .brand-cart,
-  .store-header .store-brand .cart-logo,
-  .store-header .store-brand .brand-icon {
-    width: 27px;
-    height: 27px;
-    margin: 4px 0;
-    font-size: 14px;
-  }
 
-  /* =======================================================
-     AUTH MOBILE
-     ======================================================= */
+      }
 
-  .auth-card {
-    width: 100%;
-    box-shadow:
-      0 20px 55px rgba(0, 0, 0, 0.7),
-      0 0 25px rgba(255, 23, 68, 0.08);
-  }
-
-  .auth-title {
-    font-size: 25px;
-  }
-
-  .auth-submit,
-  .login-button,
-  .register-button,
-  .auth-enter-button {
-    min-height: 53px;
-    font-size: 10px;
-  }
-
-  .auth-back-button,
-  .auth-register-back,
-  .auth-secondary-button {
-    min-height: 50px;
-  }
-
-  /* =======================================================
-     HERO MOBILE
-     ======================================================= */
-
-  .store-hero {
-    min-height: 300px;
-  }
-
-  .store-hero-content {
-    padding: 45px 15px 30px;
-  }
-
-  .store-hero h1 {
-    font-size: clamp(38px, 14vw, 62px);
-  }
-
-  /* =======================================================
-     GAME CARDS MOBILE
-     ======================================================= */
-
-  .game-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 9px;
-  }
-
-  .game-card {
-    border-radius: 11px;
-  }
-
-  .game-image-container {
-    aspect-ratio: 1 / 1;
-  }
-
-  .game-info h3 {
-    font-size: 10px;
-  }
-
-  /* =======================================================
-     BILLETERA MOBILE
-     ======================================================= */
-
-  .balance-main-card {
-    box-shadow:
-      0 20px 45px rgba(0, 0, 0, 0.5),
-      0 0 22px rgba(255, 23, 68, 0.06);
-  }
-
-  .balance-amount {
-    font-size: 39px;
-  }
-
-  .balance-insert-button,
-  .insert-balance-button {
-    min-height: 53px;
-  }
-
-  /* =======================================================
-     SIDE MENU MOBILE
-     ======================================================= */
-
-  .side-menu,
-  .store-side-menu,
-  .menu-panel {
-    width: min(320px, 88vw);
-  }
-
-  .side-menu button,
-  .store-side-menu button,
-  .menu-panel button {
-    min-height: 50px;
-  }
-
-  /* =======================================================
-     ORDERS MOBILE
-     ======================================================= */
-
-  .orders-hero-content h1 {
-    font-size: clamp(34px, 12vw, 56px);
-  }
-
-  .orders-stat {
-    border-radius: 9px;
-  }
-
-  .orders-stat strong {
-    font-size: 13px;
-  }
-
-  .order-item-card {
-    border-radius: 11px;
-  }
-}
-
-/* =========================================================
-   SMALL PHONES
-   ========================================================= */
-
-@media (max-width: 390px) {
-
-  .welcome-overlay {
-    padding: 25px 15px;
-  }
-
-  .welcome-brand .store-word,
-  .welcome-brand .gaming-word {
-    font-size: 32px;
-  }
-
-  .store-header {
-    grid-template-columns: 47px 1fr 47px;
-  }
-
-  .store-header .store-brand .store-word,
-  .store-header .store-brand .gaming-word {
-    font-size: 17px;
-  }
-
-  .store-header .store-brand .brand-cart,
-  .store-header .store-brand .cart-logo,
-  .store-header .store-brand .brand-icon {
-    width: 25px;
-    height: 25px;
-    font-size: 13px;
-  }
-
-  .game-grid {
-    gap: 7px;
-  }
-
-  .game-info {
-    padding: 7px;
-  }
-
-  .game-info h3 {
-    font-size: 9px;
-  }
-
-  .game-info p {
-    font-size: 5.5px;
-  }
-
-  .game-tag,
-  .game-open {
-    font-size: 5px;
-    padding: 4px 5px;
-  }
-
-  .balance-amount {
-    font-size: 34px;
-  }
-
-  .balance-main-card {
-    padding: 21px 13px;
-  }
-
-  .orders-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .orders-stat {
-    min-height: 70px;
-    padding: 8px;
-  }
-
-  .orders-stat strong {
-    font-size: 11px;
-  }
-
-  .orders-stat small {
-    font-size: 5px;
-  }
-
-  .free-fire-main-text h1 {
-    font-size: clamp(29px, 13vw, 48px);
-  }
-
-  .order-item-details {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* =========================================================
-   TOUCH / MOBILE SAFETY
-   ========================================================= */
-
-html,
-body {
-  overscroll-behavior-x: none;
-}
-
-button,
-.game-card,
-.offer-card,
-.orders-stat {
-  touch-action: manipulation;
-}
-
-input {
-  font-size: 16px;
-}
-
-textarea,
-select {
-  font-size: 16px;
-}
-
-@media (max-width: 700px) {
-  input,
-  textarea,
-  select {
-    font-size: 16px;
-  }
-}
-
-/* =========================================================
-   BUTTON PRESS EFFECT
-   ========================================================= */
-
-button:not(:disabled):active {
-  -webkit-tap-highlight-color: transparent;
-}
-
-.primary-button:not(:disabled):active,
-.btn-primary:not(:disabled):active,
-.login-button:not(:disabled):active,
-.register-button:not(:disabled):active,
-.auth-enter-button:not(:disabled):active,
-.auth-back-button:not(:disabled):active,
-.auth-register-back:not(:disabled):active,
-.balance-insert-button:not(:disabled):active,
-.insert-balance-button:not(:disabled):active {
-  transform: scale(0.975);
-}
-
-/* =========================================================
-   GLOBAL SELECTION
-   ========================================================= */
-
-::selection {
-  background: #ff1744;
-  color: #ffffff;
-}
-
-/* =========================================================
-   SCROLLBAR
-   ========================================================= */
-
-::-webkit-scrollbar {
-  width: 7px;
-}
-
-::-webkit-scrollbar-track {
-  background: #050505;
-}
-
-::-webkit-scrollbar-thumb {
-  border-radius: 20px;
-  background:
-    linear-gradient(
-      180deg,
-      #ff1744,
-      #80001f
-    );
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #ff1744;
-}
-
-/* =========================================================
-   FORM AUTOFILL
-   ========================================================= */
-
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #ffffff;
-  -webkit-box-shadow:
-    0 0 0 1000px #0d0d0d inset;
-  transition:
-    background-color 5000s ease-in-out 0s;
-}
-
-/* =========================================================
-   FOCUS ACCESSIBILITY
-   ========================================================= */
-
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: 2px solid #ff1744;
-  outline-offset: 2px;
-}
-
-/* =========================================================
-   NO WHITE BACKGROUNDS
-   ========================================================= */
-
-.auth-card button,
-.balance-page button,
-.orders-page button,
-.game-service-page button,
-.store-header button,
-.side-menu button,
-.store-side-menu button,
-.menu-panel button {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* =========================================================
-   FINAL COLOR SYSTEM
-   ========================================================= */
-
-strong {
-  color: inherit;
-}
-
-a:hover {
-  color: inherit;
-}
-
-/* =========================================================
-   FINAL BRAND SHADOW
-   ========================================================= */
-
-.store-brand .store-word,
-.store-brand .gaming-word {
-  filter:
-    drop-shadow(
-      0 0 2px rgba(0, 0, 0, 0.5)
-    );
-}
-
-/* =========================================================
-   FINAL CARD FINISH
-   ========================================================= */
-
-.game-card,
-.offer-card,
-.selected-order-card,
-.confirmation-card,
-.balance-main-card,
-.balance-card,
-.deposit-card,
-.history-card,
-.security-card,
-.orders-stat,
-.order-item-card,
-.orders-empty {
-  isolation: isolate;
-}
-
-/* =========================================================
-   PREVENT CONTENT SELECTION ON UI
-   ========================================================= */
-
-.game-card,
-.offer-card,
-.orders-stat,
-.game-open,
-.menu-button,
-.hamburger-button,
-.store-menu-button,
-.menu-toggle,
-.balance-insert-button,
-.insert-balance-button {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* =========================================================
-   ANIMATED RED ACCENTS
-   ========================================================= */
-
-.store-header::after,
-.balance-header::after,
-.orders-header::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 1px;
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 23, 68, 0.55),
-      transparent
-    );
-  pointer-events: none;
-     }
-
-/* =========================================================
-   FINAL MOBILE FIXES
-   ========================================================= */
-
-@media (max-width: 700px) {
-
-  /* =======================================================
-     CENTRAL STORE / CART / GAMING
-     ======================================================= */
-
-  .welcome-brand .store-word,
-  .welcome-brand .gaming-word {
-    letter-spacing: 2px;
-  }
-
-  .welcome-brand .brand-cart,
-  .welcome-brand .cart-logo,
-  .welcome-brand .brand-icon {
-    width: 42px;
-    height: 39px;
-    font-size: 20px;
-  }
-
-  /* =======================================================
-     LOGIN / REGISTER
-     ======================================================= */
-
-  .auth-card {
-    max-height: calc(100svh - 28px);
-    overflow-y: auto;
-  }
-
-  .auth-form {
-    gap: 11px;
-  }
-
-  .auth-field label {
-    font-size: 8px;
-  }
-
-  .auth-field input {
-    min-height: 49px;
-  }
-
-  /* =======================================================
-     STORE HEADER
-     ======================================================= */
-
-  .store-header {
-    position: sticky;
-    top: 0;
-    z-index: 200;
-  }
-
-  .store-header .store-brand {
-    transform: scale(0.98);
-  }
-
-  /* =======================================================
-     GAME GRID
-     ======================================================= */
-
-  .games-section {
-    width: 100%;
-  }
-
-  .game-grid {
-    width: 100%;
-    display: grid !important;
-    grid-template-columns:
-      repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  .game-card {
-    width: 100%;
-  }
-
-  /* =======================================================
-     WALLET
-     ======================================================= */
-
-  .balance-page {
-    background-attachment: scroll;
-  }
-
-  .balance-background {
-    position: fixed;
-  }
-
-  .balance-main {
-    width: 100%;
-  }
-
-  .balance-amount {
-    font-size: 39px;
-  }
-
-  /* =======================================================
-     ORDERS
-     ======================================================= */
-
-  .orders-page {
-    min-width: 0;
-  }
-
-  .orders-content {
-    width: 100%;
-  }
-
-  .orders-content-header {
-    align-items: flex-start;
-  }
-
-  .order-item-details {
-    gap: 8px;
-  }
-}
-
-/* =========================================================
-   VERY SMALL PHONES
-   ========================================================= */
-
-@media (max-width: 350px) {
-
-  .store-header {
-    grid-template-columns: 43px 1fr 43px;
-  }
-
-  .menu-button,
-  .hamburger-button,
-  .store-menu-button,
-  .menu-toggle {
-    width: 39px;
-    height: 39px;
-  }
-
-  .store-header .store-brand .store-word,
-  .store-header .store-brand .gaming-word {
-    font-size: 15px;
-  }
-
-  .store-header .store-brand .brand-cart,
-  .store-header .store-brand .cart-logo,
-  .store-header .store-brand .brand-icon {
-    width: 23px;
-    height: 23px;
-    font-size: 12px;
-  }
-
-  .game-info h3 {
-    font-size: 8px;
-  }
-
-  .game-info p {
-    font-size: 5px;
-  }
-
-  .game-bottom strong {
-    font-size: 11px;
-  }
-
-  .balance-amount {
-    font-size: 31px;
-  }
-
-  .balance-insert-button,
-  .insert-balance-button {
-    font-size: 9px;
-  }
-}
-
-/* =========================================================
-   FINAL OVERRIDES
-   ========================================================= */
-
-/* No mostrar el antiguo botón de carrito del header */
-
-.store-header .cart-button,
-.game-service-header .game-cart-button {
-  display: none !important;
-}
-
-/* No mostrar logout rojo de esquina */
-
-.logout-dot,
-.logout-corner,
-.logout-corner-button,
-.top-logout,
-.header-logout,
-.logout-indicator,
-.store-logout-dot {
-  display: none !important;
-}
-
-/* =========================================================
-   STORE TITLE FINAL
-   ========================================================= */
-
-.store-brand .store-word {
-  color: #ffffff !important;
-}
-
-.store-brand .gaming-word {
-  color: #ff1744 !important;
-}
-
-.store-brand .brand-cart,
-.store-brand .cart-logo,
-.store-brand .brand-icon {
-  color: #ffcc33 !important;
-  background:
-    linear-gradient(
-      145deg,
-      #292929,
-      #080808
-    ) !important;
-  border: 1px solid #ff1744 !important;
-}
-
-/* =========================================================
-   RED PRIMARY
-   ========================================================= */
-
-.auth-submit,
-.login-button,
-.register-button,
-.auth-enter-button,
-.primary-button,
-.btn-primary,
-.finish-order-button,
-.confirm-final-button,
-.view-orders-button,
-.orders-shop-button {
-  background:
-    linear-gradient(
-      135deg,
-      #ff1744,
-      #b90029
-    ) !important;
-  color: #ffffff !important;
-  border-color: #ff1744 !important;
-}
-
-/* =========================================================
-   BLACK SECONDARY
-   ========================================================= */
-
-.auth-back-button,
-.auth-register-back,
-.auth-secondary-button,
-.balance-back-button,
-.back-button,
-.btn-back,
-.button-back {
-  background:
-    linear-gradient(
-      145deg,
-      #191919,
-      #030303
-    ) !important;
-  color: #ffffff !important;
-}
-
-/* =========================================================
-   GREEN BALANCE
-   ========================================================= */
-
-.balance-insert-button,
-.insert-balance-button {
-  background:
-    linear-gradient(
-      135deg,
-      #16d875,
-      #078d48
-    ) !important;
-  border-color: #16d875 !important;
-  color: #ffffff !important;
-}
-
-/* =========================================================
-   BATTLE ROYALE BACKGROUND
-   ========================================================= */
-
-.auth-page,
-.welcome-page,
-.store-hero,
-.side-menu,
-.store-side-menu,
-.menu-panel,
-.balance-page,
-.balance-background,
-.orders-hero {
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
-}
-
-/* =========================================================
-   FINAL TYPOGRAPHY
-   ========================================================= */
-
-.auth-title,
-.balance-header h1,
-.balance-deposit-section h2,
-.orders-content-header h2,
-.orders-empty h3,
-.games-heading h2,
-.offers-heading h2,
-.section-title h2 {
-  font-style: italic;
-}
-
-/* =========================================================
-   FINAL RED GLOW
-   ========================================================= */
-
-.game-bottom strong,
-.offer-right span,
-.selected-order-price,
-.order-price strong,
-.orders-hero-label,
-.orders-content-header > div:first-child span {
-  text-shadow:
-    0 0 10px rgba(255, 23, 68, 0.18);
-}
-
-/* =========================================================
-   FINAL BLACK / RED BACKGROUND
-   ========================================================= */
-
-body {
-  background:
-    #050505;
-}
-
-/* =========================================================
-   FINAL BUTTON SAFETY
-   ========================================================= */
-
-button {
-  border-style: solid;
-}
-
-button:disabled {
-  filter: grayscale(0.35);
-}
-
-/* =========================================================
-   FINAL INPUT SAFETY
-   ========================================================= */
-
-input,
-textarea,
-select {
-  color-scheme: dark;
-}
-
-/* =========================================================
-   FINAL IMAGE SAFETY
-   ========================================================= */
-
-img {
-  -webkit-user-drag: none;
-}
-
-/* =========================================================
-   FINAL MOBILE GAME GRID
-   ========================================================= */
-
-@media (max-width: 700px) {
-  .game-grid {
-    display: grid !important;
-    grid-template-columns:
-      minmax(0, 1fr)
-      minmax(0, 1fr) !important;
-  }
-}
-
-/* =========================================================
-   FIN DE GLOBAL CSS
-   ========================================================= */
