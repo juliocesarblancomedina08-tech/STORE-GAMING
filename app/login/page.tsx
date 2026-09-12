@@ -87,7 +87,9 @@ export default function LoginPage() {
           ← Volver
         </button>
 
-        <div className="auth-logo">🛒🎮</div>
+        <div className="auth-logo">
+          🛒🎮
+        </div>
 
         <p className="auth-small">
           BIENVENIDO DE NUEVO
@@ -164,7 +166,9 @@ export default function LoginPage() {
             className="auth-submit"
             disabled={loading}
           >
-            {loading ? "ENTRANDO..." : "ENTRAR"}
+            {loading
+              ? "ENTRANDO..."
+              : "ENTRAR"}
           </button>
         </form>
 
@@ -189,4 +193,4 @@ export default function LoginPage() {
       </section>
     </main>
   );
-      }
+                }
