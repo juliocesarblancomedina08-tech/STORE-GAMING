@@ -78,6 +78,11 @@ export default function HomePage() {
     router.replace("/");
   }
 
+  function openMenu() {
+    // El menú lateral lo construiremos en el siguiente paso.
+    // Por ahora el botón ya está preparado.
+  }
+
   if (loading) {
     return (
       <main className="store-loading">
@@ -92,11 +97,20 @@ export default function HomePage() {
 
   return (
     <main className="store-home">
-      {/* =================================================
-          HEADER
-      ================================================= */}
-
       <header className="store-header">
+        {/* MENÚ ☰ */}
+        <button
+          type="button"
+          className="menu-button"
+          onClick={openMenu}
+          aria-label="Abrir menú"
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+
+        {/* LOGO */}
         <button
           type="button"
           className="store-logo"
@@ -110,18 +124,8 @@ export default function HomePage() {
           </span>
         </button>
 
+        {/* USUARIO */}
         <div className="store-header-actions">
-          <button
-            type="button"
-            className="cart-button"
-            onClick={() => router.push("/cart")}
-            aria-label="Abrir carrito"
-          >
-            <span className="cart-symbol">🛒</span>
-
-            <span className="cart-count">0</span>
-          </button>
-
           <button
             type="button"
             className="user-button"
@@ -132,10 +136,6 @@ export default function HomePage() {
           </button>
         </div>
       </header>
-
-      {/* =================================================
-          HERO
-      ================================================= */}
 
       <section className="store-hero">
         <div className="hero-glow" />
@@ -175,14 +175,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* =================================================
-          CATÁLOGO
-      ================================================= */}
-
       <section className="games-section">
         <div className="catalog-header">
           <div>
             <span>STORE GAMING</span>
+
             <h2>ELIGE TU JUEGO</h2>
           </div>
 
@@ -235,39 +232,43 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* =================================================
-          BENEFICIOS
-      ================================================= */}
-
       <section className="benefits-section">
         <div className="benefit">
           <span>⚡</span>
+
           <div>
             <strong>ENTREGA RÁPIDA</strong>
-            <p>Procesamos tus pedidos rápidamente.</p>
+
+            <p>
+              Procesamos tus pedidos rápidamente.
+            </p>
           </div>
         </div>
 
         <div className="benefit">
           <span>🛡️</span>
+
           <div>
             <strong>COMPRA SEGURA</strong>
-            <p>Tu pedido queda registrado.</p>
+
+            <p>
+              Tu pedido queda registrado.
+            </p>
           </div>
         </div>
 
         <div className="benefit">
           <span>🎮</span>
+
           <div>
             <strong>TOP UP GAMING</strong>
-            <p>Recargas para tus juegos favoritos.</p>
+
+            <p>
+              Recargas para tus juegos favoritos.
+            </p>
           </div>
         </div>
       </section>
-
-      {/* =================================================
-          FOOTER
-      ================================================= */}
 
       <footer className="store-footer">
         <div className="footer-brand">
@@ -284,4 +285,4 @@ export default function HomePage() {
       </footer>
     </main>
   );
-        }
+                  }
