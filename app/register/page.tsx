@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../../lib/supabase";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -104,7 +104,9 @@ export default function RegisterPage() {
 
         <div className="auth-logo">🛒🎮</div>
 
-        <p className="auth-small">ÚNETE A LA COMUNIDAD</p>
+        <p className="auth-small">
+          ÚNETE A LA COMUNIDAD
+        </p>
 
         <h1 className="auth-title">
           CREAR <span>CUENTA</span>
@@ -121,6 +123,7 @@ export default function RegisterPage() {
         >
           <label>
             CORREO ELECTRÓNICO
+
             <div className="input-wrapper">
               <span>✉️</span>
 
@@ -139,6 +142,7 @@ export default function RegisterPage() {
 
           <label>
             CONTRASEÑA
+
             <div className="input-wrapper">
               <span>🔒</span>
 
@@ -156,6 +160,7 @@ export default function RegisterPage() {
 
           <label>
             VERIFICAR CONTRASEÑA
+
             <div className="input-wrapper">
               <span>✓</span>
 
@@ -188,7 +193,9 @@ export default function RegisterPage() {
             className="auth-submit"
             disabled={loading}
           >
-            {loading ? "CREANDO CUENTA..." : "CREAR CUENTA"}
+            {loading
+              ? "CREANDO CUENTA..."
+              : "CREAR CUENTA"}
           </button>
         </form>
 
@@ -212,4 +219,4 @@ export default function RegisterPage() {
       </section>
     </main>
   );
-                    }
+      }
