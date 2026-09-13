@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 
 const offers = [
   {
@@ -145,7 +146,9 @@ export default function FreeFireLatamPage() {
 
     setTimeout(() => {
       document
-        .getElementById("confirmation-section")
+        .getElementById(
+          "confirmation-section"
+        )
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -153,27 +156,100 @@ export default function FreeFireLatamPage() {
     }, 100);
   }
 
-  function createOrder() {
+  async function createOrder() {
     if (!selectedOffer) {
       return;
     }
+
+    /*
+     * =========================
+     * USUARIO AUTENTICADO
+     * =========================
+     */
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (
+      sessionError ||
+      !session?.user
+    ) {
+      setError(
+        "Su sesión ha expirado. Inicie sesión nuevamente."
+      );
+
+      router.replace("/");
+
+      return;
+    }
+
+    const user = session.user;
+
+    const userEmail =
+      user.email || "";
+
+    const username =
+      userEmail.split("@")[0] ||
+      "usuario";
+
+    /*
+     * =========================
+     * NÚMERO DE ORDEN
+     * =========================
+     */
 
     const generatedNumber =
       `FF-${Date.now()
         .toString()
         .slice(-8)}`;
 
+    /*
+     * =========================
+     * CREAR ORDEN
+     * =========================
+     *
+     * IMPORTANTE:
+     * La orden queda asociada
+     * al usuario autenticado.
+     */
+
     const order = {
       id: generatedNumber,
+
+      user_id: user.id,
+
+      email: userEmail,
+
+      username: username,
+
       game: "FREE FIRE LATAM",
-      product: selectedOffer.name,
+
+      product:
+        selectedOffer.name,
+
       displayProduct:
         selectedOffer.display,
-      price: selectedOffer.price,
-      playerId: playerId.trim(),
-      status: "Pendiente",
-      createdAt: new Date().toISOString(),
+
+      price:
+        selectedOffer.price,
+
+      playerId:
+        playerId.trim(),
+
+      status:
+        "Pendiente",
+
+      createdAt:
+        new Date().toISOString(),
     };
+
+    /*
+     * =========================
+     * GUARDAR ÓRDENES
+     * =========================
+     */
 
     const existingOrders =
       localStorage.getItem(
@@ -202,17 +278,32 @@ export default function FreeFireLatamPage() {
       JSON.stringify(orders)
     );
 
+    /*
+     * ÚLTIMA ORDEN
+     */
+
     localStorage.setItem(
       "storeGamingLastOrder",
       JSON.stringify(order)
     );
 
-    setOrderNumber(generatedNumber);
+    /*
+     * =========================
+     * MOSTRAR ÉXITO
+     * =========================
+     */
+
+    setOrderNumber(
+      generatedNumber
+    );
+
     setOrderCreated(true);
 
     setTimeout(() => {
       document
-        .getElementById("success-section")
+        .getElementById(
+          "success-section"
+        )
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -232,7 +323,9 @@ export default function FreeFireLatamPage() {
         <button
           type="button"
           className="game-back-button"
-          onClick={() => router.push("/home")}
+          onClick={() =>
+            router.push("/home")
+          }
         >
           ←
         </button>
@@ -252,7 +345,9 @@ export default function FreeFireLatamPage() {
         <button
           type="button"
           className="game-cart-button"
-          onClick={() => router.push("/cart")}
+          onClick={() =>
+            router.push("/cart")
+          }
         >
           🛒
         </button>
@@ -303,7 +398,9 @@ export default function FreeFireLatamPage() {
         type="button"
         className="offers-toggle"
         onClick={() =>
-          setShowOffers((current) => !current)
+          setShowOffers(
+            (current) => !current
+          )
         }
       >
 
@@ -875,4 +972,4 @@ export default function FreeFireLatamPage() {
 
     </main>
   );
-    }
+        }
