@@ -6,10 +6,14 @@ import { supabase } from "../../lib/supabase";
 
 type Order = {
   id: string;
+  user_id?: string;
+  email?: string;
+  username?: string;
   game: string;
   product: string;
   displayProduct?: string;
   price: number;
+  total?: number;
   playerId: string;
   serverId?: string;
   status: string;
@@ -38,10 +42,9 @@ export default function OrdersPage() {
     async function loadOrders() {
       try {
         /*
-         * COMPROBAR SESIÓN REAL DE SUPABASE
-         *
-         * No utilizamos storeGamingAuth para
-         * decidir si el usuario está autenticado.
+         * =========================
+         * COMPROBAR SESIÓN
+         * =========================
          */
 
         const {
@@ -56,8 +59,14 @@ export default function OrdersPage() {
           return;
         }
 
+        const user = session.user;
+        const userId = user.id;
+        const userEmail = user.email || "";
+
         /*
-         * CARGAR ÓRDENES GUARDADAS
+         * =========================
+         * CARGAR ÓRDENES
+         * =========================
          */
 
         const savedOrders =
@@ -65,36 +74,71 @@ export default function OrdersPage() {
             "storeGamingOrders"
           );
 
+        let allOrders: Order[] = [];
+
         if (savedOrders) {
           try {
             const parsed =
               JSON.parse(savedOrders);
 
-            if (
-              mounted &&
-              Array.isArray(parsed)
-            ) {
-              setOrders(parsed);
+            if (Array.isArray(parsed)) {
+              allOrders = parsed;
             }
           } catch {
-            if (mounted) {
-              setOrders([]);
-            }
-          }
-        } else {
-          if (mounted) {
-            setOrders([]);
+            allOrders = [];
           }
         }
 
+        /*
+         * =========================
+         * FILTRAR POR USUARIO
+         * =========================
+         *
+         * Primero usamos user_id.
+         *
+         * Como respaldo usamos email
+         * cuando el pedido no tenga user_id.
+         *
+         * Los pedidos sin identificación
+         * de usuario NO se muestran.
+         */
+
+        const userOrders =
+          allOrders.filter((order) => {
+            /*
+             * Pedido creado con el nuevo sistema
+             */
+            if (
+              order.user_id &&
+              order.user_id === userId
+            ) {
+              return true;
+            }
+
+            /*
+             * Compatibilidad con pedidos que
+             * tengan email pero no user_id.
+             */
+            if (
+              !order.user_id &&
+              order.email &&
+              order.email.toLowerCase() ===
+                userEmail.toLowerCase()
+            ) {
+              return true;
+            }
+
+            return false;
+          });
+
         if (mounted) {
+          setOrders(userOrders);
           setLoading(false);
         }
       } catch {
         /*
          * Si ocurre un error de sesión,
-         * mandamos al login sin tocar
-         * ni borrar la sesión manualmente.
+         * mandamos al login.
          */
 
         if (mounted) {
@@ -110,6 +154,12 @@ export default function OrdersPage() {
       mounted = false;
     };
   }, [router]);
+
+  /*
+   * =========================
+   * FILTROS
+   * =========================
+   */
 
   const filteredOrders = useMemo(() => {
     if (filter === "TODAS") {
@@ -150,6 +200,12 @@ export default function OrdersPage() {
     return orders;
   }, [orders, filter]);
 
+  /*
+   * =========================
+   * CONTADORES
+   * =========================
+   */
+
   const pendingCount =
     orders.filter(
       (order) =>
@@ -178,6 +234,12 @@ export default function OrdersPage() {
         "cancelada"
     ).length;
 
+  /*
+   * =========================
+   * FECHA
+   * =========================
+   */
+
   function formatDate(date: string) {
     try {
       return new Intl.DateTimeFormat(
@@ -194,6 +256,12 @@ export default function OrdersPage() {
       return date;
     }
   }
+
+  /*
+   * =========================
+   * ICONO DEL JUEGO
+   * =========================
+   */
 
   function getGameIcon(game: string) {
     const normalized =
@@ -234,6 +302,12 @@ export default function OrdersPage() {
     return "🎮";
   }
 
+  /*
+   * =========================
+   * CLASE DEL ESTADO
+   * =========================
+   */
+
   function getStatusClass(
     status: string
   ) {
@@ -256,6 +330,12 @@ export default function OrdersPage() {
 
     return "order-status pending";
   }
+
+  /*
+   * =========================
+   * TEXTO DEL ESTADO
+   * =========================
+   */
 
   function getStatusText(
     status: string
@@ -280,6 +360,12 @@ export default function OrdersPage() {
     return "PENDIENTE";
   }
 
+  /*
+   * =========================
+   * ABRIR PEDIDO
+   * =========================
+   */
+
   function openOrder(order: Order) {
     localStorage.setItem(
       "storeGamingSelectedOrder",
@@ -290,6 +376,12 @@ export default function OrdersPage() {
       "/orders/detail"
     );
   }
+
+  /*
+   * =========================
+   * CARGANDO
+   * =========================
+   */
 
   if (loading) {
     return (
@@ -774,4 +866,4 @@ export default function OrdersPage() {
 
     </main>
   );
-            }
+        }
