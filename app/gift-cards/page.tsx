@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type GiftCard = {
@@ -147,10 +148,30 @@ const giftCards: GiftCard[] = [
 export default function GiftCardsPage() {
   const router = useRouter();
 
+  const [search, setSearch] = useState("");
+
+  const filteredGiftCards = giftCards.filter((card) => {
+    const searchText = search.toLowerCase().trim();
+
+    if (!searchText) {
+      return true;
+    }
+
+    return (
+      card.name.toLowerCase().includes(searchText) ||
+      card.region.toLowerCase().includes(searchText)
+    );
+  });
+
   return (
     <main className="gift-cards-page">
-      {/* HEADER */}
+
+      {/* =========================
+          HEADER
+      ========================== */}
+
       <header className="gift-cards-header">
+
         <button
           className="gift-cards-back-button"
           onClick={() => router.push("/home")}
@@ -161,7 +182,10 @@ export default function GiftCardsPage() {
 
         <div className="gift-cards-header-title">
           <span>🎁</span>
-          <strong>TARJETAS DE REGALO</strong>
+
+          <strong>
+            TARJETAS DE REGALO
+          </strong>
         </div>
 
         <button
@@ -171,10 +195,16 @@ export default function GiftCardsPage() {
         >
           🛒
         </button>
+
       </header>
 
-      {/* TITLE */}
+
+      {/* =========================
+          TITLE
+      ========================== */}
+
       <section className="gift-cards-title-section">
+
         <span className="gift-cards-title-decoration">
           ✦
         </span>
@@ -189,92 +219,240 @@ export default function GiftCardsPage() {
           Compra tarjetas y códigos digitales para tus
           juegos y plataformas favoritas.
         </p>
+
       </section>
 
-      {/* CATALOG */}
+
+      {/* =========================
+          CATALOG
+      ========================== */}
+
       <section className="gift-cards-catalog">
+
         <div className="gift-cards-catalog-heading">
-          <span>PRODUCTOS DISPONIBLES</span>
-          <strong>{giftCards.length}</strong>
+
+          <span>
+            PRODUCTOS DISPONIBLES
+          </span>
+
+          <strong>
+            {filteredGiftCards.length}
+          </strong>
+
         </div>
 
-        <div className="gift-cards-grid">
-          {giftCards.map((card) => (
+
+        {/* =========================
+            BUSCADOR
+        ========================== */}
+
+        <div className="gift-cards-search-wrapper">
+
+          <span
+            className="gift-cards-search-icon"
+            aria-hidden="true"
+          >
+            🔍
+          </span>
+
+          <input
+            type="search"
+            value={search}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
+            placeholder="Buscar tarjeta o región..."
+            className="gift-cards-search-input"
+            aria-label="Buscar tarjeta o región"
+            autoComplete="off"
+          />
+
+          {search && (
             <button
-              key={card.route}
               type="button"
-              className="gift-card-item"
-              onClick={() => router.push(card.route)}
+              className="gift-cards-search-clear"
+              onClick={() => setSearch("")}
+              aria-label="Limpiar búsqueda"
             >
-              <div className="gift-card-image-container">
-                <img
-                  src={card.image}
-                  alt={card.name}
-                  className="gift-card-image"
-                  loading="lazy"
-                />
-
-                <div className="gift-card-region">
-                  {card.region}
-                </div>
-              </div>
-
-              <div className="gift-card-info">
-                <h2>{card.name}</h2>
-
-                <div className="gift-card-open">
-                  <span>VER OPCIONES</span>
-                  <span>→</span>
-                </div>
-              </div>
+              ×
             </button>
-          ))}
+          )}
+
         </div>
+
+
+        {/* =========================
+            RESULTADOS
+        ========================== */}
+
+        {filteredGiftCards.length > 0 ? (
+
+          <div className="gift-cards-grid">
+
+            {filteredGiftCards.map((card) => (
+
+              <button
+                key={card.route}
+                type="button"
+                className="gift-card-item"
+                onClick={() => router.push(card.route)}
+              >
+
+                <div className="gift-card-image-container">
+
+                  <img
+                    src={card.image}
+                    alt={card.name}
+                    className="gift-card-image"
+                    loading="lazy"
+                  />
+
+                  <div className="gift-card-region">
+                    {card.region}
+                  </div>
+
+                </div>
+
+
+                <div className="gift-card-info">
+
+                  <h2>
+                    {card.name}
+                  </h2>
+
+                  <div className="gift-card-open">
+
+                    <span>
+                      VER OPCIONES
+                    </span>
+
+                    <span>
+                      →
+                    </span>
+
+                  </div>
+
+                </div>
+
+              </button>
+
+            ))}
+
+          </div>
+
+        ) : (
+
+          <div className="gift-cards-search-empty">
+
+            <span>
+              🔍
+            </span>
+
+            <strong>
+              NO ENCONTRAMOS RESULTADOS
+            </strong>
+
+            <p>
+              Prueba con otro nombre de tarjeta o región.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+            >
+              VER TODAS LAS TARJETAS
+            </button>
+
+          </div>
+
+        )}
+
       </section>
 
-      {/* INFO */}
+
+      {/* =========================
+          INFO
+      ========================== */}
+
       <section className="gift-cards-info">
+
         <div className="gift-cards-info-item">
+
           <span>🎁</span>
 
           <div>
-            <strong>CÓDIGOS DIGITALES</strong>
+
+            <strong>
+              CÓDIGOS DIGITALES
+            </strong>
+
             <p>
               Recibe tu código después de completar tu
               pedido.
             </p>
+
           </div>
+
         </div>
 
+
         <div className="gift-cards-info-item">
+
           <span>🔒</span>
 
           <div>
-            <strong>COMPRA SEGURA</strong>
+
+            <strong>
+              COMPRA SEGURA
+            </strong>
+
             <p>
               Revisa siempre la región antes de comprar.
             </p>
+
           </div>
+
         </div>
 
+
         <div className="gift-cards-info-item">
+
           <span>🌎</span>
 
           <div>
-            <strong>REGIONES</strong>
+
+            <strong>
+              REGIONES
+            </strong>
+
             <p>
               Cada tarjeta está limitada a la región
               indicada.
             </p>
+
           </div>
+
         </div>
+
       </section>
 
-      {/* FOOTER */}
+
+      {/* =========================
+          FOOTER
+      ========================== */}
+
       <footer className="gift-cards-footer">
-        <strong>STORE GAMING</strong>
-        <span>🎁 TARJETAS DE REGALO</span>
+
+        <strong>
+          STORE GAMING
+        </strong>
+
+        <span>
+          🎁 TARJETAS DE REGALO
+        </span>
+
       </footer>
+
     </main>
   );
     }
