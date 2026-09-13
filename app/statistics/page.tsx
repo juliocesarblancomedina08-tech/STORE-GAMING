@@ -94,7 +94,6 @@ function isRefunded(order: StoreOrder): boolean {
     "reembolsado",
     "refund",
     "refunded",
-    "reembolsada",
     "cancelada",
     "cancelado",
   ].includes(status);
@@ -165,14 +164,6 @@ export default function StatisticsPage() {
        * =========================
        * FILTRAR POR CLIENTE
        * =========================
-       *
-       * Las órdenes nuevas que tengan
-       * user_id / userId / email se
-       * filtran automáticamente.
-       *
-       * Las órdenes antiguas que todavía
-       * no tengan identificación se
-       * mantienen para no perderlas.
        */
 
       const currentUserId = session.user.id;
@@ -217,7 +208,7 @@ export default function StatisticsPage() {
 
       /*
        * =========================
-       * BALANCE / DEPÓSITOS
+       * BALANCE
        * =========================
        */
 
@@ -405,7 +396,6 @@ export default function StatisticsPage() {
 
       return points;
     }
-
 
     const days =
       period === "7d"
@@ -814,8 +804,6 @@ export default function StatisticsPage() {
               className="statistics-svg"
             >
 
-              {/* LÍNEAS DE FONDO */}
-
               <line
                 x1="0"
                 y1="0"
@@ -857,8 +845,6 @@ export default function StatisticsPage() {
               />
 
 
-              {/* PEDIDOS CREADOS */}
-
               <polyline
                 points={createLine(
                   "created"
@@ -867,8 +853,6 @@ export default function StatisticsPage() {
                 fill="none"
               />
 
-
-              {/* TERMINADOS */}
 
               <polyline
                 points={createLine(
@@ -879,8 +863,6 @@ export default function StatisticsPage() {
               />
 
 
-              {/* REEMBOLSOS */}
-
               <polyline
                 points={createLine(
                   "refunded"
@@ -889,8 +871,6 @@ export default function StatisticsPage() {
                 fill="none"
               />
 
-
-              {/* PUNTOS */}
 
               {chartData.map(
                 (point, index) => {
@@ -1005,7 +985,7 @@ export default function StatisticsPage() {
       </section>
 
 
-            {/* =========================
+      {/* =========================
           PRODUCTOS
       ========================== */}
 
@@ -1032,7 +1012,7 @@ export default function StatisticsPage() {
 
           <div className="statistics-table-header">
 
-            <span>
+                        <span>
               Tipo
             </span>
 
@@ -1055,7 +1035,9 @@ export default function StatisticsPage() {
           </div>
 
 
-          {/* RECARGAS DE JUEGOS Y SERVICIOS */}
+          {/* =========================
+              RECARGAS DE JUEGOS
+          ========================== */}
 
           <div className="statistics-table-row">
 
@@ -1081,36 +1063,32 @@ export default function StatisticsPage() {
 
 
             <span className="statistics-number">
-
-              {productStats.created}
-
+              {statistics.created}
             </span>
 
 
             <span className="statistics-number statistics-number-success">
-
-              {productStats.completed}
-
+              {statistics.completed}
             </span>
 
 
             <span className="statistics-number statistics-number-refund">
-
-              {productStats.refunded}
-
+              {statistics.refunded}
             </span>
 
 
             <span className="statistics-volume">
-
-              ${productStats.volume.toFixed(4)}
-
+              {formatMoney(
+                statistics.spent
+              )}
             </span>
 
           </div>
 
 
-          {/* TOTAL */}
+          {/* =========================
+              TOTAL
+          ========================== */}
 
           <div className="statistics-table-total">
 
@@ -1128,7 +1106,9 @@ export default function StatisticsPage() {
 
 
             <strong>
-              ${productStats.volume.toFixed(4)}
+              {formatMoney(
+                statistics.spent
+              )}
             </strong>
 
           </div>
@@ -1153,7 +1133,8 @@ export default function StatisticsPage() {
             </h2>
 
             <p>
-              Actividad de tu cuenta durante el período seleccionado.
+              Actividad de tu cuenta durante
+              el período seleccionado.
             </p>
 
           </div>
@@ -1164,7 +1145,7 @@ export default function StatisticsPage() {
         <div className="statistics-activity-grid">
 
 
-          {/* PEDIDOS */}
+          {/* PEDIDOS CREADOS */}
 
           <div className="statistics-activity-card">
 
@@ -1175,7 +1156,7 @@ export default function StatisticsPage() {
             <div>
 
               <strong>
-                {stats.created}
+                {statistics.created}
               </strong>
 
               <span>
@@ -1187,7 +1168,7 @@ export default function StatisticsPage() {
           </div>
 
 
-          {/* COMPLETADOS */}
+          {/* PEDIDOS COMPLETADOS */}
 
           <div className="statistics-activity-card">
 
@@ -1198,7 +1179,7 @@ export default function StatisticsPage() {
             <div>
 
               <strong>
-                {stats.completed}
+                {statistics.completed}
               </strong>
 
               <span>
@@ -1221,7 +1202,7 @@ export default function StatisticsPage() {
             <div>
 
               <strong>
-                {stats.refunded}
+                {statistics.refunded}
               </strong>
 
               <span>
@@ -1244,7 +1225,9 @@ export default function StatisticsPage() {
             <div>
 
               <strong>
-                ${deposited.toFixed(4)}
+                {formatMoney(
+                  deposited
+                )}
               </strong>
 
               <span>
@@ -1255,7 +1238,6 @@ export default function StatisticsPage() {
 
           </div>
 
-
         </div>
 
       </section>
@@ -1265,7 +1247,7 @@ export default function StatisticsPage() {
           SIN ACTIVIDAD
       ========================== */}
 
-      {stats.created === 0 && (
+      {statistics.created === 0 && (
 
         <section className="statistics-empty">
 
@@ -1273,21 +1255,26 @@ export default function StatisticsPage() {
             📊
           </div>
 
+
           <h3>
             Aún no hay estadísticas
           </h3>
 
+
           <p>
-            Cuando realices pedidos, completes compras
-            o agregues saldo, tus estadísticas aparecerán
-            automáticamente aquí.
+            Cuando realices pedidos,
+            completes compras o agregues
+            saldo, tus estadísticas
+            aparecerán automáticamente aquí.
           </p>
 
 
           <button
             type="button"
             className="statistics-empty-button"
-            onClick={() => router.push("/top-up")}
+            onClick={() =>
+              router.push("/top-up")
+            }
           >
             HACER UNA RECARGA
           </button>
