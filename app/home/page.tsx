@@ -34,6 +34,20 @@ const services: Service[] = [
     route: "/gift-cards",
     tag: "CÓDIGOS",
   },
+  {
+    name: "PERFIL",
+    description: "Administra los datos de tu cuenta.",
+    icon: "👤",
+    route: "/profile",
+    tag: "CUENTA",
+  },
+  {
+    name: "SOPORTE",
+    description: "Obtén ayuda con tus pedidos.",
+    icon: "🎧",
+    route: "/support",
+    tag: "AYUDA",
+  },
 ];
 
 export default function HomePage() {
@@ -152,7 +166,6 @@ export default function HomePage() {
                 </div>
 
               </div>
-
 
               <button
                 type="button"
@@ -336,6 +349,19 @@ export default function HomePage() {
               </button>
 
 
+              {/* CUENTA */}
+
+              <div className="side-menu-section-title">
+
+                <span />
+
+                CUENTA
+
+                <span />
+
+              </div>
+
+
               <button
                 type="button"
                 className="side-menu-item"
@@ -477,11 +503,11 @@ export default function HomePage() {
 
           <h1 className="hero-title">
 
-            HOLA
+            <span className="hero-greeting">
+              HOLA
+            </span>
 
-            <br />
-
-            <span>
+            <span className="hero-username">
               @{username}
             </span>
 
@@ -641,7 +667,6 @@ export default function HomePage() {
 
       <section className="benefits-section">
 
-
         <div className="benefit">
 
           <span>
@@ -706,7 +731,6 @@ export default function HomePage() {
 
         </div>
 
-
       </section>
 
 
@@ -733,7 +757,6 @@ export default function HomePage() {
 
       </footer>
 
-
     </main>
   );
-              }
+        }
