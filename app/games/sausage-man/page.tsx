@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const gameNote =
+  "Recarga de Sausage Man. Introduce tu ID de personaje antes de realizar el pedido. El producto seleccionado se entregará directamente a tu cuenta una vez realizado el pedido.";
+
 const offers = [
   {
     name: "61 CARAMELOS",
@@ -205,6 +208,30 @@ export default function SausageManPage() {
 
         </div>
 
+        {/* =========================
+            NOTA DEL SERVICIO
+        ========================== */}
+
+        <div className="game-note">
+
+          <div className="game-note-icon">
+            !
+          </div>
+
+          <div className="game-note-content">
+
+            <strong>
+              NOTA
+            </strong>
+
+            <p>
+              {gameNote}
+            </p>
+
+          </div>
+
+        </div>
+
       </section>
 
 
@@ -235,6 +262,31 @@ export default function SausageManPage() {
               <strong>
                 {selected.price}
               </strong>
+
+            </div>
+
+          </div>
+
+
+          {/* =========================
+              NOTA ANTES DEL ID
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
 
             </div>
 
@@ -338,4 +390,4 @@ export default function SausageManPage() {
 
     </main>
   );
-    }
+          }
