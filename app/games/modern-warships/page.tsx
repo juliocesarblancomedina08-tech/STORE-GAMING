@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const gameNote =
+  "Recarga Modern Warships: Naval Battles. Introduce tu ID de jugador antes de realizar el pedido. El producto seleccionado se entregará directamente en tu cuenta una vez realizado el pedido.";
+
 const offers = [
   {
     name: "CUENTA PREMIUM - 7 DÍAS",
@@ -203,6 +206,30 @@ export default function ModernWarshipsPage() {
 
         </div>
 
+        {/* =========================
+            NOTA DEL SERVICIO
+        ========================== */}
+
+        <div className="game-note">
+
+          <div className="game-note-icon">
+            !
+          </div>
+
+          <div className="game-note-content">
+
+            <strong>
+              NOTA
+            </strong>
+
+            <p>
+              {gameNote}
+            </p>
+
+          </div>
+
+        </div>
+
       </section>
 
 
@@ -233,6 +260,31 @@ export default function ModernWarshipsPage() {
               <strong>
                 {selected.price}
               </strong>
+
+            </div>
+
+          </div>
+
+
+          {/* =========================
+              NOTA ANTES DEL ID
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
 
             </div>
 
@@ -336,4 +388,4 @@ export default function ModernWarshipsPage() {
 
     </main>
   );
-                }
+}
