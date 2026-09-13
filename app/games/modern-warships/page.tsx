@@ -1,99 +1,182 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
-const gameNote =
-  "Recarga Modern Warships: Naval Battles. Introduce tu ID de jugador antes de realizar el pedido. El producto seleccionado se entregará directamente en tu cuenta una vez realizado el pedido.";
+type Offer = {
+  amount: string;
+  price: number;
+};
 
-const offers = [
-  {
-    name: "CUENTA PREMIUM - 7 DÍAS",
-    price: "2.59$",
-  },
-  {
-    name: "500.000 DÓLARES",
-    price: "2.71$",
-  },
-  {
-    name: "500 DE ORO",
-    price: "4.48$",
-  },
-  {
-    name: "1.500.000 DÓLARES",
-    price: "4.48$",
-  },
-  {
-    name: "140 ARTCOINS",
-    price: "5.09$",
-  },
-  {
-    name: "CUENTA PREMIUM - 30 DÍAS",
-    price: "8.51$",
-  },
-  {
-    name: "1200 DE ORO",
-    price: "8.93$",
-  },
+const offers: Offer[] = [
+  { amount: "Cuenta Premium - 7 días", price: 2.59 },
+  { amount: "500.000 dólares", price: 2.71 },
+  { amount: "500 de oro", price: 4.48 },
+  { amount: "1.500.000 dólares", price: 4.48 },
+  { amount: "140 Artcoins", price: 5.09 },
+  { amount: "Cuenta Premium - 30 días", price: 8.51 },
+  { amount: "1200 de oro", price: 8.93 },
 ];
+
+const GAME_NAME = "MODERN WARSHIPS NAVAL BATTLES";
+const GAME_IMAGE = "/images/modern-warships.jpg";
+
+const GAME_NOTE =
+  "Recarga Modern Warships: Naval Battles. Introduce tu ID de jugador antes de realizar el pedido. El producto seleccionado se entregará directamente en tu cuenta una vez realizado el pedido.";
 
 export default function ModernWarshipsPage() {
   const router = useRouter();
 
-  const [selectedOffer, setSelectedOffer] = useState<number | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [showOffers, setShowOffers] = useState(true);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [playerId, setPlayerId] = useState("");
+  const [quantity, setQuantity] = useState(1);
 
-  const selected =
-    selectedOffer !== null ? offers[selectedOffer] : null;
+  const [error, setError] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
 
-  function decreaseQuantity() {
-    setQuantity((current) => Math.max(1, current - 1));
-  }
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
-  function increaseQuantity() {
-    setQuantity((current) => current + 1);
-  }
-
-  function selectOffer(index: number) {
-    setSelectedOffer(index);
+  const selectOffer = (offer: Offer) => {
+    setSelectedOffer(offer);
+    setError("");
+    setShowConfirmation(false);
+    setOrderCreated(false);
     setQuantity(1);
-  }
 
-  function continueOrder() {
-    if (!selected) return;
+    setTimeout(() => {
+      document
+        .getElementById("order-section")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 100);
+  };
 
-    if (!playerId.trim()) {
+  const increaseQuantity = () => {
+    setQuantity((current) => Math.min(current + 1, 99));
+  };
+
+  const decreaseQuantity = () => {
+    setQuantity((current) => Math.max(current - 1, 1));
+  };
+
+  const handleFinishPurchase = () => {
+    const cleanId = playerId.trim();
+
+    if (!selectedOffer) {
+      setError("Seleccione un producto.");
       return;
     }
 
-    console.log({
-      game: "MODERN WARSHIPS NAVAL BATTLES",
-      offer: selected.name,
-      price: selected.price,
-      quantity,
-      playerId: playerId.trim(),
-    });
-  }
+    if (!cleanId) {
+      setError("Introduzca su ID de jugador.");
+      return;
+    }
 
-  const total = selected
-    ? (
-        parseFloat(selected.price.replace("$", "")) *
-        quantity
-      ).toFixed(2)
-    : "0.00";
+    setError("");
+    setShowConfirmation(true);
+
+    setTimeout(() => {
+      document
+        .getElementById("confirmation-section")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 100);
+  };
+
+  const createOrder = () => {
+    if (!selectedOffer) return;
+
+    const total = Number(
+      (selectedOffer.price * quantity).toFixed(2)
+    );
+
+    const newOrderNumber = `MW-${Date.now()
+      .toString()
+      .slice(-8)}`;
+
+    const newOrder = {
+      id: newOrderNumber,
+      orderNumber: newOrderNumber,
+      game: GAME_NAME,
+      gameImage: GAME_IMAGE,
+      product: selectedOffer.amount,
+      price: selectedOffer.price,
+      quantity,
+      total,
+      playerId: playerId.trim(),
+      status: "Pendiente",
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const existingOrdersRaw =
+        localStorage.getItem("storeGamingOrders");
+
+      const existingOrders = existingOrdersRaw
+        ? JSON.parse(existingOrdersRaw)
+        : [];
+
+      const updatedOrders = [
+        newOrder,
+        ...(Array.isArray(existingOrders)
+          ? existingOrders
+          : []),
+      ];
+
+      localStorage.setItem(
+        "storeGamingOrders",
+        JSON.stringify(updatedOrders)
+      );
+
+      localStorage.setItem(
+        "storeGamingLastOrder",
+        JSON.stringify(newOrder)
+      );
+    } catch (storageError) {
+      console.error(
+        "Error guardando el pedido:",
+        storageError
+      );
+    }
+
+    setOrderNumber(newOrderNumber);
+    setOrderCreated(true);
+    setShowConfirmation(false);
+
+    setTimeout(() => {
+      document
+        .getElementById("order-success-section")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 100);
+  };
+
+  const goToOrders = () => {
+    router.push("/orders");
+  };
+
+  const totalPrice = selectedOffer
+    ? Number(
+        (selectedOffer.price * quantity).toFixed(2)
+      )
+    : 0;
 
   return (
     <main className="game-service-page">
-
-      {/* =========================
-          HEADER
-      ========================== */}
-
+      {/* HEADER */}
       <header className="game-service-header">
-
         <button
-          type="button"
           className="game-back-button"
           onClick={() => router.push("/top-up")}
           aria-label="Volver"
@@ -102,290 +185,346 @@ export default function ModernWarshipsPage() {
         </button>
 
         <div className="game-header-title">
-          <span>STORE GAMING</span>
-
-          <h1>MODERN WARSHIPS</h1>
+          {GAME_NAME}
         </div>
 
         <button
-          type="button"
           className="game-cart-button"
-          aria-label="Carrito"
+          onClick={() => router.push("/orders")}
+          aria-label="Pedidos"
         >
           🛒
         </button>
-
       </header>
 
-
-      {/* =========================
-          IMAGEN DEL JUEGO
-      ========================== */}
-
+      {/* GAME IMAGE */}
       <section className="free-fire-main-image">
-
         <img
-          src="/images/modern-warships.jpg"
-          alt="Modern Warships Naval Battles"
+          src={GAME_IMAGE}
+          alt={GAME_NAME}
         />
 
+        <div className="free-fire-main-overlay">
+          <div className="free-fire-main-text">
+            <span>RECARGA</span>
+            <strong>MODERN WARSHIPS</strong>
+          </div>
+        </div>
       </section>
 
+      {/* OFFERS TOGGLE */}
+      <button
+        className="offers-toggle"
+        onClick={() => setShowOffers((value) => !value)}
+      >
+        <span className="offers-toggle-text">
+          OFERTAS DISPONIBLES
+        </span>
 
-      {/* =========================
-          TÍTULO
-      ========================== */}
+        <span className="offers-toggle-pencil">
+          {showOffers ? "⌃" : "⌄"}
+        </span>
+      </button>
 
-      <section className="offers-toggle">
-
-        <div>
-
-          <span>⚓ TOP UP</span>
-
-          <h2>
-            OFERTAS MODERN WARSHIPS
+      {/* OFFERS */}
+      {showOffers && (
+        <section className="offers-section">
+          <h2 className="offers-heading">
+            SELECCIONA TU RECARGA
           </h2>
 
-        </div>
+          <div className="offers-list">
+            {offers.map((offer) => {
+              const isSelected =
+                selectedOffer?.amount === offer.amount;
 
+              return (
+                <button
+                  key={`${offer.amount}-${offer.price}`}
+                  type="button"
+                  className={`offer-card ${
+                    isSelected ? "selected" : ""
+                  }`}
+                  onClick={() => selectOffer(offer)}
+                >
+                  <div className="offer-left">
+                    <div className="diamond-icon">
+                      ⚓
+                    </div>
+
+                    <div className="offer-info">
+                      <strong>{offer.amount}</strong>
+                      <span>Modern Warships</span>
+                    </div>
+                  </div>
+
+                  <div className="offer-right">
+                    <strong>
+                      {offer.price.toFixed(2)}$
+                    </strong>
+
+                    <span>Comprar</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* INFORMATION NOTE */}
+      <section className="game-note">
+        <div className="game-note-icon">!</div>
+
+        <div className="game-note-content">
+          {GAME_NOTE}
+        </div>
       </section>
 
-
-      {/* =========================
-          OFERTAS
-      ========================== */}
-
-      <section className="offers-section">
-
-        <div className="offers-list">
-
-          {offers.map((offer, index) => (
-
-            <button
-              key={offer.name}
-              type="button"
-              className={
-                selectedOffer === index
-                  ? "offer-card selected"
-                  : "offer-card"
-              }
-              onClick={() => selectOffer(index)}
-            >
-
-              <div className="diamond-icon">
-                ⚓
-              </div>
-
-              <div className="offer-info">
-
-                <strong>
-                  {offer.name}
-                </strong>
-
-                <span>
-                  Modern Warships
-                </span>
-
-              </div>
-
-              <div className="offer-right">
-
-                <strong>
-                  {offer.price}
-                </strong>
-
-                <span>
-                  →
-                </span>
-
-              </div>
-
-            </button>
-
-          ))}
-
-        </div>
-
-        {/* =========================
-            NOTA DEL SERVICIO
-        ========================== */}
-
-        <div className="game-note">
-
-          <div className="game-note-icon">
-            !
-          </div>
-
-          <div className="game-note-content">
-
-            <strong>
-              NOTA
-            </strong>
-
-            <p>
-              {gameNote}
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-
-      {/* =========================
-          PEDIDO
-      ========================== */}
-
-      {selected && (
-
-        <section className="order-section">
+      {/* ORDER SECTION */}
+      {selectedOffer && !orderCreated && (
+        <section
+          id="order-section"
+          className="order-section"
+        >
+          <h2 className="section-title">
+            COMPLETA TU PEDIDO
+          </h2>
 
           <div className="selected-order-card">
+            <div className="selected-order-icon">
+              <img
+                src={GAME_IMAGE}
+                alt=""
+              />
+            </div>
 
-            <div>
-
-              <span>
-                OFERTA SELECCIONADA
-              </span>
-
-              <strong>
-                {selected.name}
-              </strong>
-
+            <div className="selected-order-info">
+              <strong>{selectedOffer.amount}</strong>
+              <span>{GAME_NAME}</span>
             </div>
 
             <div className="selected-order-price">
-
-              <strong>
-                {selected.price}
-              </strong>
-
+              {selectedOffer.price.toFixed(2)}$
             </div>
-
           </div>
-
-
-          {/* =========================
-              NOTA ANTES DEL ID
-          ========================== */}
 
           <div className="game-note game-note-order">
-
-            <div className="game-note-icon">
-              !
-            </div>
+            <div className="game-note-icon">!</div>
 
             <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {gameNote}
-              </p>
-
+              {GAME_NOTE}
             </div>
-
           </div>
 
-
-          {/* =========================
-              CANTIDAD
-          ========================== */}
-
+          {/* QUANTITY */}
           <div className="quantity-section">
-
-            <span>
-              CANTIDAD
-            </span>
+            <span>CANTIDAD</span>
 
             <div className="quantity-control">
-
               <button
                 type="button"
                 onClick={decreaseQuantity}
-                aria-label="Disminuir cantidad"
+                disabled={quantity <= 1}
               >
                 −
               </button>
 
-              <strong>
-                {quantity}
-              </strong>
+              <strong>{quantity}</strong>
 
               <button
                 type="button"
                 onClick={increaseQuantity}
-                aria-label="Aumentar cantidad"
+                disabled={quantity >= 99}
               >
                 +
               </button>
-
             </div>
-
           </div>
 
-
-          {/* =========================
-              ID DEL JUGADOR
-          ========================== */}
-
-          <div className="player-id-input-wrapper">
-
-            <label htmlFor="modern-warships-player-id">
-              ID DEL JUGADOR
+          {/* PLAYER ID */}
+          <div className="order-form">
+            <label className="player-id-label">
+              ID DE JUGADOR
             </label>
 
-            <input
-              id="modern-warships-player-id"
-              type="text"
-              inputMode="numeric"
-              placeholder="Introduce tu ID"
-              value={playerId}
-              onChange={(event) =>
-                setPlayerId(event.target.value)
-              }
-            />
+            <p className="player-id-description">
+              Introduce el ID de jugador de tu cuenta de
+              Modern Warships.
+            </p>
 
-          </div>
+            <div className="player-id-input-wrapper">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={playerId}
+                onChange={(event) => {
+                  const value =
+                    event.target.value.replace(/\D/g, "");
 
+                  setPlayerId(value);
+                  setError("");
+                }}
+                placeholder="Introduce tu ID de jugador"
+                maxLength={30}
+                autoComplete="off"
+              />
+            </div>
 
-          {/* =========================
-              TOTAL
-          ========================== */}
+            {error && (
+              <div className="order-error">
+                {error}
+              </div>
+            )}
 
-          <div className="order-total">
+            {/* TOTAL */}
+            <div className="order-total-preview">
+              <span>TOTAL</span>
 
-            <span>
-              TOTAL
-            </span>
+              <strong>
+                {totalPrice.toFixed(2)}$
+              </strong>
+            </div>
 
-            <strong>
-              {total}$
-            </strong>
-
-          </div>
-
-
-          {/* =========================
+            <button
+              type="button"
+              className="finish-order-button"
+              onClick={handleFinishPurchase}
+            >
               CONTINUAR
-          ========================== */}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* CONFIRMATION */}
+      {showConfirmation && selectedOffer && (
+        <section
+          id="confirmation-section"
+          className="confirmation-section"
+        >
+          <h2 className="section-title">
+            CONFIRMA TU PEDIDO
+          </h2>
+
+          <div className="confirmation-card">
+            <div className="confirmation-row">
+              <span>Juego</span>
+              <strong>{GAME_NAME}</strong>
+            </div>
+
+            <div className="confirmation-row">
+              <span>Producto</span>
+              <strong>{selectedOffer.amount}</strong>
+            </div>
+
+            <div className="confirmation-row">
+              <span>Cantidad</span>
+              <strong>{quantity}</strong>
+            </div>
+
+            <div className="confirmation-row">
+              <span>ID de jugador</span>
+              <strong>{playerId.trim()}</strong>
+            </div>
+
+            <div className="confirmation-row">
+              <span>Total</span>
+              <strong>
+                {totalPrice.toFixed(2)}$
+              </strong>
+            </div>
+
+            <div className="confirmation-warning">
+              ⚠️ Verifica que tu ID de jugador sea correcto
+              antes de confirmar el pedido.
+            </div>
+
+            <button
+              type="button"
+              className="confirm-final-button"
+              onClick={createOrder}
+            >
+              CONFIRMAR PEDIDO
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* SUCCESS */}
+      {orderCreated && (
+        <section
+          id="order-success-section"
+          className="order-success-section"
+        >
+          <div className="success-circle">
+            ✓
+          </div>
+
+          <h2>PEDIDO CREADO</h2>
+
+          <p>
+            Tu pedido fue registrado correctamente.
+          </p>
+
+          <div className="success-order-number">
+            <span>NÚMERO DE PEDIDO</span>
+            <strong>{orderNumber}</strong>
+          </div>
 
           <button
             type="button"
-            className="finish-order-button"
-            onClick={continueOrder}
-            disabled={!playerId.trim()}
+            className="view-orders-button"
+            onClick={goToOrders}
           >
-            CONTINUAR →
+            VER MIS PEDIDOS
           </button>
-
         </section>
-
       )}
 
+      {/* SERVICE INFO */}
+      <section className="service-info">
+        <div className="service-info-item">
+          <span>⚡</span>
+
+          <div>
+            <strong>ENTREGA DIRECTA</strong>
+            <p>
+              El producto se entrega directamente en tu
+              cuenta.
+            </p>
+          </div>
+        </div>
+
+        <div className="service-info-item">
+          <span>🔒</span>
+
+          <div>
+            <strong>COMPRA SEGURA</strong>
+            <p>
+              Procesamos tus pedidos de forma segura.
+            </p>
+          </div>
+        </div>
+
+        <div className="service-info-item">
+          <span>🎧</span>
+
+          <div>
+            <strong>SOPORTE</strong>
+            <p>
+              Si tienes algún problema, puedes contactar
+              con soporte.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="game-service-footer">
+        <strong>STORE GAMING</strong>
+        <span>© {new Date().getFullYear()}</span>
+      </footer>
     </main>
   );
-}
+  }
