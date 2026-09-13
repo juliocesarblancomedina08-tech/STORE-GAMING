@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const gameNote =
+  "Región: Indonesia. Recarga de League of Legends (PC). Introduce tu ID de Riot antes de realizar el pedido (formato: Nombre#ETIQUETA). Asegúrate de que tu cuenta de Riot esté registrada en la región de Indonesia; los códigos están restringidos por región. El producto seleccionado se entregará directamente a tu cuenta una vez realizado el pedido.";
+
 const offers = [
   {
     name: "575 RP",
@@ -197,6 +200,30 @@ export default function LeagueOfLegendsIdPage() {
 
         </div>
 
+        {/* =========================
+            NOTA DEL SERVICIO
+        ========================== */}
+
+        <div className="game-note">
+
+          <div className="game-note-icon">
+            !
+          </div>
+
+          <div className="game-note-content">
+
+            <strong>
+              NOTA
+            </strong>
+
+            <p>
+              {gameNote}
+            </p>
+
+          </div>
+
+        </div>
+
       </section>
 
 
@@ -227,6 +254,31 @@ export default function LeagueOfLegendsIdPage() {
               <strong>
                 {selected.price}
               </strong>
+
+            </div>
+
+          </div>
+
+
+          {/* =========================
+              NOTA ANTES DEL ID
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
 
             </div>
 
@@ -330,4 +382,4 @@ export default function LeagueOfLegendsIdPage() {
 
     </main>
   );
-      }
+        }
