@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Game = {
@@ -108,11 +109,24 @@ const games: Game[] = [
   },
 ];
 
-
 export default function TopUpPage() {
-
   const router = useRouter();
 
+  const [search, setSearch] = useState("");
+
+  const filteredGames = games.filter((game) => {
+    const searchText = search.toLowerCase().trim();
+
+    if (!searchText) {
+      return true;
+    }
+
+    return (
+      game.name.toLowerCase().includes(searchText) ||
+      game.description.toLowerCase().includes(searchText) ||
+      game.tag.toLowerCase().includes(searchText)
+    );
+  });
 
   return (
     <main className="top-up-page">
@@ -131,7 +145,6 @@ export default function TopUpPage() {
         >
           ←
         </button>
-
 
         <div className="top-up-header-title">
 
@@ -168,7 +181,6 @@ export default function TopUpPage() {
 
           </div>
 
-
           <div className="top-up-catalog-decoration">
 
             <i />
@@ -180,87 +192,153 @@ export default function TopUpPage() {
         </div>
 
 
-        <div className="top-up-games-grid">
+        {/* =========================
+            BUSCADOR
+        ========================== */}
 
-          {games.map((game) => (
+        <div className="top-up-search-wrapper">
 
+          <span
+            className="top-up-search-icon"
+            aria-hidden="true"
+          >
+            🔍
+          </span>
+
+          <input
+            type="search"
+            value={search}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
+            placeholder="Buscar juego u oferta..."
+            className="top-up-search-input"
+            aria-label="Buscar juego u oferta"
+            autoComplete="off"
+          />
+
+          {search && (
             <button
-              key={game.name}
               type="button"
-              className="top-up-game-card"
-              onClick={() => router.push(game.route)}
+              className="top-up-search-clear"
+              onClick={() => setSearch("")}
+              aria-label="Limpiar búsqueda"
             >
-
-              {/* IMAGEN */}
-
-              <div className="top-up-game-image-container">
-
-                {game.image ? (
-                  <img
-                    src={game.image}
-                    alt={game.name}
-                    className="top-up-game-image"
-                  />
-                ) : (
-                  <div className="top-up-game-image-placeholder">
-                    🎮
-                  </div>
-                )}
-
-
-                <div className="top-up-game-image-dark" />
-
-
-                <div className="top-up-game-tag">
-
-                  {game.tag}
-
-                </div>
-
-
-                <div className="top-up-game-open">
-
-                  VER OFERTAS →
-
-                </div>
-
-              </div>
-
-
-              {/* INFORMACIÓN */}
-
-              <div className="top-up-game-info">
-
-                <h3>
-                  {game.name}
-                </h3>
-
-
-                <p>
-                  {game.description}
-                </p>
-
-
-                <div className="top-up-game-bottom">
-
-                  <span>
-                    TOP UP
-                  </span>
-
-
-                  <strong>
-                    →
-                  </strong>
-
-                </div>
-
-              </div>
-
+              ×
             </button>
-
-          ))}
+          )}
 
         </div>
+
+
+        {/* =========================
+            RESULTADOS
+        ========================== */}
+
+        {filteredGames.length > 0 ? (
+
+          <div className="top-up-games-grid">
+
+            {filteredGames.map((game) => (
+
+              <button
+                key={game.name}
+                type="button"
+                className="top-up-game-card"
+                onClick={() => router.push(game.route)}
+              >
+
+                {/* IMAGEN */}
+
+                <div className="top-up-game-image-container">
+
+                  {game.image ? (
+                    <img
+                      src={game.image}
+                      alt={game.name}
+                      className="top-up-game-image"
+                    />
+                  ) : (
+                    <div className="top-up-game-image-placeholder">
+                      🎮
+                    </div>
+                  )}
+
+                  <div className="top-up-game-image-dark" />
+
+                  <div className="top-up-game-tag">
+
+                    {game.tag}
+
+                  </div>
+
+                  <div className="top-up-game-open">
+
+                    VER OFERTAS →
+
+                  </div>
+
+                </div>
+
+
+                {/* INFORMACIÓN */}
+
+                <div className="top-up-game-info">
+
+                  <h3>
+                    {game.name}
+                  </h3>
+
+                  <p>
+                    {game.description}
+                  </p>
+
+                  <div className="top-up-game-bottom">
+
+                    <span>
+                      TOP UP
+                    </span>
+
+                    <strong>
+                      →
+                    </strong>
+
+                  </div>
+
+                </div>
+
+              </button>
+
+            ))}
+
+          </div>
+
+        ) : (
+
+          <div className="top-up-search-empty">
+
+            <span>
+              🔍
+            </span>
+
+            <strong>
+              NO ENCONTRAMOS RESULTADOS
+            </strong>
+
+            <p>
+              Prueba con otro nombre de juego.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+            >
+              VER TODOS LOS JUEGOS
+            </button>
+
+          </div>
+
+        )}
 
       </section>
 
@@ -283,4 +361,4 @@ export default function TopUpPage() {
 
     </main>
   );
-    }
+                }
