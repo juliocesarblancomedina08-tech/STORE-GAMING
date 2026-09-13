@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const gameNote =
+  "Recarga Honor of Kings. Introduce tu ID de jugador antes de realizar el pedido. El producto seleccionado se entregará directamente en tu cuenta una vez realizado el pedido";
+
 const offers = [
   {
     name: "16 FICHAS",
@@ -251,6 +254,31 @@ export default function HonorOfKingsPage() {
 
 
       {/* =========================
+          NOTA
+      ========================== */}
+
+      <div className="game-note">
+
+        <div className="game-note-icon">
+          !
+        </div>
+
+        <div className="game-note-content">
+
+          <strong>
+            NOTA
+          </strong>
+
+          <p>
+            {gameNote}
+          </p>
+
+        </div>
+
+      </div>
+
+
+      {/* =========================
           PEDIDO
       ========================== */}
 
@@ -321,6 +349,31 @@ export default function HonorOfKingsPage() {
 
 
           {/* =========================
+              NOTA DEL PEDIDO
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
+            </div>
+
+          </div>
+
+
+          {/* =========================
               ID DEL JUGADOR
           ========================== */}
 
@@ -380,4 +433,4 @@ export default function HonorOfKingsPage() {
 
     </main>
   );
-    }
+          }
