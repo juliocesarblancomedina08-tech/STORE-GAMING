@@ -3,6 +3,9 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const gameNote =
+  "Región: Estados Unidos. Recarga de Call of Duty: Mobile (Activision). Introduce tu ID de usuario de Activision antes de realizar el pedido. Asegúrate de que tu cuenta de Activision esté registrada en la región de Estados Unidos; esta es la versión occidental (Activision), no la de Garena. El producto seleccionado se entregará directamente a tu cuenta una vez realizado el pedido.";
+
 const offers = [
   {
     id: "cod-88",
@@ -306,6 +309,26 @@ export default function CallOfDutyPage() {
 
           </div>
 
+          <div className="game-note">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
+            </div>
+
+          </div>
+
         </section>
       )}
 
@@ -346,6 +369,26 @@ export default function CallOfDutyPage() {
 
             <div className="selected-order-price">
               {selectedOffer.price.toFixed(2)}$
+            </div>
+
+          </div>
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
             </div>
 
           </div>
@@ -601,4 +644,4 @@ export default function CallOfDutyPage() {
 
     </main>
   );
-    }
+      }
