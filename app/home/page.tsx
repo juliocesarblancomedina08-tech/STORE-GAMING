@@ -4,42 +4,35 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
-type Game = {
+type Service = {
   name: string;
   description: string;
-  image: string;
+  icon: string;
   route: string;
   tag: string;
 };
 
-const games: Game[] = [
+const services: Service[] = [
   {
-    name: "FREE FIRE LATAM",
-    description: "Diamantes para tu cuenta.",
-    image: "/images/free-fire-latam.jpg",
-    route: "/games/free-fire-latam",
-    tag: "DIAMANTES",
+    name: "RECARGAS TOP UP",
+    description: "Recarga tus juegos favoritos.",
+    icon: "🎮",
+    route: "/top-up",
+    tag: "TOP UP",
   },
   {
-    name: "CALL OF DUTY MOBILE",
-    description: "CP para Call of Duty Mobile.",
-    image: "/images/call-of-duty-mobile.jpg",
-    route: "/games/call-of-duty",
-    tag: "CP",
+    name: "ESTRELLAS DE TELEGRAM",
+    description: "Compra estrellas de Telegram.",
+    icon: "⭐",
+    route: "/telegram-stars",
+    tag: "TELEGRAM",
   },
   {
-    name: "MOBILE LEGENDS",
-    description: "Diamantes para Mobile Legends.",
-    image: "/images/mobile-legends.jpg",
-    route: "/games/mobile-legends",
-    tag: "DIAMANTES",
-  },
-  {
-    name: "BLOOD STRIKE",
-    description: "Recargas para tu cuenta.",
-    image: "/images/blood-strike.jpg",
-    route: "/games/blood-strike",
-    tag: "RECARGAS",
+    name: "TARJETAS DE REGALO",
+    description: "Tarjetas de regalo y códigos.",
+    icon: "🎁",
+    route: "/gift-cards",
+    tag: "CÓDIGOS",
   },
 ];
 
@@ -104,22 +97,10 @@ export default function HomePage() {
     router.push(path);
   }
 
-  function goToTopUp() {
-    setMenuOpen(false);
-
-    setTimeout(() => {
-      document
-        .querySelector(".games-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  }
-
   if (loading) {
     return (
       <main className="store-loading">
+
         <div className="loading-logo">
           STORE GAMING
         </div>
@@ -129,6 +110,7 @@ export default function HomePage() {
         <p>
           CARGANDO STORE GAMING...
         </p>
+
       </main>
     );
   }
@@ -158,6 +140,7 @@ export default function HomePage() {
                 <span className="side-brand-line" />
 
                 <div>
+
                   <small>
                     STORE
                   </small>
@@ -165,9 +148,11 @@ export default function HomePage() {
                   <strong>
                     GAMING
                   </strong>
+
                 </div>
 
               </div>
+
 
               <button
                 type="button"
@@ -180,6 +165,7 @@ export default function HomePage() {
 
             </div>
 
+
             <div className="side-menu-user">
 
               <div className="side-user-icon">
@@ -187,6 +173,7 @@ export default function HomePage() {
               </div>
 
               <div>
+
                 <small>
                   CUENTA
                 </small>
@@ -194,9 +181,11 @@ export default function HomePage() {
                 <strong>
                   @{username}
                 </strong>
+
               </div>
 
             </div>
+
 
             <nav className="side-menu-nav">
 
@@ -207,6 +196,7 @@ export default function HomePage() {
                 className="side-menu-item active"
                 onClick={() => goTo("/home")}
               >
+
                 <span className="menu-icon home-icon">
                   ⌂
                 </span>
@@ -214,13 +204,16 @@ export default function HomePage() {
                 <span>
                   Hogar
                 </span>
+
               </button>
+
 
               <button
                 type="button"
                 className="side-menu-item"
                 onClick={() => goTo("/orders")}
               >
+
                 <span className="menu-icon">
                   ▣
                 </span>
@@ -228,7 +221,9 @@ export default function HomePage() {
                 <span>
                   Órdenes
                 </span>
+
               </button>
+
 
               {/* SERVICIOS */}
 
@@ -242,11 +237,13 @@ export default function HomePage() {
 
               </div>
 
+
               <button
                 type="button"
                 className="side-menu-item"
                 onClick={() => goTo("/telegram-stars")}
               >
+
                 <span className="menu-icon">
                   ☆
                 </span>
@@ -254,13 +251,16 @@ export default function HomePage() {
                 <span>
                   Estrellas de Telegram
                 </span>
+
               </button>
+
 
               <button
                 type="button"
                 className="side-menu-item"
                 onClick={() => goTo("/gift-cards")}
               >
+
                 <span className="menu-icon gift-icon">
                   ▱
                 </span>
@@ -268,13 +268,16 @@ export default function HomePage() {
                 <span>
                   Tarjetas de regalo
                 </span>
+
               </button>
+
 
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={goToTopUp}
+                onClick={() => goTo("/top-up")}
               >
+
                 <span className="menu-icon">
                   ◇
                 </span>
@@ -282,7 +285,9 @@ export default function HomePage() {
                 <span>
                   Recargas TOP UP
                 </span>
+
               </button>
+
 
               {/* FINANZAS */}
 
@@ -296,11 +301,13 @@ export default function HomePage() {
 
               </div>
 
+
               <button
                 type="button"
                 className="side-menu-item"
                 onClick={() => goTo("/balance")}
               >
+
                 <span className="menu-icon">
                   ◉
                 </span>
@@ -308,13 +315,16 @@ export default function HomePage() {
                 <span>
                   Billetera
                 </span>
+
               </button>
+
 
               <button
                 type="button"
                 className="side-menu-item"
                 onClick={() => goTo("/statistics")}
               >
+
                 <span className="menu-icon">
                   ▥
                 </span>
@@ -322,13 +332,16 @@ export default function HomePage() {
                 <span>
                   Estadísticas
                 </span>
+
               </button>
+
 
               <button
                 type="button"
                 className="side-menu-item"
                 onClick={() => goTo("/profile")}
               >
+
                 <span className="menu-icon">
                   ♙
                 </span>
@@ -336,7 +349,9 @@ export default function HomePage() {
                 <span>
                   Perfil
                 </span>
+
               </button>
+
 
               {/* SOPORTE */}
 
@@ -345,6 +360,7 @@ export default function HomePage() {
                 className="side-menu-item support-item"
                 onClick={() => goTo("/support")}
               >
+
                 <span className="support-headset-icon">
 
                   <span className="support-head" />
@@ -358,9 +374,11 @@ export default function HomePage() {
                 <span>
                   Soporte
                 </span>
+
               </button>
 
             </nav>
+
 
             <div className="side-menu-bottom">
 
@@ -369,6 +387,7 @@ export default function HomePage() {
                 className="side-menu-logout"
                 onClick={logout}
               >
+
                 <span>
                   ⇥
                 </span>
@@ -376,6 +395,7 @@ export default function HomePage() {
                 <strong>
                   Cerrar sesión
                 </strong>
+
               </button>
 
             </div>
@@ -383,6 +403,7 @@ export default function HomePage() {
           </aside>
         </>
       )}
+
 
       {/* =========================
           HEADER
@@ -396,10 +417,13 @@ export default function HomePage() {
           onClick={() => setMenuOpen(true)}
           aria-label="Abrir menú"
         >
+
           <span />
           <span />
           <span />
+
         </button>
+
 
         <button
           type="button"
@@ -429,13 +453,15 @@ export default function HomePage() {
 
         </button>
 
+
         <div className="store-header-actions">
         </div>
 
       </header>
 
+
       {/* =========================
-          HERO
+          BIENVENIDA
       ========================== */}
 
       <section className="store-hero">
@@ -445,37 +471,36 @@ export default function HomePage() {
         <div className="hero-content">
 
           <div className="hero-badge">
-            ⚡ TOP UP GAMING
+            ⚡ STORE GAMING
           </div>
+
 
           <h1 className="hero-title">
 
-            TU MUNDO
+            HOLA
 
             <br />
 
             <span>
-              GAMING
+              @{username}
             </span>
 
           </h1>
 
+
           <p className="hero-text">
 
-            Hola{" "}
-
-            <strong>
-              @{username}
-            </strong>.
-
-            Compra tus recargas de forma
-            rápida y sencilla.
+            Bienvenido a STORE GAMING.
+            Selecciona un servicio para
+            comenzar.
 
           </p>
+
 
           <div className="hero-stats">
 
             <div>
+
               <strong>
                 ⚡
               </strong>
@@ -483,9 +508,12 @@ export default function HomePage() {
               <span>
                 RÁPIDO
               </span>
+
             </div>
 
+
             <div>
+
               <strong>
                 🔒
               </strong>
@@ -493,9 +521,12 @@ export default function HomePage() {
               <span>
                 SEGURO
               </span>
+
             </div>
 
+
             <div>
+
               <strong>
                 🎮
               </strong>
@@ -503,6 +534,7 @@ export default function HomePage() {
               <span>
                 GAMING
               </span>
+
             </div>
 
           </div>
@@ -511,11 +543,12 @@ export default function HomePage() {
 
       </section>
 
-            {/* =========================
-          JUEGOS
+
+      {/* =========================
+          SERVICIOS
       ========================== */}
 
-      <section className="games-section">
+      <section className="services-section">
 
         <div className="catalog-header">
 
@@ -526,7 +559,7 @@ export default function HomePage() {
             </span>
 
             <h2>
-              ELIGE TU JUEGO
+              SERVICIOS
             </h2>
 
           </div>
@@ -540,250 +573,167 @@ export default function HomePage() {
 
           </div>
 
-
         </div>
 
 
+        <div className="services-grid">
 
-        <div className="games-grid">
-
-          {games.map((game) => (
+          {services.map((service) => (
 
             <button
-              key={game.name}
+              key={service.name}
               type="button"
-              className="game-card"
-              onClick={() =>
-                router.push(game.route)
-              }
+              className="service-card"
+              onClick={() => router.push(service.route)}
             >
 
-              <div className="game-image-container">
+              <div className="service-card-icon">
 
-
-                <img
-                  src={game.image}
-                  alt={game.name}
-                  className="game-image"
-                />
-
-
-                <div className="game-image-dark" />
-
-
-                <div className="game-tag">
-
-                  {game.tag}
-
-                </div>
-
-
-                <div className="game-open">
-
-                  VER →
-
-                </div>
-
+                {service.icon}
 
               </div>
 
 
+              <div className="service-card-tag">
 
-              <div className="game-info">
+                {service.tag}
 
+              </div>
+
+
+              <div className="service-card-info">
 
                 <h3>
-
-                  {game.name}
-
+                  {service.name}
                 </h3>
 
-
-
                 <p>
-
-                  {game.description}
-
+                  {service.description}
                 </p>
 
 
-
-                <div className="game-bottom">
-
+                <div className="service-card-bottom">
 
                   <span>
-
-                    TOP UP
-
+                    ENTRAR
                   </span>
 
-
                   <strong>
-
                     →
-
                   </strong>
-
 
                 </div>
 
-
               </div>
-
 
             </button>
 
-
           ))}
-
 
         </div>
 
-
       </section>
-
 
 
       {/* =========================
           BENEFICIOS
       ========================== */}
 
-
       <section className="benefits-section">
 
 
-
         <div className="benefit">
-
 
           <span>
             ⚡
           </span>
 
-
-
           <div>
-
 
             <strong>
               ENTREGA RÁPIDA
             </strong>
-
-
 
             <p>
               Procesamos tus pedidos
               rápidamente.
             </p>
 
-
           </div>
-
 
         </div>
 
 
-
-
         <div className="benefit">
-
 
           <span>
             🛡️
           </span>
 
-
-
           <div>
-
 
             <strong>
               COMPRA SEGURA
             </strong>
 
-
-
             <p>
               Tu pedido queda registrado.
             </p>
 
-
           </div>
-
 
         </div>
 
 
-
-
         <div className="benefit">
-
 
           <span>
             🎮
           </span>
 
-
-
           <div>
 
-
             <strong>
-              TOP UP GAMING
+              SERVICIOS GAMING
             </strong>
 
-
-
             <p>
-              Recargas para tus juegos
-              favoritos.
+              Todo lo que necesitas
+              en un solo lugar.
             </p>
 
-
           </div>
-
 
         </div>
 
 
       </section>
 
-            {/* =========================
+
+      {/* =========================
           FOOTER
       ========================== */}
 
       <footer className="store-footer">
 
-
         <div className="footer-brand">
-
           STORE GAMING
-
         </div>
 
 
-
         <p>
-
           TU MEJOR OPCIÓN PARA
           RECARGAS GAMING
-
         </p>
 
 
-
         <small>
-
           © 2026 STORE GAMING
-
         </small>
-
 
       </footer>
 
 
-
     </main>
   );
-
-}
+              }
