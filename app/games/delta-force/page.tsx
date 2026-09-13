@@ -62,22 +62,36 @@ const offers = [
   },
 ];
 
+const gameNote =
+  "Región: Recarga Global Delta Force. La moneda se deposita directamente en su cuenta una vez realizada la orden.";
+
 export default function DeltaForcePage() {
   const router = useRouter();
 
-  const [selectedOffer, setSelectedOffer] = useState<number | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [playerId, setPlayerId] = useState("");
+  const [selectedOffer, setSelectedOffer] =
+    useState<number | null>(null);
+
+  const [quantity, setQuantity] =
+    useState(1);
+
+  const [playerId, setPlayerId] =
+    useState("");
 
   const selected =
-    selectedOffer !== null ? offers[selectedOffer] : null;
+    selectedOffer !== null
+      ? offers[selectedOffer]
+      : null;
 
   function decreaseQuantity() {
-    setQuantity((current) => Math.max(1, current - 1));
+    setQuantity((current) =>
+      Math.max(1, current - 1)
+    );
   }
 
   function increaseQuantity() {
-    setQuantity((current) => current + 1);
+    setQuantity((current) =>
+      current + 1
+    );
   }
 
   function selectOffer(index: number) {
@@ -103,8 +117,9 @@ export default function DeltaForcePage() {
 
   const total = selected
     ? (
-        parseFloat(selected.price.replace("$", "")) *
-        quantity
+        parseFloat(
+          selected.price.replace("$", "")
+        ) * quantity
       ).toFixed(2)
     : "0.00";
 
@@ -120,7 +135,9 @@ export default function DeltaForcePage() {
         <button
           type="button"
           className="game-back-button"
-          onClick={() => router.push("/top-up")}
+          onClick={() =>
+            router.push("/top-up")
+          }
           aria-label="Volver"
         >
           ←
@@ -194,52 +211,81 @@ export default function DeltaForcePage() {
 
         <div className="offers-list">
 
-          {offers.map((offer, index) => (
+          {offers.map(
+            (offer, index) => (
 
-            <button
-              key={offer.name}
-              type="button"
-              className={
-                selectedOffer === index
-                  ? "offer-card selected"
-                  : "offer-card"
-              }
-              onClick={() => selectOffer(index)}
-            >
+              <button
+                key={offer.name}
+                type="button"
+                className={
+                  selectedOffer === index
+                    ? "offer-card selected"
+                    : "offer-card"
+                }
+                onClick={() =>
+                  selectOffer(index)
+                }
+              >
 
-              <div className="diamond-icon">
-                🎮
-              </div>
-
-
-              <div className="offer-info">
-
-                <strong>
-                  {offer.name}
-                </strong>
-
-                <span>
-                  Delta Force
-                </span>
-
-              </div>
+                <div className="diamond-icon">
+                  🎮
+                </div>
 
 
-              <div className="offer-right">
+                <div className="offer-info">
 
-                <strong>
-                  {offer.price}
-                </strong>
+                  <strong>
+                    {offer.name}
+                  </strong>
 
-                <span>
-                  →
-                </span>
+                  <span>
+                    Delta Force
+                  </span>
 
-              </div>
+                </div>
 
-            </button>
 
-          ))}
+                <div className="offer-right">
+
+                  <strong>
+                    {offer.price}
+                  </strong>
+
+                  <span>
+                    →
+                  </span>
+
+                </div>
+
+              </button>
+
+            )
+          )}
+
+        </div>
+
+
+        {/* =========================
+            NOTA
+        ========================== */}
+
+        <div className="game-note">
+
+          <div className="game-note-icon">
+            !
+          </div>
+
+          <div className="game-note-content">
+
+            <strong>
+              NOTA
+            </strong>
+
+            <p>
+              {gameNote}
+            </p>
+
+          </div>
 
         </div>
 
@@ -274,6 +320,31 @@ export default function DeltaForcePage() {
               <strong>
                 {selected.price}
               </strong>
+
+            </div>
+
+          </div>
+
+
+          {/* =========================
+              NOTA AL SELECCIONAR OFERTA
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
 
             </div>
 
@@ -335,7 +406,9 @@ export default function DeltaForcePage() {
               placeholder="Introduce tu ID"
               value={playerId}
               onChange={(event) =>
-                setPlayerId(event.target.value)
+                setPlayerId(
+                  event.target.value
+                )
               }
             />
 
@@ -378,4 +451,4 @@ export default function DeltaForcePage() {
 
     </main>
   );
-      }
+            }
