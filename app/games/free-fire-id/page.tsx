@@ -56,6 +56,9 @@ const offers = [
   { name: "73100 DIAMANTES", price: "549.66$" },
 ];
 
+const gameNote =
+  "Región: Indonesia. Recarga de Free Fire. Ingresa tu ID de jugador antes de realizar el pedido. Asegúrate de que tu cuenta de Free Fire esté registrada en la región de Indonesia; los paquetes están restringidos por región. El producto seleccionado se entregará directamente a tu cuenta una vez realizado el pedido.";
+
 export default function FreeFireIdPage() {
   const router = useRouter();
 
@@ -233,6 +236,31 @@ export default function FreeFireIdPage() {
 
         </div>
 
+
+        {/* =========================
+            NOTA DE REGIÓN
+        ========================== */}
+
+        <div className="game-note">
+
+          <div className="game-note-icon">
+            !
+          </div>
+
+          <div className="game-note-content">
+
+            <strong>
+              NOTA
+            </strong>
+
+            <p>
+              {gameNote}
+            </p>
+
+          </div>
+
+        </div>
+
       </section>
 
 
@@ -263,6 +291,31 @@ export default function FreeFireIdPage() {
               <strong>
                 {selected.price}
               </strong>
+
+            </div>
+
+          </div>
+
+
+          {/* =========================
+              NOTA AL SELECCIONAR OFERTA
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
 
             </div>
 
@@ -366,4 +419,4 @@ export default function FreeFireIdPage() {
 
     </main>
   );
-  }
+    }
