@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const gameNote =
+  "Región: Global. Recarga automática de Arena Breakout. La moneda se entrega directamente a tu cuenta una vez realizada la orden";
+
 const offers = [
   {
     name: "60 BONOS",
@@ -216,6 +219,31 @@ export default function ArenaBreakoutPage() {
 
 
       {/* =========================
+          NOTA
+      ========================== */}
+
+      <div className="game-note">
+
+        <div className="game-note-icon">
+          !
+        </div>
+
+        <div className="game-note-content">
+
+          <strong>
+            NOTA
+          </strong>
+
+          <p>
+            {gameNote}
+          </p>
+
+        </div>
+
+      </div>
+
+
+      {/* =========================
           PEDIDO
       ========================== */}
 
@@ -283,6 +311,31 @@ export default function ArenaBreakoutPage() {
           </div>
 
 
+          {/* =========================
+              NOTA DEL PEDIDO
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
+            </div>
+
+          </div>
+
+
           {/* ID */}
 
           <div className="player-id-input-wrapper">
@@ -339,4 +392,4 @@ export default function ArenaBreakoutPage() {
 
     </main>
   );
-}
+          }
