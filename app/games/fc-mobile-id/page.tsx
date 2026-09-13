@@ -34,6 +34,9 @@ const offers = [
   },
 ];
 
+const gameNote =
+  "Región: Indonesia. Recarga móvil de EA Sports FC. Introduce tu ID de jugador antes de realizar el pedido. Asegúrate de que tu cuenta de EA esté registrada en Indonesia; los códigos están restringidos por región. El producto seleccionado se entregará directamente a tu cuenta una vez realizado el pedido.";
+
 export default function FcMobileIdPage() {
   const router = useRouter();
 
@@ -205,6 +208,31 @@ export default function FcMobileIdPage() {
 
 
       {/* =========================
+          NOTA
+      ========================== */}
+
+      <div className="game-note">
+
+        <div className="game-note-icon">
+          !
+        </div>
+
+        <div className="game-note-content">
+
+          <strong>
+            NOTA
+          </strong>
+
+          <p>
+            {gameNote}
+          </p>
+
+        </div>
+
+      </div>
+
+
+      {/* =========================
           PEDIDO
       ========================== */}
 
@@ -268,6 +296,31 @@ export default function FcMobileIdPage() {
               >
                 +
               </button>
+
+            </div>
+
+          </div>
+
+
+          {/* =========================
+              NOTA DEL PEDIDO
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
 
             </div>
 
