@@ -3,6 +3,9 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const gameNote =
+  "Región: Recarga Global Blood Strike. La moneda se entrega directamente a tu cuenta una vez realizada la orden.";
+
 const offers = [
   {
     id: "bs-51",
@@ -368,6 +371,27 @@ export default function BloodStrikePage() {
 
           </div>
 
+          {/* NOTA DEL SERVICIO */}
+          <div className="game-note">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
+            </div>
+
+          </div>
+
         </section>
       )}
 
@@ -417,6 +441,27 @@ export default function BloodStrikePage() {
 
             <div className="selected-order-price">
               {selectedOffer.price.toFixed(2)}$
+            </div>
+
+          </div>
+
+          {/* NOTA ANTES DEL ID */}
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
             </div>
 
           </div>
@@ -715,4 +760,4 @@ export default function BloodStrikePage() {
 
     </main>
   );
-    }
+      }
