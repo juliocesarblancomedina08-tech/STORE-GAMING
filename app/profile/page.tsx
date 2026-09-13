@@ -6,6 +6,9 @@ import { supabase } from "../../lib/supabase";
 
 type StoreOrder = {
   id?: string;
+  user_id?: string;
+  email?: string;
+  username?: string;
   game?: string;
   product?: string;
   displayProduct?: string;
@@ -54,7 +57,7 @@ export default function ProfilePage() {
       setUsername(userName);
 
       await loadBalance(user.id);
-      loadOrders();
+      loadOrders(user.id, userEmail);
 
       if (mounted) {
         setLoading(false);
@@ -82,7 +85,7 @@ export default function ProfilePage() {
         setUsername(userName);
 
         await loadBalance(user.id);
-        loadOrders();
+        loadOrders(user.id, userEmail);
       }
     );
 
@@ -122,7 +125,10 @@ export default function ProfilePage() {
    * =========================
    */
 
-  function loadOrders() {
+  function loadOrders(
+    userId: string,
+    userEmail: string
+  ) {
     let orders: StoreOrder[] = [];
 
     try {
@@ -142,10 +148,44 @@ export default function ProfilePage() {
     }
 
     /*
+     * =========================
+     * FILTRAR PEDIDOS DEL USUARIO
+     * =========================
+     *
+     * Primero usamos user_id.
+     *
+     * Como respaldo usamos email para pedidos
+     * que tengan email pero no user_id.
+     *
+     * Los pedidos que no tengan ninguna identificación
+     * del usuario NO se muestran.
+     */
+
+    const userOrders = orders.filter((order) => {
+      if (
+        order.user_id &&
+        order.user_id === userId
+      ) {
+        return true;
+      }
+
+      if (
+        !order.user_id &&
+        order.email &&
+        order.email.toLowerCase() ===
+          userEmail.toLowerCase()
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+
+    /*
      * PEDIDOS TOTALES
      */
 
-    setTotalOrders(orders.length);
+    setTotalOrders(userOrders.length);
 
     /*
      * GASTO TOTAL
@@ -164,10 +204,11 @@ export default function ProfilePage() {
       "confirmado",
     ];
 
-    const completedOrders = orders.filter((order) =>
-      completedStatuses.includes(
-        String(order.status || "")
-      )
+    const completedOrders = userOrders.filter(
+      (order) =>
+        completedStatuses.includes(
+          String(order.status || "")
+        )
     );
 
     const spent = completedOrders.reduce(
@@ -536,4 +577,4 @@ export default function ProfilePage() {
 
     </main>
   );
-  }
+    }
