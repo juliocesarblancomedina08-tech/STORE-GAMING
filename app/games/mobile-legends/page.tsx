@@ -3,6 +3,9 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const gameNote =
+  "Región: Recarga de Mobile Legends en EE. UU. Ingresa tu ID de jugador y tu ID de servidor antes de realizar el pedido. Los diamantes se entregarán directamente a tu cuenta una vez realizado el pedido.";
+
 const offers = [
   {
     id: "ml-56",
@@ -346,6 +349,27 @@ export default function MobileLegendsPage() {
 
           </div>
 
+          {/* NOTA DEL JUEGO */}
+          <div className="game-note">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
+            </div>
+
+          </div>
+
         </section>
       )}
 
@@ -395,6 +419,27 @@ export default function MobileLegendsPage() {
 
             <div className="selected-order-price">
               {selectedOffer.price.toFixed(2)}$
+            </div>
+
+          </div>
+
+          {/* NOTA SOBRE EL PEDIDO */}
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
             </div>
 
           </div>
@@ -742,4 +787,4 @@ export default function MobileLegendsPage() {
 
     </main>
   );
-                                           }
+}
