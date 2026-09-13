@@ -12,6 +12,20 @@ type Service = {
   tag: string;
 };
 
+type StoreOrder = {
+  id?: string;
+  game?: string;
+  product?: string;
+  displayProduct?: string;
+  price?: number | string;
+  total?: number | string;
+  playerId?: string;
+  serverId?: string;
+  status?: string;
+  createdAt?: string;
+  date?: string;
+};
+
 const services: Service[] = [
   {
     name: "RECARGAS TOP UP",
@@ -57,6 +71,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const [ordersCreated, setOrdersCreated] = useState(0);
+  const [deposited, setDeposited] = useState(0);
+  const [totalSpent, setTotalSpent] = useState(0);
+
   useEffect(() => {
     let mounted = true;
 
@@ -77,7 +95,12 @@ export default function HomePage() {
       const name = email.split("@")[0] || "usuario";
 
       setUsername(name);
-      setLoading(false);
+
+      await loadStatistics(session.user.id);
+
+      if (mounted) {
+        setLoading(false);
+      }
     }
 
     loadUser();
@@ -85,10 +108,18 @@ export default function HomePage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         if (!session?.user) {
           router.replace("/");
+          return;
         }
+
+        const email = session.user.email || "usuario";
+        const name = email.split("@")[0] || "usuario";
+
+        setUsername(name);
+
+        await loadStatistics(session.user.id);
       }
     );
 
@@ -97,6 +128,107 @@ export default function HomePage() {
       subscription.unsubscribe();
     };
   }, [router]);
+
+  /*
+   * =========================
+   * ESTADÍSTICAS DEL CLIENTE
+   * =========================
+   */
+  async function loadStatistics(userId: string) {
+    /*
+     * ÓRDENES
+     *
+     * Las órdenes actuales de STORE GAMING
+     * se guardan en storeGamingOrders.
+     */
+    let orders: StoreOrder[] = [];
+
+    try {
+      const savedOrders = localStorage.getItem(
+        "storeGamingOrders"
+      );
+
+      if (savedOrders) {
+        const parsedOrders = JSON.parse(savedOrders);
+
+        if (Array.isArray(parsedOrders)) {
+          orders = parsedOrders;
+        }
+      }
+    } catch {
+      orders = [];
+    }
+
+    /*
+     * Todas las órdenes creadas.
+     */
+    setOrdersCreated(orders.length);
+
+    /*
+     * =========================
+     * GASTO TOTAL
+     * =========================
+     *
+     * Solo contamos órdenes completadas,
+     * confirmadas o confirmada.
+     */
+    const completedStatuses = [
+      "COMPLETADA",
+      "COMPLETADO",
+      "CONFIRMADA",
+      "CONFIRMADO",
+      "completada",
+      "completado",
+      "confirmada",
+      "confirmado",
+    ];
+
+    const completedOrders = orders.filter((order) =>
+      completedStatuses.includes(
+        String(order.status || "")
+      )
+    );
+
+    const spent = completedOrders.reduce(
+      (sum, order) => {
+        const value =
+          Number(order.total) ||
+          Number(order.price) ||
+          0;
+
+        return sum + value;
+      },
+      0
+    );
+
+    setTotalSpent(spent);
+
+    /*
+     * =========================
+     * DINERO DEPOSITADO
+     * =========================
+     *
+     * El balance pertenece a la cuenta
+     * autenticada y se consulta desde Supabase.
+     */
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", userId)
+        .single();
+
+      if (!error && data) {
+        const balance = Number(data.balance) || 0;
+
+        setDeposited(balance);
+      } else {
+        setDeposited(0);
+      }
+    } catch {
+      setDeposited(0);
+    }
+  }
 
   async function logout() {
     setMenuOpen(false);
@@ -202,8 +334,6 @@ export default function HomePage() {
 
             <nav className="side-menu-nav">
 
-              {/* PRINCIPAL */}
-
               <button
                 type="button"
                 className="side-menu-item active"
@@ -237,8 +367,6 @@ export default function HomePage() {
 
               </button>
 
-
-              {/* SERVICIOS */}
 
               <div className="side-menu-section-title">
 
@@ -302,8 +430,6 @@ export default function HomePage() {
               </button>
 
 
-              {/* FINANZAS */}
-
               <div className="side-menu-section-title">
 
                 <span />
@@ -349,8 +475,6 @@ export default function HomePage() {
               </button>
 
 
-              {/* CUENTA */}
-
               <div className="side-menu-section-title">
 
                 <span />
@@ -378,8 +502,6 @@ export default function HomePage() {
 
               </button>
 
-
-              {/* SOPORTE */}
 
               <button
                 type="button"
@@ -562,6 +684,87 @@ export default function HomePage() {
               </span>
 
             </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* =========================
+          ESTADÍSTICAS DEL CLIENTE
+      ========================== */}
+
+      <section className="customer-statistics">
+
+        <div className="customer-statistics-row">
+
+          {/* ÓRDENES */}
+
+          <div className="customer-stat-card">
+
+            <div className="customer-stat-icon">
+              ▣
+            </div>
+
+            <div className="customer-stat-content">
+
+              <span>
+                ÓRDENES CREADAS
+              </span>
+
+              <strong>
+                {ordersCreated}
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          {/* DEPOSITADO */}
+
+          <div className="customer-stat-card">
+
+            <div className="customer-stat-icon">
+              $
+            </div>
+
+            <div className="customer-stat-content">
+
+              <span>
+                DEPOSITADO
+              </span>
+
+              <strong>
+                ${deposited.toFixed(2)}
+              </strong>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* GASTO TOTAL */}
+
+        <div className="customer-stat-card customer-stat-card-wide">
+
+          <div className="customer-stat-icon">
+            💳
+          </div>
+
+          <div className="customer-stat-content">
+
+            <span>
+              GASTO TOTAL
+            </span>
+
+            <strong>
+              ${totalSpent.toFixed(2)}
+            </strong>
 
           </div>
 
@@ -759,4 +962,4 @@ export default function HomePage() {
 
     </main>
   );
-        }
+          }
