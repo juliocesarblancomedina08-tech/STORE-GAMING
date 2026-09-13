@@ -69,6 +69,9 @@ const offers = [
   },
 ];
 
+const gameNote =
+  "Región: LATAM Y N.A. Recarga automática de Free Fire. Los diamantes se entregan automáticamente después de realizar el pedido.";
+
 export default function FreeFireLatamPage() {
   const router = useRouter();
 
@@ -223,7 +226,9 @@ export default function FreeFireLatamPage() {
 
   return (
     <main className="game-service-page free-fire-page">
+
       <header className="game-service-header">
+
         <button
           type="button"
           className="game-back-button"
@@ -233,8 +238,15 @@ export default function FreeFireLatamPage() {
         </button>
 
         <div className="game-header-title">
-          <span>STORE GAMING</span>
-          <strong>FREE FIRE LATAM</strong>
+
+          <span>
+            STORE GAMING
+          </span>
+
+          <strong>
+            FREE FIRE LATAM
+          </strong>
+
         </div>
 
         <button
@@ -244,11 +256,16 @@ export default function FreeFireLatamPage() {
         >
           🛒
         </button>
+
       </header>
 
-      {/* IMAGEN PRINCIPAL */}
+
+      {/* =========================
+          IMAGEN PRINCIPAL
+      ========================== */}
 
       <section className="free-fire-main-image">
+
         <img
           src="/images/free-fire-latam.jpg"
           alt="Free Fire LATAM"
@@ -257,20 +274,30 @@ export default function FreeFireLatamPage() {
         <div className="free-fire-main-overlay" />
 
         <div className="free-fire-main-text">
-          <span>⚡ TOP UP</span>
+
+          <span>
+            ⚡ TOP UP
+          </span>
 
           <h1>
             FREE FIRE
-            <strong>LATAM</strong>
+            <strong>
+              LATAM
+            </strong>
           </h1>
 
           <p>
             Diamantes, pases y membresías
           </p>
+
         </div>
+
       </section>
 
-      {/* BOTÓN PARA MOSTRAR OFERTAS */}
+
+      {/* =========================
+          BOTÓN PARA MOSTRAR OFERTAS
+      ========================== */}
 
       <button
         type="button"
@@ -279,39 +306,59 @@ export default function FreeFireLatamPage() {
           setShowOffers((current) => !current)
         }
       >
+
         <span className="offers-toggle-text">
+
           ✎
+
           <strong>
             PRESIONE PARA VER OFERTAS
           </strong>
+
         </span>
 
         <span className="offers-toggle-pencil">
           ✎
         </span>
+
       </button>
 
-      {/* OFERTAS */}
+
+      {/* =========================
+          OFERTAS
+      ========================== */}
 
       {showOffers && (
+
         <section className="offers-section">
+
           <div className="offers-heading">
+
             <div>
-              <span>FREE FIRE LATAM</span>
+
+              <span>
+                FREE FIRE LATAM
+              </span>
 
               <h2>
                 ELIGE TU OFERTA
               </h2>
+
             </div>
+
           </div>
 
+
           <div className="offers-list">
+
             {offers.map((offer) => {
+
               const selected =
                 selectedOffer?.id ===
                 offer.id;
 
               return (
+
                 <button
                   key={offer.id}
                   type="button"
@@ -324,12 +371,15 @@ export default function FreeFireLatamPage() {
                     selectOffer(offer)
                   }
                 >
+
                   <div className="offer-left">
+
                     <div className="diamond-icon">
                       {offer.icon}
                     </div>
 
                     <div className="offer-info">
+
                       <strong>
                         {offer.display}
                       </strong>
@@ -337,10 +387,14 @@ export default function FreeFireLatamPage() {
                       <span>
                         {offer.name}
                       </span>
+
                     </div>
+
                   </div>
 
+
                   <div className="offer-right">
+
                     <strong>
                       {offer.price.toFixed(2)}$
                     </strong>
@@ -348,27 +402,66 @@ export default function FreeFireLatamPage() {
                     <span>
                       SELECCIONAR →
                     </span>
+
                   </div>
+
                 </button>
+
               );
+
             })}
+
           </div>
+
+
+          {/* =========================
+              NOTA
+          ========================== */}
+
+          <div className="game-note">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
+            </div>
+
+          </div>
+
         </section>
+
       )}
 
-      {/* DATOS DEL PEDIDO */}
+
+      {/* =========================
+          DATOS DEL PEDIDO
+      ========================== */}
 
       {selectedOffer && (
+
         <section
           id="order-section"
           className="order-section"
         >
+
           <div className="section-title">
+
             <span>
               01
             </span>
 
             <div>
+
               <small>
                 TU SELECCIÓN
               </small>
@@ -376,15 +469,20 @@ export default function FreeFireLatamPage() {
               <h2>
                 DATOS DEL PEDIDO
               </h2>
+
             </div>
+
           </div>
 
+
           <div className="selected-order-card">
+
             <div className="selected-order-icon">
               {selectedOffer.icon}
             </div>
 
             <div className="selected-order-info">
+
               <span>
                 FREE FIRE LATAM
               </span>
@@ -392,12 +490,40 @@ export default function FreeFireLatamPage() {
               <strong>
                 {selectedOffer.name}
               </strong>
+
             </div>
 
             <div className="selected-order-price">
               {selectedOffer.price.toFixed(2)}$
             </div>
+
           </div>
+
+
+          {/* =========================
+              NOTA AL SELECCIONAR OFERTA
+          ========================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
+            </div>
+
+          </div>
+
 
           <form
             onSubmit={
@@ -405,6 +531,7 @@ export default function FreeFireLatamPage() {
             }
             className="order-form"
           >
+
             <label
               htmlFor="free-fire-player-id"
               className="player-id-label"
@@ -418,6 +545,7 @@ export default function FreeFireLatamPage() {
             </p>
 
             <div className="player-id-input-wrapper">
+
               <span>
                 🆔
               </span>
@@ -439,31 +567,42 @@ export default function FreeFireLatamPage() {
                 autoComplete="off"
                 maxLength={20}
               />
+
             </div>
 
+
             {error && (
+
               <div className="order-error">
                 {error}
               </div>
+
             )}
 
+
             <div className="order-total-preview">
+
               <span>
                 PRECIO
               </span>
 
               <strong>
+
                 {selectedOffer.price.toFixed(
                   2
                 )}
                 $
+
               </strong>
+
             </div>
+
 
             <button
               type="submit"
               className="finish-order-button"
             >
+
               <span>
                 FINALIZAR COMPRA
               </span>
@@ -471,26 +610,37 @@ export default function FreeFireLatamPage() {
               <b>
                 →
               </b>
+
             </button>
+
           </form>
+
         </section>
+
       )}
 
-      {/* CONFIRMACIÓN */}
+
+      {/* =========================
+          CONFIRMACIÓN
+      ========================== */}
 
       {showConfirmation &&
         selectedOffer &&
         !orderCreated && (
+
           <section
             id="confirmation-section"
             className="confirmation-section"
           >
+
             <div className="section-title">
+
               <span>
                 02
               </span>
 
               <div>
+
                 <small>
                   CONFIRMAR
                 </small>
@@ -498,17 +648,23 @@ export default function FreeFireLatamPage() {
                 <h2>
                   REVISE SU ORDEN
                 </h2>
+
               </div>
+
             </div>
 
+
             <div className="confirmation-card">
+
               <h3>
                 Usted va a realizar una
                 compra de Free Fire
                 Diamonds
               </h3>
 
+
               <div className="confirmation-row">
+
                 <span>
                   PRODUCTO
                 </span>
@@ -516,9 +672,12 @@ export default function FreeFireLatamPage() {
                 <strong>
                   {selectedOffer.name}
                 </strong>
+
               </div>
 
+
               <div className="confirmation-row">
+
                 <span>
                   PRECIO A GASTAR
                 </span>
@@ -529,9 +688,12 @@ export default function FreeFireLatamPage() {
                   )}
                   $
                 </strong>
+
               </div>
 
+
               <div className="confirmation-row">
+
                 <span>
                   ID DEL JUGADOR
                 </span>
@@ -539,13 +701,16 @@ export default function FreeFireLatamPage() {
                 <strong>
                   {playerId}
                 </strong>
+
               </div>
+
 
               <p className="confirmation-warning">
                 Revise cuidadosamente los
                 datos antes de finalizar la
                 compra.
               </p>
+
 
               <button
                 type="button"
@@ -554,17 +719,25 @@ export default function FreeFireLatamPage() {
               >
                 FINALIZAR
               </button>
+
             </div>
+
           </section>
+
         )}
 
-      {/* ORDEN CREADA */}
+
+      {/* =========================
+          ORDEN CREADA
+      ========================== */}
 
       {orderCreated && (
+
         <section
           id="success-section"
           className="order-success-section"
         >
+
           <div className="success-circle">
             ✓
           </div>
@@ -578,7 +751,9 @@ export default function FreeFireLatamPage() {
             correctamente.
           </p>
 
+
           <div className="success-order-number">
+
             <span>
               NÚMERO DE ORDEN
             </span>
@@ -586,28 +761,43 @@ export default function FreeFireLatamPage() {
             <strong>
               #{orderNumber}
             </strong>
+
           </div>
+
 
           <button
             type="button"
             className="view-orders-button"
             onClick={goToOrders}
           >
+
             VER MIS ÓRDENES
+
             <span>
               →
             </span>
+
           </button>
+
         </section>
+
       )}
 
+
+      {/* =========================
+          INFORMACIÓN DEL SERVICIO
+      ========================== */}
+
       <section className="service-info">
+
         <div className="service-info-item">
+
           <span>
             ⚡
           </span>
 
           <div>
+
             <strong>
               ENTREGA RÁPIDA
             </strong>
@@ -616,15 +806,20 @@ export default function FreeFireLatamPage() {
               Procesamos tus pedidos
               rápidamente.
             </p>
+
           </div>
+
         </div>
 
+
         <div className="service-info-item">
+
           <span>
             🔒
           </span>
 
           <div>
+
             <strong>
               COMPRA SEGURA
             </strong>
@@ -632,15 +827,20 @@ export default function FreeFireLatamPage() {
             <p>
               Tu pedido queda registrado.
             </p>
+
           </div>
+
         </div>
 
+
         <div className="service-info-item">
+
           <span>
             🎮
           </span>
 
           <div>
+
             <strong>
               FREE FIRE LATAM
             </strong>
@@ -649,11 +849,20 @@ export default function FreeFireLatamPage() {
               Diamantes, pases y
               membresías.
             </p>
+
           </div>
+
         </div>
+
       </section>
 
+
+      {/* =========================
+          FOOTER
+      ========================== */}
+
       <footer className="game-service-footer">
+
         <strong>
           🛒STORE GAMING🎮
         </strong>
@@ -661,7 +870,9 @@ export default function FreeFireLatamPage() {
         <span>
           FREE FIRE LATAM TOP UP
         </span>
+
       </footer>
+
     </main>
   );
-      }
+    }
