@@ -4,12 +4,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
+type Network = "BEP20" | "TRC20" | "TON";
+
 export default function BalancePage() {
   const router = useRouter();
 
   const [balance, setBalance] = useState<number>(0);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // DEPÓSITO
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [selectedNetwork, setSelectedNetwork] =
+    useState<Network | null>(null);
+  const [depositError, setDepositError] = useState("");
 
   useEffect(() => {
     async function loadBalance() {
@@ -53,6 +62,55 @@ export default function BalancePage() {
       subscription.unsubscribe();
     };
   }, [router]);
+
+  function openDeposit() {
+    setDepositAmount("");
+    setSelectedNetwork(null);
+    setDepositError("");
+    setShowDeposit(true);
+  }
+
+  function closeDeposit() {
+    setShowDeposit(false);
+    setDepositError("");
+  }
+
+  function selectNetwork(network: Network) {
+    setSelectedNetwork(network);
+    setDepositError("");
+  }
+
+  function confirmDeposit() {
+    const numericAmount = Number(depositAmount);
+
+    if (!depositAmount || !Number.isFinite(numericAmount)) {
+      setDepositError("Introduzca el monto que desea depositar.");
+      return;
+    }
+
+    if (numericAmount <= 0) {
+      setDepositError("El monto debe ser mayor que 0.");
+      return;
+    }
+
+    if (!selectedNetwork) {
+      setDepositError("Seleccione una red para continuar.");
+      return;
+    }
+
+    /*
+     * Todavía no aumentamos el balance aquí.
+     *
+     * En el siguiente paso, la página de depósito
+     * creará el registro en public.deposits y mostrará
+     * la dirección y el QR correspondiente.
+     */
+    router.push(
+      `/balance/deposit?amount=${encodeURIComponent(
+        numericAmount.toFixed(2)
+      )}&network=${encodeURIComponent(selectedNetwork)}`
+    );
+  }
 
   if (loading) {
     return (
@@ -153,13 +211,7 @@ export default function BalancePage() {
               </strong>
             </div>
 
-            <div className="balance-secure">
-              🔒
-              <span>
-                SEGURO
-              </span>
-            </div>
-
+            →
           </div>
 
         </div>
@@ -168,30 +220,26 @@ export default function BalancePage() {
 
         <button
           type="button"
-          className="balance-deposit-card"
-          onClick={() => router.push("/balance/deposit")}
+          className="insert-balance-button"
+          onClick={openDeposit}
         >
-
-          <div className="deposit-icon">
+          <span className="insert-balance-icon">
             +
-          </div>
+          </span>
 
-          <div className="deposit-text">
-
+          <span className="insert-balance-text">
             <strong>
               INSERTAR BALANCE
             </strong>
 
-            <span>
-              Agrega fondos a tu billetera
-            </span>
+            <small>
+              Deposita USDT en tu billetera
+            </small>
+          </span>
 
-          </div>
-
-          <div className="deposit-arrow">
+          <span className="insert-balance-arrow">
             →
-          </div>
-
+          </span>
         </button>
 
         {/* HISTORIAL */}
@@ -260,6 +308,259 @@ export default function BalancePage() {
 
       </section>
 
+      {/* ===================================================== */}
+      {/* VENTANA INFERIOR — INSERTAR BALANCE                   */}
+      {/* ===================================================== */}
+
+      {showDeposit && (
+        <div
+          className="deposit-sheet-overlay"
+          onClick={closeDeposit}
+        >
+
+          <section
+            className="deposit-sheet"
+            onClick={(event) => event.stopPropagation()}
+          >
+
+            {/* INDICADOR SUPERIOR */}
+
+            <div className="deposit-sheet-handle" />
+
+            {/* CABECERA */}
+
+            <div className="deposit-sheet-header">
+
+              <div>
+                <small>
+                  STORE GAMING
+                </small>
+
+                <h2>
+                  INSERTAR <span>BALANCE</span>
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                className="deposit-sheet-close"
+                onClick={closeDeposit}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+
+            </div>
+
+            {/* MONTO */}
+
+            <div className="deposit-amount-wrapper">
+
+              <label htmlFor="deposit-amount">
+                MONTO A DEPOSITAR
+              </label>
+
+              <div className="deposit-amount-input">
+
+                <span>
+                  $
+                </span>
+
+                <input
+                  id="deposit-amount"
+                  type="number"
+                  inputMode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={depositAmount}
+                  onChange={(event) => {
+                    setDepositAmount(event.target.value);
+                    setDepositError("");
+                  }}
+                />
+
+                <span>
+                  USD
+                </span>
+
+              </div>
+
+            </div>
+
+            {/* REDES */}
+
+            <div className="deposit-networks-section">
+
+              <div className="deposit-networks-title">
+                <strong>
+                  SELECCIONA LA RED
+                </strong>
+
+                <span>
+                  USDT
+                </span>
+              </div>
+
+              <div className="deposit-networks">
+
+                {/* BEP20 */}
+
+                <button
+                  type="button"
+                  className={`deposit-network-card ${
+                    selectedNetwork === "BEP20"
+                      ? "selected"
+                      : ""
+                  }`}
+                  onClick={() => selectNetwork("BEP20")}
+                >
+
+                  <div className="deposit-network-icon">
+                    ₮
+                  </div>
+
+                  <div className="deposit-network-info">
+                    <strong>
+                      USDT
+                    </strong>
+
+                    <span>
+                      BEP20
+                    </span>
+                  </div>
+
+                  <div className="deposit-network-check">
+                    {selectedNetwork === "BEP20"
+                      ? "✓"
+                      : ""}
+                  </div>
+
+                </button>
+
+                {/* TRC20 */}
+
+                <button
+                  type="button"
+                  className={`deposit-network-card ${
+                    selectedNetwork === "TRC20"
+                      ? "selected"
+                      : ""
+                  }`}
+                  onClick={() => selectNetwork("TRC20")}
+                >
+
+                  <div className="deposit-network-icon">
+                    ₮
+                  </div>
+
+                  <div className="deposit-network-info">
+                    <strong>
+                      USDT
+                    </strong>
+
+                    <span>
+                      TRC20
+                    </span>
+                  </div>
+
+                  <div className="deposit-network-check">
+                    {selectedNetwork === "TRC20"
+                      ? "✓"
+                      : ""}
+                  </div>
+
+                </button>
+
+                {/* TON */}
+
+                <button
+                  type="button"
+                  className={`deposit-network-card ${
+                    selectedNetwork === "TON"
+                      ? "selected"
+                      : ""
+                  }`}
+                  onClick={() => selectNetwork("TON")}
+                >
+
+                  <div className="deposit-network-icon">
+                    ₮
+                  </div>
+
+                  <div className="deposit-network-info">
+                    <strong>
+                      USDT
+                    </strong>
+
+                    <span>
+                      TON
+                    </span>
+                  </div>
+
+                  <div className="deposit-network-check">
+                    {selectedNetwork === "TON"
+                      ? "✓"
+                      : ""}
+                  </div>
+
+                </button>
+
+              </div>
+
+            </div>
+
+            {/* ERROR */}
+
+            {depositError && (
+              <div className="deposit-error">
+                ⚠️ {depositError}
+              </div>
+            )}
+
+            {/* CONFIRMAR */}
+
+            <button
+              type="button"
+              className="deposit-confirm-button"
+              onClick={confirmDeposit}
+            >
+              CONFIRMAR
+              <span>
+                →
+              </span>
+            </button>
+
+            {/* CANCELAR */}
+
+            <button
+              type="button"
+              className="deposit-cancel-button"
+              onClick={closeDeposit}
+            >
+              CANCELAR
+            </button>
+
+            {/* AVISO */}
+
+            <div className="deposit-sheet-security">
+              <span>
+                🛡️
+              </span>
+
+              <p>
+                Selecciona correctamente la red antes
+                de enviar tus USDT. Enviar fondos por
+                una red incorrecta puede provocar la
+                pérdida de los fondos.
+              </p>
+            </div>
+
+          </section>
+
+        </div>
+      )}
+
     </main>
   );
-          }
+      }
