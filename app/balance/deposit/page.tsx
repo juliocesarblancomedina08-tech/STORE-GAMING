@@ -1,33 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
 type Network = "BEP20" | "TRC20" | "TON";
 
-type NetworkInfo = {
-  name: string;
-  shortName: string;
-  address: string;
-};
-
-const NETWORKS: Record<Network, NetworkInfo> = {
+const NETWORKS: Record<
+  Network,
+  {
+    name: string;
+    address: string;
+  }
+> = {
   BEP20: {
     name: "USDT (BEP20)",
-    shortName: "BEP20",
-    address: "0xdcdEe992E26cDBe1b024e171a3a980078BeaAC77",
+    address:
+      "0xdcdEe992E26cDBe1b024e171a3a980078BeaAC77",
   },
 
   TRC20: {
     name: "USDT (TRC20)",
-    shortName: "TRC20",
-    address: "TTYHTFZJTMisUGZcSEooegLpxYt3zVo6YQ",
+    address:
+      "TTYHTFZJTMisUGZcSEooegLpxYt3zVo6YQ",
   },
 
   TON: {
     name: "USDT (TON)",
-    shortName: "TON",
     address:
       "UQCKwyZB4Ph58WjL78LIYyd3U81nTYGuwWFNGaz2_YAvJJDg",
   },
@@ -35,17 +34,13 @@ const NETWORKS: Record<Network, NetworkInfo> = {
 
 export default function DepositPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState<Network | null>(null);
 
-  const [showOrder, setShowOrder] = useState(false);
-
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-
-  const [userId, setUserId] = useState("");
-  const [userEmail, setUserEmail] = useState("");
 
   const [depositId, setDepositId] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
@@ -53,137 +48,128 @@ export default function DepositPage() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
-  /*
-   * COMPROBAR SESIÓN
-   */
   useEffect(() => {
-    async function checkSession() {
+    async function initializeDeposit() {
       const {
         data: { session },
-        error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError || !session?.user) {
+      if (!session?.user) {
         router.replace("/");
         return;
       }
 
-      setUserId(session.user.id);
-      setUserEmail(session.user.email || "");
+      const urlAmount = searchParams.get("amount");
+      const urlNetwork = searchParams.get("network");
+
+      if (!urlAmount || !urlNetwork) {
+        setError("Los datos del depósito no son válidos.");
+        setLoading(false);
+        return;
+      }
+
+      const numericAmount = Number(urlAmount);
+
+      if (
+        !Number.isFinite(numericAmount) ||
+        numericAmount <= 0
+      ) {
+        setError("El monto del depósito no es válido.");
+        setLoading(false);
+        return;
+      }
+
+      if (
+        urlNetwork !== "BEP20" &&
+        urlNetwork !== "TRC20" &&
+        urlNetwork !== "TON"
+      ) {
+        setError("La red seleccionada no es válida.");
+        setLoading(false);
+        return;
+      }
+
+      setAmount(numericAmount.toFixed(2));
+      setNetwork(urlNetwork);
+
       setLoading(false);
     }
 
-    checkSession();
-  }, [router]);
+    initializeDeposit();
+  }, [router, searchParams]);
 
-  /*
-   * VALIDAR MONTO
-   */
-  function getAmountNumber() {
-    const normalized = amount.replace(",", ".").trim();
-    const value = Number(normalized);
-
-    if (!normalized || !Number.isFinite(value)) {
-      return null;
-    }
-
-    if (value <= 0) {
-      return null;
-    }
-
-    return value;
-  }
-
-  /*
-   * CONFIRMAR DEPÓSITO
-   */
   async function createDeposit() {
-    setError("");
-
-    const numericAmount = getAmountNumber();
-
-    if (!numericAmount) {
-      setError("Introduzca un monto válido.");
-      return;
-    }
-
-    if (!network) {
-      setError("Seleccione una red para continuar.");
-      return;
-    }
-
-    if (!userId) {
-      setError("Su sesión ha expirado. Inicie sesión nuevamente.");
-      router.replace("/");
+    if (!network || !amount) {
+      setError("Los datos del depósito están incompletos.");
       return;
     }
 
     setCreating(true);
+    setError("");
 
-    try {
-      const selectedNetwork = NETWORKS[network];
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      const generatedOrderNumber =
-        `DEP-${Date.now().toString().slice(-8)}`;
-
-      /*
-       * CREAR DEPÓSITO EN SUPABASE
-       *
-       * IMPORTANTE:
-       * No se modifica el balance aquí.
-       * El depósito queda PENDING hasta ser verificado.
-       */
-      const { data, error: insertError } = await supabase
-        .from("deposits")
-        .insert({
-          user_id: userId,
-          amount: numericAmount,
-          network: network,
-          address: selectedNetwork.address,
-          status: "PENDING",
-        })
-        .select("id")
-        .single();
-
-      if (insertError) {
-        console.error("Error creando depósito:", insertError);
-
-        setError(
-          "No se pudo crear la orden de depósito. Verifique la configuración de Supabase."
-        );
-
-        setCreating(false);
-        return;
-      }
-
-      setDepositId(data.id);
-      setOrderNumber(generatedOrderNumber);
-
-      setShowOrder(true);
-      setCreating(false);
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    } catch (err) {
-      console.error(err);
-
-      setError("Ocurrió un error inesperado.");
-      setCreating(false);
+    if (!session?.user) {
+      router.replace("/");
+      return;
     }
+
+    const numericAmount = Number(amount);
+
+    if (
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
+      setError("El monto no es válido.");
+      setCreating(false);
+      return;
+    }
+
+    const selectedNetwork = NETWORKS[network];
+
+    const {
+      data,
+      error: insertError,
+    } = await supabase
+      .from("deposits")
+      .insert({
+        user_id: session.user.id,
+        amount: numericAmount,
+        network: network,
+        address: selectedNetwork.address,
+        status: "PENDING",
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !data) {
+      console.error(insertError);
+
+      setError(
+        "No se pudo crear el depósito. Inténtelo nuevamente."
+      );
+
+      setCreating(false);
+      return;
+    }
+
+    const generatedOrderNumber =
+      `DEP-${Date.now().toString().slice(-8)}`;
+
+    setDepositId(data.id);
+    setOrderNumber(generatedOrderNumber);
+    setCreating(false);
   }
 
-  /*
-   * COPIAR DIRECCIÓN
-   */
   async function copyAddress() {
     if (!network) return;
 
+    const address = NETWORKS[network].address;
+
     try {
-      await navigator.clipboard.writeText(
-        NETWORKS[network].address
-      );
+      await navigator.clipboard.writeText(address);
 
       setCopied(true);
 
@@ -191,256 +177,243 @@ export default function DepositPage() {
         setCopied(false);
       }, 2000);
     } catch {
-      setError("No se pudo copiar la dirección.");
+      setError(
+        "No se pudo copiar la dirección. Mantenga presionada la dirección para copiarla."
+      );
     }
-  }
-
-  /*
-   * QR
-   *
-   * El contenido del QR es exactamente la dirección pública
-   * de recepción seleccionada.
-   */
-  function getQrUrl() {
-    if (!network) return "";
-
-    const address = NETWORKS[network].address;
-
-    return `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(
-      address
-    )}`;
-  }
-
-  /*
-   * VOLVER A SELECCIÓN
-   */
-  function backToSelection() {
-    setShowOrder(false);
-    setDepositId("");
-    setOrderNumber("");
-    setCopied(false);
-    setError("");
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
   }
 
   if (loading) {
     return (
       <main className="balance-page">
-        <div
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#fff",
-            fontWeight: 900,
-          }}
-        >
-          CARGANDO...
+        <div className="balance-background" />
+
+        <div className="balance-loading">
+          <div className="balance-loading-logo">
+            🛒🎮
+          </div>
+
+          <div className="balance-spinner" />
+
+          <p>
+            PREPARANDO DEPÓSITO...
+          </p>
         </div>
       </main>
     );
   }
 
-  /*
-   * ORDEN DE DEPÓSITO
-   */
-  if (showOrder && network) {
-    const selectedNetwork = NETWORKS[network];
-
+  if (error && !network) {
     return (
-      <main className="balance-page deposit-page">
+      <main className="balance-page">
+        <div className="balance-background" />
+
+        <section className="deposit-order-page">
+
+          <div className="deposit-error-page">
+            ⚠️
+          </div>
+
+          <h1>
+            DEPÓSITO NO DISPONIBLE
+          </h1>
+
+          <p>
+            {error}
+          </p>
+
+          <button
+            type="button"
+            className="deposit-cancel-button"
+            onClick={() => router.push("/balance")}
+          >
+            ← VOLVER A MI BILLETERA
+          </button>
+
+        </section>
+      </main>
+    );
+  }
+
+  if (!network) {
+    return null;
+  }
+
+  const selectedNetwork = NETWORKS[network];
+
+  /*
+   * Todavía no se creó el registro en Supabase.
+   * Primero mostramos la orden y permitimos crearla.
+   */
+
+  if (!depositId) {
+    return (
+      <main className="balance-page">
+        <div className="balance-background" />
 
         <header className="balance-header">
+
           <button
             type="button"
             className="balance-back-button"
             onClick={() => router.push("/balance")}
             aria-label="Volver"
           >
-            ←
+            <span>
+              ←
+            </span>
           </button>
 
           <div className="balance-header-title">
-            <span>STORE GAMING</span>
-            <strong>ORDEN DE DEPÓSITO</strong>
+
+            <small>
+              STORE GAMING
+            </small>
+
+            <h1>
+              DEPÓSITO
+            </h1>
+
           </div>
 
-          <div
-            style={{
-              width: 42,
-              height: 42,
-            }}
-          />
+          <div className="balance-header-icon">
+            ₮
+          </div>
+
         </header>
 
         <section className="deposit-order-page">
 
-          <div className="deposit-order-status">
-            <div className="deposit-pending-icon">
-              ₮
-            </div>
+          <div className="deposit-order-card">
 
-            <div>
-              <span>ORDEN CREADA</span>
-              <strong>PENDIENTE DE PAGO</strong>
-            </div>
-          </div>
+            <div className="deposit-order-top">
 
-          <div className="deposit-order-number">
-            <span>NÚMERO DE ORDEN</span>
-            <strong>{orderNumber}</strong>
-          </div>
+              <span>
+                MONTO A ENVIAR
+              </span>
 
-          <div className="deposit-amount-card">
+              <strong>
+                ${amount}
+              </strong>
 
-            <span>MONTO A ENVIAR</span>
-
-            <strong>
-              {Number(amount.replace(",", ".")).toFixed(2)}
-            </strong>
-
-            <small>USDT</small>
-
-          </div>
-
-          <div className="deposit-network-card">
-
-            <div className="deposit-network-symbol">
-              ₮
-            </div>
-
-            <div className="deposit-network-information">
-              <span>RED SELECCIONADA</span>
-              <strong>{selectedNetwork.name}</strong>
-            </div>
-
-          </div>
-
-          <div className="deposit-address-card">
-
-            <div className="deposit-address-title">
-              <span>DIRECCIÓN DE DESTINO</span>
-
-              <button
-                type="button"
-                onClick={copyAddress}
-                className="deposit-copy-button"
-              >
-                {copied ? "✓ COPIADA" : "COPIAR"}
-              </button>
-            </div>
-
-            <div className="deposit-address">
-              {selectedNetwork.address}
-            </div>
-
-          </div>
-
-          <div className="deposit-qr-card">
-
-            <div className="deposit-qr-title">
-              ESCANEA EL QR PARA PAGAR
-            </div>
-
-            <div className="deposit-qr-wrapper">
-
-              <img
-                src={getQrUrl()}
-                alt={`QR de depósito ${selectedNetwork.name}`}
-                className="deposit-qr-image"
-              />
+              <small>
+                USD
+              </small>
 
             </div>
 
-            <p>
-              Escanea este código desde tu wallet para enviar
-              exactamente el monto indicado.
-            </p>
+            <div className="deposit-network-badge">
+              ₮ {selectedNetwork.name}
+            </div>
 
-          </div>
+            <div className="deposit-order-info">
 
-          <div className="deposit-warning">
+              <strong>
+                DIRECCIÓN DE DESTINO
+              </strong>
 
-            <span>⚠️</span>
+              <div className="deposit-address-box">
 
-            <div>
-              <strong>IMPORTANTE</strong>
+                <span>
+                  {selectedNetwork.address}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={copyAddress}
+                  className="deposit-copy-button"
+                >
+                  {copied ? "✓" : "COPIAR"}
+                </button>
+
+              </div>
+
+            </div>
+
+            <div className="deposit-qr-section">
+
+              <strong>
+                CÓDIGO QR
+              </strong>
+
+              <div className="deposit-qr-box">
+
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(
+                    selectedNetwork.address
+                  )}`}
+                  alt={`QR ${selectedNetwork.name}`}
+                />
+
+              </div>
 
               <p>
-                Envía únicamente USDT utilizando la red{" "}
-                {selectedNetwork.shortName}.
-                No utilices otra red porque los fondos podrían
-                perderse.
+                Escanea este código QR desde tu
+                billetera de criptomonedas.
               </p>
+
             </div>
+
+            <div className="deposit-warning">
+
+              <span>
+                ⚠️
+              </span>
+
+              <p>
+                Envía únicamente USDT utilizando
+                la red <strong>{network}</strong>.
+                Una transferencia realizada por
+                otra red puede perderse.
+              </p>
+
+            </div>
+
+            {error && (
+              <div className="deposit-error">
+                ⚠️ {error}
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="deposit-confirm-button"
+              disabled={creating}
+              onClick={createDeposit}
+            >
+              {creating
+                ? "CREANDO DEPÓSITO..."
+                : "HE REVISADO LOS DATOS"}
+              {!creating && (
+                <span>
+                  →
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="deposit-cancel-button"
+              onClick={() => router.push("/balance")}
+            >
+              CANCELAR
+            </button>
 
           </div>
-
-          <div className="deposit-order-info">
-
-            <div>
-              <span>ESTADO</span>
-              <strong>PENDIENTE</strong>
-            </div>
-
-            <div>
-              <span>MONTO</span>
-              <strong>
-                {Number(amount.replace(",", ".")).toFixed(2)} USDT
-              </strong>
-            </div>
-
-            <div>
-              <span>RED</span>
-              <strong>{selectedNetwork.shortName}</strong>
-            </div>
-
-          </div>
-
-          {depositId && (
-            <div className="deposit-reference">
-              <span>REFERENCIA DEL DEPÓSITO</span>
-              <small>{depositId}</small>
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="secondary-button deposit-back-selection"
-            onClick={backToSelection}
-          >
-            ← CAMBIAR DEPÓSITO
-          </button>
-
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => router.push("/balance")}
-          >
-            VOLVER A MI BILLETERA
-          </button>
 
         </section>
-
-        <footer className="game-service-footer">
-          <strong>STORE GAMING</strong>
-          <span>DEPÓSITOS SEGUROS</span>
-        </footer>
 
       </main>
     );
   }
 
   /*
-   * SELECCIÓN DE DEPÓSITO
+   * DEPÓSITO CREADO
    */
+
   return (
-    <main className="balance-page deposit-page">
+    <main className="balance-page">
+      <div className="balance-background" />
 
       <header className="balance-header">
 
@@ -450,184 +423,145 @@ export default function DepositPage() {
           onClick={() => router.push("/balance")}
           aria-label="Volver"
         >
-          ←
+          <span>
+            ←
+          </span>
         </button>
 
         <div className="balance-header-title">
-          <span>STORE GAMING</span>
-          <strong>INSERTAR BALANCE</strong>
+
+          <small>
+            STORE GAMING
+          </small>
+
+          <h1>
+            DEPÓSITO
+          </h1>
+
         </div>
 
-        <div
-          style={{
-            width: 42,
-            height: 42,
-          }}
-        />
+        <div className="balance-header-icon">
+          ₮
+        </div>
 
       </header>
 
-      <section className="deposit-selection-page">
+      <section className="deposit-order-page">
 
-        <div className="deposit-intro">
+        <div className="deposit-success-card">
 
-          <span className="deposit-intro-icon">
-            ₮
-          </span>
-
-          <div>
-            <span>MI BILLETERA</span>
-            <h1>INSERTAR BALANCE</h1>
+          <div className="deposit-success-icon">
+            ✓
           </div>
 
-        </div>
+          <h2>
+            DEPÓSITO CREADO
+          </h2>
 
-        <div className="deposit-user-card">
+          <p>
+            Tu solicitud de depósito fue registrada
+            correctamente.
+          </p>
 
-          <span>CUENTA</span>
+          <div className="deposit-pending-badge">
+            ⏳ PENDIENTE DE CONFIRMACIÓN
+          </div>
 
-          <strong>
-            {userEmail}
-          </strong>
+          <div className="deposit-final-amount">
 
-        </div>
+            <small>
+              MONTO
+            </small>
 
-        <div className="deposit-amount-section">
+            <strong>
+              ${amount}
+            </strong>
 
-          <label htmlFor="deposit-amount">
-            MONTO A INSERTAR
-          </label>
+            <span>
+              USD
+            </span>
 
-          <div className="deposit-amount-input-wrapper">
+          </div>
 
-            <span>₮</span>
+          <div className="deposit-network-badge">
+            ₮ {selectedNetwork.name}
+          </div>
 
-            <input
-              id="deposit-amount"
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              onChange={(event) => {
-                const value = event.target.value;
+          <div className="deposit-order-reference">
 
-                if (/^[0-9]*[.,]?[0-9]*$/.test(value)) {
-                  setAmount(value);
-                  setError("");
-                }
-              }}
-              placeholder="0.00"
-              autoComplete="off"
+            <span>
+              REFERENCIA
+            </span>
+
+            <strong>
+              {orderNumber}
+            </strong>
+
+          </div>
+
+          <div className="deposit-address-box">
+
+            <span>
+              {selectedNetwork.address}
+            </span>
+
+            <button
+              type="button"
+              onClick={copyAddress}
+              className="deposit-copy-button"
+            >
+              {copied ? "✓" : "COPIAR"}
+            </button>
+
+          </div>
+
+          <div className="deposit-qr-box">
+
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(
+                selectedNetwork.address
+              )}`}
+              alt={`QR ${selectedNetwork.name}`}
             />
 
-            <strong>USDT</strong>
-
           </div>
 
-        </div>
+          <div className="deposit-warning">
 
-        <div className="deposit-network-section">
-
-          <div className="deposit-section-heading">
-            <span>01</span>
-
-            <div>
-              <strong>SELECCIONA LA RED</strong>
-              <p>
-                Utiliza la misma red desde tu wallet.
-              </p>
-            </div>
-          </div>
-
-          <div className="deposit-network-list">
-
-            {(Object.keys(NETWORKS) as Network[]).map(
-              (networkKey) => {
-                const item = NETWORKS[networkKey];
-                const selected = network === networkKey;
-
-                return (
-                  <button
-                    key={networkKey}
-                    type="button"
-                    className={`deposit-network-option ${
-                      selected ? "selected" : ""
-                    }`}
-                    onClick={() => {
-                      setNetwork(networkKey);
-                      setError("");
-                    }}
-                  >
-
-                    <div className="deposit-tether-icon">
-                      ₮
-                    </div>
-
-                    <div className="deposit-network-text">
-                      <strong>{item.name}</strong>
-                      <span>
-                        Red de recepción {item.shortName}
-                      </span>
-                    </div>
-
-                    <div className="deposit-network-check">
-                      {selected ? "✓" : ""}
-                    </div>
-
-                  </button>
-                );
-              }
-            )}
-
-          </div>
-
-        </div>
-
-        {error && (
-          <div className="deposit-error">
-            <span>!</span>
-            {error}
-          </div>
-        )}
-
-        <div className="deposit-security-notice">
-
-          <span>🔒</span>
-
-          <div>
-            <strong>DEPÓSITO SEGURO</strong>
+            <span>
+              ⚠️
+            </span>
 
             <p>
-              Su depósito quedará asociado a su cuenta y será
-              verificado antes de acreditar el balance.
+              Envía exactamente el monto indicado
+              utilizando la red seleccionada.
+              Guarda el comprobante de la
+              transferencia.
             </p>
+
           </div>
 
+          <p className="deposit-reference-text">
+            ID de depósito:
+            <br />
+            {depositId}
+          </p>
+
+          <button
+            type="button"
+            className="deposit-confirm-button"
+            onClick={() => router.push("/balance")}
+          >
+            VOLVER A MI BILLETERA
+            <span>
+              →
+            </span>
+          </button>
+
         </div>
-
-        <button
-          type="button"
-          className="deposit-confirm-button"
-          onClick={createDeposit}
-          disabled={creating}
-        >
-          {creating ? "CREANDO ORDEN..." : "CONFIRMAR"}
-        </button>
-
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => router.push("/balance")}
-        >
-          CANCELAR
-        </button>
 
       </section>
 
-      <footer className="game-service-footer">
-        <strong>STORE GAMING</strong>
-        <span>DEPÓSITOS SEGUROS</span>
-      </footer>
-
     </main>
   );
-}
+               }
