@@ -9,18 +9,54 @@ type Offer = {
 };
 
 const starsOffers: Offer[] = [
-  { name: "50⭐", price: "0.80$" },
-  { name: "100⭐", price: "1.57$" },
-  { name: "200⭐", price: "3.10$" },
-  { name: "250⭐", price: "3.88$" },
-  { name: "500⭐", price: "7.74$" },
-  { name: "750⭐", price: "11.57$" },
-  { name: "1000⭐", price: "15.42$" },
-  { name: "1500⭐", price: "23.12$" },
-  { name: "2000⭐", price: "30.90$" },
-  { name: "3000⭐", price: "46.20$" },
-  { name: "5000⭐", price: "77.00$" },
-  { name: "10000⭐", price: "154.00$" },
+  {
+    name: "50⭐",
+    price: "0.80$",
+  },
+  {
+    name: "100⭐",
+    price: "1.57$",
+  },
+  {
+    name: "200⭐",
+    price: "3.10$",
+  },
+  {
+    name: "250⭐",
+    price: "3.88$",
+  },
+  {
+    name: "500⭐",
+    price: "7.74$",
+  },
+  {
+    name: "750⭐",
+    price: "11.57$",
+  },
+  {
+    name: "1000⭐",
+    price: "15.42$",
+  },
+  {
+    name: "1500⭐",
+    price: "23.12$",
+  },
+  {
+    name: "2000⭐",
+    price: "30.90$",
+  },
+  {
+    name: "3000⭐",
+    price: "46.20$",
+  },
+  {
+    name: "5000⭐",
+    price: "77.00$",
+  },
+  {
+    name: "10000⭐",
+    price: "154.00$",
+  },
 ];
 
 const premiumOffers: Offer[] = [
@@ -65,7 +101,6 @@ export default function TelegramStarsPage() {
       ? starsOffers
       : premiumOffers;
 
-
   /*
    * =========================
    * SELECCIONAR OFERTA
@@ -77,17 +112,19 @@ export default function TelegramStarsPage() {
     setTelegramUsername("");
     setShowConfirmation(false);
     setOrderCreated(false);
+    setOrderNumber("");
 
     setTimeout(() => {
       document
-        .getElementById("telegram-order-section")
+        .getElementById(
+          "telegram-order-section"
+        )
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
     }, 50);
   }
-
 
   /*
    * =========================
@@ -98,7 +135,8 @@ export default function TelegramStarsPage() {
   function isValidTelegramUsername(
     username: string
   ) {
-    const clean = username.trim();
+    const clean =
+      username.trim();
 
     if (!clean) {
       return false;
@@ -116,7 +154,6 @@ export default function TelegramStarsPage() {
     );
   }
 
-
   /*
    * =========================
    * CONTINUAR
@@ -127,10 +164,15 @@ export default function TelegramStarsPage() {
     const username =
       telegramUsername.trim();
 
-    if (!isValidTelegramUsername(username)) {
+    if (
+      !isValidTelegramUsername(
+        username
+      )
+    ) {
       alert(
         "Introduce un @usuario de Telegram válido. Ejemplo: @usuario"
       );
+
       return;
     }
 
@@ -138,10 +180,13 @@ export default function TelegramStarsPage() {
       return;
     }
 
-    setTelegramUsername(
+    const normalizedUsername =
       username.startsWith("@")
         ? username
-        : `@${username}`
+        : `@${username}`;
+
+    setTelegramUsername(
+      normalizedUsername
     );
 
     setShowConfirmation(true);
@@ -158,120 +203,89 @@ export default function TelegramStarsPage() {
     }, 50);
   }
 
-
   /*
    * =========================
-   * CREAR ORDEN
+   * CREAR PEDIDO
    * =========================
    */
 
   function createOrder() {
-    if (!selectedOffer) {
+    if (
+      !selectedOffer ||
+      !telegramUsername
+    ) {
       return;
     }
 
-    const cleanUsername =
-      telegramUsername.trim();
-
-    const newOrderNumber =
+    const orderId =
       `TG-${Date.now()
         .toString()
         .slice(-8)}`;
 
-    const newOrder = {
-      id: Date.now().toString(),
-
-      orderNumber: newOrderNumber,
-
-      type:
-        section === "stars"
-          ? "TELEGRAM STARS"
-          : "TELEGRAM PREMIUM",
-
-      game: "TELEGRAM",
-
+    const order = {
+      id: orderId,
+      orderNumber: orderId,
+      type: "TELEGRAM_STARS",
       product:
-        section === "stars"
-          ? selectedOffer.name
-          : `Telegram Premium - ${selectedOffer.name}`,
-
-      displayProduct:
-        section === "stars"
-          ? `${selectedOffer.name} Telegram`
-          : `Telegram Premium ${selectedOffer.name}`,
-
-      price: Number(
-        selectedOffer.price
-          .replace("$", "")
-      ),
-
-      total: Number(
-        selectedOffer.price
-          .replace("$", "")
-      ),
-
-      telegramUsername:
-        cleanUsername,
-
-      username:
-        cleanUsername,
-
+        selectedOffer.name,
+      offer:
+        selectedOffer.name,
+      price:
+        selectedOffer.price,
+      telegramUsername,
       status: "PENDIENTE",
-
-      date: new Date().toISOString(),
-
       createdAt:
         new Date().toISOString(),
     };
 
-
     /*
-     * GUARDAR PEDIDO
+     * Guardar el pedido manteniendo
+     * el sistema actual de pedidos.
      */
 
     try {
-      const saved =
-        localStorage.getItem(
-          "storeGamingOrders"
+      const existingOrders =
+        JSON.parse(
+          localStorage.getItem(
+            "storeGamingOrders"
+          ) || "[]"
         );
 
-      const orders = saved
-        ? JSON.parse(saved)
-        : [];
+      const orders =
+        Array.isArray(
+          existingOrders
+        )
+          ? existingOrders
+          : [];
 
-      const updatedOrders = [
-        newOrder,
-        ...(Array.isArray(orders)
-          ? orders
-          : []),
-      ];
+      orders.unshift(order);
 
       localStorage.setItem(
         "storeGamingOrders",
         JSON.stringify(
-          updatedOrders
+          orders
         )
       );
 
       localStorage.setItem(
         "storeGamingLastOrder",
         JSON.stringify(
-          newOrder
+          order
         )
       );
-    } catch {
+    } catch (error) {
       console.error(
-        "No se pudo guardar la orden."
+        "Error guardando pedido:",
+        error
       );
     }
 
-
     setOrderNumber(
-      newOrderNumber
+      orderId
     );
 
-    setShowConfirmation(false);
     setOrderCreated(true);
+    setShowConfirmation(false);
 
     setTimeout(() => {
       document
@@ -285,10 +299,9 @@ export default function TelegramStarsPage() {
     }, 50);
   }
 
-
   /*
    * =========================
-   * VOLVER A OFERTAS
+   * REINICIAR PEDIDO
    * =========================
    */
 
@@ -305,10 +318,14 @@ export default function TelegramStarsPage() {
     });
   }
 
+  /*
+   * =========================
+   * RENDER
+   * =========================
+   */
 
   return (
     <main className="telegram-stars-page">
-
 
       {/* =========================
           HEADER
@@ -317,473 +334,504 @@ export default function TelegramStarsPage() {
       <header className="telegram-stars-header">
 
         <button
-          className="back-button"
+          type="button"
+          className="telegram-stars-back-button"
           onClick={() =>
             router.push("/home")
           }
+          aria-label="Volver al inicio"
         >
-          ← Volver
+          ←
         </button>
 
-        <h1 className="telegram-stars-title">
-          TELEGRAM STARS
-        </h1>
+        <div className="telegram-stars-header-title">
 
-        <button
-          className="telegram-cart-button"
-          onClick={() =>
-            router.push("/cart")
-          }
-          aria-label="Carrito"
-        >
-          🛒
-        </button>
+          <span>
+            STORE GAMING
+          </span>
+
+          <h1>
+            ⭐ TELEGRAM STARS
+          </h1>
+
+        </div>
 
       </header>
 
 
       {/* =========================
-          TABS
+          CONTENIDO
       ========================== */}
 
-      {!orderCreated && (
+      <section className="telegram-stars-content">
 
-        <div className="telegram-tabs">
+        <div className="telegram-stars-intro">
+
+          <span className="telegram-stars-icon">
+            ⭐
+          </span>
+
+          <h2>
+            TELEGRAM STARS
+          </h2>
+
+          <p>
+            Compra Stars de Telegram
+            de forma rápida y segura.
+          </p>
+
+        </div>
+
+
+        {/* =========================
+            SELECTOR
+        ========================== */}
+
+        <div className="telegram-stars-tabs">
 
           <button
+            type="button"
             className={
               section === "stars"
-                ? "telegram-tab active"
-                : "telegram-tab"
+                ? "telegram-stars-tab active"
+                : "telegram-stars-tab"
             }
             onClick={() => {
               setSection("stars");
               setSelectedOffer(null);
               setShowConfirmation(false);
+              setOrderCreated(false);
             }}
           >
-            ⭐ Estrellas Telegram
+            ⭐ STARS
           </button>
 
-
           <button
+            type="button"
             className={
               section === "premium"
-                ? "telegram-tab active"
-                : "telegram-tab"
+                ? "telegram-stars-tab active"
+                : "telegram-stars-tab"
             }
             onClick={() => {
               setSection("premium");
               setSelectedOffer(null);
               setShowConfirmation(false);
+              setOrderCreated(false);
             }}
           >
-            ⭐ Telegram Premium
+            ✈️ PREMIUM
           </button>
 
         </div>
 
-      )}
 
+        {/* =========================
+            TÍTULO DE OFERTAS
+        ========================== */}
 
-      {/* =========================
-          OFERTAS
-      ========================== */}
-
-      {!selectedOffer &&
-        !orderCreated && (
-
-        <section className="telegram-offers">
-
-          {offers.map((offer) => (
-
-            <button
-              key={offer.name}
-              type="button"
-              className="telegram-offer-card"
-              onClick={() =>
-                selectOffer(offer)
-              }
-            >
-
-              <span className="offer-price">
-                {offer.price}
-              </span>
-
-
-              <h2>
-
-                {section === "stars"
-                  ? offer.name
-                  : "Telegram Premium"}
-
-              </h2>
-
-
-              {section === "premium" && (
-
-                <p>
-                  {offer.name}
-                </p>
-
-              )}
-
-
-              <span className="telegram-offer-arrow">
-                →
-              </span>
-
-            </button>
-
-          ))}
-
-        </section>
-
-      )}
-
-
-      {/* =========================
-          PEDIDO
-      ========================== */}
-
-      {selectedOffer &&
-        !showConfirmation &&
-        !orderCreated && (
-
-        <section
-          id="telegram-order-section"
-          className="telegram-order-section"
-        >
-
-          <div className="telegram-selected-order">
-
-            <span className="telegram-order-icon">
-              {section === "stars"
-                ? "⭐"
-                : "👑"}
-            </span>
-
-
-            <div>
-
-              <small>
-                OFERTA SELECCIONADA
-              </small>
-
-              <h2>
-
-                {section === "stars"
-                  ? selectedOffer.name
-                  : `Telegram Premium ${selectedOffer.name}`}
-
-              </h2>
-
-              <strong>
-                {selectedOffer.price}
-              </strong>
-
-            </div>
-
-          </div>
-
-
-          {/* USUARIO */}
-
-          <div className="telegram-username-box">
-
-            <label htmlFor="telegram-username">
-              @USUARIO DE TELEGRAM
-            </label>
-
-            <p>
-              Introduce el @usuario que recibirá
-              {section === "stars"
-                ? " las estrellas."
-                : " Telegram Premium."}
-            </p>
-
-
-            <div className="telegram-username-input-wrapper">
-
-              <span>
-                @
-              </span>
-
-              <input
-                id="telegram-username"
-                type="text"
-                value={
-                  telegramUsername
-                    .replace(/^@/, "")
-                }
-                onChange={(event) => {
-                  const value =
-                    event.target.value
-                      .replace(/\s/g, "");
-
-                  setTelegramUsername(
-                    value
-                      ? `@${value}`
-                      : ""
-                  );
-                }}
-                placeholder="usuario"
-                autoComplete="off"
-                maxLength={33}
-              />
-
-            </div>
-
-
-            <small className="telegram-username-help">
-              Ejemplo: @usuario
-            </small>
-
-          </div>
-
-
-          <button
-            type="button"
-            className="finish-order-button"
-            onClick={finishOrder}
-          >
-            CONTINUAR
-          </button>
-
-
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={resetOrder}
-          >
-            ← CAMBIAR OFERTA
-          </button>
-
-        </section>
-
-      )}
-
-
-      {/* =========================
-          CONFIRMACIÓN
-      ========================== */}
-
-      {showConfirmation &&
-        selectedOffer &&
-        !orderCreated && (
-
-        <section
-          id="telegram-confirmation-section"
-          className="confirmation-section"
-        >
-
-          <div className="confirmation-card">
-
-            <div className="confirmation-header">
-              <span>
-                🔎
-              </span>
-
-              <h2>
-                CONFIRMA TU PEDIDO
-              </h2>
-            </div>
-
-
-            <div className="confirmation-row">
-
-              <span>
-                Servicio
-              </span>
-
-              <strong>
-                {section === "stars"
-                  ? "Telegram Stars"
-                  : "Telegram Premium"}
-              </strong>
-
-            </div>
-
-
-            <div className="confirmation-row">
-
-              <span>
-                Producto
-              </span>
-
-              <strong>
-                {section === "stars"
-                  ? selectedOffer.name
-                  : selectedOffer.name}
-              </strong>
-
-            </div>
-
-
-            <div className="confirmation-row">
-
-              <span>
-                Usuario
-              </span>
-
-              <strong>
-                {telegramUsername}
-              </strong>
-
-            </div>
-
-
-            <div className="confirmation-row">
-
-              <span>
-                Precio
-              </span>
-
-              <strong>
-                {selectedOffer.price}
-              </strong>
-
-            </div>
-
-
-            <button
-              type="button"
-              className="confirm-final-button"
-              onClick={createOrder}
-            >
-              CONFIRMAR PEDIDO
-            </button>
-
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() =>
-                setShowConfirmation(false)
-              }
-            >
-              ← VOLVER
-            </button>
-
-          </div>
-
-        </section>
-
-      )}
-
-
-      {/* =========================
-          PEDIDO CREADO
-      ========================== */}
-
-      {orderCreated && (
-
-        <section
-          id="telegram-success-section"
-          className="order-success-section"
-        >
-
-          <div className="success-icon">
-            ✓
-          </div>
-
+        <div className="telegram-stars-section-title">
 
           <h2>
-            ¡PEDIDO CREADO!
+            {section === "stars"
+              ? "ELIGE TUS STARS"
+              : "TELEGRAM PREMIUM"}
           </h2>
 
+          <span>
+            {section === "stars"
+              ? "Selecciona la cantidad que deseas."
+              : "Selecciona la duración de tu Premium."}
+          </span>
 
-          <p>
-            Tu pedido ha sido registrado
-            correctamente.
-          </p>
-
-
-          <div className="success-order-number">
-
-            <span>
-              NÚMERO DE PEDIDO
-            </span>
-
-            <strong>
-              {orderNumber}
-            </strong>
-
-          </div>
+        </div>
 
 
-          <div className="success-order-details">
+        {/* =========================
+            OFERTAS
+        ========================== */}
 
-            <div>
-              <span>
-                Servicio
-              </span>
+        <div className="telegram-stars-offers-grid">
 
-              <strong>
-                {section === "stars"
-                  ? "Telegram Stars"
-                  : "Telegram Premium"}
-              </strong>
-            </div>
+          {offers.map(
+            (offer) => (
+              <button
+                key={
+                  `${section}-${offer.name}`
+                }
+                type="button"
+                className={
+                  selectedOffer?.name ===
+                    offer.name
+                    ? "telegram-stars-offer-card selected"
+                    : "telegram-stars-offer-card"
+                }
+                onClick={() =>
+                  selectOffer(
+                    offer
+                  )
+                }
+              >
 
+                <div className="telegram-stars-offer-top">
 
-            <div>
-              <span>
-                Producto
-              </span>
+                  <span className="telegram-stars-offer-icon">
+                    {section ===
+                    "stars"
+                      ? "⭐"
+                      : "✈️"}
+                  </span>
 
-              <strong>
-                {selectedOffer?.name}
-              </strong>
-            </div>
+                  <strong>
+                    {offer.name}
+                  </strong>
 
-
-            <div>
-              <span>
-                Usuario
-              </span>
-
-              <strong>
-                {telegramUsername}
-              </strong>
-            </div>
-
-
-            <div>
-              <span>
-                Total
-              </span>
-
-              <strong>
-                {selectedOffer?.price}
-              </strong>
-            </div>
-
-          </div>
+                </div>
 
 
-          <button
-            type="button"
-            className="finish-order-button"
-            onClick={() =>
-              router.push("/orders")
-            }
+                <div className="telegram-stars-offer-bottom">
+
+                  <span>
+                    PRECIO
+                  </span>
+
+                  <strong>
+                    {offer.price}
+                  </strong>
+
+                </div>
+
+
+                <div className="telegram-stars-offer-action">
+                  SELECCIONAR →
+                </div>
+
+              </button>
+            )
+          )}
+
+        </div>
+
+
+        {/* =========================
+            PEDIDO
+        ========================== */}
+
+        {selectedOffer &&
+          !showConfirmation &&
+          !orderCreated && (
+
+            <section
+              id="telegram-order-section"
+              className="telegram-order-section"
+            >
+
+              <div className="telegram-order-card">
+
+                <div className="telegram-order-card-title">
+
+                  <span>
+                    ⭐
+                  </span>
+
+                  <h2>
+                    COMPLETAR PEDIDO
+                  </h2>
+
+                </div>
+
+
+                <div className="telegram-selected-offer">
+
+                  <span>
+                    OFERTA SELECCIONADA
+                  </span>
+
+                  <strong>
+                    {selectedOffer.name}
+                  </strong>
+
+                  <b>
+                    {selectedOffer.price}
+                  </b>
+
+                </div>
+
+
+                <label
+                  htmlFor="telegram-username"
+                >
+                  USUARIO DE TELEGRAM
+                </label>
+
+                <input
+                  id="telegram-username"
+                  type="text"
+                  value={
+                    telegramUsername
+                  }
+                  onChange={(event) =>
+                    setTelegramUsername(
+                      event.target.value
+                    )
+                  }
+                  placeholder="@usuario"
+                  autoComplete="off"
+                  inputMode="text"
+                />
+
+
+                <p className="telegram-input-help">
+                  Introduce tu usuario
+                  comenzando con @.
+                </p>
+
+
+                <button
+                  type="button"
+                  className="telegram-continue-button"
+                  onClick={
+                    finishOrder
+                  }
+                >
+                  CONTINUAR →
+                </button>
+
+              </div>
+
+            </section>
+          )}
+
+
+        {/* =========================
+            CONFIRMACIÓN
+        ========================== */}
+
+        {showConfirmation &&
+          selectedOffer && (
+
+            <section
+              id="telegram-confirmation-section"
+              className="telegram-confirmation-section"
+            >
+
+              <div className="telegram-confirmation-card">
+
+                <div className="telegram-confirmation-title">
+
+                  <span>
+                    🔎
+                  </span>
+
+                  <h2>
+                    CONFIRMA TU PEDIDO
+                  </h2>
+
+                </div>
+
+
+                <div className="telegram-confirmation-data">
+
+                  <div>
+
+                    <span>
+                      SERVICIO
+                    </span>
+
+                    <strong>
+                      {section ===
+                      "stars"
+                        ? "TELEGRAM STARS"
+                        : "TELEGRAM PREMIUM"}
+                    </strong>
+
+                  </div>
+
+
+                  <div>
+
+                    <span>
+                      OFERTA
+                    </span>
+
+                    <strong>
+                      {selectedOffer.name}
+                    </strong>
+
+                  </div>
+
+
+                  <div>
+
+                    <span>
+                      USUARIO
+                    </span>
+
+                    <strong>
+                      {telegramUsername}
+                    </strong>
+
+                  </div>
+
+
+                  <div>
+
+                    <span>
+                      TOTAL
+                    </span>
+
+                    <strong>
+                      {selectedOffer.price}
+                    </strong>
+
+                  </div>
+
+                </div>
+
+
+                <button
+                  type="button"
+                  className="telegram-confirm-button"
+                  onClick={
+                    createOrder
+                  }
+                >
+                  CONFIRMAR PEDIDO
+                </button>
+
+
+                <button
+                  type="button"
+                  className="telegram-cancel-button"
+                  onClick={() =>
+                    setShowConfirmation(
+                      false
+                    )
+                  }
+                >
+                  ← VOLVER
+                </button>
+
+              </div>
+
+            </section>
+          )}
+
+
+        {/* =========================
+            PEDIDO CREADO
+        ========================== */}
+
+        {orderCreated && (
+
+          <section
+            id="telegram-success-section"
+            className="telegram-success-section"
           >
-            VER MIS PEDIDOS
-          </button>
+
+            <div className="telegram-success-card">
+
+              <div className="telegram-success-icon">
+                ✓
+              </div>
+
+              <h2>
+                PEDIDO CREADO
+              </h2>
+
+              <p>
+                Tu pedido de
+                Telegram ha sido
+                registrado
+                correctamente.
+              </p>
 
 
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={resetOrder}
-          >
-            HACER OTRO PEDIDO
-          </button>
+              <div className="telegram-success-order">
 
-        </section>
+                <span>
+                  NÚMERO DE PEDIDO
+                </span>
 
-      )}
+                <strong>
+                  {orderNumber}
+                </strong>
+
+              </div>
+
+
+              <div className="telegram-success-summary">
+
+                <div>
+
+                  <span>
+                    OFERTA
+                  </span>
+
+                  <strong>
+                    {selectedOffer?.name}
+                  </strong>
+
+                </div>
+
+
+                <div>
+
+                  <span>
+                    USUARIO
+                  </span>
+
+                  <strong>
+                    {telegramUsername}
+                  </strong>
+
+                </div>
+
+
+                <div>
+
+                  <span>
+                    TOTAL
+                  </span>
+
+                  <strong>
+                    {selectedOffer?.price}
+                  </strong>
+
+                </div>
+
+              </div>
+
+
+              <button
+                type="button"
+                className="finish-order-button"
+                onClick={() =>
+                  router.push(
+                    "/orders"
+                  )
+                }
+              >
+                VER MIS PEDIDOS
+              </button>
+
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={
+                  resetOrder
+                }
+              >
+                HACER OTRO PEDIDO
+              </button>
+
+            </div>
+
+          </section>
+        )}
+
+      </section>
 
 
       {/* =========================
@@ -797,12 +845,11 @@ export default function TelegramStarsPage() {
         </strong>
 
         <span>
-          Telegram Stars & Premium
+          TELEGRAM STARS & PREMIUM
         </span>
 
       </footer>
 
-
     </main>
   );
-}
+        }
