@@ -4,17 +4,65 @@ import { createClient } from "@supabase/supabase-js";
 const ADMIN_EMAIL =
   "juliocesarblancomedina08@gmail.com";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseClients() {
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-const supabaseAuth = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export async function GET(request: NextRequest) {
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error(
+      "Falta la variable NEXT_PUBLIC_SUPABASE_URL en Vercel."
+    );
+  }
+
+  if (!anonKey) {
+    throw new Error(
+      "Falta la variable NEXT_PUBLIC_SUPABASE_ANON_KEY en Vercel."
+    );
+  }
+
+  if (!serviceRoleKey) {
+    throw new Error(
+      "Falta la variable SUPABASE_SERVICE_ROLE_KEY en Vercel."
+    );
+  }
+
+  const supabaseAuth = createClient(
+    supabaseUrl,
+    anonKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+
+  const supabaseAdmin = createClient(
+    supabaseUrl,
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+
+  return {
+    supabaseAuth,
+    supabaseAdmin,
+  };
+}
+
+export async function GET(
+  request: NextRequest
+) {
   try {
     const authorization =
       request.headers.get("authorization");
@@ -30,10 +78,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const token = authorization.replace(
-      "Bearer ",
-      ""
-    );
+    const token = authorization.substring(7);
+
+    const {
+      supabaseAuth,
+      supabaseAdmin,
+    } = getSupabaseClients();
 
     const {
       data: {
@@ -53,13 +103,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    /*
+     * SEGURIDAD:
+     * Solo tu cuenta puede acceder al panel.
+     */
     if (
       (user.email || "").toLowerCase() !==
       ADMIN_EMAIL.toLowerCase()
     ) {
       return NextResponse.json(
         {
-          error: "No tienes permisos de administrador.",
+          error:
+            "No tienes permisos de administrador.",
         },
         {
           status: 403,
@@ -67,21 +122,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    /*
+     * Obtener únicamente depósitos pendientes.
+     */
     const {
       data: deposits,
-      error,
+      error: depositsError,
     } = await supabaseAdmin
       .from("deposits")
       .select(
-        "id,user_id,amount,network,address,status,created_at"
+        `
+        id,
+        user_id,
+        amount,
+        network,
+        address,
+        status,
+        created_at
+        `
       )
       .eq("status", "PENDING")
       .order("created_at", {
         ascending: false,
       });
 
-    if (error) {
-      console.error(error);
+    if (depositsError) {
+      console.error(
+        "ERROR AL OBTENER DEPÓSITOS:",
+        depositsError
+      );
 
       return NextResponse.json(
         {
@@ -98,15 +167,21 @@ export async function GET(request: NextRequest) {
       deposits: deposits || [],
     });
   } catch (error) {
-    console.error(error);
+    console.error(
+      "ERROR EN /api/admin/deposits:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Error interno del servidor.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Error interno del servidor.",
       },
       {
         status: 500,
       }
     );
   }
-}
+        }
