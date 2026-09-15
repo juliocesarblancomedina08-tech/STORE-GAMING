@@ -4,10 +4,18 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// =========================================================
+// VARIABLES DE ENTORNO
+// =========================================================
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY!;
-const CRON_SECRET = process.env.CRON_SECRET!;
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const ETHERSCAN_API_KEY =
+  process.env.ETHERSCAN_API_KEY!;
+const CRON_SECRET =
+  process.env.CRON_SECRET!;
+
 
 // =========================================================
 // CONFIGURACIÓN BEP20
@@ -26,10 +34,10 @@ const USDT_CONTRACT =
 // USDT BEP20 utiliza 18 decimales
 const USDT_DECIMALS = 18;
 
-// Solo procesamos depósitos recientes
+// Solo buscamos pagos recientes
 const LOOKBACK_MINUTES = 15;
 
-// Cantidad de transferencias que consultamos
+// Cantidad máxima de transferencias consultadas
 const TRANSFER_OFFSET = 100;
 
 
@@ -84,14 +92,20 @@ type EtherscanTransfer = {
 // AUTORIZACIÓN DEL CRON
 // =========================================================
 
-function isAuthorized(request: NextRequest) {
-  const authorization = request.headers.get("authorization");
+function isAuthorized(
+  request: NextRequest
+) {
+  const authorization =
+    request.headers.get("authorization");
 
   if (!authorization) {
     return false;
   }
 
-  return authorization === `Bearer ${CRON_SECRET}`;
+  return (
+    authorization ===
+    `Bearer ${CRON_SECRET}`
+  );
 }
 
 
@@ -105,27 +119,35 @@ function rawToUsdt(
 ): number {
   const raw = BigInt(value);
 
-  const divisor = 10n ** BigInt(decimals);
+  // Evitamos usar 10n porque el proyecto
+  // actualmente apunta a un target inferior a ES2020.
+  const divisor = BigInt(
+    "1" + "0".repeat(decimals)
+  );
 
   const whole = raw / divisor;
   const remainder = raw % divisor;
 
-  const remainderString = remainder
-    .toString()
-    .padStart(decimals, "0");
+  const remainderString =
+    remainder
+      .toString()
+      .padStart(decimals, "0");
 
-  const decimalPart = remainderString.replace(/0+$/, "");
+  const decimalPart =
+    remainderString.replace(/0+$/, "");
 
   if (!decimalPart) {
     return Number(whole);
   }
 
-  return Number(`${whole}.${decimalPart}`);
+  return Number(
+    `${whole}.${decimalPart}`
+  );
 }
 
 
 // =========================================================
-// COMPARACIÓN SEGURA DE MONTOS
+// COMPARACIÓN DE MONTOS
 // =========================================================
 
 function amountsMatch(
@@ -133,8 +155,10 @@ function amountsMatch(
   requestedAmount: number
 ) {
   return (
-    Math.abs(blockchainAmount - requestedAmount) <
-    0.000001
+    Math.abs(
+      blockchainAmount -
+        requestedAmount
+    ) < 0.000001
   );
 }
 
@@ -144,24 +168,30 @@ function amountsMatch(
 // =========================================================
 
 async function getUsdtTransfers() {
-  const params = new URLSearchParams({
-    chainid: BSC_CHAIN_ID,
-    module: "account",
-    action: "tokentx",
-    contractaddress: USDT_CONTRACT,
-    address: RECEIVING_WALLET,
-    page: "1",
-    offset: String(TRANSFER_OFFSET),
-    sort: "desc",
-    apikey: ETHERSCAN_API_KEY,
-  });
+  const params =
+    new URLSearchParams({
+      chainid: BSC_CHAIN_ID,
+      module: "account",
+      action: "tokentx",
+      contractaddress:
+        USDT_CONTRACT,
+      address:
+        RECEIVING_WALLET,
+      page: "1",
+      offset:
+        String(TRANSFER_OFFSET),
+      sort: "desc",
+      apikey:
+        ETHERSCAN_API_KEY,
+    });
 
-  const response = await fetch(
-    `https://api.etherscan.io/v2/api?${params.toString()}`,
-    {
-      cache: "no-store",
-    }
-  );
+  const response =
+    await fetch(
+      `https://api.etherscan.io/v2/api?${params.toString()}`,
+      {
+        cache: "no-store",
+      }
+    );
 
   if (!response.ok) {
     throw new Error(
@@ -169,14 +199,41 @@ async function getUsdtTransfers() {
     );
   }
 
-  const data = await response.json();
+  const data =
+    await response.json();
 
-  if (data.status !== "1") {
+  // Cuando no existen transferencias,
+  // Etherscan puede devolver status 0.
+  if (
+    data.status !== "1"
+  ) {
+    const message =
+      String(
+        data.result ||
+        data.message ||
+        ""
+      ).toLowerCase();
+
+    if (
+      message.includes(
+        "no transactions found"
+      ) ||
+      message.includes(
+        "no transactions"
+      )
+    ) {
+      return [];
+    }
+
     throw new Error(
       data.result ||
-      data.message ||
-      "ERROR CONSULTANDO ETHERSCAN"
+        data.message ||
+        "ERROR CONSULTANDO ETHERSCAN"
     );
+  }
+
+  if (!Array.isArray(data.result)) {
+    return [];
   }
 
   return data.result as EtherscanTransfer[];
@@ -184,32 +241,51 @@ async function getUsdtTransfers() {
 
 
 // =========================================================
-// MARCAR DEPÓSITOS VENCIDOS
+// EXPIRAR DEPÓSITOS
 // =========================================================
 
 async function expireDeposits(
   deposits: PendingDeposit[]
 ) {
-  const now = Date.now();
+  const now =
+    Date.now();
 
-  const expired = deposits.filter((deposit) => {
-    if (!deposit.expires_at) {
-      return false;
-    }
+  const expired =
+    deposits.filter(
+      (deposit) => {
+        if (
+          !deposit.expires_at
+        ) {
+          return false;
+        }
 
-    return (
-      new Date(deposit.expires_at).getTime() <= now
+        return (
+          new Date(
+            deposit.expires_at
+          ).getTime() <= now
+        );
+      }
     );
-  });
 
-  for (const deposit of expired) {
-    const { error } = await supabaseAdmin
-      .from("deposits")
-      .update({
-        status: "EXPIRED",
-      })
-      .eq("id", deposit.id)
-      .eq("status", "PENDING");
+  for (
+    const deposit of expired
+  ) {
+    const {
+      error,
+    } =
+      await supabaseAdmin
+        .from("deposits")
+        .update({
+          status: "EXPIRED",
+        })
+        .eq(
+          "id",
+          deposit.id
+        )
+        .eq(
+          "status",
+          "PENDING"
+        );
 
     if (error) {
       console.error(
@@ -225,27 +301,33 @@ async function expireDeposits(
 
 
 // =========================================================
-// PROCESAR DEPÓSITO
+// PROCESAR UN DEPÓSITO
 // =========================================================
 
 async function processDeposit(
   deposit: PendingDeposit,
   transfers: EtherscanTransfer[]
 ) {
+
   // -------------------------------------------------------
-  // Seguridad: solo BEP20
+  // Solo BEP20
   // -------------------------------------------------------
 
-  if (deposit.network !== "BEP20") {
+  if (
+    deposit.network !==
+    "BEP20"
+  ) {
     return {
-      depositId: deposit.id,
-      result: "SKIPPED_NETWORK",
+      depositId:
+        deposit.id,
+      result:
+        "SKIPPED_NETWORK",
     };
   }
 
 
   // -------------------------------------------------------
-  // Seguridad: wallet registrada
+  // Verificar wallet registrada
   // -------------------------------------------------------
 
   if (
@@ -254,122 +336,159 @@ async function processDeposit(
       RECEIVING_WALLET.toLowerCase()
   ) {
     return {
-      depositId: deposit.id,
-      result: "SKIPPED_WALLET",
+      depositId:
+        deposit.id,
+      result:
+        "SKIPPED_WALLET",
     };
   }
 
 
   // -------------------------------------------------------
-  // Seguridad: fecha de creación
+  // Comprobar ventana de tiempo
   // -------------------------------------------------------
 
-  const createdAt = new Date(
-    deposit.created_at
-  ).getTime();
+  const createdAt =
+    new Date(
+      deposit.created_at
+    ).getTime();
 
-  const now = Date.now();
+  const now =
+    Date.now();
 
   const lookback =
-    now - LOOKBACK_MINUTES * 60 * 1000;
+    now -
+    LOOKBACK_MINUTES *
+      60 *
+      1000;
 
-  const minimumTimestamp = Math.max(
-    createdAt,
-    lookback
-  );
+  const minimumTimestamp =
+    Math.max(
+      createdAt,
+      lookback
+    );
 
 
   // -------------------------------------------------------
   // Buscar transferencia válida
   // -------------------------------------------------------
 
-  const matchingTransfer = transfers.find(
-    (transfer) => {
+  const matchingTransfer =
+    transfers.find(
+      (transfer) => {
 
-      // Contrato USDT correcto
-      if (
-        transfer.contractAddress.toLowerCase() !==
-        USDT_CONTRACT.toLowerCase()
-      ) {
-        return false;
-      }
-
-
-      // Wallet destino correcta
-      if (
-        transfer.to.toLowerCase() !==
-        RECEIVING_WALLET.toLowerCase()
-      ) {
-        return false;
-      }
+        // Contrato USDT correcto
+        if (
+          transfer.contractAddress.toLowerCase() !==
+          USDT_CONTRACT.toLowerCase()
+        ) {
+          return false;
+        }
 
 
-      // Solo transferencias posteriores
-      // a la creación del depósito
-      const timestamp =
-        Number(transfer.timeStamp) * 1000;
-
-      if (timestamp < minimumTimestamp) {
-        return false;
-      }
-
-
-      // TX válida
-      if (!transfer.hash) {
-        return false;
-      }
+        // Wallet destino correcta
+        if (
+          transfer.to.toLowerCase() !==
+          RECEIVING_WALLET.toLowerCase()
+        ) {
+          return false;
+        }
 
 
-      // Debe tener confirmaciones
-      const confirmations =
-        Number(transfer.confirmations || "0");
+        // TX posterior a la creación
+        // del depósito
+        const timestamp =
+          Number(
+            transfer.timeStamp
+          ) * 1000;
 
-      if (confirmations < 2) {
-        return false;
-      }
+        if (
+          timestamp <
+          minimumTimestamp
+        ) {
+          return false;
+        }
 
 
-      // Convertir USDT
-      const receivedAmount =
-        rawToUsdt(
-          transfer.value,
+        // TX válida
+        if (
+          !transfer.hash
+        ) {
+          return false;
+        }
+
+
+        // Debe tener confirmaciones
+        const confirmations =
+          Number(
+            transfer.confirmations ||
+              "0"
+          );
+
+        if (
+          confirmations < 2
+        ) {
+          return false;
+        }
+
+
+        // Decimales del token
+        const decimals =
           Number(
             transfer.tokenDecimal ||
-            USDT_DECIMALS
+              USDT_DECIMALS
+          );
+
+
+        // Convertir cantidad
+        const receivedAmount =
+          rawToUsdt(
+            transfer.value,
+            decimals
+          );
+
+
+        // Comparar cantidad
+        return amountsMatch(
+          receivedAmount,
+          Number(
+            deposit.amount
           )
         );
-
-
-      // Monto exacto
-      return amountsMatch(
-        receivedAmount,
-        Number(deposit.amount)
-      );
-    }
-  );
+      }
+    );
 
 
   // -------------------------------------------------------
-  // No encontramos pago todavía
+  // No se encontró pago
   // -------------------------------------------------------
 
-  if (!matchingTransfer) {
+  if (
+    !matchingTransfer
+  ) {
     return {
-      depositId: deposit.id,
-      result: "WAITING_PAYMENT",
+      depositId:
+        deposit.id,
+      result:
+        "WAITING_PAYMENT",
     };
   }
 
 
   // -------------------------------------------------------
-  // Antes de acreditar comprobamos que
-  // la TX no esté registrada
+  // Comprobar TX ya utilizada
   // -------------------------------------------------------
 
-  const { data: existingTx, error: existingTxError } =
+  const {
+    data: existingTx,
+    error:
+      existingTxError,
+  } =
     await supabaseAdmin
       .from("deposits")
-      .select("id,status,user_id")
+      .select(
+        "id,status,user_id"
+      )
       .ilike(
         "tx_hash",
         matchingTransfer.hash
@@ -377,39 +496,56 @@ async function processDeposit(
       .maybeSingle();
 
 
-  if (existingTxError) {
+  if (
+    existingTxError
+  ) {
     console.error(
       "ERROR BUSCANDO TX:",
       existingTxError
     );
 
     return {
-      depositId: deposit.id,
-      result: "TX_CHECK_ERROR",
+      depositId:
+        deposit.id,
+      result:
+        "TX_CHECK_ERROR",
+      error:
+        existingTxError.message,
     };
   }
 
 
   // TX ya utilizada
-  if (existingTx) {
+  if (
+    existingTx
+  ) {
     return {
-      depositId: deposit.id,
-      result: "TX_ALREADY_USED",
-      existingDepositId: existingTx.id,
+      depositId:
+        deposit.id,
+      result:
+        "TX_ALREADY_USED",
+      existingDepositId:
+        existingTx.id,
     };
   }
 
 
   // -------------------------------------------------------
-  // Acreditación ATÓMICA
+  // ACREDITACIÓN ATÓMICA
   // -------------------------------------------------------
 
-  const { data, error } =
+  const {
+    data,
+    error,
+  } =
     await supabaseAdmin.rpc(
       "confirm_deposit_chain",
       {
-        p_deposit_id: deposit.id,
-        p_tx_hash: matchingTransfer.hash,
+        p_deposit_id:
+          deposit.id,
+
+        p_tx_hash:
+          matchingTransfer.hash,
       }
     );
 
@@ -422,18 +558,33 @@ async function processDeposit(
     );
 
     return {
-      depositId: deposit.id,
-      result: "CONFIRM_ERROR",
-      error: error.message,
+      depositId:
+        deposit.id,
+      result:
+        "CONFIRM_ERROR",
+      error:
+        error.message,
     };
   }
 
 
+  // -------------------------------------------------------
+  // Confirmado
+  // -------------------------------------------------------
+
   return {
-    depositId: deposit.id,
-    result: "CONFIRMED",
-    txHash: matchingTransfer.hash,
-    amount: deposit.amount,
+    depositId:
+      deposit.id,
+
+    result:
+      "CONFIRMED",
+
+    txHash:
+      matchingTransfer.hash,
+
+    amount:
+      deposit.amount,
+
     data,
   };
 }
@@ -450,14 +601,17 @@ export async function GET(
   try {
 
     // -----------------------------------------------------
-    // Verificar CRON
+    // Verificar CRON_SECRET
     // -----------------------------------------------------
 
-    if (!CRON_SECRET) {
+    if (
+      !CRON_SECRET
+    ) {
       return NextResponse.json(
         {
           ok: false,
-          error: "CRON_SECRET NO CONFIGURADO",
+          error:
+            "CRON_SECRET NO CONFIGURADO",
         },
         {
           status: 500,
@@ -466,11 +620,20 @@ export async function GET(
     }
 
 
-    if (!isAuthorized(request)) {
+    // -----------------------------------------------------
+    // Verificar autorización
+    // -----------------------------------------------------
+
+    if (
+      !isAuthorized(
+        request
+      )
+    ) {
       return NextResponse.json(
         {
           ok: false,
-          error: "NO AUTORIZADO",
+          error:
+            "NO AUTORIZADO",
         },
         {
           status: 401,
@@ -480,7 +643,7 @@ export async function GET(
 
 
     // -----------------------------------------------------
-    // Verificar variables
+    // Verificar Supabase
     // -----------------------------------------------------
 
     if (
@@ -500,7 +663,13 @@ export async function GET(
     }
 
 
-    if (!ETHERSCAN_API_KEY) {
+    // -----------------------------------------------------
+    // Verificar Etherscan
+    // -----------------------------------------------------
+
+    if (
+      !ETHERSCAN_API_KEY
+    ) {
       return NextResponse.json(
         {
           ok: false,
@@ -520,28 +689,38 @@ export async function GET(
 
     const {
       data: deposits,
-      error: depositsError,
-    } = await supabaseAdmin
-      .from("deposits")
-      .select(
-        `
-          id,
-          user_id,
-          amount,
-          network,
-          wallet_address,
-          status,
-          created_at,
-          expires_at
-        `
-      )
-      .eq("status", "PENDING")
-      .order("created_at", {
-        ascending: true,
-      });
+      error:
+        depositsError,
+    } =
+      await supabaseAdmin
+        .from("deposits")
+        .select(
+          `
+            id,
+            user_id,
+            amount,
+            network,
+            wallet_address,
+            status,
+            created_at,
+            expires_at
+          `
+        )
+        .eq(
+          "status",
+          "PENDING"
+        )
+        .order(
+          "created_at",
+          {
+            ascending: true,
+          }
+        );
 
 
-    if (depositsError) {
+    if (
+      depositsError
+    ) {
       throw depositsError;
     }
 
@@ -561,27 +740,54 @@ export async function GET(
 
 
     // -----------------------------------------------------
-    // Si no quedan depósitos BEP20
+    // Filtrar BEP20 todavía vigentes
     // -----------------------------------------------------
 
     const bep20Deposits =
       pendingDeposits.filter(
-        (deposit) =>
-          deposit.network === "BEP20" &&
-          deposit.expires_at &&
-          new Date(
-            deposit.expires_at
-          ).getTime() > Date.now()
+        (deposit) => {
+
+          if (
+            deposit.network !==
+            "BEP20"
+          ) {
+            return false;
+          }
+
+          if (
+            !deposit.expires_at
+          ) {
+            return true;
+          }
+
+          return (
+            new Date(
+              deposit.expires_at
+            ).getTime() >
+            Date.now()
+          );
+        }
       );
 
 
-    if (bep20Deposits.length === 0) {
+    // -----------------------------------------------------
+    // No hay depósitos BEP20
+    // -----------------------------------------------------
+
+    if (
+      bep20Deposits.length === 0
+    ) {
       return NextResponse.json({
         ok: true,
+
         message:
           "NO HAY DEPÓSITOS BEP20 PENDIENTES",
+
         pending: 0,
-        expired: expiredCount,
+
+        expired:
+          expiredCount,
+
         processed: [],
       });
     }
@@ -611,7 +817,9 @@ export async function GET(
           transfers
         );
 
-      results.push(result);
+      results.push(
+        result
+      );
     }
 
 
@@ -621,17 +829,32 @@ export async function GET(
 
     return NextResponse.json({
       ok: true,
-      network: "BEP20",
-      wallet: RECEIVING_WALLET,
-      pending: bep20Deposits.length,
-      expired: expiredCount,
-      transfersChecked: transfers.length,
-      processed: results,
+
+      network:
+        "BEP20",
+
+      wallet:
+        RECEIVING_WALLET,
+
+      pending:
+        bep20Deposits.length,
+
+      expired:
+        expiredCount,
+
+      transfersChecked:
+        transfers.length,
+
+      processed:
+        results,
+
       timestamp:
         new Date().toISOString(),
     });
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
 
     console.error(
       "ERROR CRON BEP20:",
@@ -641,6 +864,7 @@ export async function GET(
     return NextResponse.json(
       {
         ok: false,
+
         error:
           error instanceof Error
             ? error.message
@@ -651,4 +875,4 @@ export async function GET(
       }
     );
   }
-  }
+      }
