@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const ADMIN_EMAIL =
-  "juliocesarblancomedina08@gmail.com";
+const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
 function getSupabaseClients() {
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
     throw new Error(
@@ -60,9 +54,7 @@ function getSupabaseClients() {
   };
 }
 
-export async function GET(
-  request: NextRequest
-) {
+export async function GET(request: NextRequest) {
   try {
     const authorization =
       request.headers.get("authorization");
@@ -93,6 +85,11 @@ export async function GET(
     } = await supabaseAuth.auth.getUser(token);
 
     if (userError || !user) {
+      console.error(
+        "ERROR DE AUTENTICACIÓN:",
+        userError
+      );
+
       return NextResponse.json(
         {
           error: "Sesión inválida.",
@@ -104,8 +101,8 @@ export async function GET(
     }
 
     /*
-     * SEGURIDAD:
-     * Solo tu cuenta puede acceder al panel.
+     * SOLO TU CUENTA PUEDE ACCEDER
+     * AL PANEL DE ADMINISTRACIÓN.
      */
     if (
       (user.email || "").toLowerCase() !==
@@ -123,7 +120,11 @@ export async function GET(
     }
 
     /*
-     * Obtener únicamente depósitos pendientes.
+     * OBTENER DEPÓSITOS PENDIENTES.
+     *
+     * IMPORTANTE:
+     * La tabla deposits utiliza
+     * wallet_address, NO address.
      */
     const {
       data: deposits,
@@ -134,11 +135,17 @@ export async function GET(
         `
         id,
         user_id,
+        username,
+        email,
         amount,
+        currency,
+        payment_method,
         network,
-        address,
+        wallet_address,
+        tx_hash,
         status,
-        created_at
+        created_at,
+        confirmed_at
         `
       )
       .eq("status", "PENDING")
@@ -163,8 +170,20 @@ export async function GET(
       );
     }
 
+    /*
+     * El frontend anterior utiliza "address".
+     * Mantenemos ese nombre en la respuesta,
+     * pero obtenemos el valor real desde
+     * wallet_address.
+     */
+    const formattedDeposits =
+      (deposits || []).map((deposit) => ({
+        ...deposit,
+        address: deposit.wallet_address,
+      }));
+
     return NextResponse.json({
-      deposits: deposits || [],
+      deposits: formattedDeposits,
     });
   } catch (error) {
     console.error(
