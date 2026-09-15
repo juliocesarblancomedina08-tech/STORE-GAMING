@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
+ 
 // =========================================================
 // VARIABLES DE ENTORNO
 // =========================================================
