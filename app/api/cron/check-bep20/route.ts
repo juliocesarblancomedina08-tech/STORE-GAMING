@@ -8,11 +8,15 @@ export const dynamic = "force-dynamic";
 // VARIABLES DE ENTORNO
 // =========================================================
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
 const ETHERSCAN_API_KEY =
   process.env.ETHERSCAN_API_KEY!;
+
 const CRON_SECRET =
   process.env.CRON_SECRET!;
 
@@ -94,7 +98,8 @@ type EtherscanTransfer = {
 
 function isAuthorized(
   request: NextRequest
-) {
+): boolean {
+
   const authorization =
     request.headers.get("authorization");
 
@@ -117,16 +122,27 @@ function rawToUsdt(
   value: string,
   decimals: number
 ): number {
+
   const raw = BigInt(value);
 
-  // Evitamos usar 10n porque el proyecto
-  // actualmente apunta a un target inferior a ES2020.
+  /*
+   * No usamos:
+   *
+   * 10n ** BigInt(decimals)
+   *
+   * porque el proyecto actualmente apunta
+   * a un target inferior a ES2020.
+   */
+
   const divisor = BigInt(
     "1" + "0".repeat(decimals)
   );
 
-  const whole = raw / divisor;
-  const remainder = raw % divisor;
+  const whole =
+    raw / divisor;
+
+  const remainder =
+    raw % divisor;
 
   const remainderString =
     remainder
@@ -134,7 +150,10 @@ function rawToUsdt(
       .padStart(decimals, "0");
 
   const decimalPart =
-    remainderString.replace(/0+$/, "");
+    remainderString.replace(
+      /0+$/,
+      ""
+    );
 
   if (!decimalPart) {
     return Number(whole);
@@ -153,47 +172,108 @@ function rawToUsdt(
 function amountsMatch(
   blockchainAmount: number,
   requestedAmount: number
-) {
-  return (
+): boolean {
+
+  /*
+   * Permitimos una diferencia extremadamente pequeña
+   * para evitar problemas de representación decimal.
+   */
+
+  const difference =
     Math.abs(
       blockchainAmount -
-        requestedAmount
-    ) < 0.000001
-  );
+      requestedAmount
+    );
+
+  return difference < 0.000001;
 }
 
 
 // =========================================================
-// CONSULTAR ETHERSCAN V2
+// NORMALIZAR DIRECCIONES
 // =========================================================
 
-async function getUsdtTransfers() {
-  const params =
-    new URLSearchParams({
-      chainid: BSC_CHAIN_ID,
-      module: "account",
-      action: "tokentx",
-      contractaddress:
-        USDT_CONTRACT,
-      address:
-        RECEIVING_WALLET,
-      page: "1",
-      offset:
-        String(TRANSFER_OFFSET),
-      sort: "desc",
-      apikey:
-        ETHERSCAN_API_KEY,
-    });
+function normalizeAddress(
+  address: string | null | undefined
+): string {
+
+  return (
+    address || ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+
+// =========================================================
+// OBTENER TRANSFERENCIAS DE ETHERSCAN
+// =========================================================
+
+async function getTransfers(): Promise<
+  EtherscanTransfer[]
+> {
+
+  const url =
+    new URL(
+      "https://api.etherscan.io/v2/api"
+    );
+
+  url.searchParams.set(
+    "chainid",
+    BSC_CHAIN_ID
+  );
+
+  url.searchParams.set(
+    "module",
+    "account"
+  );
+
+  url.searchParams.set(
+    "action",
+    "tokentx"
+  );
+
+  url.searchParams.set(
+    "contractaddress",
+    USDT_CONTRACT
+  );
+
+  url.searchParams.set(
+    "address",
+    RECEIVING_WALLET
+  );
+
+  url.searchParams.set(
+    "page",
+    "1"
+  );
+
+  url.searchParams.set(
+    "offset",
+    String(TRANSFER_OFFSET)
+  );
+
+  url.searchParams.set(
+    "sort",
+    "desc"
+  );
+
+  url.searchParams.set(
+    "apikey",
+    ETHERSCAN_API_KEY
+  );
 
   const response =
     await fetch(
-      `https://api.etherscan.io/v2/api?${params.toString()}`,
+      url.toString(),
       {
+        method: "GET",
         cache: "no-store",
       }
     );
 
   if (!response.ok) {
+
     throw new Error(
       `ETHERSCAN HTTP ${response.status}`
     );
@@ -202,101 +282,347 @@ async function getUsdtTransfers() {
   const data =
     await response.json();
 
-  // Cuando no existen transferencias,
-  // Etherscan puede devolver status 0.
+  /*
+   * Cuando no existen transferencias,
+   * Etherscan puede responder:
+   *
+   * status: "0"
+   * message: "No transactions found"
+   *
+   * Eso no es un error para nuestro cron.
+   */
+
   if (
-    data.status !== "1"
+    data?.message ===
+    "No transactions found"
   ) {
-    const message =
-      String(
-        data.result ||
-        data.message ||
-        ""
-      ).toLowerCase();
-
-    if (
-      message.includes(
-        "no transactions found"
-      ) ||
-      message.includes(
-        "no transactions"
-      )
-    ) {
-      return [];
-    }
-
-    throw new Error(
-      data.result ||
-        data.message ||
-        "ERROR CONSULTANDO ETHERSCAN"
-    );
-  }
-
-  if (!Array.isArray(data.result)) {
     return [];
   }
 
-  return data.result as EtherscanTransfer[];
+  if (
+    Array.isArray(data?.result)
+  ) {
+    return data.result as EtherscanTransfer[];
+  }
+
+  /*
+   * Algunas respuestas de error de Etherscan
+   * vienen con result como texto.
+   */
+
+  if (
+    typeof data?.result ===
+    "string"
+  ) {
+
+    throw new Error(
+      `ETHERSCAN: ${data.result}`
+    );
+  }
+
+  return [];
 }
 
 
 // =========================================================
-// EXPIRAR DEPÓSITOS
+// COMPROBAR SI EL TX HASH YA FUE UTILIZADO
 // =========================================================
 
-async function expireDeposits(
-  deposits: PendingDeposit[]
-) {
+async function transactionAlreadyUsed(
+  txHash: string
+): Promise<boolean> {
+
+  const {
+    data,
+    error,
+  } =
+    await supabaseAdmin
+      .from("deposits")
+      .select("id")
+      .ilike(
+        "tx_hash",
+        txHash
+      )
+      .limit(1);
+
+  if (error) {
+
+    throw new Error(
+      `ERROR COMPROBANDO TX HASH: ${error.message}`
+    );
+  }
+
+  return (
+    Array.isArray(data) &&
+    data.length > 0
+  );
+}
+
+
+// =========================================================
+// EXPIRAR DEPÓSITOS VENCIDOS
+// =========================================================
+
+async function expireDeposits(): Promise<number> {
+
+  const now =
+    new Date().toISOString();
+
+  const {
+    data,
+    error,
+  } =
+    await supabaseAdmin
+      .from("deposits")
+      .update({
+        status: "EXPIRED",
+      })
+      .eq(
+        "status",
+        "PENDING"
+      )
+      .lt(
+        "expires_at",
+        now
+      )
+      .select("id");
+
+  if (error) {
+
+    throw new Error(
+      `ERROR EXPIRANDO DEPÓSITOS: ${error.message}`
+    );
+  }
+
+  return (
+    Array.isArray(data)
+      ? data.length
+      : 0
+  );
+}
+
+
+// =========================================================
+// OBTENER DEPÓSITOS PENDIENTES BEP20
+// =========================================================
+
+async function getPendingDeposits(): Promise<
+  PendingDeposit[]
+> {
+
+  const {
+    data,
+    error,
+  } =
+    await supabaseAdmin
+      .from("deposits")
+      .select(
+        [
+          "id",
+          "user_id",
+          "amount",
+          "network",
+          "wallet_address",
+          "status",
+          "created_at",
+          "expires_at",
+        ].join(",")
+      )
+      .eq(
+        "status",
+        "PENDING"
+      )
+      .eq(
+        "network",
+        "BEP20"
+      )
+      .order(
+        "created_at",
+        {
+          ascending: true,
+        }
+      );
+
+  if (error) {
+
+    throw new Error(
+      `ERROR OBTENIENDO DEPÓSITOS: ${error.message}`
+    );
+  }
+
+  return (
+    (data || []) as PendingDeposit[]
+  );
+}
+
+
+// =========================================================
+// COMPROBAR SI TRANSFERENCIA ESTÁ DENTRO DEL TIEMPO
+// =========================================================
+
+function transferIsRecent(
+  transfer: EtherscanTransfer
+): boolean {
+
+  const timestamp =
+    Number(
+      transfer.timeStamp
+    );
+
+  if (
+    !Number.isFinite(timestamp)
+  ) {
+    return false;
+  }
+
   const now =
     Date.now();
 
-  const expired =
-    deposits.filter(
-      (deposit) => {
-        if (
-          !deposit.expires_at
-        ) {
-          return false;
-        }
+  const transferTime =
+    timestamp * 1000;
 
-        return (
-          new Date(
-            deposit.expires_at
-          ).getTime() <= now
-        );
-      }
-    );
+  const minimumTime =
+    now -
+    LOOKBACK_MINUTES *
+      60 *
+      1000;
 
-  for (
-    const deposit of expired
+  return (
+    transferTime >=
+    minimumTime
+  );
+}
+
+
+// =========================================================
+// COMPROBAR TRANSFERENCIA VÁLIDA
+// =========================================================
+
+function transferMatchesDeposit(
+  transfer: EtherscanTransfer,
+  deposit: PendingDeposit
+): boolean {
+
+  // -------------------------------------------------------
+  // 1. Contrato USDT correcto
+  // -------------------------------------------------------
+
+  if (
+    normalizeAddress(
+      transfer.contractAddress
+    ) !==
+    normalizeAddress(
+      USDT_CONTRACT
+    )
   ) {
-    const {
-      error,
-    } =
-      await supabaseAdmin
-        .from("deposits")
-        .update({
-          status: "EXPIRED",
-        })
-        .eq(
-          "id",
-          deposit.id
-        )
-        .eq(
-          "status",
-          "PENDING"
-        );
-
-    if (error) {
-      console.error(
-        "ERROR EXPIRANDO DEPÓSITO:",
-        deposit.id,
-        error
-      );
-    }
+    return false;
   }
 
-  return expired.length;
+
+  // -------------------------------------------------------
+  // 2. Wallet destino correcta
+  // -------------------------------------------------------
+
+  if (
+    normalizeAddress(
+      transfer.to
+    ) !==
+    normalizeAddress(
+      RECEIVING_WALLET
+    )
+  ) {
+    return false;
+  }
+
+
+  // -------------------------------------------------------
+  // 3. Wallet guardada en el depósito
+  // -------------------------------------------------------
+
+  if (
+    deposit.wallet_address &&
+    normalizeAddress(
+      deposit.wallet_address
+    ) !==
+    normalizeAddress(
+      RECEIVING_WALLET
+    )
+  ) {
+    return false;
+  }
+
+
+  // -------------------------------------------------------
+  // 4. Transferencia reciente
+  // -------------------------------------------------------
+
+  if (
+    !transferIsRecent(
+      transfer
+    )
+  ) {
+    return false;
+  }
+
+
+  // -------------------------------------------------------
+  // 5. Confirmaciones
+  // -------------------------------------------------------
+
+  const confirmations =
+    Number(
+      transfer.confirmations
+    );
+
+  if (
+    !Number.isFinite(
+      confirmations
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    confirmations < 2
+  ) {
+    return false;
+  }
+
+
+  // -------------------------------------------------------
+  // 6. Monto exacto
+  // -------------------------------------------------------
+
+  const blockchainAmount =
+    rawToUsdt(
+      transfer.value,
+      USDT_DECIMALS
+    );
+
+  const requestedAmount =
+    Number(
+      deposit.amount
+    );
+
+  if (
+    !Number.isFinite(
+      requestedAmount
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    !amountsMatch(
+      blockchainAmount,
+      requestedAmount
+    )
+  ) {
+    return false;
+  }
+
+
+  return true;
 }
 
 
@@ -309,229 +635,191 @@ async function processDeposit(
   transfers: EtherscanTransfer[]
 ) {
 
-  // -------------------------------------------------------
-  // Solo BEP20
-  // -------------------------------------------------------
+  /*
+   * Volvemos a comprobar que el depósito
+   * siga pendiente antes de procesarlo.
+   */
 
   if (
-    deposit.network !==
-    "BEP20"
+    deposit.status !==
+    "PENDING"
   ) {
+
     return {
       depositId:
         deposit.id,
-      result:
-        "SKIPPED_NETWORK",
+
+      status:
+        "SKIPPED",
+
+      reason:
+        "EL DEPÓSITO YA NO ESTÁ PENDIENTE",
     };
   }
 
 
   // -------------------------------------------------------
-  // Verificar wallet registrada
+  // Comprobar expiración
   // -------------------------------------------------------
 
   if (
-    !deposit.wallet_address ||
-    deposit.wallet_address.toLowerCase() !==
-      RECEIVING_WALLET.toLowerCase()
+    deposit.expires_at
   ) {
-    return {
-      depositId:
-        deposit.id,
-      result:
-        "SKIPPED_WALLET",
-    };
+
+    const expiresAt =
+      new Date(
+        deposit.expires_at
+      ).getTime();
+
+    if (
+      Number.isFinite(
+        expiresAt
+      ) &&
+      expiresAt <=
+        Date.now()
+    ) {
+
+      const {
+        error,
+      } =
+        await supabaseAdmin
+          .from("deposits")
+          .update({
+            status:
+              "EXPIRED",
+          })
+          .eq(
+            "id",
+            deposit.id
+          )
+          .eq(
+            "status",
+            "PENDING"
+          );
+
+      if (error) {
+
+        console.error(
+          "ERROR EXPIRANDO DEPÓSITO:",
+          deposit.id,
+          error
+        );
+
+        return {
+          depositId:
+            deposit.id,
+
+          status:
+            "ERROR",
+
+          reason:
+            error.message,
+        };
+      }
+
+      return {
+        depositId:
+          deposit.id,
+
+        status:
+          "EXPIRED",
+
+        reason:
+          "DEPÓSITO EXPIRADO",
+      };
+    }
   }
 
 
   // -------------------------------------------------------
-  // Comprobar ventana de tiempo
-  // -------------------------------------------------------
-
-  const createdAt =
-    new Date(
-      deposit.created_at
-    ).getTime();
-
-  const now =
-    Date.now();
-
-  const lookback =
-    now -
-    LOOKBACK_MINUTES *
-      60 *
-      1000;
-
-  const minimumTimestamp =
-    Math.max(
-      createdAt,
-      lookback
-    );
-
-
-  // -------------------------------------------------------
-  // Buscar transferencia válida
+  // Buscar transferencia compatible
   // -------------------------------------------------------
 
   const matchingTransfer =
     transfers.find(
-      (transfer) => {
-
-        // Contrato USDT correcto
-        if (
-          transfer.contractAddress.toLowerCase() !==
-          USDT_CONTRACT.toLowerCase()
-        ) {
-          return false;
-        }
-
-
-        // Wallet destino correcta
-        if (
-          transfer.to.toLowerCase() !==
-          RECEIVING_WALLET.toLowerCase()
-        ) {
-          return false;
-        }
-
-
-        // TX posterior a la creación
-        // del depósito
-        const timestamp =
-          Number(
-            transfer.timeStamp
-          ) * 1000;
-
-        if (
-          timestamp <
-          minimumTimestamp
-        ) {
-          return false;
-        }
-
-
-        // TX válida
-        if (
-          !transfer.hash
-        ) {
-          return false;
-        }
-
-
-        // Debe tener confirmaciones
-        const confirmations =
-          Number(
-            transfer.confirmations ||
-              "0"
-          );
-
-        if (
-          confirmations < 2
-        ) {
-          return false;
-        }
-
-
-        // Decimales del token
-        const decimals =
-          Number(
-            transfer.tokenDecimal ||
-              USDT_DECIMALS
-          );
-
-
-        // Convertir cantidad
-        const receivedAmount =
-          rawToUsdt(
-            transfer.value,
-            decimals
-          );
-
-
-        // Comparar cantidad
-        return amountsMatch(
-          receivedAmount,
-          Number(
-            deposit.amount
-          )
-        );
-      }
+      (transfer) =>
+        transferMatchesDeposit(
+          transfer,
+          deposit
+        )
     );
 
 
   // -------------------------------------------------------
-  // No se encontró pago
+  // No encontrado todavía
   // -------------------------------------------------------
 
   if (
     !matchingTransfer
   ) {
+
     return {
       depositId:
         deposit.id,
-      result:
-        "WAITING_PAYMENT",
+
+      status:
+        "PENDING",
+
+      reason:
+        "NO SE ENCONTRÓ UN PAGO COMPATIBLE",
     };
   }
 
 
   // -------------------------------------------------------
-  // Comprobar TX ya utilizada
+  // TX HASH
   // -------------------------------------------------------
 
-  const {
-    data: existingTx,
-    error:
-      existingTxError,
-  } =
-    await supabaseAdmin
-      .from("deposits")
-      .select(
-        "id,status,user_id"
-      )
-      .ilike(
-        "tx_hash",
-        matchingTransfer.hash
-      )
-      .maybeSingle();
-
+  const txHash =
+    matchingTransfer.hash
+      ?.trim()
+      .toLowerCase();
 
   if (
-    existingTxError
+    !txHash
   ) {
-    console.error(
-      "ERROR BUSCANDO TX:",
-      existingTxError
+
+    return {
+      depositId:
+        deposit.id,
+
+      status:
+        "ERROR",
+
+      reason:
+        "TX HASH INVÁLIDO",
+    };
+  }
+
+
+  // -------------------------------------------------------
+  // Comprobar que el TX no haya sido usado
+  // -------------------------------------------------------
+
+  const alreadyUsed =
+    await transactionAlreadyUsed(
+      txHash
     );
 
-    return {
-      depositId:
-        deposit.id,
-      result:
-        "TX_CHECK_ERROR",
-      error:
-        existingTxError.message,
-    };
-  }
-
-
-  // TX ya utilizada
   if (
-    existingTx
+    alreadyUsed
   ) {
+
     return {
       depositId:
         deposit.id,
-      result:
-        "TX_ALREADY_USED",
-      existingDepositId:
-        existingTx.id,
+
+      status:
+        "REJECTED",
+
+      reason:
+        "ESTA TRANSACCIÓN YA FUE UTILIZADA",
     };
   }
 
 
   // -------------------------------------------------------
-  // ACREDITACIÓN ATÓMICA
+  // Confirmar y acreditar mediante RPC segura
   // -------------------------------------------------------
 
   const {
@@ -545,12 +833,17 @@ async function processDeposit(
           deposit.id,
 
         p_tx_hash:
-          matchingTransfer.hash,
+          txHash,
       }
     );
 
 
+  // -------------------------------------------------------
+  // Error RPC
+  // -------------------------------------------------------
+
   if (error) {
+
     console.error(
       "ERROR CONFIRMANDO DEPÓSITO:",
       deposit.id,
@@ -560,9 +853,11 @@ async function processDeposit(
     return {
       depositId:
         deposit.id,
-      result:
-        "CONFIRM_ERROR",
-      error:
+
+      status:
+        "ERROR",
+
+      reason:
         error.message,
     };
   }
@@ -576,239 +871,136 @@ async function processDeposit(
     depositId:
       deposit.id,
 
-    result:
+    status:
       "CONFIRMED",
 
-    txHash:
-      matchingTransfer.hash,
+    txHash,
 
     amount:
-      deposit.amount,
+      rawToUsdt(
+        matchingTransfer.value,
+        USDT_DECIMALS
+      ),
 
-    data,
+    transaction:
+      data,
   };
 }
 
 
 // =========================================================
-// GET — CRON
+// GET - CRON BEP20
 // =========================================================
 
 export async function GET(
   request: NextRequest
 ) {
 
+  // =======================================================
+  // AUTORIZACIÓN
+  // =======================================================
+
+  if (
+    !isAuthorized(
+      request
+    )
+  ) {
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "NO AUTORIZADO",
+      },
+      {
+        status: 401,
+      }
+    );
+  }
+
+
   try {
 
-    // -----------------------------------------------------
-    // Verificar CRON_SECRET
-    // -----------------------------------------------------
-
-    if (
-      !CRON_SECRET
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "CRON_SECRET NO CONFIGURADO",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-
-    // -----------------------------------------------------
-    // Verificar autorización
-    // -----------------------------------------------------
-
-    if (
-      !isAuthorized(
-        request
-      )
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "NO AUTORIZADO",
-        },
-        {
-          status: 401,
-        }
-      );
-    }
-
-
-    // -----------------------------------------------------
-    // Verificar Supabase
-    // -----------------------------------------------------
+    // =====================================================
+    // COMPROBAR VARIABLES
+    // =====================================================
 
     if (
       !SUPABASE_URL ||
       !SUPABASE_SERVICE_ROLE_KEY
     ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "VARIABLES DE SUPABASE NO CONFIGURADAS",
-        },
-        {
-          status: 500,
-        }
+
+      throw new Error(
+        "FALTAN VARIABLES DE SUPABASE"
       );
     }
-
-
-    // -----------------------------------------------------
-    // Verificar Etherscan
-    // -----------------------------------------------------
 
     if (
       !ETHERSCAN_API_KEY
     ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "ETHERSCAN_API_KEY NO CONFIGURADA",
-        },
-        {
-          status: 500,
-        }
+
+      throw new Error(
+        "FALTA ETHERSCAN_API_KEY"
       );
     }
-
-
-    // -----------------------------------------------------
-    // Obtener depósitos pendientes
-    // -----------------------------------------------------
-
-    const {
-      data: deposits,
-      error:
-        depositsError,
-    } =
-      await supabaseAdmin
-        .from("deposits")
-        .select(
-          `
-            id,
-            user_id,
-            amount,
-            network,
-            wallet_address,
-            status,
-            created_at,
-            expires_at
-          `
-        )
-        .eq(
-          "status",
-          "PENDING"
-        )
-        .order(
-          "created_at",
-          {
-            ascending: true,
-          }
-        );
-
 
     if (
-      depositsError
+      !CRON_SECRET
     ) {
-      throw depositsError;
+
+      throw new Error(
+        "FALTA CRON_SECRET"
+      );
     }
 
 
-    const pendingDeposits =
-      (deposits || []) as PendingDeposit[];
-
-
-    // -----------------------------------------------------
-    // Expirar depósitos vencidos
-    // -----------------------------------------------------
+    // =====================================================
+    // EXPIRAR DEPÓSITOS VENCIDOS
+    // =====================================================
 
     const expiredCount =
-      await expireDeposits(
-        pendingDeposits
-      );
+      await expireDeposits();
 
 
-    // -----------------------------------------------------
-    // Filtrar BEP20 todavía vigentes
-    // -----------------------------------------------------
+    // =====================================================
+    // OBTENER DEPÓSITOS PENDIENTES
+    // =====================================================
+
+    const pendingDeposits =
+      await getPendingDeposits();
+
+
+    // =====================================================
+    // FILTRAR SOLO BEP20
+    // =====================================================
 
     const bep20Deposits =
       pendingDeposits.filter(
-        (deposit) => {
-
-          if (
-            deposit.network !==
-            "BEP20"
-          ) {
-            return false;
-          }
-
-          if (
-            !deposit.expires_at
-          ) {
-            return true;
-          }
-
-          return (
-            new Date(
-              deposit.expires_at
-            ).getTime() >
-            Date.now()
-          );
-        }
+        (deposit) =>
+          deposit.network
+            ?.toUpperCase() ===
+          "BEP20"
       );
 
 
-    // -----------------------------------------------------
-    // No hay depósitos BEP20
-    // -----------------------------------------------------
-
-    if (
-      bep20Deposits.length === 0
-    ) {
-      return NextResponse.json({
-        ok: true,
-
-        message:
-          "NO HAY DEPÓSITOS BEP20 PENDIENTES",
-
-        pending: 0,
-
-        expired:
-          expiredCount,
-
-        processed: [],
-      });
-    }
-
-
-    // -----------------------------------------------------
-    // Consultar blockchain
-    // -----------------------------------------------------
+    // =====================================================
+    // OBTENER TRANSFERENCIAS BLOCKCHAIN
+    // =====================================================
 
     const transfers =
-      await getUsdtTransfers();
+      await getTransfers();
 
 
-    // -----------------------------------------------------
-    // Procesar depósitos
-    // -----------------------------------------------------
+    // =====================================================
+    // PROCESAR DEPÓSITOS
+    // =====================================================
 
     const results = [];
 
+
     for (
-      const deposit of bep20Deposits
+      const deposit
+      of bep20Deposits
     ) {
 
       const result =
@@ -823,9 +1015,9 @@ export async function GET(
     }
 
 
-    // -----------------------------------------------------
-    // Respuesta
-    // -----------------------------------------------------
+    // =====================================================
+    // RESPUESTA
+    // =====================================================
 
     return NextResponse.json({
       ok: true,
@@ -875,4 +1067,4 @@ export async function GET(
       }
     );
   }
-      }
+    }
