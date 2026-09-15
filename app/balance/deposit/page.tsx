@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
@@ -32,7 +32,7 @@ const NETWORKS: Record<
   },
 };
 
-export default function DepositPage() {
+function DepositContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -242,8 +242,9 @@ export default function DepositPage() {
   const selectedNetwork = NETWORKS[network];
 
   /*
-   * Todavía no se creó el registro en Supabase.
-   * Primero mostramos la orden y permitimos crearla.
+   * =========================================================
+   * ORDEN DE DEPÓSITO
+   * =========================================================
    */
 
   if (!depositId) {
@@ -384,6 +385,7 @@ export default function DepositPage() {
               {creating
                 ? "CREANDO DEPÓSITO..."
                 : "HE REVISADO LOS DATOS"}
+
               {!creating && (
                 <span>
                   →
@@ -408,7 +410,9 @@ export default function DepositPage() {
   }
 
   /*
+   * =========================================================
    * DEPÓSITO CREADO
+   * =========================================================
    */
 
   return (
@@ -564,4 +568,41 @@ export default function DepositPage() {
 
     </main>
   );
-               }
+}
+
+/*
+ * ===========================================================
+ * PÁGINA PRINCIPAL
+ * ===========================================================
+ *
+ * Suspense es necesario porque DepositContent utiliza
+ * useSearchParams().
+ */
+
+export default function DepositPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="balance-page">
+          <div className="balance-background" />
+
+          <div className="balance-loading">
+
+            <div className="balance-loading-logo">
+              🛒🎮
+            </div>
+
+            <div className="balance-spinner" />
+
+            <p>
+              PREPARANDO DEPÓSITO...
+            </p>
+
+          </div>
+        </main>
+      }
+    >
+      <DepositContent />
+    </Suspense>
+  );
+  }
