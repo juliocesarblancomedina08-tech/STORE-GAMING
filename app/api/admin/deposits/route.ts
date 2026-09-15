@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
+const ADMIN_EMAIL =
+  "juliocesarblancomedina08@gmail.com";
 
 function getSupabaseClients() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
     throw new Error(
@@ -54,7 +60,9 @@ function getSupabaseClients() {
   };
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest
+) {
   try {
     const authorization =
       request.headers.get("authorization");
@@ -70,7 +78,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const token = authorization.substring(7);
+    const token =
+      authorization.substring(7);
 
     const {
       supabaseAuth,
@@ -78,11 +87,10 @@ export async function GET(request: NextRequest) {
     } = getSupabaseClients();
 
     const {
-      data: {
-        user,
-      },
+      data: { user },
       error: userError,
-    } = await supabaseAuth.auth.getUser(token);
+    } =
+      await supabaseAuth.auth.getUser(token);
 
     if (userError || !user) {
       console.error(
@@ -100,10 +108,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    /*
-     * SOLO TU CUENTA PUEDE ACCEDER
-     * AL PANEL DE ADMINISTRACIÓN.
-     */
     if (
       (user.email || "").toLowerCase() !==
       ADMIN_EMAIL.toLowerCase()
@@ -119,72 +123,152 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const { searchParams } =
+      new URL(request.url);
+
+    const view =
+      searchParams.get("view") || "pending";
+
     /*
-     * OBTENER DEPÓSITOS PENDIENTES.
+     * PENDIENTES
      *
-     * IMPORTANTE:
-     * La tabla deposits utiliza
-     * wallet_address, NO address.
+     * Solo depósitos PENDING.
      */
-    const {
-      data: deposits,
-      error: depositsError,
-    } = await supabaseAdmin
-      .from("deposits")
-      .select(
-        `
-        id,
-        user_id,
-        username,
-        email,
-        amount,
-        currency,
-        payment_method,
-        network,
-        wallet_address,
-        tx_hash,
-        status,
-        created_at,
-        confirmed_at
-        `
-      )
-      .eq("status", "PENDING")
-      .order("created_at", {
-        ascending: false,
+    if (view === "pending") {
+      const {
+        data: deposits,
+        error: depositsError,
+      } = await supabaseAdmin
+        .from("deposits")
+        .select(
+          `
+          id,
+          user_id,
+          username,
+          email,
+          amount,
+          currency,
+          payment_method,
+          network,
+          wallet_address,
+          tx_hash,
+          status,
+          created_at,
+          confirmed_at,
+          credited_at,
+          expires_at
+          `
+        )
+        .eq("status", "PENDING")
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (depositsError) {
+        console.error(
+          "ERROR AL OBTENER DEPÓSITOS PENDIENTES:",
+          depositsError
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "No se pudieron cargar los depósitos.",
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      const formattedDeposits =
+        (deposits || []).map(
+          (deposit) => ({
+            ...deposit,
+            address:
+              deposit.wallet_address,
+          })
+        );
+
+      return NextResponse.json({
+        deposits: formattedDeposits,
       });
-
-    if (depositsError) {
-      console.error(
-        "ERROR AL OBTENER DEPÓSITOS:",
-        depositsError
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "No se pudieron cargar los depósitos.",
-        },
-        {
-          status: 500,
-        }
-      );
     }
 
     /*
-     * El frontend anterior utiliza "address".
-     * Mantenemos ese nombre en la respuesta,
-     * pero obtenemos el valor real desde
-     * wallet_address.
+     * HISTORIAL
+     *
+     * Todo lo que ya no está PENDING.
      */
-    const formattedDeposits =
-      (deposits || []).map((deposit) => ({
-        ...deposit,
-        address: deposit.wallet_address,
-      }));
+    if (view === "history") {
+      const {
+        data: deposits,
+        error: depositsError,
+      } = await supabaseAdmin
+        .from("deposits")
+        .select(
+          `
+          id,
+          user_id,
+          username,
+          email,
+          amount,
+          currency,
+          payment_method,
+          network,
+          wallet_address,
+          tx_hash,
+          status,
+          created_at,
+          confirmed_at,
+          credited_at,
+          expires_at
+          `
+        )
+        .neq("status", "PENDING")
+        .order("created_at", {
+          ascending: false,
+        });
 
-    return NextResponse.json({
-      deposits: formattedDeposits,
-    });
+      if (depositsError) {
+        console.error(
+          "ERROR AL OBTENER HISTORIAL:",
+          depositsError
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "No se pudo cargar el historial.",
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      const formattedDeposits =
+        (deposits || []).map(
+          (deposit) => ({
+            ...deposit,
+            address:
+              deposit.wallet_address,
+          })
+        );
+
+      return NextResponse.json({
+        deposits: formattedDeposits,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error: "Vista inválida.",
+      },
+      {
+        status: 400,
+      }
+    );
   } catch (error) {
     console.error(
       "ERROR EN /api/admin/deposits:",
