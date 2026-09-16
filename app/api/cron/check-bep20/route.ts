@@ -38,7 +38,7 @@ const LOOKBACK_MINUTES = 15;
 const MIN_CONFIRMATIONS = 2;
 
 // ======================================================
-// SUPABASE ADMIN
+// ADMINISTRADOR DE SUPABASE
 // ======================================================
 
 const supabaseAdmin = createClient(
@@ -113,6 +113,22 @@ function isAuthorized(
     process.env.CRON_SECRET?.trim();
 
   if (!secret) {
+    console.log(
+      "CRON DEBUG:",
+      {
+        hasSecret: false,
+        secretLength: 0,
+        hasAuthorization: Boolean(
+          request.headers.get("authorization")
+        ),
+        authorizationScheme:
+          request.headers
+            .get("authorization")
+            ?.split(/\s+/)[0]
+            ?.toLowerCase() ?? null,
+      }
+    );
+
     return false;
   }
 
@@ -122,6 +138,17 @@ function isAuthorized(
       ?.trim();
 
   if (!authorization) {
+    console.log(
+      "CRON DEBUG:",
+      {
+        hasSecret: true,
+        secretLength:
+          process.env.CRON_SECRET?.length ?? 0,
+        hasAuthorization: false,
+        authorizationScheme: null,
+      }
+    );
+
     return false;
   }
 
@@ -133,6 +160,18 @@ function isAuthorized(
 
   const token =
     parts.join(" ");
+
+  console.log(
+    "CRON DEBUG:",
+    {
+      hasSecret: true,
+      secretLength:
+        process.env.CRON_SECRET?.length ?? 0,
+      hasAuthorization: true,
+      authorizationScheme:
+        scheme ?? null,
+    }
+  );
 
   return (
     scheme === "bearer" &&
@@ -171,16 +210,25 @@ function rawToUsdt(
     "1" + "0".repeat(decimals)
   );
 
-  const whole = raw / divisor;
-  const remainder = raw % divisor;
+  const whole =
+    raw / divisor;
+
+  const remainder =
+    raw % divisor;
 
   const remainderString =
     remainder
       .toString()
-      .padStart(decimals, "0");
+      .padStart(
+        decimals,
+        "0"
+      );
 
   const decimalPart =
-    remainderString.replace(/0+$/, "");
+    remainderString.replace(
+      /0+$/,
+      ""
+    );
 
   if (!decimalPart) {
     return Number(whole);
@@ -217,7 +265,9 @@ function usdtToRaw(
   const fraction =
     parts[1] || "";
 
-  if (!/^\d+$/.test(whole)) {
+  if (
+    !/^\d+$/.test(whole)
+  ) {
     throw new Error(
       "MONTO DE DEPÓSITO INVÁLIDO"
     );
@@ -515,7 +565,8 @@ function isValidTransfer(
     transfer.tokenDecimal &&
     Number(
       transfer.tokenDecimal
-    ) !== USDT_DECIMALS
+    ) !==
+      USDT_DECIMALS
   ) {
     return false;
   }
@@ -675,7 +726,9 @@ async function processDeposit(
 
   const matchingTransfer =
     transfers.find(
-      (transfer) =>
+      (
+        transfer
+      ) =>
         isValidTransfer(
           transfer,
           deposit
@@ -903,4 +956,4 @@ export async function GET(
       }
     );
   }
-  }
+      }
