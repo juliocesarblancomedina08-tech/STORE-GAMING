@@ -31,7 +31,7 @@ const USDT_CONTRACT =
 
 const USDT_DECIMALS = 18;
 
-// Revisamos los últimos 15 minutos.
+// Revisamos transferencias de los últimos 15 minutos.
 const LOOKBACK_MINUTES = 15;
 
 // Mínimo de confirmaciones.
@@ -133,7 +133,9 @@ function isAuthorized(
 function normalizeAddress(
   value: string | null | undefined
 ): string {
-  return (value || "").trim().toLowerCase();
+  return (value || "")
+    .trim()
+    .toLowerCase();
 }
 
 // ======================================================
@@ -179,25 +181,13 @@ function rawToUsdt(
 // ======================================================
 // USDT → RAW
 // ======================================================
-//
-// Convierte cantidades como:
-//
-// 1
-// 1.5
-// 10.25
-// 0.8
-//
-// a unidades enteras de USDT.
-//
-// ======================================================
 
 function usdtToRaw(
   value: number | string,
   decimals: number
 ): bigint {
   const text =
-    String(value)
-      .trim();
+    String(value).trim();
 
   if (!text) {
     throw new Error(
@@ -229,7 +219,10 @@ function usdtToRaw(
     );
   }
 
-  if (fraction.length > decimals) {
+  if (
+    fraction.length >
+    decimals
+  ) {
     throw new Error(
       "EL MONTO TIENE DEMASIADOS DECIMALES"
     );
@@ -343,7 +336,8 @@ async function getBep20Transfers(): Promise<
   if (
     data.status === "0" &&
     data.message &&
-    data.message !== "No transactions found"
+    data.message !==
+      "No transactions found"
   ) {
     throw new Error(
       data.message
@@ -422,8 +416,8 @@ async function getPendingDeposits(): Promise<
           "wallet_address",
           "tx_hash",
           "status",
-          "created_at",
           "confirmed_at",
+          "created_at",
           "expires_at",
           "credited_at",
         ].join(",")
@@ -449,8 +443,12 @@ async function getPendingDeposits(): Promise<
     );
   }
 
+  // IMPORTANTE:
+  // Se usa unknown antes de Deposit[]
+  // para evitar el error de TypeScript
+  // que apareció en Vercel.
   return (
-    (data || []) as Deposit[]
+    (data || []) as unknown as Deposit[]
   );
 }
 
@@ -522,7 +520,6 @@ function isValidTransfer(
   }
 
   let transferRaw: bigint;
-
   let depositRaw: bigint;
 
   try {
@@ -553,7 +550,8 @@ function isValidTransfer(
 
   const confirmations =
     Number(
-      transfer.confirmations || "0"
+      transfer.confirmations ||
+        "0"
     );
 
   if (
@@ -620,7 +618,7 @@ async function processDeposit(
   transfers: EtherscanTransfer[]
 ): Promise<ProcessResult> {
   // --------------------------------------------------
-  // SEGURIDAD BÁSICA
+  // SEGURIDAD
   // --------------------------------------------------
 
   if (
@@ -686,13 +684,17 @@ async function processDeposit(
   }
 
   // --------------------------------------------------
-  // CONFIRMAR ATÓMICAMENTE
+  // TX HASH
   // --------------------------------------------------
 
   const txHash =
     matchingTransfer.hash
       .trim()
       .toLowerCase();
+
+  // --------------------------------------------------
+  // CONFIRMAR ATÓMICAMENTE
+  // --------------------------------------------------
 
   const {
     data,
@@ -714,10 +716,13 @@ async function processDeposit(
     return {
       deposit_id:
         deposit.id,
+
       status:
         "ERROR",
+
       tx_hash:
         txHash,
+
       error:
         error.message,
     };
@@ -766,6 +771,7 @@ export async function GET(
     return NextResponse.json(
       {
         ok: false,
+
         error:
           "NO AUTORIZADO",
       },
@@ -777,7 +783,7 @@ export async function GET(
 
   try {
     // ------------------------------------------------
-    // EXPIRAR
+    // EXPIRAR DEPÓSITOS
     // ------------------------------------------------
 
     const expired =
@@ -806,7 +812,7 @@ export async function GET(
     }
 
     // ------------------------------------------------
-    // PROCESAR
+    // PROCESAR DEPÓSITOS
     // ------------------------------------------------
 
     const results:
@@ -885,4 +891,4 @@ export async function GET(
       }
     );
   }
-    }
+      }
