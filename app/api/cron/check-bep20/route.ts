@@ -109,21 +109,35 @@ type ProcessResult = {
 function isAuthorized(
   request: NextRequest
 ): boolean {
-  if (!CRON_SECRET) {
+  const secret =
+    process.env.CRON_SECRET?.trim();
+
+  if (!secret) {
     return false;
   }
 
   const authorization =
-    request.headers.get("authorization");
+    request.headers
+      .get("authorization")
+      ?.trim();
 
   if (!authorization) {
     return false;
   }
 
-  const expected =
-    `Bearer ${CRON_SECRET}`;
+  const parts =
+    authorization.split(/\s+/);
 
-  return authorization === expected;
+  const scheme =
+    parts.shift()?.toLowerCase();
+
+  const token =
+    parts.join(" ");
+
+  return (
+    scheme === "bearer" &&
+    token === secret
+  );
 }
 
 // ======================================================
@@ -158,7 +172,6 @@ function rawToUsdt(
   );
 
   const whole = raw / divisor;
-
   const remainder = raw % divisor;
 
   const remainderString =
@@ -443,10 +456,6 @@ async function getPendingDeposits(): Promise<
     );
   }
 
-  // IMPORTANTE:
-  // Se usa unknown antes de Deposit[]
-  // para evitar el error de TypeScript
-  // que apareció en Vercel.
   return (
     (data || []) as unknown as Deposit[]
   );
@@ -628,6 +637,7 @@ async function processDeposit(
     return {
       deposit_id:
         deposit.id,
+
       status:
         "SKIPPED_NOT_PENDING",
     };
@@ -652,6 +662,7 @@ async function processDeposit(
       return {
         deposit_id:
           deposit.id,
+
         status:
           "EXPIRED",
       };
@@ -678,6 +689,7 @@ async function processDeposit(
     return {
       deposit_id:
         deposit.id,
+
       status:
         "WAITING_PAYMENT",
     };
@@ -891,4 +903,4 @@ export async function GET(
       }
     );
   }
-      }
+  }
