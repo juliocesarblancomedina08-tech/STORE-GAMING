@@ -11,17 +11,22 @@ const SUPABASE_URL =
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const ETHERSCAN_API_KEY =
-  process.env.ETHERSCAN_API_KEY!;
+const ANKR_API_KEY =
+  process.env.ANKR_API_KEY!;
 
 const CRON_SECRET =
   process.env.CRON_SECRET!;
 
 // ======================================================
-// CONFIGURACIÓN BSC / USDT BEP20
+// CONFIGURACIÓN ANKR / BSC
 // ======================================================
 
-const BSC_CHAIN_ID = "56";
+const BSC_RPC_URL =
+  `https://rpc.ankr.com/bsc/${ANKR_API_KEY}`;
+
+// ======================================================
+// CONFIGURACIÓN USDT BEP20
+// ======================================================
 
 const RECEIVING_WALLET =
   "0xdcdEe992E26cDBe1b024e171a3a980078BeaAC77";
@@ -31,14 +36,26 @@ const USDT_CONTRACT =
 
 const USDT_DECIMALS = 18;
 
-// Revisamos transferencias de los últimos 15 minutos.
-const LOOKBACK_MINUTES = 15;
+// ======================================================
+// CONFIGURACIÓN DEL DETECTOR
+// ======================================================
 
-// Mínimo de confirmaciones.
+// BSC tiene un tiempo de bloque aproximado de 3 segundos.
+// 800 bloques cubren aproximadamente 40 minutos.
+//
+// Esto es intencionalmente mayor que los 10 minutos
+// de duración de un depósito.
+const BLOCK_LOOKBACK = 800;
+
+// Exigimos al menos 2 confirmaciones.
 const MIN_CONFIRMATIONS = 2;
 
+// Evento ERC-20 Transfer(address,address,uint256)
+const TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
 // ======================================================
-// ADMINISTRADOR DE SUPABASE
+// SUPABASE ADMIN
 // ======================================================
 
 const supabaseAdmin = createClient(
@@ -74,24 +91,49 @@ type Deposit = {
   credited_at: string | null;
 };
 
-type EtherscanTransfer = {
-  blockNumber?: string;
-  timeStamp?: string;
-  hash?: string;
-  from?: string;
-  to?: string;
-  value?: string;
-  tokenName?: string;
-  tokenSymbol?: string;
-  contractAddress?: string;
-  confirmations?: string;
-  tokenDecimal?: string;
+type RpcError = {
+  code?: number;
+  message?: string;
+  data?: unknown;
 };
 
-type EtherscanResponse = {
+type RpcResponse<T> = {
+  jsonrpc?: string;
+  id?: number;
+  result?: T;
+  error?: RpcError;
+};
+
+type RpcLog = {
+  removed?: boolean;
+  transactionHash?: string;
+  blockNumber?: string;
+  address?: string;
+  data?: string;
+  topics?: string[];
+};
+
+type RpcBlock = {
+  number?: string;
+  timestamp?: string;
+};
+
+type RpcReceipt = {
+  transactionHash?: string;
+  blockNumber?: string;
   status?: string;
-  message?: string;
-  result?: EtherscanTransfer[] | string;
+};
+
+type Bep20Transfer = {
+  hash: string;
+  blockNumber: number;
+  timestamp: number;
+  from: string;
+  to: string;
+  contractAddress: string;
+  rawValue: string;
+  confirmations: number;
+  successful: boolean;
 };
 
 type ProcessResult = {
@@ -103,7 +145,7 @@ type ProcessResult = {
 };
 
 // ======================================================
-// AUTORIZACIÓN
+// AUTORIZACIÓN DEL CRON
 // ======================================================
 
 function isAuthorized(
@@ -112,6 +154,11 @@ function isAuthorized(
   const secret =
     process.env.CRON_SECRET?.trim();
 
+  const authorization =
+    request.headers
+      .get("authorization")
+      ?.trim();
+
   if (!secret) {
     console.log(
       "CRON DEBUG:",
@@ -119,11 +166,10 @@ function isAuthorized(
         hasSecret: false,
         secretLength: 0,
         hasAuthorization: Boolean(
-          request.headers.get("authorization")
+          authorization
         ),
         authorizationScheme:
-          request.headers
-            .get("authorization")
+          authorization
             ?.split(/\s+/)[0]
             ?.toLowerCase() ?? null,
       }
@@ -132,18 +178,12 @@ function isAuthorized(
     return false;
   }
 
-  const authorization =
-    request.headers
-      .get("authorization")
-      ?.trim();
-
   if (!authorization) {
     console.log(
       "CRON DEBUG:",
       {
         hasSecret: true,
-        secretLength:
-          process.env.CRON_SECRET?.length ?? 0,
+        secretLength: secret.length,
         hasAuthorization: false,
         authorizationScheme: null,
       }
@@ -156,27 +196,26 @@ function isAuthorized(
     authorization.split(/\s+/);
 
   const scheme =
-    parts.shift()?.toLowerCase();
+    parts[0]?.toLowerCase();
 
-  const token =
-    parts.join(" ");
+  const providedSecret =
+    parts.slice(1).join(" ").trim();
+
+  const authorized =
+    scheme === "bearer" &&
+    providedSecret === secret;
 
   console.log(
     "CRON DEBUG:",
     {
       hasSecret: true,
-      secretLength:
-        process.env.CRON_SECRET?.length ?? 0,
+      secretLength: secret.length,
       hasAuthorization: true,
-      authorizationScheme:
-        scheme ?? null,
+      authorizationScheme: scheme,
     }
   );
 
-  return (
-    scheme === "bearer" &&
-    token === secret
-  );
+  return authorized;
 }
 
 // ======================================================
@@ -184,75 +223,58 @@ function isAuthorized(
 // ======================================================
 
 function normalizeAddress(
-  value: string | null | undefined
+  address: string | null | undefined
 ): string {
-  return (value || "")
+  return (
+    address ?? ""
+  )
     .trim()
     .toLowerCase();
 }
 
 // ======================================================
-// CONVERSIÓN RAW → USDT
-// ======================================================
-//
-// No usamos literales como 10n porque el proyecto
-// estaba compilando con un target inferior a ES2020.
-//
+// PADDEAR DIRECCIÓN PARA TOPIC
 // ======================================================
 
-function rawToUsdt(
-  value: string,
-  decimals: number
-): number {
-  const raw = BigInt(value);
+function addressToTopic(
+  address: string
+): string {
+  const clean =
+    address
+      .trim()
+      .toLowerCase()
+      .replace(/^0x/, "");
 
-  const divisor = BigInt(
-    "1" + "0".repeat(decimals)
-  );
-
-  const whole =
-    raw / divisor;
-
-  const remainder =
-    raw % divisor;
-
-  const remainderString =
-    remainder
-      .toString()
-      .padStart(
-        decimals,
-        "0"
-      );
-
-  const decimalPart =
-    remainderString.replace(
-      /0+$/,
-      ""
+  if (
+    !/^[0-9a-f]{40}$/.test(clean)
+  ) {
+    throw new Error(
+      "DIRECCIÓN BSC INVÁLIDA"
     );
-
-  if (!decimalPart) {
-    return Number(whole);
   }
 
-  return Number(
-    `${whole}.${decimalPart}`
+  return (
+    "0x" +
+    "0".repeat(24) +
+    clean
   );
 }
 
 // ======================================================
-// USDT → RAW
+// CONVERTIR USDT A RAW
 // ======================================================
 
 function usdtToRaw(
-  value: number | string,
-  decimals: number
-): bigint {
+  amount: number | string
+): string {
   const text =
-    String(value).trim();
+    String(amount).trim();
 
-  if (!text) {
+  if (
+    !/^\d+(\.\d+)?$/.test(text)
+  ) {
     throw new Error(
-      "MONTO DE DEPÓSITO INVÁLIDO"
+      `CANTIDAD USDT INVÁLIDA: ${text}`
     );
   }
 
@@ -260,49 +282,153 @@ function usdtToRaw(
     text.split(".");
 
   const whole =
-    parts[0] || "0";
+    parts[0] ?? "0";
 
   const fraction =
-    parts[1] || "";
-
-  if (
-    !/^\d+$/.test(whole)
-  ) {
-    throw new Error(
-      "MONTO DE DEPÓSITO INVÁLIDO"
-    );
-  }
-
-  if (
-    fraction &&
-    !/^\d+$/.test(fraction)
-  ) {
-    throw new Error(
-      "MONTO DE DEPÓSITO INVÁLIDO"
-    );
-  }
+    parts[1] ?? "";
 
   if (
     fraction.length >
-    decimals
+    USDT_DECIMALS
   ) {
     throw new Error(
-      "EL MONTO TIENE DEMASIADOS DECIMALES"
+      "LA CANTIDAD TIENE DEMASIADOS DECIMALES"
     );
   }
 
   const paddedFraction =
-    fraction.padEnd(
-      decimals,
-      "0"
+    (
+      fraction +
+      "0".repeat(
+        USDT_DECIMALS
+      )
+    ).slice(
+      0,
+      USDT_DECIMALS
     );
 
-  const rawString =
+  const rawText =
     whole +
     paddedFraction;
 
   return BigInt(
-    rawString
+    rawText || "0"
+  ).toString();
+}
+
+// ======================================================
+// RPC ANKR
+// ======================================================
+
+async function rpcCall<T>(
+  method: string,
+  params: unknown[]
+): Promise<T> {
+  if (!ANKR_API_KEY) {
+    throw new Error(
+      "ANKR_API_KEY NO ESTÁ CONFIGURADA"
+    );
+  }
+
+  const response =
+    await fetch(
+      BSC_RPC_URL,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method,
+          params,
+        }),
+
+        cache: "no-store",
+      }
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      `ANKR HTTP ${response.status}`
+    );
+  }
+
+  const data =
+    (await response.json()) as RpcResponse<T>;
+
+  if (data.error) {
+    throw new Error(
+      `ANKR RPC ${data.error.code ?? ""}: ${
+        data.error.message ??
+        "ERROR RPC DESCONOCIDO"
+      }`
+    );
+  }
+
+  if (
+    data.result === undefined
+  ) {
+    throw new Error(
+      "ANKR RPC NO DEVOLVIÓ RESULTADO"
+    );
+  }
+
+  return data.result;
+}
+
+// ======================================================
+// OBTENER BLOQUE ACTUAL
+// ======================================================
+
+async function getLatestBlockNumber(): Promise<number> {
+  const blockHex =
+    await rpcCall<string>(
+      "eth_blockNumber",
+      []
+    );
+
+  return Number(
+    BigInt(blockHex)
+  );
+}
+
+// ======================================================
+// OBTENER BLOQUE
+// ======================================================
+
+async function getBlockByNumber(
+  blockNumber: number
+): Promise<RpcBlock | null> {
+  const blockHex =
+    "0x" +
+    blockNumber.toString(16);
+
+  return rpcCall<RpcBlock | null>(
+    "eth_getBlockByNumber",
+    [
+      blockHex,
+      false,
+    ]
+  );
+}
+
+// ======================================================
+// OBTENER RECEIPT
+// ======================================================
+
+async function getTransactionReceipt(
+  txHash: string
+): Promise<RpcReceipt | null> {
+  return rpcCall<RpcReceipt | null>(
+    "eth_getTransactionReceipt",
+    [
+      txHash,
+    ]
   );
 }
 
@@ -310,120 +436,336 @@ function usdtToRaw(
 // OBTENER TRANSFERENCIAS BEP20
 // ======================================================
 
-async function getBep20Transfers(): Promise<
-  EtherscanTransfer[]
-> {
-  if (!ETHERSCAN_API_KEY) {
-    throw new Error(
-      "ETHERSCAN_API_KEY NO CONFIGURADA"
-    );
-  }
-
-  const url =
-    new URL(
-      "https://api.etherscan.io/v2/api"
-    );
-
-  url.searchParams.set(
-    "chainid",
-    BSC_CHAIN_ID
-  );
-
-  url.searchParams.set(
-    "module",
-    "account"
-  );
-
-  url.searchParams.set(
-    "action",
-    "tokentx"
-  );
-
-  url.searchParams.set(
-    "contractaddress",
-    USDT_CONTRACT
-  );
-
-  url.searchParams.set(
-    "address",
-    RECEIVING_WALLET
-  );
-
-  url.searchParams.set(
-    "page",
-    "1"
-  );
-
-  url.searchParams.set(
-    "offset",
-    "100"
-  );
-
-  url.searchParams.set(
-    "sort",
-    "desc"
-  );
-
-  url.searchParams.set(
-    "apikey",
-    ETHERSCAN_API_KEY
-  );
-
-  const response =
-    await fetch(
-      url.toString(),
-      {
-        method: "GET",
-        cache: "no-store",
-      }
-    );
-
-  if (!response.ok) {
-    throw new Error(
-      `ETHERSCAN HTTP ${response.status}`
-    );
-  }
-
-  const data =
-    (await response.json()) as EtherscanResponse;
-
+async function getBep20Transfers(
+  deposits: Deposit[]
+): Promise<Bep20Transfer[]> {
   if (
-    data.result &&
-    !Array.isArray(data.result)
-  ) {
-    throw new Error(
-      String(data.result)
-    );
-  }
-
-  if (
-    data.status === "0" &&
-    data.message &&
-    data.message !==
-      "No transactions found"
-  ) {
-    throw new Error(
-      data.message
-    );
-  }
-
-  if (
-    !Array.isArray(data.result)
+    deposits.length === 0
   ) {
     return [];
   }
 
-  return data.result;
+  const latestBlock =
+    await getLatestBlockNumber();
+
+  const fromBlock =
+    Math.max(
+      0,
+      latestBlock -
+        BLOCK_LOOKBACK
+    );
+
+  // Cantidades que estamos esperando.
+  const expectedAmounts =
+    new Set<string>();
+
+  for (
+    const deposit of deposits
+  ) {
+    try {
+      expectedAmounts.add(
+        usdtToRaw(
+          deposit.amount
+        )
+      );
+    } catch {
+      // Si una cantidad está corrupta,
+      // no detenemos todo el detector.
+    }
+  }
+
+  // ====================================================
+  // FILTRO DEL EVENTO TRANSFER
+  // ====================================================
+
+  const logs =
+    await rpcCall<RpcLog[]>(
+      "eth_getLogs",
+      [
+        {
+          fromBlock:
+            "0x" +
+            fromBlock.toString(16),
+
+          toBlock:
+            "0x" +
+            latestBlock.toString(16),
+
+          address:
+            USDT_CONTRACT,
+
+          topics: [
+            TRANSFER_TOPIC,
+
+            null,
+
+            addressToTopic(
+              RECEIVING_WALLET
+            ),
+          ],
+        },
+      ]
+    );
+
+  const transfers:
+    Bep20Transfer[] = [];
+
+  // ====================================================
+  // PROCESAR LOGS
+  // ====================================================
+
+  for (
+    const log of logs
+  ) {
+    try {
+      if (
+        log.removed
+      ) {
+        continue;
+      }
+
+      const txHash =
+        log.transactionHash;
+
+      const blockHex =
+        log.blockNumber;
+
+      const contractAddress =
+        log.address;
+
+      const topics =
+        log.topics ?? [];
+
+      const data =
+        log.data;
+
+      if (
+        !txHash ||
+        !blockHex ||
+        !contractAddress ||
+        !data
+      ) {
+        continue;
+      }
+
+      if (
+        topics.length < 3
+      ) {
+        continue;
+      }
+
+      if (
+        normalizeAddress(
+          contractAddress
+        ) !==
+        normalizeAddress(
+          USDT_CONTRACT
+        )
+      ) {
+        continue;
+      }
+
+      if (
+        normalizeAddress(
+          topics[0]
+        ) !==
+        normalizeAddress(
+          TRANSFER_TOPIC
+        )
+      ) {
+        continue;
+      }
+
+      // ================================================
+      // FROM
+      // ================================================
+
+      const fromTopic =
+        topics[1];
+
+      if (
+        !fromTopic ||
+        fromTopic.length < 42
+      ) {
+        continue;
+      }
+
+      const from =
+        "0x" +
+        fromTopic
+          .slice(-40)
+          .toLowerCase();
+
+      // ================================================
+      // TO
+      // ================================================
+
+      const toTopic =
+        topics[2];
+
+      if (
+        !toTopic ||
+        toTopic.length < 42
+      ) {
+        continue;
+      }
+
+      const to =
+        "0x" +
+        toTopic
+          .slice(-40)
+          .toLowerCase();
+
+      if (
+        normalizeAddress(to) !==
+        normalizeAddress(
+          RECEIVING_WALLET
+        )
+      ) {
+        continue;
+      }
+
+      // ================================================
+      // VALOR RAW
+      // ================================================
+
+      let rawValue: string;
+
+      try {
+        rawValue =
+          BigInt(data).toString();
+      } catch {
+        continue;
+      }
+
+      // Solo seguimos si la cantidad
+      // coincide con algún depósito pendiente.
+      if (
+        !expectedAmounts.has(
+          rawValue
+        )
+      ) {
+        continue;
+      }
+
+      const blockNumber =
+        Number(
+          BigInt(blockHex)
+        );
+
+      // ================================================
+      // BLOQUE DE LA TRANSFERENCIA
+      // ================================================
+
+      const block =
+        await getBlockByNumber(
+          blockNumber
+        );
+
+      if (
+        !block ||
+        !block.timestamp
+      ) {
+        continue;
+      }
+
+      const timestamp =
+        Number(
+          BigInt(
+            block.timestamp
+          )
+        ) * 1000;
+
+      // ================================================
+      // RECEIPT
+      // ================================================
+
+      const receipt =
+        await getTransactionReceipt(
+          txHash
+        );
+
+      if (!receipt) {
+        continue;
+      }
+
+      const successful =
+        normalizeAddress(
+          receipt.status
+        ) === "0x1";
+
+      if (!successful) {
+        continue;
+      }
+
+      // El receipt debe corresponder
+      // al mismo bloque del log.
+      if (
+        receipt.blockNumber
+      ) {
+        const receiptBlock =
+          Number(
+            BigInt(
+              receipt.blockNumber
+            )
+          );
+
+        if (
+          receiptBlock !==
+          blockNumber
+        ) {
+          continue;
+        }
+      }
+
+      // ================================================
+      // CONFIRMACIONES
+      // ================================================
+
+      const confirmations =
+        latestBlock -
+        blockNumber +
+        1;
+
+      transfers.push({
+        hash: txHash,
+
+        blockNumber,
+
+        timestamp,
+
+        from,
+
+        to,
+
+        contractAddress,
+
+        rawValue,
+
+        confirmations,
+
+        successful,
+      });
+    } catch (
+      error
+    ) {
+      console.error(
+        "ERROR PROCESANDO LOG BEP20:",
+        error
+      );
+    }
+  }
+
+  return transfers;
 }
 
 // ======================================================
-// EXPIRAR DEPÓSITOS VENCIDOS
+// EXPIRAR DEPÓSITOS
 // ======================================================
 
 async function expireDeposits(): Promise<number> {
   const now =
-    new Date()
-      .toISOString();
+    new Date().toISOString();
 
   const {
     data,
@@ -434,14 +776,8 @@ async function expireDeposits(): Promise<number> {
       .update({
         status: "EXPIRED",
       })
-      .eq(
-        "status",
-        "PENDING"
-      )
-      .lt(
-        "expires_at",
-        now
-      )
+      .eq("status", "PENDING")
+      .lt("expires_at", now)
       .select("id");
 
   if (error) {
@@ -450,49 +786,25 @@ async function expireDeposits(): Promise<number> {
     );
   }
 
-  return data?.length || 0;
+  return (
+    data?.length ?? 0
+  );
 }
 
 // ======================================================
 // OBTENER DEPÓSITOS PENDIENTES
 // ======================================================
 
-async function getPendingDeposits(): Promise<
-  Deposit[]
-> {
+async function getPendingDeposits(): Promise<Deposit[]> {
   const {
     data,
     error,
   } =
     await supabaseAdmin
       .from("deposits")
-      .select(
-        [
-          "id",
-          "user_id",
-          "username",
-          "email",
-          "amount",
-          "currency",
-          "payment_method",
-          "network",
-          "wallet_address",
-          "tx_hash",
-          "status",
-          "confirmed_at",
-          "created_at",
-          "expires_at",
-          "credited_at",
-        ].join(",")
-      )
-      .eq(
-        "status",
-        "PENDING"
-      )
-      .eq(
-        "network",
-        "BEP20"
-      )
+      .select("*")
+      .eq("status", "PENDING")
+      .eq("network", "BEP20")
       .order(
         "created_at",
         {
@@ -512,24 +824,31 @@ async function getPendingDeposits(): Promise<
 }
 
 // ======================================================
-// COMPROBAR SI TRANSFERENCIA ES VÁLIDA
+// VALIDAR TRANSFERENCIA PARA DEPÓSITO
 // ======================================================
 
 function isValidTransfer(
-  transfer: EtherscanTransfer,
+  transfer: Bep20Transfer,
   deposit: Deposit
 ): boolean {
-  // --------------------------------------------------
-  // TX HASH
-  // --------------------------------------------------
+  // ----------------------------------------------------
+  // WALLET DEL DEPÓSITO
+  // ----------------------------------------------------
 
-  if (!transfer.hash) {
+  if (
+    normalizeAddress(
+      deposit.wallet_address
+    ) !==
+    normalizeAddress(
+      RECEIVING_WALLET
+    )
+  ) {
     return false;
   }
 
-  // --------------------------------------------------
+  // ----------------------------------------------------
   // WALLET DESTINO
-  // --------------------------------------------------
+  // ----------------------------------------------------
 
   if (
     normalizeAddress(
@@ -542,9 +861,9 @@ function isValidTransfer(
     return false;
   }
 
-  // --------------------------------------------------
+  // ----------------------------------------------------
   // CONTRATO USDT
-  // --------------------------------------------------
+  // ----------------------------------------------------
 
   if (
     normalizeAddress(
@@ -557,227 +876,150 @@ function isValidTransfer(
     return false;
   }
 
-  // --------------------------------------------------
-  // DECIMALES
-  // --------------------------------------------------
+  // ----------------------------------------------------
+  // TRANSFERENCIA EXITOSA
+  // ----------------------------------------------------
 
   if (
-    transfer.tokenDecimal &&
-    Number(
-      transfer.tokenDecimal
-    ) !==
-      USDT_DECIMALS
+    !transfer.successful
   ) {
     return false;
   }
 
-  // --------------------------------------------------
-  // CANTIDAD
-  // --------------------------------------------------
+  // ----------------------------------------------------
+  // CONFIRMACIONES
+  // ----------------------------------------------------
 
-  if (!transfer.value) {
+  if (
+    transfer.confirmations <
+    MIN_CONFIRMATIONS
+  ) {
     return false;
   }
 
-  let transferRaw: bigint;
-  let depositRaw: bigint;
+  // ----------------------------------------------------
+  // CANTIDAD EXACTA
+  // ----------------------------------------------------
+
+  let expectedRaw: string;
 
   try {
-    transferRaw =
-      BigInt(
-        transfer.value
-      );
-
-    depositRaw =
+    expectedRaw =
       usdtToRaw(
-        deposit.amount,
-        USDT_DECIMALS
+        deposit.amount
       );
   } catch {
     return false;
   }
 
   if (
-    transferRaw !==
-    depositRaw
+    transfer.rawValue !==
+    expectedRaw
   ) {
     return false;
   }
 
-  // --------------------------------------------------
-  // CONFIRMACIONES
-  // --------------------------------------------------
+  // ----------------------------------------------------
+  // FECHA DE CREACIÓN
+  // ----------------------------------------------------
 
-  const confirmations =
-    Number(
-      transfer.confirmations ||
-        "0"
-    );
+  const createdAt =
+    new Date(
+      deposit.created_at
+    ).getTime();
 
   if (
     !Number.isFinite(
-      confirmations
-    ) ||
-    confirmations <
-      MIN_CONFIRMATIONS
+      createdAt
+    )
   ) {
     return false;
   }
 
-  // --------------------------------------------------
-  // FECHA DE TRANSFERENCIA
-  // --------------------------------------------------
+  // ----------------------------------------------------
+  // FECHA DE EXPIRACIÓN
+  // ----------------------------------------------------
+
+  const expiresAt =
+    deposit.expires_at
+      ? new Date(
+          deposit.expires_at
+        ).getTime()
+      : createdAt +
+        10 * 60 * 1000;
 
   if (
-    transfer.timeStamp
+    !Number.isFinite(
+      expiresAt
+    )
   ) {
-    const transferTime =
-      Number(
-        transfer.timeStamp
-      ) * 1000;
+    return false;
+  }
 
-    const createdTime =
-      new Date(
-        deposit.created_at
-      ).getTime();
+  // ----------------------------------------------------
+  // TRANSFERENCIA DENTRO DE LA VENTANA
+  // ----------------------------------------------------
 
-    const expiresTime =
-      deposit.expires_at
-        ? new Date(
-            deposit.expires_at
-          ).getTime()
-        : createdTime +
-          LOOKBACK_MINUTES *
-            60 *
-            1000;
-
-    if (
-      transferTime <
-      createdTime
-    ) {
-      return false;
-    }
-
-    if (
-      transferTime >
-      expiresTime
-    ) {
-      return false;
-    }
+  if (
+    transfer.timestamp <
+      createdAt ||
+    transfer.timestamp >
+      expiresAt
+  ) {
+    return false;
   }
 
   return true;
 }
 
 // ======================================================
-// PROCESAR UN DEPÓSITO
+// CONFIRMAR DEPÓSITO EN SUPABASE
 // ======================================================
 
-async function processDeposit(
+async function confirmDeposit(
   deposit: Deposit,
-  transfers: EtherscanTransfer[]
+  transfer: Bep20Transfer
 ): Promise<ProcessResult> {
-  // --------------------------------------------------
-  // SEGURIDAD
-  // --------------------------------------------------
-
-  if (
-    deposit.status !==
-    "PENDING"
-  ) {
-    return {
-      deposit_id:
-        deposit.id,
-
-      status:
-        "SKIPPED_NOT_PENDING",
-    };
-  }
-
-  // --------------------------------------------------
-  // EXPIRACIÓN
-  // --------------------------------------------------
-
-  if (
-    deposit.expires_at
-  ) {
-    const expiresAt =
-      new Date(
-        deposit.expires_at
-      ).getTime();
-
-    if (
-      expiresAt <=
-      Date.now()
-    ) {
-      return {
-        deposit_id:
-          deposit.id,
-
-        status:
-          "EXPIRED",
-      };
-    }
-  }
-
-  // --------------------------------------------------
-  // BUSCAR TRANSFERENCIA
-  // --------------------------------------------------
-
-  const matchingTransfer =
-    transfers.find(
-      (
-        transfer
-      ) =>
-        isValidTransfer(
-          transfer,
-          deposit
-        )
-    );
-
-  if (
-    !matchingTransfer ||
-    !matchingTransfer.hash
-  ) {
-    return {
-      deposit_id:
-        deposit.id,
-
-      status:
-        "WAITING_PAYMENT",
-    };
-  }
-
-  // --------------------------------------------------
-  // TX HASH
-  // --------------------------------------------------
-
-  const txHash =
-    matchingTransfer.hash
-      .trim()
-      .toLowerCase();
-
-  // --------------------------------------------------
-  // CONFIRMAR ATÓMICAMENTE
-  // --------------------------------------------------
-
-  const {
-    data,
-    error,
-  } =
-    await supabaseAdmin
-      .rpc(
+  try {
+    const {
+      data,
+      error,
+    } =
+      await supabaseAdmin.rpc(
         "confirm_deposit_chain",
         {
           p_deposit_id:
             deposit.id,
 
           p_tx_hash:
-            txHash,
+            transfer.hash,
         }
       );
 
-  if (error) {
+    if (error) {
+      throw new Error(
+        error.message
+      );
+    }
+
+    return {
+      deposit_id:
+        deposit.id,
+
+      status:
+        "CONFIRMED",
+
+      tx_hash:
+        transfer.hash,
+
+      amount:
+        Number(
+          deposit.amount
+        ),
+    };
+  } catch (
+    error
+  ) {
     return {
       deposit_id:
         deposit.id,
@@ -785,36 +1027,111 @@ async function processDeposit(
       status:
         "ERROR",
 
-      tx_hash:
-        txHash,
-
       error:
-        error.message,
+        error instanceof Error
+          ? error.message
+          : "ERROR CONFIRMANDO DEPÓSITO",
     };
   }
+}
 
-  const amount =
-    Number(
-      deposit.amount
+// ======================================================
+// PROCESAR DEPÓSITOS
+// ======================================================
+
+async function processDeposits(
+  deposits: Deposit[],
+  transfers: Bep20Transfer[]
+): Promise<ProcessResult[]> {
+  const results:
+    ProcessResult[] = [];
+
+  // Transferencias ya utilizadas
+  // durante esta ejecución.
+  const usedTransactions =
+    new Set<string>();
+
+  // ----------------------------------------------------
+  // CADA DEPÓSITO
+  // ----------------------------------------------------
+
+  for (
+    const deposit of deposits
+  ) {
+    const matchingTransfers =
+      transfers.filter(
+        (transfer) =>
+          !usedTransactions.has(
+            transfer.hash.toLowerCase()
+          ) &&
+          isValidTransfer(
+            transfer,
+            deposit
+          )
+      );
+
+    // --------------------------------------------------
+    // NO ENCONTRADO
+    // --------------------------------------------------
+
+    if (
+      matchingTransfers.length === 0
+    ) {
+      results.push({
+        deposit_id:
+          deposit.id,
+
+        status:
+          "WAITING",
+      });
+
+      continue;
+    }
+
+    // --------------------------------------------------
+    // MÁS DE UNA TRANSACCIÓN EXACTA
+    // --------------------------------------------------
+
+    if (
+      matchingTransfers.length > 1
+    ) {
+      results.push({
+        deposit_id:
+          deposit.id,
+
+        status:
+          "MULTIPLE_MATCHES",
+
+        error:
+          "SE ENCONTRARON VARIAS TRANSACCIONES CON LA MISMA CANTIDAD DENTRO DE LA VENTANA DEL DEPÓSITO.",
+      });
+
+      continue;
+    }
+
+    // --------------------------------------------------
+    // CONFIRMAR
+    // --------------------------------------------------
+
+    const transfer =
+      matchingTransfers[0];
+
+    usedTransactions.add(
+      transfer.hash.toLowerCase()
     );
 
-  return {
-    deposit_id:
-      deposit.id,
+    const result =
+      await confirmDeposit(
+        deposit,
+        transfer
+      );
 
-    status:
-      "CONFIRMED",
+    results.push(
+      result
+    );
+  }
 
-    tx_hash:
-      txHash,
-
-    amount:
-      Number.isFinite(
-        amount
-      )
-        ? amount
-        : undefined,
-  };
+  return results;
 }
 
 // ======================================================
@@ -824,99 +1141,121 @@ async function processDeposit(
 export async function GET(
   request: NextRequest
 ) {
-  // --------------------------------------------------
-  // AUTORIZACIÓN
-  // --------------------------------------------------
-
-  if (
-    !isAuthorized(
-      request
-    )
-  ) {
-    return NextResponse.json(
-      {
-        ok: false,
-
-        error:
-          "NO AUTORIZADO",
-      },
-      {
-        status: 401,
-      }
-    );
-  }
-
   try {
-    // ------------------------------------------------
+    // ==================================================
+    // AUTORIZACIÓN
+    // ==================================================
+
+    if (
+      !isAuthorized(
+        request
+      )
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "NO AUTORIZADO",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // ==================================================
+    // VERIFICAR CONFIGURACIÓN
+    // ==================================================
+
+    if (
+      !SUPABASE_URL ||
+      !SUPABASE_SERVICE_ROLE_KEY
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "FALTAN VARIABLES DE SUPABASE",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    if (
+      !ANKR_API_KEY
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "FALTA ANKR_API_KEY",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    // ==================================================
     // EXPIRAR DEPÓSITOS
-    // ------------------------------------------------
+    // ==================================================
 
     const expired =
       await expireDeposits();
 
-    // ------------------------------------------------
-    // DEPÓSITOS PENDIENTES
-    // ------------------------------------------------
+    // ==================================================
+    // OBTENER PENDIENTES
+    // ==================================================
 
     const deposits =
       await getPendingDeposits();
 
-    // ------------------------------------------------
-    // TRANSFERENCIAS BSC
-    // ------------------------------------------------
-
-    let transfers:
-      EtherscanTransfer[] = [];
+    // ==================================================
+    // SI NO HAY DEPÓSITOS
+    // ==================================================
 
     if (
-      deposits.length >
-      0
+      deposits.length === 0
     ) {
-      transfers =
-        await getBep20Transfers();
+      return NextResponse.json({
+        ok: true,
+
+        expired,
+
+        pending: 0,
+
+        transfers: 0,
+
+        processed: 0,
+
+        results: [],
+      });
     }
 
-    // ------------------------------------------------
-    // PROCESAR DEPÓSITOS
-    // ------------------------------------------------
+    // ==================================================
+    // BUSCAR TRANSFERENCIAS EN BSC
+    // ==================================================
 
-    const results:
-      ProcessResult[] = [];
+    const transfers =
+      await getBep20Transfers(
+        deposits
+      );
 
-    for (
-      const deposit of deposits
-    ) {
-      try {
-        const result =
-          await processDeposit(
-            deposit,
-            transfers
-          );
+    // ==================================================
+    // PROCESAR
+    // ==================================================
 
-        results.push(
-          result
-        );
-      } catch (
-        error
-      ) {
-        results.push({
-          deposit_id:
-            deposit.id,
+    const results =
+      await processDeposits(
+        deposits,
+        transfers
+      );
 
-          status:
-            "ERROR",
-
-          error:
-            error instanceof Error
-              ? error.message
-              : "ERROR DESCONOCIDO",
-        });
-      }
-    }
-
-    // ------------------------------------------------
+    // ==================================================
     // RESPUESTA
-    // ------------------------------------------------
+    // ==================================================
 
     return NextResponse.json({
       ok: true,
@@ -930,7 +1269,11 @@ export async function GET(
         transfers.length,
 
       processed:
-        results.length,
+        results.filter(
+          (result) =>
+            result.status ===
+            "CONFIRMED"
+        ).length,
 
       results,
     });
@@ -956,4 +1299,4 @@ export async function GET(
       }
     );
   }
-      }
+        }
