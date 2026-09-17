@@ -56,11 +56,9 @@ export default function OrdersPage() {
   const router = useRouter();
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [filter, setFilter] =
-    useState<Filter>("TODAS");
-
-  const [loading, setLoading] =
-    useState(true);
+  const [filter, setFilter] = useState<Filter>("TODAS");
+  const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   /*
    * ============================================================
@@ -78,10 +76,7 @@ export default function OrdersPage() {
           error: sessionError,
         } = await supabase.auth.getSession();
 
-        if (
-          sessionError ||
-          !session?.user
-        ) {
+        if (sessionError || !session?.user) {
           if (mounted) {
             setLoading(false);
             router.replace("/login");
@@ -90,13 +85,9 @@ export default function OrdersPage() {
           return;
         }
 
-        const userId =
-          session.user.id;
+        const userId = session.user.id;
 
-        const {
-          data,
-          error,
-        } = await supabase
+        const { data, error } = await supabase
           .from("topup_orders")
           .select(
             `
@@ -123,16 +114,10 @@ export default function OrdersPage() {
               updated_at
             `
           )
-          .eq(
-            "user_id",
-            userId
-          )
-          .order(
-            "created_at",
-            {
-              ascending: false,
-            }
-          );
+          .eq("user_id", userId)
+          .order("created_at", {
+            ascending: false,
+          });
 
         if (error) {
           console.error(
@@ -148,72 +133,33 @@ export default function OrdersPage() {
           return;
         }
 
-        const mappedOrders: Order[] =
-          (
-            (data ||
-              []) as TopupOrderRow[]
-          ).map(
-            (order) => ({
-              id: order.id,
+        const rows = (data || []) as TopupOrderRow[];
 
-              user_id:
-                order.user_id,
-
-              email:
-                order.email ||
-                undefined,
-
-              username:
-                order.username ||
-                undefined,
-
-              game:
-                order.game,
-
-              product:
-                order.offer_name,
-
-              displayProduct:
-                order.offer_name,
-
-              price:
-                Number(
-                  order.retail_price
-                ),
-
-              total:
-                Number(
-                  order.retail_price
-                ),
-
-              playerId:
-                order.player_id,
-
-              status:
-                order.status,
-
-              createdAt:
-                order.created_at,
-
-              supplierOrderId:
-                order.supplier_order_id ||
-                undefined,
-
-              currency:
-                order.currency,
-            })
-          );
+        const mappedOrders: Order[] = rows.map((row) => ({
+          id: row.id,
+          user_id: row.user_id,
+          email: row.email || undefined,
+          username: row.username || undefined,
+          game: row.game,
+          product: row.offer_name,
+          displayProduct: row.offer_name,
+          price: Number(row.retail_price) || 0,
+          total: Number(row.retail_price) || 0,
+          playerId: row.player_id,
+          status: row.status,
+          createdAt: row.created_at,
+          supplierOrderId:
+            row.supplier_order_id || undefined,
+          currency: row.currency || "USD",
+        }));
 
         if (mounted) {
-          setOrders(
-            mappedOrders
-          );
-
+          setOrders(mappedOrders);
           setLoading(false);
         }
       } catch (error) {
         console.error(
-          "ERROR CARGANDO ÓRDENES:",
+          "ERROR INESPERADO CARGANDO ÓRDENES:",
           error
         );
 
@@ -233,56 +179,25 @@ export default function OrdersPage() {
 
   /*
    * ============================================================
-   * NORMALIZAR ESTADO
+   * ESTADOS
    * ============================================================
    */
 
-  function normalizeStatus(
-    status: string
-  ) {
-    return (
-      status
-        ?.toString()
-        .trim()
-        .toUpperCase() || ""
-    );
-  }
-
-  /*
-   * ============================================================
-   * ESTADO COMPLETADO
-   * ============================================================
-   */
-
-  function isCompletedStatus(
-    status: string
-  ) {
-    const normalized =
-      normalizeStatus(
-        status
-      );
+  function isCompleted(status: string) {
+    const normalized = status.toUpperCase();
 
     return (
       normalized === "COMPLETED" ||
       normalized === "COMPLETADA" ||
       normalized === "CONFIRMADO" ||
-      normalized === "CONFIRMADA"
+      normalized === "CONFIRMADA" ||
+      normalized === "SUCCESS" ||
+      normalized === "SUCCESSFUL"
     );
   }
 
-  /*
-   * ============================================================
-   * ESTADO CANCELADO
-   * ============================================================
-   */
-
-  function isCancelledStatus(
-    status: string
-  ) {
-    const normalized =
-      normalizeStatus(
-        status
-      );
+  function isCancelled(status: string) {
+    const normalized = status.toUpperCase();
 
     return (
       normalized === "CANCELLED" ||
@@ -293,19 +208,8 @@ export default function OrdersPage() {
     );
   }
 
-  /*
-   * ============================================================
-   * ESTADO PENDIENTE
-   * ============================================================
-   */
-
-  function isPendingStatus(
-    status: string
-  ) {
-    const normalized =
-      normalizeStatus(
-        status
-      );
+  function isPending(status: string) {
+    const normalized = status.toUpperCase();
 
     return (
       normalized === "RESERVED" ||
@@ -317,111 +221,77 @@ export default function OrdersPage() {
     );
   }
 
-  /*
-   * ============================================================
-   * FILTRAR ÓRDENES
-   * ============================================================
-   */
+  function getStatusClass(status: string) {
+    if (isCompleted(status)) {
+      return "status-completed";
+    }
 
-  const filteredOrders =
-    useMemo(() => {
-      if (
-        filter === "TODAS"
-      ) {
-        return orders;
+    if (isCancelled(status)) {
+      return "status-cancelled";
+    }
+
+    return "status-pending";
+  }
+
+  function getStatusText(status: string) {
+    if (isCompleted(status)) {
+      return "COMPLETADA";
+    }
+
+    if (isCancelled(status)) {
+      if (status.toUpperCase() === "REFUNDED") {
+        return "REEMBOLSADA";
       }
 
-      if (
-        filter === "PENDIENTES"
-      ) {
-        return orders.filter(
-          (order) =>
-            isPendingStatus(
-              order.status
-            )
-        );
-      }
+      return "CANCELADA";
+    }
 
-      if (
-        filter === "COMPLETADAS"
-      ) {
-        return orders.filter(
-          (order) =>
-            isCompletedStatus(
-              order.status
-            )
-        );
-      }
+    if (status.toUpperCase() === "SUPPLIER_PENDING") {
+      return "PROCESANDO";
+    }
 
-      if (
-        filter === "CANCELADAS"
-      ) {
-        return orders.filter(
-          (order) =>
-            isCancelledStatus(
-              order.status
-            )
-        );
-      }
+    if (status.toUpperCase() === "REFUND_PENDING") {
+      return "REEMBOLSO PENDIENTE";
+    }
 
-      return orders;
-    }, [
-      orders,
-      filter,
-    ]);
+    return "PENDIENTE";
+  }
 
-  /*
-   * ============================================================
-   * CONTADORES
-   * ============================================================
-   */
+  function getGameIcon(game: string) {
+    const normalized = game.toLowerCase();
 
-  const pendingCount =
-    orders.filter(
-      (order) =>
-        isPendingStatus(
-          order.status
-        )
-    ).length;
+    if (normalized.includes("free") && normalized.includes("fire")) {
+      return "🔥";
+    }
 
-  const completedCount =
-    orders.filter(
-      (order) =>
-        isCompletedStatus(
-          order.status
-        )
-    ).length;
+    if (normalized.includes("pubg")) {
+      return "🔫";
+    }
 
-  const cancelledCount =
-    orders.filter(
-      (order) =>
-        isCancelledStatus(
-          order.status
-        )
-    ).length;
+    if (normalized.includes("call") || normalized.includes("cod")) {
+      return "🎯";
+    }
 
-  /*
-   * ============================================================
-   * FECHA
-   * ============================================================
-   */
+    if (normalized.includes("mobile legends")) {
+      return "⚔️";
+    }
 
-  function formatDate(
-    date: string
-  ) {
+    if (normalized.includes("fortnite")) {
+      return "🪂";
+    }
+
+    return "🎮";
+  }
+
+  function formatDate(date: string) {
     try {
-      return new Intl.DateTimeFormat(
-        "es",
-        {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        }
-      ).format(
-        new Date(date)
-      );
+      return new Date(date).toLocaleString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch {
       return date;
     }
@@ -429,161 +299,92 @@ export default function OrdersPage() {
 
   /*
    * ============================================================
-   * ICONO DEL JUEGO
+   * FILTROS
    * ============================================================
    */
 
-  function getGameIcon(
-    game: string
-  ) {
-    const normalized =
-      game
-        .toLowerCase();
-
-    if (
-      normalized.includes(
-        "free fire"
-      )
-    ) {
-      return "💎";
+  const filteredOrders = useMemo(() => {
+    if (filter === "TODAS") {
+      return orders;
     }
 
-    if (
-      normalized.includes(
-        "call of duty"
-      )
-    ) {
-      return "🪙";
+    if (filter === "PENDIENTES") {
+      return orders.filter((order) =>
+        isPending(order.status)
+      );
     }
 
-    if (
-      normalized.includes(
-        "mobile legends"
-      )
-    ) {
-      return "💎";
+    if (filter === "COMPLETADAS") {
+      return orders.filter((order) =>
+        isCompleted(order.status)
+      );
     }
 
-    if (
-      normalized.includes(
-        "blood strike"
-      )
-    ) {
-      return "🪙";
+    if (filter === "CANCELADAS") {
+      return orders.filter((order) =>
+        isCancelled(order.status)
+      );
     }
 
-    return "🎮";
+    return orders;
+  }, [orders, filter]);
+
+  /*
+   * ============================================================
+   * CONTADORES
+   * ============================================================
+   */
+
+  const totalOrders = orders.length;
+
+  const completedOrders = orders.filter((order) =>
+    isCompleted(order.status)
+  ).length;
+
+  const pendingOrders = orders.filter((order) =>
+    isPending(order.status)
+  ).length;
+
+  const cancelledOrders = orders.filter((order) =>
+    isCancelled(order.status)
+  ).length;
+
+  /*
+   * ============================================================
+   * ABRIR DETALLES
+   * ============================================================
+   */
+
+  function openOrder(order: Order) {
+    setSelectedOrder(order);
+  }
+
+  function closeOrder() {
+    setSelectedOrder(null);
   }
 
   /*
    * ============================================================
-   * CLASE DEL ESTADO
-   * ============================================================
-   */
-
-  function getStatusClass(
-    status: string
-  ) {
-    if (
-      isCompletedStatus(
-        status
-      )
-    ) {
-      return "order-status completed";
-    }
-
-    if (
-      isCancelledStatus(
-        status
-      )
-    ) {
-      return "order-status cancelled";
-    }
-
-    return "order-status pending";
-  }
-
-  /*
-   * ============================================================
-   * TEXTO DEL ESTADO
-   * ============================================================
-   */
-
-  function getStatusText(
-    status: string
-  ) {
-    if (
-      isCompletedStatus(
-        status
-      )
-    ) {
-      return "COMPLETADA";
-    }
-
-    if (
-      isCancelledStatus(
-        status
-      )
-    ) {
-      return "CANCELADA";
-    }
-
-    return "PENDIENTE";
-  }
-
-  /*
-   * ============================================================
-   * ABRIR PEDIDO
-   * ============================================================
-   */
-
-  function openOrder(
-    order: Order
-  ) {
-    localStorage.setItem(
-      "storeGamingSelectedOrder",
-      JSON.stringify(
-        order
-      )
-    );
-
-    /*
-     * La página /orders/detail
-     * solamente debe utilizarse si
-     * existe realmente en el proyecto.
-     */
-
-    router.push(
-      "/orders/detail"
-    );
-  }
-
-  /*
-   * ============================================================
-   * PANTALLA DE CARGA
+   * LOADING
    * ============================================================
    */
 
   if (loading) {
     return (
       <main className="orders-page">
-
-        <section className="orders-loading">
-
+        <div className="orders-loading">
           <div className="orders-loading-spinner">
             ⏳
           </div>
 
-          <h1>
-            CARGANDO ÓRDENES
-          </h1>
+          <strong>
+            CARGANDO TUS ÓRDENES...
+          </strong>
 
-          <p>
-            Espere un momento...
-          </p>
-
-        </section>
-
+          <span>
+            Un momento por favor
+          </span>
+        </div>
       </main>
     );
   }
@@ -597,169 +398,210 @@ export default function OrdersPage() {
   return (
     <main className="orders-page">
 
-      {/* HEADER */}
+      {/* ======================================================
+          ENCABEZADO
+          ====================================================== */}
 
       <header className="orders-header">
 
         <button
           type="button"
           className="orders-back-button"
-          onClick={() =>
-            router.push("/")
-          }
+          onClick={() => router.back()}
+          aria-label="Volver"
         >
           ←
         </button>
 
         <div className="orders-header-title">
-
-          <strong>
-            🛒STORE GAMING🎮
-          </strong>
-
           <span>
-            MIS ÓRDENES
+            🛒
           </span>
 
+          <strong>
+            MIS ÓRDENES
+          </strong>
         </div>
+
+        <div className="orders-header-space" />
 
       </header>
 
-      {/* HERO */}
+      {/* ======================================================
+          HERO
+          ====================================================== */}
 
       <section className="orders-hero">
 
-        <div className="orders-hero-content">
+        <div className="orders-hero-icon">
+          📦
+        </div>
 
-          <span className="orders-hero-icon">
+        <div>
+          <h1>
+            HISTORIAL DE ÓRDENES
+          </h1>
+
+          <p>
+            Aquí puedes consultar todas tus
+            compras y el estado de cada pedido.
+          </p>
+        </div>
+
+      </section>
+
+      {/* ======================================================
+          ESTADÍSTICAS
+          ====================================================== */}
+
+      <section className="orders-stats">
+
+        <div className="orders-stat-card">
+
+          <span className="orders-stat-icon">
             📦
           </span>
 
-          <div>
+          <strong>
+            {totalOrders}
+          </strong>
 
-            <h1>
-              MIS ÓRDENES
-            </h1>
+          <small>
+            TOTAL
+          </small>
 
-            <p>
-              Consulta el estado de
-              todas tus compras.
-            </p>
+        </div>
 
-          </div>
+        <div className="orders-stat-card">
+
+          <span className="orders-stat-icon">
+            ⏳
+          </span>
+
+          <strong>
+            {pendingOrders}
+          </strong>
+
+          <small>
+            PENDIENTES
+          </small>
+
+        </div>
+
+        <div className="orders-stat-card">
+
+          <span className="orders-stat-icon">
+            ✅
+          </span>
+
+          <strong>
+            {completedOrders}
+          </strong>
+
+          <small>
+            COMPLETADAS
+          </small>
+
+        </div>
+
+        <div className="orders-stat-card">
+
+          <span className="orders-stat-icon">
+            ❌
+          </span>
+
+          <strong>
+            {cancelledOrders}
+          </strong>
+
+          <small>
+            CANCELADAS
+          </small>
 
         </div>
 
       </section>
 
-      {/* ESTADÍSTICAS */}
+      {/* ======================================================
+          FILTROS
+          ====================================================== */}
 
-      <section className="orders-stats">
+      <section className="orders-filters">
 
         <button
           type="button"
           className={
             filter === "TODAS"
-              ? "order-stat active"
-              : "order-stat"
+              ? "orders-filter active"
+              : "orders-filter"
           }
-          onClick={() =>
-            setFilter("TODAS")
-          }
+          onClick={() => setFilter("TODAS")}
         >
-          <strong>
-            {orders.length}
-          </strong>
-
-          <span>
-            TODAS
-          </span>
+          TODAS
         </button>
 
         <button
           type="button"
           className={
             filter === "PENDIENTES"
-              ? "order-stat active"
-              : "order-stat"
+              ? "orders-filter active"
+              : "orders-filter"
           }
-          onClick={() =>
-            setFilter(
-              "PENDIENTES"
-            )
-          }
+          onClick={() => setFilter("PENDIENTES")}
         >
-          <strong>
-            {pendingCount}
-          </strong>
-
-          <span>
-            PENDIENTES
-          </span>
+          PENDIENTES
         </button>
 
         <button
           type="button"
           className={
             filter === "COMPLETADAS"
-              ? "order-stat active"
-              : "order-stat"
+              ? "orders-filter active"
+              : "orders-filter"
           }
-          onClick={() =>
-            setFilter(
-              "COMPLETADAS"
-            )
-          }
+          onClick={() => setFilter("COMPLETADAS")}
         >
-          <strong>
-            {completedCount}
-          </strong>
-
-          <span>
-            COMPLETADAS
-          </span>
+          COMPLETADAS
         </button>
 
         <button
           type="button"
           className={
             filter === "CANCELADAS"
-              ? "order-stat active"
-              : "order-stat"
+              ? "orders-filter active"
+              : "orders-filter"
           }
-          onClick={() =>
-            setFilter(
-              "CANCELADAS"
-            )
-          }
+          onClick={() => setFilter("CANCELADAS")}
         >
-          <strong>
-            {cancelledCount}
-          </strong>
-
-          <span>
-            CANCELADAS
-          </span>
+          CANCELADAS
         </button>
 
       </section>
 
-      {/* HISTORIAL */}
+      {/* ======================================================
+          HISTORIAL
+          ====================================================== */}
 
       <section className="orders-history">
 
         <div className="orders-section-title">
 
-          <h2>
-            HISTORIAL DE PEDIDOS
-          </h2>
+          <div>
+            <span>
+              📋
+            </span>
 
-          <span>
-            {filteredOrders.length} pedido
+            <strong>
+              HISTORIAL
+            </strong>
+          </div>
+
+          <small>
+            {filteredOrders.length}{" "}
             {filteredOrders.length === 1
-              ? ""
-              : "s"}
-          </span>
+              ? "orden"
+              : "órdenes"}
+          </small>
 
         </div>
 
@@ -767,18 +609,27 @@ export default function OrdersPage() {
 
           <div className="orders-empty">
 
-            <span>
-              📦
-            </span>
+            <div className="orders-empty-icon">
+              📭
+            </div>
 
-            <h3>
-              NO HAY PEDIDOS
-            </h3>
+            <strong>
+              NO HAY ÓRDENES
+            </strong>
 
             <p>
-              No tienes órdenes en esta
-              categoría todavía.
+              No encontramos órdenes en esta
+              categoría.
             </p>
+
+            {filter !== "TODAS" && (
+              <button
+                type="button"
+                onClick={() => setFilter("TODAS")}
+              >
+                VER TODAS LAS ÓRDENES
+              </button>
+            )}
 
           </div>
 
@@ -786,77 +637,70 @@ export default function OrdersPage() {
 
           <div className="orders-list">
 
-            {filteredOrders.map(
-              (order) => (
+            {filteredOrders.map((order) => (
 
-                <button
-                  type="button"
-                  key={order.id}
-                  className="order-card"
-                  onClick={() =>
-                    openOrder(
-                      order
-                    )
-                  }
-                >
+              <button
+                key={order.id}
+                type="button"
+                className="order-card"
+                onClick={() => openOrder(order)}
+              >
 
-                  <div className="order-card-icon">
+                <div className="order-card-left">
 
-                    {getGameIcon(
-                      order.game
-                    )}
-
+                  <div className="order-game-icon">
+                    {getGameIcon(order.game)}
                   </div>
 
-                  <div className="order-card-main">
+                  <div className="order-card-info">
 
                     <strong>
-                      {order.game}
+                      {order.displayProduct ||
+                        order.product}
                     </strong>
 
                     <span>
-                      {order.displayProduct ||
-                        order.product}
+                      {order.game}
                     </span>
 
                     <small>
-                      ID:{" "}
-                      {order.playerId}
+                      ID: {order.playerId}
                     </small>
 
                     <small>
-                      {formatDate(
-                        order.createdAt
-                      )}
+                      {formatDate(order.createdAt)}
                     </small>
 
                   </div>
 
-                  <div className="order-card-right">
+                </div>
 
-                    <strong>
-                      $
-                      {order.price.toFixed(
-                        2
-                      )}
-                    </strong>
+                <div className="order-card-right">
 
-                    <span
-                      className={getStatusClass(
-                        order.status
-                      )}
-                    >
-                      {getStatusText(
-                        order.status
-                      )}
-                    </span>
+                  <strong>
+                    $
+                    {order.price.toFixed(2)}
+                  </strong>
 
-                  </div>
+                  <span
+                    className={getStatusClass(
+                      order.status
+                    )}
+                  >
+                    {getStatusText(
+                      order.status
+                    )}
+                  </span>
 
-                </button>
+                  <span className="order-card-arrow">
+                    ›
+                  </span>
 
-              )
-            )}
+                </div>
+
+              </button>
+
+            ))}
 
           </div>
 
@@ -864,7 +708,9 @@ export default function OrdersPage() {
 
       </section>
 
-      {/* SEGURIDAD */}
+      {/* ======================================================
+          SEGURIDAD
+          ====================================================== */}
 
       <section className="orders-security">
 
@@ -881,8 +727,8 @@ export default function OrdersPage() {
             </strong>
 
             <p>
-              Guarda el número de orden
-              para consultar cualquier compra.
+              Guarda el número de orden para
+              consultar cualquier compra.
             </p>
 
           </div>
@@ -891,12 +737,14 @@ export default function OrdersPage() {
 
       </section>
 
-      {/* FOOTER */}
+      {/* ======================================================
+          PIE DE PÁGINA
+          ====================================================== */}
 
       <footer className="orders-footer">
 
         <strong>
-          🛒STORE GAMING🎮
+          🛒TIENDA DE JUEGOS🎮
         </strong>
 
         <span>
@@ -905,6 +753,155 @@ export default function OrdersPage() {
 
       </footer>
 
+            {/* ======================================================
+          MODAL / DETALLES DE LA ORDEN
+          ====================================================== */}
+
+      {selectedOrder && (
+        <div
+          className="order-detail-overlay"
+          onClick={closeOrder}
+        >
+          <div
+            className="order-detail-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="order-detail-header">
+              <div>
+                <span>
+                  {getGameIcon(selectedOrder.game)}
+                </span>
+
+                <div>
+                  <strong>
+                    DETALLES DE LA ORDEN
+                  </strong>
+
+                  <small>
+                    #{selectedOrder.id}
+                  </small>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeOrder}
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="order-detail-status">
+              <span
+                className={getStatusClass(
+                  selectedOrder.status
+                )}
+              >
+                {getStatusText(
+                  selectedOrder.status
+                )}
+              </span>
+            </div>
+
+            <div className="order-detail-content">
+              <div className="order-detail-row">
+                <span>
+                  🎮 Juego
+                </span>
+
+                <strong>
+                  {selectedOrder.game}
+                </strong>
+              </div>
+
+              <div className="order-detail-row">
+                <span>
+                  📦 Producto
+                </span>
+
+                <strong>
+                  {selectedOrder.displayProduct ||
+                    selectedOrder.product}
+                </strong>
+              </div>
+
+              <div className="order-detail-row">
+                <span>
+                  🆔 ID del jugador
+                </span>
+
+                <strong>
+                  {selectedOrder.playerId}
+                </strong>
+              </div>
+
+              <div className="order-detail-row">
+                <span>
+                  💵 Precio
+                </span>
+
+                <strong>
+                  $
+                  {selectedOrder.price.toFixed(2)}
+                </strong>
+              </div>
+
+              <div className="order-detail-row">
+                <span>
+                  💳 Moneda
+                </span>
+
+                <strong>
+                  {selectedOrder.currency || "USD"}
+                </strong>
+              </div>
+
+              <div className="order-detail-row">
+                <span>
+                  📅 Fecha
+                </span>
+
+                <strong>
+                  {formatDate(
+                    selectedOrder.createdAt
+                  )}
+                </strong>
+              </div>
+
+              <div className="order-detail-row">
+                <span>
+                  🔢 Número de orden
+                </span>
+
+                <strong className="order-id-value">
+                  {selectedOrder.id}
+                </strong>
+              </div>
+
+              {selectedOrder.supplierOrderId && (
+                <div className="order-detail-row">
+                  <span>
+                    ⚙️ Referencia
+                  </span>
+
+                  <strong>
+                    {selectedOrder.supplierOrderId}
+                  </strong>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="order-detail-close-button"
+              onClick={closeOrder}
+            >
+              CERRAR
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
-              }
+}
