@@ -62,17 +62,17 @@ export default function OrdersPage() {
   const [loading, setLoading] =
     useState(true);
 
+  /*
+   * ============================================================
+   * CARGAR ÓRDENES
+   * ============================================================
+   */
+
   useEffect(() => {
     let mounted = true;
 
     async function loadOrders() {
       try {
-        /*
-         * =========================
-         * COMPROBAR SESIÓN
-         * =========================
-         */
-
         const {
           data: { session },
           error: sessionError,
@@ -92,20 +92,6 @@ export default function OrdersPage() {
 
         const userId =
           session.user.id;
-
-        /*
-         * =========================
-         * CARGAR ÓRDENES REALES
-         * =========================
-         *
-         * Las órdenes de Free Fire
-         * ahora están en:
-         *
-         * public.topup_orders
-         *
-         * Nunca utilizamos localStorage
-         * para obtener las órdenes.
-         */
 
         const {
           data,
@@ -161,16 +147,6 @@ export default function OrdersPage() {
 
           return;
         }
-
-        /*
-         * =========================
-         * CONVERTIR DATOS
-         * =========================
-         *
-         * Convertimos la estructura
-         * de Supabase al formato que
-         * ya utiliza este diseño.
-         */
 
         const mappedOrders: Order[] =
           (
@@ -242,6 +218,7 @@ export default function OrdersPage() {
         );
 
         if (mounted) {
+          setOrders([]);
           setLoading(false);
         }
       }
@@ -255,9 +232,95 @@ export default function OrdersPage() {
   }, [router]);
 
   /*
-   * =========================
-   * FILTROS
-   * =========================
+   * ============================================================
+   * NORMALIZAR ESTADO
+   * ============================================================
+   */
+
+  function normalizeStatus(
+    status: string
+  ) {
+    return (
+      status
+        ?.toString()
+        .trim()
+        .toUpperCase() || ""
+    );
+  }
+
+  /*
+   * ============================================================
+   * ESTADO COMPLETADO
+   * ============================================================
+   */
+
+  function isCompletedStatus(
+    status: string
+  ) {
+    const normalized =
+      normalizeStatus(
+        status
+      );
+
+    return (
+      normalized === "COMPLETED" ||
+      normalized === "COMPLETADA" ||
+      normalized === "CONFIRMADO" ||
+      normalized === "CONFIRMADA"
+    );
+  }
+
+  /*
+   * ============================================================
+   * ESTADO CANCELADO
+   * ============================================================
+   */
+
+  function isCancelledStatus(
+    status: string
+  ) {
+    const normalized =
+      normalizeStatus(
+        status
+      );
+
+    return (
+      normalized === "CANCELLED" ||
+      normalized === "CANCELED" ||
+      normalized === "CANCELADA" ||
+      normalized === "FAILED" ||
+      normalized === "REFUNDED"
+    );
+  }
+
+  /*
+   * ============================================================
+   * ESTADO PENDIENTE
+   * ============================================================
+   */
+
+  function isPendingStatus(
+    status: string
+  ) {
+    const normalized =
+      normalizeStatus(
+        status
+      );
+
+    return (
+      normalized === "RESERVED" ||
+      normalized === "SUPPLIER_PENDING" ||
+      normalized === "REFUND_PENDING" ||
+      normalized === "PENDING" ||
+      normalized === "PROCESSING" ||
+      normalized === "PENDIENTE"
+    );
+  }
+
+  /*
+   * ============================================================
+   * FILTRAR ÓRDENES
+   * ============================================================
    */
 
   const filteredOrders =
@@ -308,92 +371,9 @@ export default function OrdersPage() {
     ]);
 
   /*
-   * =========================
-   * FUNCIONES DE ESTADO
-   * =========================
-   */
-
-  function normalizeStatus(
-    status: string
-  ) {
-    return (
-      status
-        ?.toString()
-        .trim()
-        .toUpperCase() || ""
-    );
-  }
-
-  function isCompletedStatus(
-    status: string
-  ) {
-    const normalized =
-      normalizeStatus(
-        status
-      );
-
-    return (
-      normalized ===
-        "COMPLETED" ||
-      normalized ===
-        "COMPLETADA" ||
-      normalized ===
-        "CONFIRMADO" ||
-      normalized ===
-        "CONFIRMADA"
-    );
-  }
-
-  function isCancelledStatus(
-    status: string
-  ) {
-    const normalized =
-      normalizeStatus(
-        status
-      );
-
-    return (
-      normalized ===
-        "CANCELLED" ||
-      normalized ===
-        "CANCELED" ||
-      normalized ===
-        "CANCELADA" ||
-      normalized ===
-        "FAILED" ||
-      normalized ===
-        "REFUNDED"
-    );
-  }
-
-  function isPendingStatus(
-    status: string
-  ) {
-    const normalized =
-      normalizeStatus(
-        status
-      );
-
-    return (
-      normalized ===
-        "RESERVED" ||
-      normalized ===
-        "SUPPLIER_PENDING" ||
-      normalized ===
-        "REFUND_PENDING" ||
-      normalized ===
-        "PENDING" ||
-      normalized ===
-        "PROCESSING" ||
-      normalized ===
-        "PENDIENTE"
-    );
-  }
-
-  /*
-   * =========================
+   * ============================================================
    * CONTADORES
-   * =========================
+   * ============================================================
    */
 
   const pendingCount =
@@ -421,9 +401,9 @@ export default function OrdersPage() {
     ).length;
 
   /*
-   * =========================
+   * ============================================================
    * FECHA
-   * =========================
+   * ============================================================
    */
 
   function formatDate(
@@ -448,16 +428,17 @@ export default function OrdersPage() {
   }
 
   /*
-   * =========================
+   * ============================================================
    * ICONO DEL JUEGO
-   * =========================
+   * ============================================================
    */
 
   function getGameIcon(
     game: string
   ) {
     const normalized =
-      game.toLowerCase();
+      game
+        .toLowerCase();
 
     if (
       normalized.includes(
@@ -495,9 +476,9 @@ export default function OrdersPage() {
   }
 
   /*
-   * =========================
+   * ============================================================
    * CLASE DEL ESTADO
-   * =========================
+   * ============================================================
    */
 
   function getStatusClass(
@@ -523,9 +504,9 @@ export default function OrdersPage() {
   }
 
   /*
-   * =========================
+   * ============================================================
    * TEXTO DEL ESTADO
-   * =========================
+   * ============================================================
    */
 
   function getStatusText(
@@ -551,20 +532,9 @@ export default function OrdersPage() {
   }
 
   /*
-   * =========================
+   * ============================================================
    * ABRIR PEDIDO
-   * =========================
-   *
-   * IMPORTANTE:
-   * Conservamos la navegación
-   * existente hacia:
-   *
-   * /orders/detail
-   *
-   * y guardamos solamente la
-   * orden seleccionada para que
-   * la página de detalles pueda
-   * utilizarla.
+   * ============================================================
    */
 
   function openOrder(
@@ -577,46 +547,52 @@ export default function OrdersPage() {
       )
     );
 
+    /*
+     * La página /orders/detail
+     * solamente debe utilizarse si
+     * existe realmente en el proyecto.
+     */
+
     router.push(
       "/orders/detail"
     );
   }
 
   /*
-   * =========================
-   * CARGANDO
-   * =========================
+   * ============================================================
+   * PANTALLA DE CARGA
+   * ============================================================
    */
 
   if (loading) {
     return (
-      <main className="orders-loading-page">
+      <main className="orders-page">
 
-        <div className="orders-loading-logo">
+        <section className="orders-loading">
 
-          <span>
-            STORE
-          </span>
+          <div className="orders-loading-spinner">
+            ⏳
+          </div>
 
-          <strong>
-            🛒
-          </strong>
+          <h1>
+            CARGANDO ÓRDENES
+          </h1>
 
-          <span>
-            GAMING
-          </span>
+          <p>
+            Espere un momento...
+          </p>
 
-        </div>
-
-        <div className="orders-loading-line" />
-
-        <p>
-          CARGANDO ÓRDENES...
-        </p>
+        </section>
 
       </main>
     );
   }
+
+  /*
+   * ============================================================
+   * PÁGINA
+   * ============================================================
+   */
 
   return (
     <main className="orders-page">
@@ -629,46 +605,22 @@ export default function OrdersPage() {
           type="button"
           className="orders-back-button"
           onClick={() =>
-            router.push(
-              "/home"
-            )
+            router.push("/")
           }
-          aria-label="Volver"
         >
-          <span>
-            ←
-          </span>
+          ←
         </button>
 
         <div className="orders-header-title">
 
-          <div className="orders-brand-mini">
+          <strong>
+            🛒STORE GAMING🎮
+          </strong>
 
-            <span>
-              STORE
-            </span>
-
-            <b>
-              🛒
-            </b>
-
-            <strong>
-              GAMING
-            </strong>
-
-          </div>
-
-          <small>
+          <span>
             MIS ÓRDENES
-          </small>
+          </span>
 
-        </div>
-
-        <div
-          className="orders-header-icon"
-          aria-hidden="true"
-        >
-          ▣
         </div>
 
       </header>
@@ -677,41 +629,24 @@ export default function OrdersPage() {
 
       <section className="orders-hero">
 
-        <div className="orders-hero-glow" />
-
         <div className="orders-hero-content">
 
-          <span className="orders-hero-label">
-            PANEL DE CLIENTE
+          <span className="orders-hero-icon">
+            📦
           </span>
 
-          <h1>
-            MIS
-            <strong>
-              ÓRDENES
-            </strong>
-          </h1>
+          <div>
 
-          <p>
-            Consulta el estado y los
-            detalles de todas tus compras.
-          </p>
+            <h1>
+              MIS ÓRDENES
+            </h1>
 
-        </div>
+            <p>
+              Consulta el estado de
+              todas tus compras.
+            </p>
 
-        <div className="orders-total-box">
-
-          <span>
-            TOTAL
-          </span>
-
-          <strong>
-            {orders.length}
-          </strong>
-
-          <small>
-            ÓRDENES
-          </small>
+          </div>
 
         </div>
 
@@ -723,182 +658,127 @@ export default function OrdersPage() {
 
         <button
           type="button"
-          className={`orders-stat ${
+          className={
             filter === "TODAS"
-              ? "active"
-              : ""
-          }`}
+              ? "order-stat active"
+              : "order-stat"
+          }
           onClick={() =>
-            setFilter(
-              "TODAS"
-            )
+            setFilter("TODAS")
           }
         >
+          <strong>
+            {orders.length}
+          </strong>
+
           <span>
-            ◈
+            TODAS
           </span>
-
-          <div>
-            <strong>
-              {orders.length}
-            </strong>
-
-            <small>
-              TODAS
-            </small>
-          </div>
         </button>
 
         <button
           type="button"
-          className={`orders-stat ${
-            filter ===
-            "PENDIENTES"
-              ? "active"
-              : ""
-          }`}
+          className={
+            filter === "PENDIENTES"
+              ? "order-stat active"
+              : "order-stat"
+          }
           onClick={() =>
             setFilter(
               "PENDIENTES"
             )
           }
         >
+          <strong>
+            {pendingCount}
+          </strong>
+
           <span>
-            ◷
+            PENDIENTES
           </span>
-
-          <div>
-            <strong>
-              {pendingCount}
-            </strong>
-
-            <small>
-              PENDIENTES
-            </small>
-          </div>
         </button>
 
         <button
           type="button"
-          className={`orders-stat ${
-            filter ===
-            "COMPLETADAS"
-              ? "active"
-              : ""
-          }`}
+          className={
+            filter === "COMPLETADAS"
+              ? "order-stat active"
+              : "order-stat"
+          }
           onClick={() =>
             setFilter(
               "COMPLETADAS"
             )
           }
         >
+          <strong>
+            {completedCount}
+          </strong>
+
           <span>
-            ✓
+            COMPLETADAS
           </span>
-
-          <div>
-            <strong>
-              {completedCount}
-            </strong>
-
-            <small>
-              COMPLETADAS
-            </small>
-          </div>
         </button>
 
         <button
           type="button"
-          className={`orders-stat ${
-            filter ===
-            "CANCELADAS"
-              ? "active"
-              : ""
-          }`}
+          className={
+            filter === "CANCELADAS"
+              ? "order-stat active"
+              : "order-stat"
+          }
           onClick={() =>
             setFilter(
               "CANCELADAS"
             )
           }
         >
+          <strong>
+            {cancelledCount}
+          </strong>
+
           <span>
-            ×
+            CANCELADAS
           </span>
-
-          <div>
-            <strong>
-              {cancelledCount}
-            </strong>
-
-            <small>
-              CANCELADAS
-            </small>
-          </div>
         </button>
 
       </section>
 
-      {/* CONTENIDO */}
+      {/* HISTORIAL */}
 
-      <section className="orders-content">
+      <section className="orders-history">
 
-        <div className="orders-content-header">
+        <div className="orders-section-title">
 
-          <div>
+          <h2>
+            HISTORIAL DE PEDIDOS
+          </h2>
 
-            <span>
-              HISTORIAL
-            </span>
-
-            <h2>
-              TUS PEDIDOS
-            </h2>
-
-          </div>
-
-          <div className="orders-filter-label">
-            {filter}
-          </div>
+          <span>
+            {filteredOrders.length} pedido
+            {filteredOrders.length === 1
+              ? ""
+              : "s"}
+          </span>
 
         </div>
 
-        {filteredOrders.length ===
-        0 ? (
+        {filteredOrders.length === 0 ? (
 
           <div className="orders-empty">
 
-            <div className="orders-empty-icon">
-              ▣
-            </div>
+            <span>
+              📦
+            </span>
 
             <h3>
-              NO HAY ÓRDENES
+              NO HAY PEDIDOS
             </h3>
 
             <p>
-              {orders.length ===
-              0
-                ? "Todavía no has realizado ninguna compra."
-                : "No hay órdenes que coincidan con este filtro."}
+              No tienes órdenes en esta
+              categoría todavía.
             </p>
-
-            <button
-              type="button"
-              className="orders-shop-button"
-              onClick={() =>
-                router.push(
-                  "/home"
-                )
-              }
-            >
-              <span>
-                VER RECARGAS
-              </span>
-
-              <b>
-                →
-              </b>
-            </button>
 
           </div>
 
@@ -909,138 +789,71 @@ export default function OrdersPage() {
             {filteredOrders.map(
               (order) => (
 
-                <article
-                  key={
-                    order.id
+                <button
+                  type="button"
+                  key={order.id}
+                  className="order-card"
+                  onClick={() =>
+                    openOrder(
+                      order
+                    )
                   }
-                  className="order-item-card"
                 >
 
-                  <div className="order-item-top">
+                  <div className="order-card-icon">
 
-                    <div className="order-game-icon">
-                      {getGameIcon(
-                        order.game
+                    {getGameIcon(
+                      order.game
+                    )}
+
+                  </div>
+
+                  <div className="order-card-main">
+
+                    <strong>
+                      {order.game}
+                    </strong>
+
+                    <span>
+                      {order.displayProduct ||
+                        order.product}
+                    </span>
+
+                    <small>
+                      ID:{" "}
+                      {order.playerId}
+                    </small>
+
+                    <small>
+                      {formatDate(
+                        order.createdAt
                       )}
-                    </div>
+                    </small>
 
-                    <div className="order-game-info">
+                  </div>
 
-                      <span>
-                        {order.game}
-                      </span>
+                  <div className="order-card-right">
 
-                      <strong>
-                        {order.displayProduct ||
-                          order.product}
-                      </strong>
+                    <strong>
+                      $
+                      {order.price.toFixed(
+                        2
+                      )}
+                    </strong>
 
-                    </div>
-
-                    <div
+                    <span
                       className={getStatusClass(
                         order.status
                       )}
                     >
-                      <i />
-
                       {getStatusText(
                         order.status
                       )}
-                    </div>
+                    </span>
 
                   </div>
 
-                  <div className="order-item-divider" />
-
-                  <div className="order-item-details">
-
-                    <div>
-                      <span>
-                        ORDEN
-                      </span>
-
-                      <strong>
-                        #{order.id}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>
-                        ID DEL JUGADOR
-                      </span>
-
-                      <strong>
-                        {order.playerId}
-                      </strong>
-                    </div>
-
-                    {order.serverId && (
-                      <div>
-                        <span>
-                          SERVIDOR
-                        </span>
-
-                        <strong>
-                          {order.serverId}
-                        </strong>
-                      </div>
-                    )}
-
-                    <div>
-                      <span>
-                        FECHA
-                      </span>
-
-                      <strong>
-                        {formatDate(
-                          order.createdAt
-                        )}
-                      </strong>
-                    </div>
-
-                  </div>
-
-                  <div className="order-item-bottom">
-
-                    <div className="order-price">
-
-                      <span>
-                        TOTAL
-                      </span>
-
-                      <strong>
-                        {Number(
-                          order.price
-                        ).toFixed(
-                          2
-                        )}
-                        $
-                      </strong>
-
-                    </div>
-
-                    <button
-                      type="button"
-                      className="order-details-button"
-                      onClick={() =>
-                        openOrder(
-                          order
-                        )
-                      }
-                    >
-                      <span>
-                        VER DETALLES
-                      </span>
-
-                      <b>
-                        →
-                      </b>
-                    </button>
-
-                  </div>
-
-                </article>
+                </button>
 
               )
             )}
@@ -1080,18 +893,18 @@ export default function OrdersPage() {
 
       {/* FOOTER */}
 
-<footer className="orders-footer">
+      <footer className="orders-footer">
 
-  <strong>
-    🛒STORE GAMING🎮
-  </strong>
+        <strong>
+          🛒STORE GAMING🎮
+        </strong>
 
-  <span>
-    TU MEJOR OPCIÓN PARA RECARGAS GAMING
-  </span>
+        <span>
+          TU MEJOR OPCIÓN PARA RECARGAS GAMING
+        </span>
 
-</footer>
+      </footer>
 
-</main>
-);
-}
+    </main>
+  );
+              }
