@@ -16,57 +16,93 @@ export async function GET() {
       );
     }
 
-    // 1. Obtener categorías de top-ups
-    const categoriesResponse = await fetch(
-      `${FAZERCARDS_API}/topups?limit=50`,
-      {
+    let cursor: string | null = null;
+    let category: any = null;
+    let pagesChecked = 0;
+
+    // Buscar Free Fire LATAM recorriendo todas las páginas
+    while (pagesChecked < 20) {
+      pagesChecked++;
+
+      const url = new URL(`${FAZERCARDS_API}/topups`);
+
+      url.searchParams.set("limit", "50");
+
+      if (cursor) {
+        url.searchParams.set("cursor", cursor);
+      }
+
+      const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
           "X-API-Key": apiKey,
         },
         cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            step: "categories",
+            error:
+              data?.error ||
+              "No se pudieron obtener las categorías de FazerCards",
+          },
+          { status: response.status }
+        );
       }
-    );
 
-    const categoriesData = await categoriesResponse.json();
+      const items = Array.isArray(data.items) ? data.items : [];
 
-    if (!categoriesResponse.ok || !categoriesData.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          step: "categories",
-          error:
-            categoriesData?.error ||
-            "No se pudieron obtener las categorías de FazerCards",
-        },
-        { status: categoriesResponse.status }
-      );
+      // Buscar Free Fire LATAM
+      category = items.find((item: any) => {
+        const name = String(item.name || "").toLowerCase();
+
+        return (
+          name.includes("free fire") &&
+          name.includes("latam")
+        );
+      });
+
+      if (category) {
+        break;
+      }
+
+      const meta = data.meta || {};
+
+      if (!meta.has_more || !meta.next_cursor) {
+        break;
+      }
+
+      cursor = meta.next_cursor;
     }
 
-    // 2. Buscar Free Fire LATAM
-    const category = categoriesData.items?.find((item: any) => {
-      const name = String(item.name || "").toLowerCase();
-
-      return (
-        name.includes("free fire") &&
-        name.includes("latam")
-      );
-    });
-
+    // No encontrado
     if (!category) {
       return NextResponse.json({
         ok: false,
         step: "search_category",
-        message: "No se encontró Free Fire LATAM en el catálogo.",
-        categories: categoriesData.items || [],
+        message:
+          "No se encontró Free Fire LATAM en el catálogo de FazerCards.",
+        pages_checked: pagesChecked,
       });
     }
 
-    // 3. Obtener ofertas reales de esa categoría
+    // Obtener ofertas reales
+    const offersUrl = new URL(
+      `${FAZERCARDS_API}/topups/offers`
+    );
+
+    offersUrl.searchParams.set(
+      "category_id",
+      category.category_id
+    );
+
     const offersResponse = await fetch(
-      `${FAZERCARDS_API}/topups/offers?category_id=${encodeURIComponent(
-        category.category_id
-      )}`,
+      offersUrl.toString(),
       {
         method: "GET",
         headers: {
@@ -92,13 +128,13 @@ export async function GET() {
       );
     }
 
-    // 4. Devolver solamente la información necesaria
     return NextResponse.json({
       ok: true,
 
       game: {
         name: category.name,
         category_id: category.category_id,
+        note: category.note || null,
       },
 
       fields: offersData.fields || [],
@@ -108,16 +144,23 @@ export async function GET() {
         name: offer.name,
         price_usd: offer.price_usd,
       })),
+
+      pages_checked: pagesChecked,
     });
   } catch (error: any) {
-    console.error("FAZERCARDS FREE FIRE ERROR:", error);
+    console.error(
+      "FAZERCARDS FREE FIRE LATAM ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
         ok: false,
-        error: error?.message || "Error interno",
+        error:
+          error?.message ||
+          "Error interno del servidor",
       },
       { status: 500 }
     );
   }
-        }
+}
