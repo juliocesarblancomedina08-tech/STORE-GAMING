@@ -1,29 +1,28 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabasePublishableKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl) {
   throw new Error(
-    "Falta NEXT_PUBLIC_SUPABASE_URL en las variables de entorno."
+    "NEXT_PUBLIC_SUPABASE_URL no está configurada."
   );
 }
 
-if (!supabasePublishableKey) {
+if (!supabaseServiceRoleKey) {
   throw new Error(
-    "Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY en las variables de entorno."
+    "SUPABASE_SERVICE_ROLE_KEY no está configurada."
   );
 }
 
-export const supabase = createClient(
+export const supabaseAdmin = createClient(
   supabaseUrl,
-  supabasePublishableKey,
+  supabaseServiceRoleKey,
   {
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
+      autoRefreshToken: false,
+      persistSession: false,
     },
   }
 );
