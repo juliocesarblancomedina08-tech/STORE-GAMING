@@ -11,11 +11,12 @@ const SUPABASE_SERVICE_ROLE_KEY =
 const FAZER_WEBHOOK_SECRET =
   process.env.FAZER_WEBHOOK_SECRET!;
 
-const supabaseAdmin =
-  createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-  );
+const supabaseAdmin = createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY
+);
+
+export const dynamic = "force-dynamic";
 
 /*
  * =====================================================
@@ -26,8 +27,12 @@ const supabaseAdmin =
 function verifySignature(
   rawBody: string,
   signature: string
-) {
+): boolean {
   if (!FAZER_WEBHOOK_SECRET) {
+    console.error(
+      "FAZERCARDS WEBHOOK: FALTA FAZER_WEBHOOK_SECRET"
+    );
+
     return false;
   }
 
@@ -72,6 +77,104 @@ function verifySignature(
 
 /*
  * =====================================================
+ * EXTRAER ORDER ID
+ * =====================================================
+ *
+ * Evento actual:
+ *
+ * {
+ *   "event": "order.status_changed",
+ *   "data": {
+ *     "order_id": "ord-1001",
+ *     "status": "completed"
+ *   }
+ * }
+ *
+ * También dejamos compatibilidad con otras
+ * estructuras que pudiera enviar FazerCards.
+ */
+
+function extractSupplierOrderId(
+  payload: any
+): string {
+  const candidates = [
+    payload?.data?.order_id,
+    payload?.data?.orderId,
+    payload?.order_id,
+    payload?.orderId,
+    payload?.data?.order?.id,
+    payload?.order?.id,
+  ];
+
+  for (const candidate of candidates) {
+    if (
+      typeof candidate === "string" &&
+      candidate.trim()
+    ) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
+}
+
+/*
+ * =====================================================
+ * EXTRAER STATUS
+ * =====================================================
+ */
+
+function extractSupplierStatus(
+  payload: any
+): string {
+  const candidates = [
+    payload?.data?.status,
+    payload?.status,
+    payload?.data?.order?.status,
+    payload?.order?.status,
+  ];
+
+  for (const candidate of candidates) {
+    if (
+      typeof candidate === "string" &&
+      candidate.trim()
+    ) {
+      return candidate
+        .trim()
+        .toLowerCase();
+    }
+  }
+
+  return "";
+}
+
+/*
+ * =====================================================
+ * EXTRAER EVENTO
+ * =====================================================
+ */
+
+function extractEvent(
+  payload: any
+): string {
+  const event =
+    payload?.event ??
+    payload?.type ??
+    "";
+
+  if (
+    typeof event !== "string"
+  ) {
+    return "";
+  }
+
+  return event
+    .trim()
+    .toLowerCase();
+}
+
+/*
+ * =====================================================
  * WEBHOOK
  * =====================================================
  */
@@ -82,15 +185,11 @@ export async function POST(
   try {
     /*
      * =================================================
-     * LEER CUERPO RAW
+     * 1. LEER CUERPO RAW
      * =================================================
      *
-     * IMPORTANTE:
      * No usamos request.json()
      * antes de verificar la firma.
-     *
-     * La firma se calcula sobre el
-     * cuerpo original.
      */
 
     const rawBody =
@@ -98,15 +197,14 @@ export async function POST(
 
     /*
      * =================================================
-     * FIRMA
+     * 2. OBTENER FIRMA
      * =================================================
      *
-     * La documentación actual usa
-     * X-Webhook-Signature.
+     * Header principal:
+     * X-Webhook-Signature
      *
-     * También aceptamos
+     * También aceptamos:
      * X-FazerCards-Signature
-     * para compatibilidad.
      */
 
     const signature =
@@ -120,7 +218,7 @@ export async function POST(
 
     /*
      * =================================================
-     * VERIFICACIÓN
+     * 3. VERIFICAR FIRMA
      * =================================================
      */
 
@@ -145,7 +243,7 @@ export async function POST(
 
     /*
      * =================================================
-     * PARSEAR EVENTO
+     * 4. PARSEAR JSON
      * =================================================
      */
 
@@ -154,7 +252,12 @@ export async function POST(
     try {
       payload =
         JSON.parse(rawBody);
-    } catch {
+    } catch (error) {
+      console.error(
+        "FAZERCARDS WEBHOOK: JSON INVÁLIDO",
+        error
+      );
+
       return new NextResponse(
         "Invalid JSON",
         {
@@ -165,46 +268,25 @@ export async function POST(
 
     /*
      * =================================================
-     * DATOS DEL EVENTO
+     * 5. EXTRAER INFORMACIÓN
      * =================================================
      */
 
     const event =
-      payload?.event ||
-      payload?.type ||
-      "";
-
-    const data =
-      payload?.data ||
-      {};
+      extractEvent(payload);
 
     const supplierOrderId =
-      data?.order_id ||
-      data?.orderId ||
-      payload?.order_id ||
-      payload?.orderId ||
-      payload?.order?.id ||
-      data?.order?.id ||
-      null;
+      extractSupplierOrderId(
+        payload
+      );
 
     const status =
-      (
-        data?.status ||
-        payload?.status ||
-        payload?.order?.status ||
-        ""
-      )
-        .toString()
-        .toLowerCase();
-
-    /*
-     * =================================================
-     * LOG CONTROLADO
-     * =================================================
-     */
+      extractSupplierStatus(
+        payload
+      );
 
     console.log(
-      "FAZERCARDS WEBHOOK:",
+      "FAZERCARDS WEBHOOK RECIBIDO:",
       {
         event,
         supplierOrderId,
@@ -214,51 +296,54 @@ export async function POST(
 
     /*
      * =================================================
-     * SIN ORDER ID
+     * 6. VALIDAR ORDER ID
      * =================================================
      */
 
     if (!supplierOrderId) {
-      console.warn(
-        "FAZERCARDS WEBHOOK SIN ORDER ID"
+      console.error(
+        "FAZERCARDS WEBHOOK: NO SE ENCONTRÓ ORDER ID",
+        payload
       );
 
       /*
-       * Respondemos 200 porque la firma
-       * fue válida y no tiene sentido
-       * provocar reintentos infinitos.
+       * El webhook fue recibido correctamente,
+       * pero no tenemos una orden interna que
+       * podamos relacionar.
+       *
+       * Respondemos 200 para evitar reintentos
+       * innecesarios de un evento que no podemos
+       * procesar.
        */
 
       return NextResponse.json({
         ok: true,
-        ignored: true,
-        reason:
-          "ORDER_ID_NOT_FOUND",
+        action: "IGNORED",
+        reason: "ORDER_ID_NOT_FOUND",
       });
     }
 
     /*
      * =================================================
-     * BUSCAR ORDEN INTERNA
+     * 7. BUSCAR ORDEN INTERNA
      * =================================================
      */
 
     const {
       data: internalOrder,
       error: orderError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .select("*")
-        .eq(
-          "supplier_order_id",
-          supplierOrderId
-        )
-        .maybeSingle();
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .select("*")
+      .eq(
+        "supplier_order_id",
+        supplierOrderId
+      )
+      .maybeSingle();
 
     if (orderError) {
       console.error(
-        "ERROR BUSCANDO TOPUP:",
+        "ERROR BUSCANDO ORDEN TOPUP:",
         orderError
       );
 
@@ -272,51 +357,181 @@ export async function POST(
 
     /*
      * =================================================
-     * ORDEN NO ENCONTRADA
+     * 8. ORDEN NO ENCONTRADA
      * =================================================
      */
 
     if (!internalOrder) {
-      console.warn(
-        "FAZERCARDS ORDER NO ENCONTRADA:",
-        supplierOrderId
+      console.error(
+        "FAZERCARDS WEBHOOK: ORDEN INTERNA NO ENCONTRADA",
+        {
+          supplierOrderId,
+          event,
+          status,
+        }
       );
-
-      /*
-       * Puede ser una orden creada
-       * directamente desde el panel de
-       * FazerCards o una orden antigua.
-       */
 
       return NextResponse.json({
         ok: true,
-        ignored: true,
-        reason:
-          "INTERNAL_ORDER_NOT_FOUND",
+        action: "IGNORED",
+        reason: "ORDER_NOT_FOUND",
+        supplierOrderId,
       });
     }
 
     /*
      * =================================================
-     * COMPLETADA
+     * 9. GUARDAR RESPUESTA DEL WEBHOOK
      * =================================================
+     *
+     * No cambiamos todavía el estado interno.
+     * Primero guardamos la información recibida.
+     */
+
+    const {
+      error: updateResponseError,
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .update({
+        supplier_response: payload,
+        updated_at: new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        internalOrder.id
+      );
+
+    if (updateResponseError) {
+      console.error(
+        "ERROR GUARDANDO WEBHOOK EN TOPUP_ORDER:",
+        updateResponseError
+      );
+
+      return new NextResponse(
+        "Database error",
+        {
+          status: 500,
+        }
+      );
+    }
+
+    /*
+     * =================================================
+     * 10. EVENTO ACTUAL DE FAZERCARDS
+     * =================================================
+     *
+     * El evento oficial actual es:
+     *
+     * order.status_changed
+     *
+     * Pero también aceptamos eventos antiguos
+     * para mantener compatibilidad.
+     */
+
+    const supportedEvent =
+      event ===
+        "order.status_changed" ||
+      event ===
+        "order.completed" ||
+      event ===
+        "order.failed" ||
+      event ===
+        "order.refunded";
+
+    if (!supportedEvent) {
+      console.log(
+        "FAZERCARDS WEBHOOK IGNORADO - EVENTO NO SOPORTADO:",
+        {
+          event,
+          status,
+          supplierOrderId,
+          internalOrderId:
+            internalOrder.id,
+        }
+      );
+
+      return NextResponse.json({
+        ok: true,
+        action: "IGNORED",
+        event,
+        status,
+        orderId:
+          internalOrder.id,
+        supplierOrderId,
+      });
+    }
+
+    /*
+     * =================================================
+     * 11. DETERMINAR ESTADO FINAL
+     * =================================================
+     */
+
+    let finalStatus = status;
+
+    /*
+     * Compatibilidad con eventos antiguos
+     * que pueden no traer data.status.
      */
 
     if (
       event ===
-        "order.completed" ||
-      status === "completed"
+        "order.completed"
     ) {
+      finalStatus =
+        "completed";
+    }
+
+    if (
+      event ===
+        "order.failed"
+    ) {
+      finalStatus =
+        "failed";
+    }
+
+    if (
+      event ===
+        "order.refunded"
+    ) {
+      finalStatus =
+        "refunded";
+    }
+
+    /*
+     * =================================================
+     * 12. COMPLETED
+     * =================================================
+     */
+
+    if (
+      finalStatus ===
+        "completed" ||
+      finalStatus ===
+        "complete" ||
+      finalStatus ===
+        "success" ||
+      finalStatus ===
+        "successful"
+    ) {
+      /*
+       * Si ya estaba completada,
+       * no volvemos a modificar saldo.
+       *
+       * complete_topup_order()
+       * también protege el estado.
+       */
+
       const {
+        data: completeResult,
         error: completeError,
-      } =
-        await supabaseAdmin.rpc(
-          "complete_topup_order",
-          {
-            p_supplier_order_id:
-              supplierOrderId,
-          }
-        );
+      } = await supabaseAdmin.rpc(
+        "complete_topup_order",
+        {
+          p_supplier_order_id:
+            supplierOrderId,
+        }
+      );
 
       if (completeError) {
         console.error(
@@ -334,7 +549,13 @@ export async function POST(
 
       console.log(
         "TOPUP COMPLETADO:",
-        internalOrder.id
+        {
+          internalOrderId:
+            internalOrder.id,
+          supplierOrderId,
+          result:
+            completeResult,
+        }
       );
 
       return NextResponse.json({
@@ -342,34 +563,55 @@ export async function POST(
         action: "COMPLETED",
         orderId:
           internalOrder.id,
+        supplierOrderId,
+        status:
+          "COMPLETED",
       });
     }
 
     /*
      * =================================================
-     * FALLIDA
+     * 13. FAILED / REFUNDED
      * =================================================
+     *
+     * En cualquiera de estos estados:
+     *
+     * 1. Se marca la orden como FAILED.
+     * 2. fail_topup_order()
+     *    llama a refund_topup_balance().
+     * 3. El saldo retail_price se devuelve.
+     * 4. La orden termina REFUNDED.
+     *
+     * Las funciones SQL ya protegen contra
+     * reembolsos duplicados.
      */
 
     if (
-      event ===
-        "order.failed" ||
-      status === "failed"
+      finalStatus ===
+        "failed" ||
+      finalStatus ===
+        "failure" ||
+      finalStatus ===
+        "refunded" ||
+      finalStatus ===
+        "cancelled" ||
+      finalStatus ===
+        "canceled"
     ) {
       const {
+        data: failResult,
         error: failError,
-      } =
-        await supabaseAdmin.rpc(
-          "fail_topup_order",
-          {
-            p_supplier_order_id:
-              supplierOrderId,
-          }
-        );
+      } = await supabaseAdmin.rpc(
+        "fail_topup_order",
+        {
+          p_supplier_order_id:
+            supplierOrderId,
+        }
+      );
 
       if (failError) {
         console.error(
-          "ERROR FALLANDO TOPUP:",
+          "ERROR FALLANDO / REEMBOLSANDO TOPUP:",
           failError
         );
 
@@ -383,7 +625,15 @@ export async function POST(
 
       console.log(
         "TOPUP FALLIDO / SALDO DEVUELTO:",
-        internalOrder.id
+        {
+          internalOrderId:
+            internalOrder.id,
+          supplierOrderId,
+          supplierStatus:
+            finalStatus,
+          result:
+            failResult,
+        }
       );
 
       return NextResponse.json({
@@ -391,77 +641,34 @@ export async function POST(
         action: "REFUNDED",
         orderId:
           internalOrder.id,
+        supplierOrderId,
+        status:
+          "REFUNDED",
       });
     }
 
     /*
      * =================================================
-     * REEMBOLSADA
-     * =================================================
-     */
-
-    if (
-      event ===
-        "order.refunded" ||
-      status === "refunded"
-    ) {
-      const {
-        error: refundError,
-      } =
-        await supabaseAdmin.rpc(
-          "fail_topup_order",
-          {
-            p_supplier_order_id:
-              supplierOrderId,
-          }
-        );
-
-      if (refundError) {
-        console.error(
-          "ERROR DEVOLVIENDO SALDO:",
-          refundError
-        );
-
-        return new NextResponse(
-          "Database error",
-          {
-            status: 500,
-          }
-        );
-      }
-
-      console.log(
-        "TOPUP REEMBOLSADO / SALDO DEVUELTO:",
-        internalOrder.id
-      );
-
-      return NextResponse.json({
-        ok: true,
-        action: "REFUNDED",
-        orderId:
-          internalOrder.id,
-      });
-    }
-
-    /*
-     * =================================================
-     * OTROS ESTADOS
+     * 14. ESTADOS INTERMEDIOS
      * =================================================
      *
-     * Ejemplo:
+     * Ejemplos:
+     *
      * processing
      * pending
-     * etc.
+     * queued
+     * created
      *
-     * No tocamos el saldo.
+     * No devolvemos saldo.
      */
 
     console.log(
-      "FAZERCARDS WEBHOOK IGNORADO:",
+      "FAZERCARDS WEBHOOK - ESTADO INTERMEDIO:",
       {
         event,
-        status,
-        orderId:
+        status: finalStatus,
+        supplierOrderId,
+        internalOrderId:
           internalOrder.id,
       }
     );
@@ -470,9 +677,10 @@ export async function POST(
       ok: true,
       action: "IGNORED",
       event,
-      status,
+      status: finalStatus,
       orderId:
         internalOrder.id,
+      supplierOrderId,
     });
   } catch (error) {
     console.error(
@@ -487,4 +695,4 @@ export async function POST(
       }
     );
   }
-  }
+    }
