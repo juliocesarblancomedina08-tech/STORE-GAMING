@@ -10,18 +10,17 @@ export async function GET() {
       return NextResponse.json(
         {
           ok: false,
-          error: "FAZERCARDS_API_KEY no está configurada en Vercel",
+          error: "FAZERCARDS_API_KEY no está configurada",
         },
         { status: 500 }
       );
     }
 
     let cursor: string | null = null;
-    let category: any = null;
     let pagesChecked = 0;
+    const matches: any[] = [];
 
-    // Buscar Free Fire LATAM recorriendo todas las páginas
-    while (pagesChecked < 20) {
+    while (pagesChecked < 50) {
       pagesChecked++;
 
       const url = new URL(`${FAZERCARDS_API}/topups`);
@@ -33,7 +32,6 @@ export async function GET() {
       }
 
       const response = await fetch(url.toString(), {
-        method: "GET",
         headers: {
           "X-API-Key": apiKey,
         },
@@ -47,109 +45,59 @@ export async function GET() {
           {
             ok: false,
             step: "categories",
+            pages_checked: pagesChecked,
             error:
               data?.error ||
-              "No se pudieron obtener las categorías de FazerCards",
+              "Error obteniendo catálogo de FazerCards",
           },
           { status: response.status }
         );
       }
 
-      const items = Array.isArray(data.items) ? data.items : [];
+      const items = Array.isArray(data.items)
+        ? data.items
+        : [];
 
-      // Buscar Free Fire LATAM
-      category = items.find((item: any) => {
-        const name = String(item.name || "").toLowerCase();
+      for (const item of items) {
+        const text = [
+          item.category_id,
+          item.name,
+          item.note,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-        return (
-          name.includes("free fire") &&
-          name.includes("latam")
-        );
-      });
-
-      if (category) {
-        break;
+        if (
+          text.includes("free fire") ||
+          text.includes("garena") ||
+          text.includes("latam")
+        ) {
+          matches.push(item);
+        }
       }
 
       const meta = data.meta || {};
 
-      if (!meta.has_more || !meta.next_cursor) {
+      if (
+        !meta.has_more ||
+        !meta.next_cursor
+      ) {
         break;
       }
 
       cursor = meta.next_cursor;
     }
 
-    // No encontrado
-    if (!category) {
-      return NextResponse.json({
-        ok: false,
-        step: "search_category",
-        message:
-          "No se encontró Free Fire LATAM en el catálogo de FazerCards.",
-        pages_checked: pagesChecked,
-      });
-    }
-
-    // Obtener ofertas reales
-    const offersUrl = new URL(
-      `${FAZERCARDS_API}/topups/offers`
-    );
-
-    offersUrl.searchParams.set(
-      "category_id",
-      category.category_id
-    );
-
-    const offersResponse = await fetch(
-      offersUrl.toString(),
-      {
-        method: "GET",
-        headers: {
-          "X-API-Key": apiKey,
-        },
-        cache: "no-store",
-      }
-    );
-
-    const offersData = await offersResponse.json();
-
-    if (!offersResponse.ok || !offersData.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          step: "offers",
-          category,
-          error:
-            offersData?.error ||
-            "No se pudieron obtener las ofertas de Free Fire LATAM",
-        },
-        { status: offersResponse.status }
-      );
-    }
-
     return NextResponse.json({
       ok: true,
-
-      game: {
-        name: category.name,
-        category_id: category.category_id,
-        note: category.note || null,
-      },
-
-      fields: offersData.fields || [],
-
-      offers: (offersData.offers || []).map((offer: any) => ({
-        offer_id: offer.offer_id,
-        name: offer.name,
-        price_usd: offer.price_usd,
-      })),
-
       pages_checked: pagesChecked,
+      matches_found: matches.length,
+      matches,
     });
   } catch (error: any) {
     console.error(
-      "FAZERCARDS FREE FIRE LATAM ERROR:",
+      "FAZERCARDS CATALOG SEARCH ERROR:",
       error
     );
 
@@ -163,4 +111,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+      }
