@@ -1,28 +1,28 @@
-import { createClient } from "@supabase/supabase-js";
+import  {  createClient  }  from  "@supabase/supabase-js" ;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY;
+const  supabaseUrl  =  process . env . NEXT_PUBLIC_SUPABASE_URL ;
+const  superbasePublishableKey  =
+proceso . env . NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ;
 
-if (!supabaseUrl) {
-  throw new Error(
-    "NEXT_PUBLIC_SUPABASE_URL no está configurada."
-  );
+si  ( ! supabaseUrl )  {
+lanzar  nuevo  Error (
+"Falta NEXT_PUBLIC_SUPABASE_URL en las variables de entorno".
+) ;
 }
 
-if (!supabaseServiceRoleKey) {
-  throw new Error(
-    "SUPABASE_SERVICE_ROLE_KEY no está configurada."
-  );
+si  ( ! supabasePublishableKey )  {
+lanzar  nuevo  Error (
+"Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY en las variables de entorno".
+) ;
 }
 
-export const supabaseAdmin = createClient(
-  supabaseUrl,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+export  const  supabase  =  createClient (
+supabaseUrl ,
+supabasePublishableKey ,
+{
+autenticación : {
+persistSession : verdadero ,
+autoRefreshToken : verdadero ,
+detectSessionInUrl : verdadero ,
+} ,
+}
