@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabase";
 const offers = [
   {
     id: "ff-110",
+    supplierOfferId: "110_diamonds",
     name: "110 Diamonds",
     display: "110💎",
     price: 0.78,
@@ -14,6 +15,7 @@ const offers = [
   },
   {
     id: "ff-341",
+    supplierOfferId: "341_diamonds",
     name: "341 Diamonds",
     display: "341💎",
     price: 2.2,
@@ -21,6 +23,7 @@ const offers = [
   },
   {
     id: "ff-572",
+    supplierOfferId: "572_diamonds",
     name: "572 Diamonds",
     display: "572💎",
     price: 3.67,
@@ -28,6 +31,7 @@ const offers = [
   },
   {
     id: "ff-1166",
+    supplierOfferId: "1166_diamonds",
     name: "1166 Diamonds",
     display: "1166💎",
     price: 6.73,
@@ -35,6 +39,7 @@ const offers = [
   },
   {
     id: "ff-2398",
+    supplierOfferId: "2398_diamonds",
     name: "2398 Diamonds",
     display: "2398💎",
     price: 13.27,
@@ -42,6 +47,7 @@ const offers = [
   },
   {
     id: "ff-6160",
+    supplierOfferId: "6160_diamonds",
     name: "6160 Diamonds",
     display: "6160💎",
     price: 33.7,
@@ -49,6 +55,7 @@ const offers = [
   },
   {
     id: "ff-elite-pass",
+    supplierOfferId: "booyah_pass",
     name: "Pase Elite",
     display: "PASE ELITE",
     price: 4,
@@ -56,6 +63,7 @@ const offers = [
   },
   {
     id: "ff-weekly-membership",
+    supplierOfferId: "weekly_membership",
     name: "Membresía semanal",
     display: "MEMBRESÍA SEMANAL",
     price: 2.3,
@@ -63,6 +71,7 @@ const offers = [
   },
   {
     id: "ff-monthly-membership",
+    supplierOfferId: "monthly_membership",
     name: "Membresía mensual",
     display: "MEMBRESÍA MENSUAL",
     price: 10.72,
@@ -76,19 +85,14 @@ const gameNote =
 export default function FreeFireLatamPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] =
-    useState(false);
+  const [showOffers, setShowOffers] = useState(false);
 
   const [selectedOffer, setSelectedOffer] =
-    useState<(typeof offers)[number] | null>(
-      null
-    );
+    useState<(typeof offers)[number] | null>(null);
 
-  const [playerId, setPlayerId] =
-    useState("");
+  const [playerId, setPlayerId] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
   const [showConfirmation, setShowConfirmation] =
     useState(false);
@@ -99,6 +103,9 @@ export default function FreeFireLatamPage() {
   const [orderNumber, setOrderNumber] =
     useState("");
 
+  const [processing, setProcessing] =
+    useState(false);
+
   function selectOffer(
     offer: (typeof offers)[number]
   ) {
@@ -107,6 +114,7 @@ export default function FreeFireLatamPage() {
     setError("");
     setShowConfirmation(false);
     setOrderCreated(false);
+    setOrderNumber("");
 
     setTimeout(() => {
       document
@@ -146,9 +154,7 @@ export default function FreeFireLatamPage() {
 
     setTimeout(() => {
       document
-        .getElementById(
-          "confirmation-section"
-        )
+        .getElementById("confirmation-section")
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -157,158 +163,142 @@ export default function FreeFireLatamPage() {
   }
 
   async function createOrder() {
-    if (!selectedOffer) {
+    if (!selectedOffer || processing) {
       return;
     }
 
-    /*
-     * =========================
-     * USUARIO AUTENTICADO
-     * =========================
-     */
+    setError("");
+    setProcessing(true);
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    try {
+      /*
+       * =========================
+       * SESIÓN
+       * =========================
+       */
 
-    if (
-      sessionError ||
-      !session?.user
-    ) {
-      setError(
-        "Su sesión ha expirado. Inicie sesión nuevamente."
-      );
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      router.replace("/");
+      if (sessionError || !session?.user) {
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
 
-      return;
-    }
-
-    const user = session.user;
-
-    const userEmail =
-      user.email || "";
-
-    const username =
-      userEmail.split("@")[0] ||
-      "usuario";
-
-    /*
-     * =========================
-     * NÚMERO DE ORDEN
-     * =========================
-     */
-
-    const generatedNumber =
-      `FF-${Date.now()
-        .toString()
-        .slice(-8)}`;
-
-    /*
-     * =========================
-     * CREAR ORDEN
-     * =========================
-     *
-     * IMPORTANTE:
-     * La orden queda asociada
-     * al usuario autenticado.
-     */
-
-    const order = {
-      id: generatedNumber,
-
-      user_id: user.id,
-
-      email: userEmail,
-
-      username: username,
-
-      game: "FREE FIRE LATAM",
-
-      product:
-        selectedOffer.name,
-
-      displayProduct:
-        selectedOffer.display,
-
-      price:
-        selectedOffer.price,
-
-      playerId:
-        playerId.trim(),
-
-      status:
-        "Pendiente",
-
-      createdAt:
-        new Date().toISOString(),
-    };
-
-    /*
-     * =========================
-     * GUARDAR ÓRDENES
-     * =========================
-     */
-
-    const existingOrders =
-      localStorage.getItem(
-        "storeGamingOrders"
-      );
-
-    let orders: any[] = [];
-
-    if (existingOrders) {
-      try {
-        const parsed =
-          JSON.parse(existingOrders);
-
-        if (Array.isArray(parsed)) {
-          orders = parsed;
-        }
-      } catch {
-        orders = [];
+        router.replace("/");
+        return;
       }
+
+      /*
+       * =========================
+       * ID DEL JUGADOR
+       * =========================
+       */
+
+      const cleanPlayerId =
+        playerId.trim();
+
+      /*
+       * =========================
+       * IDMPOTENCIA
+       * =========================
+       *
+       * Cada intento lógico recibe
+       * una clave única.
+       *
+       * El backend la envía a FazerCards.
+       */
+
+      const idempotencyKey =
+        crypto.randomUUID();
+
+      /*
+       * =========================
+       * CREAR PEDIDO
+       * =========================
+       */
+
+      const response = await fetch(
+        "/api/topups/free-fire",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${session.access_token}`,
+          },
+
+          body: JSON.stringify({
+            offerId:
+              selectedOffer.supplierOfferId,
+
+            offerName:
+              selectedOffer.name,
+
+            retailPrice:
+              selectedOffer.price,
+
+            playerId:
+              cleanPlayerId,
+
+            idempotencyKey,
+          }),
+        }
+      );
+
+      const result =
+        await response.json();
+
+      if (!response.ok || !result.ok) {
+        setError(
+          result.error ||
+            "No se pudo crear la orden."
+        );
+
+        return;
+      }
+
+      /*
+       * =========================
+       * ÉXITO
+       * =========================
+       */
+
+      setOrderNumber(
+        result.orderNumber
+      );
+
+      setOrderCreated(true);
+
+      setShowConfirmation(false);
+
+      setTimeout(() => {
+        document
+          .getElementById(
+            "success-section"
+          )
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      }, 100);
+    } catch (err) {
+      console.error(
+        "ERROR CREANDO TOPUP:",
+        err
+      );
+
+      setError(
+        "No se pudo conectar con el servidor. Su saldo no debe considerarse descontado si la orden no fue creada."
+      );
+    } finally {
+      setProcessing(false);
     }
-
-    orders.unshift(order);
-
-    localStorage.setItem(
-      "storeGamingOrders",
-      JSON.stringify(orders)
-    );
-
-    /*
-     * ÚLTIMA ORDEN
-     */
-
-    localStorage.setItem(
-      "storeGamingLastOrder",
-      JSON.stringify(order)
-    );
-
-    /*
-     * =========================
-     * MOSTRAR ÉXITO
-     * =========================
-     */
-
-    setOrderNumber(
-      generatedNumber
-    );
-
-    setOrderCreated(true);
-
-    setTimeout(() => {
-      document
-        .getElementById(
-          "success-section"
-        )
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
   }
 
   function goToOrders() {
@@ -391,7 +381,7 @@ export default function FreeFireLatamPage() {
 
 
       {/* =========================
-          BOTÓN PARA MOSTRAR OFERTAS
+          BOTÓN OFERTAS
       ========================== */}
 
       <button
@@ -511,10 +501,6 @@ export default function FreeFireLatamPage() {
           </div>
 
 
-          {/* =========================
-              NOTA
-          ========================== */}
-
           <div className="game-note">
 
             <div className="game-note-icon">
@@ -596,10 +582,6 @@ export default function FreeFireLatamPage() {
 
           </div>
 
-
-          {/* =========================
-              NOTA AL SELECCIONAR OFERTA
-          ========================== */}
 
           <div className="game-note game-note-order">
 
@@ -684,12 +666,7 @@ export default function FreeFireLatamPage() {
               </span>
 
               <strong>
-
-                {selectedOffer.price.toFixed(
-                  2
-                )}
-                $
-
+                {selectedOffer.price.toFixed(2)}$
               </strong>
 
             </div>
@@ -698,6 +675,7 @@ export default function FreeFireLatamPage() {
             <button
               type="submit"
               className="finish-order-button"
+              disabled={processing}
             >
 
               <span>
@@ -780,10 +758,7 @@ export default function FreeFireLatamPage() {
                 </span>
 
                 <strong>
-                  {selectedOffer.price.toFixed(
-                    2
-                  )}
-                  $
+                  {selectedOffer.price.toFixed(2)}$
                 </strong>
 
               </div>
@@ -813,8 +788,11 @@ export default function FreeFireLatamPage() {
                 type="button"
                 className="confirm-final-button"
                 onClick={createOrder}
+                disabled={processing}
               >
-                FINALIZAR
+                {processing
+                  ? "PROCESANDO..."
+                  : "FINALIZAR"}
               </button>
 
             </div>
@@ -845,7 +823,8 @@ export default function FreeFireLatamPage() {
 
           <p>
             Su orden ha sido creada
-            correctamente.
+            correctamente y está siendo
+            procesada.
           </p>
 
 
@@ -882,7 +861,7 @@ export default function FreeFireLatamPage() {
 
 
       {/* =========================
-          INFORMACIÓN DEL SERVICIO
+          INFORMACIÓN
       ========================== */}
 
       <section className="service-info">
