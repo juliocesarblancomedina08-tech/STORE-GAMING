@@ -4,6 +4,30 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
+type TopupOrderRow = {
+  id: string;
+  user_id: string;
+  username: string | null;
+  email: string | null;
+  game: string;
+  category_id: string;
+  offer_id: string;
+  offer_name: string;
+  player_id: string;
+  retail_price: number | string;
+  supplier_price: number | string;
+  currency: string;
+  status: string;
+  supplier_order_id: string | null;
+  supplier_fields: Record<string, unknown> | null;
+  supplier_response: Record<string, unknown> | null;
+  refunded_at: string | null;
+  completed_at: string | null;
+  failed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type Order = {
   id: string;
   user_id?: string;
@@ -18,6 +42,8 @@ type Order = {
   serverId?: string;
   status: string;
   createdAt: string;
+  supplierOrderId?: string;
+  currency?: string;
 };
 
 type Filter =
@@ -49,101 +75,174 @@ export default function OrdersPage() {
 
         const {
           data: { session },
+          error: sessionError,
         } = await supabase.auth.getSession();
 
-        if (!session?.user) {
+        if (
+          sessionError ||
+          !session?.user
+        ) {
           if (mounted) {
+            setLoading(false);
             router.replace("/login");
           }
 
           return;
         }
 
-        const user = session.user;
-        const userId = user.id;
-        const userEmail = user.email || "";
+        const userId =
+          session.user.id;
 
         /*
          * =========================
-         * CARGAR ÓRDENES
+         * CARGAR ÓRDENES REALES
          * =========================
+         *
+         * Las órdenes de Free Fire
+         * ahora están en:
+         *
+         * public.topup_orders
+         *
+         * Nunca utilizamos localStorage
+         * para obtener las órdenes.
          */
 
-        const savedOrders =
-          localStorage.getItem(
-            "storeGamingOrders"
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("topup_orders")
+          .select(
+            `
+              id,
+              user_id,
+              username,
+              email,
+              game,
+              category_id,
+              offer_id,
+              offer_name,
+              player_id,
+              retail_price,
+              supplier_price,
+              currency,
+              status,
+              supplier_order_id,
+              supplier_fields,
+              supplier_response,
+              refunded_at,
+              completed_at,
+              failed_at,
+              created_at,
+              updated_at
+            `
+          )
+          .eq(
+            "user_id",
+            userId
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false,
+            }
           );
 
-        let allOrders: Order[] = [];
+        if (error) {
+          console.error(
+            "ERROR CARGANDO ÓRDENES:",
+            error
+          );
 
-        if (savedOrders) {
-          try {
-            const parsed =
-              JSON.parse(savedOrders);
-
-            if (Array.isArray(parsed)) {
-              allOrders = parsed;
-            }
-          } catch {
-            allOrders = [];
+          if (mounted) {
+            setOrders([]);
+            setLoading(false);
           }
+
+          return;
         }
 
         /*
          * =========================
-         * FILTRAR POR USUARIO
+         * CONVERTIR DATOS
          * =========================
          *
-         * Primero usamos user_id.
-         *
-         * Como respaldo usamos email
-         * cuando el pedido no tenga user_id.
-         *
-         * Los pedidos sin identificación
-         * de usuario NO se muestran.
+         * Convertimos la estructura
+         * de Supabase al formato que
+         * ya utiliza este diseño.
          */
 
-        const userOrders =
-          allOrders.filter((order) => {
-            /*
-             * Pedido creado con el nuevo sistema
-             */
-            if (
-              order.user_id &&
-              order.user_id === userId
-            ) {
-              return true;
-            }
+        const mappedOrders: Order[] =
+          (
+            (data ||
+              []) as TopupOrderRow[]
+          ).map(
+            (order) => ({
+              id: order.id,
 
-            /*
-             * Compatibilidad con pedidos que
-             * tengan email pero no user_id.
-             */
-            if (
-              !order.user_id &&
-              order.email &&
-              order.email.toLowerCase() ===
-                userEmail.toLowerCase()
-            ) {
-              return true;
-            }
+              user_id:
+                order.user_id,
 
-            return false;
-          });
+              email:
+                order.email ||
+                undefined,
+
+              username:
+                order.username ||
+                undefined,
+
+              game:
+                order.game,
+
+              product:
+                order.offer_name,
+
+              displayProduct:
+                order.offer_name,
+
+              price:
+                Number(
+                  order.retail_price
+                ),
+
+              total:
+                Number(
+                  order.retail_price
+                ),
+
+              playerId:
+                order.player_id,
+
+              status:
+                order.status,
+
+              createdAt:
+                order.created_at,
+
+              supplierOrderId:
+                order.supplier_order_id ||
+                undefined,
+
+              currency:
+                order.currency,
+            })
+          );
 
         if (mounted) {
-          setOrders(userOrders);
+          setOrders(
+            mappedOrders
+          );
+
           setLoading(false);
         }
-      } catch {
-        /*
-         * Si ocurre un error de sesión,
-         * mandamos al login.
-         */
+      } catch (error) {
+        console.error(
+          "ERROR CARGANDO ÓRDENES:",
+          error
+        );
 
         if (mounted) {
           setLoading(false);
-          router.replace("/login");
         }
       }
     }
@@ -161,44 +260,135 @@ export default function OrdersPage() {
    * =========================
    */
 
-  const filteredOrders = useMemo(() => {
-    if (filter === "TODAS") {
-      return orders;
-    }
+  const filteredOrders =
+    useMemo(() => {
+      if (
+        filter === "TODAS"
+      ) {
+        return orders;
+      }
 
-    if (filter === "PENDIENTES") {
-      return orders.filter(
-        (order) =>
-          order.status
-            .toLowerCase() ===
-          "pendiente"
-      );
-    }
-
-    if (filter === "COMPLETADAS") {
-      return orders.filter((order) => {
-        const status =
-          order.status.toLowerCase();
-
-        return (
-          status === "completada" ||
-          status === "confirmado" ||
-          status === "confirmada"
+      if (
+        filter === "PENDIENTES"
+      ) {
+        return orders.filter(
+          (order) =>
+            isPendingStatus(
+              order.status
+            )
         );
-      });
-    }
+      }
 
-    if (filter === "CANCELADAS") {
-      return orders.filter(
-        (order) =>
-          order.status
-            .toLowerCase() ===
-          "cancelada"
+      if (
+        filter === "COMPLETADAS"
+      ) {
+        return orders.filter(
+          (order) =>
+            isCompletedStatus(
+              order.status
+            )
+        );
+      }
+
+      if (
+        filter === "CANCELADAS"
+      ) {
+        return orders.filter(
+          (order) =>
+            isCancelledStatus(
+              order.status
+            )
+        );
+      }
+
+      return orders;
+    }, [
+      orders,
+      filter,
+    ]);
+
+  /*
+   * =========================
+   * FUNCIONES DE ESTADO
+   * =========================
+   */
+
+  function normalizeStatus(
+    status: string
+  ) {
+    return (
+      status
+        ?.toString()
+        .trim()
+        .toUpperCase() || ""
+    );
+  }
+
+  function isCompletedStatus(
+    status: string
+  ) {
+    const normalized =
+      normalizeStatus(
+        status
       );
-    }
 
-    return orders;
-  }, [orders, filter]);
+    return (
+      normalized ===
+        "COMPLETED" ||
+      normalized ===
+        "COMPLETADA" ||
+      normalized ===
+        "CONFIRMADO" ||
+      normalized ===
+        "CONFIRMADA"
+    );
+  }
+
+  function isCancelledStatus(
+    status: string
+  ) {
+    const normalized =
+      normalizeStatus(
+        status
+      );
+
+    return (
+      normalized ===
+        "CANCELLED" ||
+      normalized ===
+        "CANCELED" ||
+      normalized ===
+        "CANCELADA" ||
+      normalized ===
+        "FAILED" ||
+      normalized ===
+        "REFUNDED"
+    );
+  }
+
+  function isPendingStatus(
+    status: string
+  ) {
+    const normalized =
+      normalizeStatus(
+        status
+      );
+
+    return (
+      normalized ===
+        "RESERVED" ||
+      normalized ===
+        "SUPPLIER_PENDING" ||
+      normalized ===
+        "REFUND_PENDING" ||
+      normalized ===
+        "PENDING" ||
+      normalized ===
+        "PROCESSING" ||
+      normalized ===
+        "PENDIENTE"
+    );
+  }
 
   /*
    * =========================
@@ -209,29 +399,25 @@ export default function OrdersPage() {
   const pendingCount =
     orders.filter(
       (order) =>
-        order.status
-          .toLowerCase() ===
-        "pendiente"
+        isPendingStatus(
+          order.status
+        )
     ).length;
 
   const completedCount =
-    orders.filter((order) => {
-      const status =
-        order.status.toLowerCase();
-
-      return (
-        status === "completada" ||
-        status === "confirmado" ||
-        status === "confirmada"
-      );
-    }).length;
+    orders.filter(
+      (order) =>
+        isCompletedStatus(
+          order.status
+        )
+    ).length;
 
   const cancelledCount =
     orders.filter(
       (order) =>
-        order.status
-          .toLowerCase() ===
-        "cancelada"
+        isCancelledStatus(
+          order.status
+        )
     ).length;
 
   /*
@@ -240,7 +426,9 @@ export default function OrdersPage() {
    * =========================
    */
 
-  function formatDate(date: string) {
+  function formatDate(
+    date: string
+  ) {
     try {
       return new Intl.DateTimeFormat(
         "es",
@@ -251,7 +439,9 @@ export default function OrdersPage() {
           hour: "2-digit",
           minute: "2-digit",
         }
-      ).format(new Date(date));
+      ).format(
+        new Date(date)
+      );
     } catch {
       return date;
     }
@@ -263,7 +453,9 @@ export default function OrdersPage() {
    * =========================
    */
 
-  function getGameIcon(game: string) {
+  function getGameIcon(
+    game: string
+  ) {
     const normalized =
       game.toLowerCase();
 
@@ -311,19 +503,18 @@ export default function OrdersPage() {
   function getStatusClass(
     status: string
   ) {
-    const normalized =
-      status.toLowerCase();
-
     if (
-      normalized === "completada" ||
-      normalized === "confirmado" ||
-      normalized === "confirmada"
+      isCompletedStatus(
+        status
+      )
     ) {
       return "order-status completed";
     }
 
     if (
-      normalized === "cancelada"
+      isCancelledStatus(
+        status
+      )
     ) {
       return "order-status cancelled";
     }
@@ -340,19 +531,18 @@ export default function OrdersPage() {
   function getStatusText(
     status: string
   ) {
-    const normalized =
-      status.toLowerCase();
-
     if (
-      normalized === "completada" ||
-      normalized === "confirmado" ||
-      normalized === "confirmada"
+      isCompletedStatus(
+        status
+      )
     ) {
       return "COMPLETADA";
     }
 
     if (
-      normalized === "cancelada"
+      isCancelledStatus(
+        status
+      )
     ) {
       return "CANCELADA";
     }
@@ -364,12 +554,27 @@ export default function OrdersPage() {
    * =========================
    * ABRIR PEDIDO
    * =========================
+   *
+   * IMPORTANTE:
+   * Conservamos la navegación
+   * existente hacia:
+   *
+   * /orders/detail
+   *
+   * y guardamos solamente la
+   * orden seleccionada para que
+   * la página de detalles pueda
+   * utilizarla.
    */
 
-  function openOrder(order: Order) {
+  function openOrder(
+    order: Order
+  ) {
     localStorage.setItem(
       "storeGamingSelectedOrder",
-      JSON.stringify(order)
+      JSON.stringify(
+        order
+      )
     );
 
     router.push(
@@ -424,7 +629,9 @@ export default function OrdersPage() {
           type="button"
           className="orders-back-button"
           onClick={() =>
-            router.push("/home")
+            router.push(
+              "/home"
+            )
           }
           aria-label="Volver"
         >
@@ -522,7 +729,9 @@ export default function OrdersPage() {
               : ""
           }`}
           onClick={() =>
-            setFilter("TODAS")
+            setFilter(
+              "TODAS"
+            )
           }
         >
           <span>
@@ -543,12 +752,15 @@ export default function OrdersPage() {
         <button
           type="button"
           className={`orders-stat ${
-            filter === "PENDIENTES"
+            filter ===
+            "PENDIENTES"
               ? "active"
               : ""
           }`}
           onClick={() =>
-            setFilter("PENDIENTES")
+            setFilter(
+              "PENDIENTES"
+            )
           }
         >
           <span>
@@ -569,12 +781,15 @@ export default function OrdersPage() {
         <button
           type="button"
           className={`orders-stat ${
-            filter === "COMPLETADAS"
+            filter ===
+            "COMPLETADAS"
               ? "active"
               : ""
           }`}
           onClick={() =>
-            setFilter("COMPLETADAS")
+            setFilter(
+              "COMPLETADAS"
+            )
           }
         >
           <span>
@@ -595,12 +810,15 @@ export default function OrdersPage() {
         <button
           type="button"
           className={`orders-stat ${
-            filter === "CANCELADAS"
+            filter ===
+            "CANCELADAS"
               ? "active"
               : ""
           }`}
           onClick={() =>
-            setFilter("CANCELADAS")
+            setFilter(
+              "CANCELADAS"
+            )
           }
         >
           <span>
@@ -644,7 +862,8 @@ export default function OrdersPage() {
 
         </div>
 
-        {filteredOrders.length === 0 ? (
+        {filteredOrders.length ===
+        0 ? (
 
           <div className="orders-empty">
 
@@ -657,7 +876,8 @@ export default function OrdersPage() {
             </h3>
 
             <p>
-              {orders.length === 0
+              {orders.length ===
+              0
                 ? "Todavía no has realizado ninguna compra."
                 : "No hay órdenes que coincidan con este filtro."}
             </p>
@@ -666,7 +886,9 @@ export default function OrdersPage() {
               type="button"
               className="orders-shop-button"
               onClick={() =>
-                router.push("/home")
+                router.push(
+                  "/home"
+                )
               }
             >
               <span>
@@ -688,7 +910,9 @@ export default function OrdersPage() {
               (order) => (
 
                 <article
-                  key={order.id}
+                  key={
+                    order.id
+                  }
                   className="order-item-card"
                 >
 
@@ -788,7 +1012,9 @@ export default function OrdersPage() {
                       <strong>
                         {Number(
                           order.price
-                        ).toFixed(2)}
+                        ).toFixed(
+                          2
+                        )}
                         $
                       </strong>
 
@@ -798,7 +1024,9 @@ export default function OrdersPage() {
                       type="button"
                       className="order-details-button"
                       onClick={() =>
-                        openOrder(order)
+                        openOrder(
+                          order
+                        )
                       }
                     >
                       <span>
@@ -852,18 +1080,18 @@ export default function OrdersPage() {
 
       {/* FOOTER */}
 
-      <footer className="orders-footer">
+<footer className="orders-footer">
 
-        <strong>
-          🛒STORE GAMING🎮
-        </strong>
+  <strong>
+    🛒STORE GAMING🎮
+  </strong>
 
-        <span>
-          TU MEJOR OPCIÓN PARA RECARGAS GAMING
-        </span>
+  <span>
+    TU MEJOR OPCIÓN PARA RECARGAS GAMING
+  </span>
 
-      </footer>
+</footer>
 
-    </main>
-  );
-        }
+</main>
+);
+}
