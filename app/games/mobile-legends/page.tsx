@@ -2,52 +2,46 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../../lib/supabase";
 
 const gameNote =
   "Región: Recarga de Mobile Legends en EE. UU. Ingresa tu ID de jugador y tu ID de servidor antes de realizar el pedido. Los diamantes se entregarán directamente a tu cuenta una vez realizado el pedido.";
 
 const offers = [
   {
-    id: "ml-56",
-    name: "56 Diamonds",
-    display: "56💎",
+    id: "51_5_diamonds",
+    name: "51 + 5 Diamantes",
+    display: "51 + 5💎",
     price: 0.97,
     icon: "💎",
   },
   {
-    id: "ml-278",
-    name: "278 Diamonds",
-    display: "278💎",
+    id: "weekly_diamond_pass",
+    name: "Pase Semanal de Diamantes",
+    display: "PASE SEMANAL",
+    price: 1.85,
+    icon: "🎟️",
+  },
+  {
+    id: "253_25_diamonds",
+    name: "253 + 25 Diamantes",
+    display: "253 + 25💎",
     price: 4.45,
     icon: "💎",
   },
   {
-    id: "ml-571",
-    name: "571 Diamonds",
-    display: "571💎",
+    id: "505_66_diamonds",
+    name: "505 + 66 Diamantes",
+    display: "505 + 66💎",
     price: 8.8,
     icon: "💎",
   },
   {
-    id: "ml-1192",
-    name: "1192 Diamonds",
-    display: "1192💎",
+    id: "1010_182_diamonds",
+    name: "1010 + 182 Diamantes",
+    display: "1010 + 182💎",
     price: 17.45,
     icon: "💎",
-  },
-  {
-    id: "ml-1788",
-    name: "1788 Diamonds",
-    display: "1788💎",
-    price: 26.15,
-    icon: "💎",
-  },
-  {
-    id: "ml-weekly-pass",
-    name: "Pase semanal",
-    display: "PASE SEMANAL",
-    price: 1.85,
-    icon: "🎟️",
   },
 ];
 
@@ -68,6 +62,10 @@ export default function MobileLegendsPage() {
 
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+  const [supplierOrderId, setSupplierOrderId] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
+
+  const [processing, setProcessing] = useState(false);
 
   function selectOffer(
     offer: (typeof offers)[number]
@@ -78,6 +76,9 @@ export default function MobileLegendsPage() {
     setError("");
     setShowConfirmation(false);
     setOrderCreated(false);
+    setOrderNumber("");
+    setSupplierOrderId("");
+    setOrderStatus("");
 
     setTimeout(() => {
       document
@@ -124,6 +125,8 @@ export default function MobileLegendsPage() {
       return;
     }
 
+    setPlayerId(cleanPlayerId);
+    setServerId(cleanServerId);
     setShowConfirmation(true);
 
     setTimeout(() => {
@@ -136,66 +139,91 @@ export default function MobileLegendsPage() {
     }, 100);
   }
 
-  function createOrder() {
-    if (!selectedOffer) {
+  async function createOrder() {
+    if (!selectedOffer || processing) {
       return;
     }
 
-    const generatedNumber =
-      `ML-${Date.now().toString().slice(-8)}`;
+    setError("");
+    setProcessing(true);
 
-    const order = {
-      id: generatedNumber,
-      game: "MOBILE LEGENDS",
-      product: selectedOffer.name,
-      displayProduct: selectedOffer.display,
-      price: selectedOffer.price,
-      playerId: playerId.trim(),
-      serverId: serverId.trim(),
-      status: "Pendiente",
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    const existingOrders =
-      localStorage.getItem("storeGamingOrders");
-
-    let orders: any[] = [];
-
-    if (existingOrders) {
-      try {
-        const parsed = JSON.parse(existingOrders);
-
-        if (Array.isArray(parsed)) {
-          orders = parsed;
-        }
-      } catch {
-        orders = [];
+      if (!session?.access_token) {
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
+        setProcessing(false);
+        return;
       }
+
+      const cleanPlayerId = playerId.trim();
+      const cleanServerId = serverId.trim();
+
+      if (!cleanPlayerId || !cleanServerId) {
+        setError(
+          "Debe introducir el ID del jugador y el ID del servidor."
+        );
+        setProcessing(false);
+        return;
+      }
+
+      const idempotencyKey = crypto.randomUUID();
+
+      const response = await fetch(
+        "/api/topups/mobile-legends",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            offerId: selectedOffer.id,
+            playerId: cleanPlayerId,
+            serverId: cleanServerId,
+            idempotencyKey,
+          }),
+        }
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        setError(
+          data?.error ||
+            "No fue posible crear la orden. Intente nuevamente."
+        );
+        setProcessing(false);
+        return;
+      }
+
+      setOrderNumber(data.orderNumber || "");
+      setSupplierOrderId(data.supplierOrderId || "");
+      setOrderStatus(data.status || "");
+
+      setShowConfirmation(false);
+      setOrderCreated(true);
+      setProcessing(false);
+
+      setTimeout(() => {
+        document
+          .getElementById("success-section")
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      }, 100);
+    } catch {
+      setError(
+        "No se pudo conectar con el servidor. Intente nuevamente."
+      );
+      setProcessing(false);
     }
-
-    orders.unshift(order);
-
-    localStorage.setItem(
-      "storeGamingOrders",
-      JSON.stringify(orders)
-    );
-
-    localStorage.setItem(
-      "storeGamingLastOrder",
-      JSON.stringify(order)
-    );
-
-    setOrderNumber(generatedNumber);
-    setOrderCreated(true);
-
-    setTimeout(() => {
-      document
-        .getElementById("success-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
   }
 
   function goToOrders() {
@@ -349,7 +377,6 @@ export default function MobileLegendsPage() {
 
           </div>
 
-          {/* NOTA DEL JUEGO */}
           <div className="game-note">
 
             <div className="game-note-icon">
@@ -423,7 +450,6 @@ export default function MobileLegendsPage() {
 
           </div>
 
-          {/* NOTA SOBRE EL PEDIDO */}
           <div className="game-note game-note-order">
 
             <div className="game-note-icon">
@@ -545,10 +571,11 @@ export default function MobileLegendsPage() {
             <button
               type="submit"
               className="finish-order-button"
+              disabled={processing}
             >
 
               <span>
-                FINALIZAR COMPRA
+                CONTINUAR
               </span>
 
               <b>
@@ -654,8 +681,11 @@ export default function MobileLegendsPage() {
                 type="button"
                 className="confirm-final-button"
                 onClick={createOrder}
+                disabled={processing}
               >
-                FINALIZAR
+                {processing
+                  ? "PROCESANDO..."
+                  : "FINALIZAR"}
               </button>
 
             </div>
@@ -692,6 +722,34 @@ export default function MobileLegendsPage() {
             </strong>
 
           </div>
+
+          {supplierOrderId && (
+            <div className="success-order-number">
+
+              <span>
+                ORDEN DEL PROVEEDOR
+              </span>
+
+              <strong>
+                {supplierOrderId}
+              </strong>
+
+            </div>
+          )}
+
+          {orderStatus && (
+            <div className="success-order-number">
+
+              <span>
+                ESTADO
+              </span>
+
+              <strong>
+                {orderStatus}
+              </strong>
+
+            </div>
+          )}
 
           <button
             type="button"
@@ -787,4 +845,4 @@ export default function MobileLegendsPage() {
 
     </main>
   );
-}
+  }
