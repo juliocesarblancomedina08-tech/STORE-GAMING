@@ -2,85 +2,11 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const FAZER_API_BASE = "https://api.fzr.cards/api/v2";
+const FAZER_API_BASE =
+  "https://api.fzr.cards/api/v2";
 
-function normalize(value: unknown): string {
-  return String(value ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-function isMobileLegends(item: any): boolean {
-  const values = [
-    item?.name,
-    item?.title,
-    item?.product_name,
-    item?.productName,
-    item?.slug,
-    item?.code,
-    item?.category,
-  ];
-
-  const text = values
-    .map(normalize)
-    .join(" ");
-
-  return (
-    text.includes("mobile legends") ||
-    text.includes("legends mobile")
-  );
-}
-
-async function getTopupsPage(
-  apiKey: string,
-  cursor?: string
-) {
-  const url = new URL(
-    `${FAZER_API_BASE}/topups`
-  );
-
-  url.searchParams.set("limit", "100");
-
-  if (cursor) {
-    url.searchParams.set(
-      "cursor",
-      cursor
-    );
-  }
-
-  const response = await fetch(
-    url.toString(),
-    {
-      method: "GET",
-      headers: {
-        "X-API-Key": apiKey,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    }
-  );
-
-  const text = await response.text();
-
-  let data: any;
-
-  try {
-    data = text
-      ? JSON.parse(text)
-      : null;
-  } catch {
-    data = {
-      raw: text,
-    };
-  }
-
-  return {
-    response,
-    data,
-  };
-}
+const CATEGORY_ID =
+  "mobile_legends_united_states";
 
 export async function GET() {
   try {
@@ -100,100 +26,79 @@ export async function GET() {
       );
     }
 
-    const allMatches: any[] = [];
+    const url =
+      `${FAZER_API_BASE}/topups/offers` +
+      `?category_id=${encodeURIComponent(
+        CATEGORY_ID
+      )}`;
 
-    let cursor: string | undefined =
-      undefined;
-
-    let pagesChecked = 0;
-
-    const MAX_PAGES = 10;
-
-    while (
-      pagesChecked < MAX_PAGES
-    ) {
-      const {
-        response,
-        data,
-      } = await getTopupsPage(
-        apiKey,
-        cursor
-      );
-
-      pagesChecked++;
-
-      if (!response.ok) {
-        return NextResponse.json(
-          {
-            ok: false,
-            supplierStatus:
-              response.status,
-            supplierResponse:
-              data,
-            pagesChecked,
-          },
-          {
-            status:
-              response.status,
-          }
-        );
+    const response = await fetch(
+      url,
+      {
+        method: "GET",
+        headers: {
+          "X-API-Key": apiKey,
+          Accept: "application/json",
+        },
+        cache: "no-store",
       }
+    );
 
-      const items = Array.isArray(
-        data?.items
-      )
-        ? data.items
-        : [];
+    const text =
+      await response.text();
 
-      for (const item of items) {
-        if (
-          isMobileLegends(item)
-        ) {
-          allMatches.push(item);
+    let data: any;
+
+    try {
+      data = text
+        ? JSON.parse(text)
+        : null;
+    } catch {
+      data = {
+        raw: text,
+      };
+    }
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          supplierStatus:
+            response.status,
+          supplierResponse:
+            data,
+        },
+        {
+          status:
+            response.status,
         }
-      }
-
-      const hasMore =
-        Boolean(
-          data?.meta?.has_more
-        );
-
-      const nextCursor =
-        data?.meta?.next_cursor;
-
-      if (
-        !hasMore ||
-        !nextCursor
-      ) {
-        break;
-      }
-
-      cursor =
-        String(nextCursor);
+      );
     }
 
     return NextResponse.json({
       ok: true,
 
-      found:
-        allMatches.length > 0,
+      category_id:
+        data?.category_id ??
+        CATEGORY_ID,
 
-      count:
-        allMatches.length,
+      name:
+        data?.name ??
+        "Mobile Legends (Estados Unidos)",
 
-      pagesChecked,
+      offers:
+        Array.isArray(data?.offers)
+          ? data.offers
+          : [],
 
-      mobileLegends:
-        allMatches,
-
-      message:
-        allMatches.length > 0
-          ? "Se encontraron productos de Mobile Legends en FazerCards."
-          : "No se encontró Mobile Legends en las páginas consultadas.",
+      fields:
+        Array.isArray(data?.fields)
+          ? data.fields
+          : [],
     });
   } catch (error) {
     console.error(
-      "ERROR CONSULTANDO CATÁLOGO FAZERCARDS:",
+      "ERROR OBTENIENDO OFERTAS MOBILE LEGENDS:",
       error
     );
 
@@ -210,4 +115,4 @@ export async function GET() {
       }
     );
   }
-          }
+}
