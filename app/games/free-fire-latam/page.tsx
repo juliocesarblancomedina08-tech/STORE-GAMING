@@ -94,13 +94,16 @@ export default function FreeFireLatamPage() {
 
   const [error, setError] = useState("");
 
-  const [showConfirmation, setShowConfirmation] =
-    useState(false);
-
   const [orderCreated, setOrderCreated] =
     useState(false);
 
   const [orderNumber, setOrderNumber] =
+    useState("");
+
+  const [supplierOrderId, setSupplierOrderId] =
+    useState("");
+
+  const [orderStatus, setOrderStatus] =
     useState("");
 
   const [processing, setProcessing] =
@@ -112,49 +115,14 @@ export default function FreeFireLatamPage() {
     setSelectedOffer(offer);
     setPlayerId("");
     setError("");
-    setShowConfirmation(false);
     setOrderCreated(false);
     setOrderNumber("");
+    setSupplierOrderId("");
+    setOrderStatus("");
 
     setTimeout(() => {
       document
         .getElementById("order-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  }
-
-  function handleFinishPurchase(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    setError("");
-
-    if (!selectedOffer) {
-      setError("Seleccione una oferta.");
-      return;
-    }
-
-    const cleanId = playerId.trim();
-
-    if (!cleanId) {
-      setError("Ponga el ID de su cuenta.");
-      return;
-    }
-
-    if (cleanId.length < 4) {
-      setError("El ID parece demasiado corto.");
-      return;
-    }
-
-    setShowConfirmation(true);
-
-    setTimeout(() => {
-      document
-        .getElementById("confirmation-section")
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -172,9 +140,9 @@ export default function FreeFireLatamPage() {
 
     try {
       /*
-       * =========================
-       * SESIÓN
-       * =========================
+       * ============================================================
+       * 1. COMPROBAR SESIÓN
+       * ============================================================
        */
 
       const {
@@ -182,7 +150,10 @@ export default function FreeFireLatamPage() {
         error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError || !session?.user) {
+      if (
+        sessionError ||
+        !session?.user
+      ) {
         setError(
           "Su sesión ha expirado. Inicie sesión nuevamente."
         );
@@ -192,69 +163,102 @@ export default function FreeFireLatamPage() {
       }
 
       /*
-       * =========================
-       * ID DEL JUGADOR
-       * =========================
+       * ============================================================
+       * 2. LIMPIAR ID
+       * ============================================================
        */
 
       const cleanPlayerId =
         playerId.trim();
 
+      if (!cleanPlayerId) {
+        setError(
+          "Ponga el ID de su cuenta."
+        );
+        return;
+      }
+
+      if (
+        !/^[0-9]+$/.test(
+          cleanPlayerId
+        )
+      ) {
+        setError(
+          "El ID debe contener solamente números."
+        );
+        return;
+      }
+
+      if (
+        cleanPlayerId.length < 4 ||
+        cleanPlayerId.length > 20
+      ) {
+        setError(
+          "El ID parece no tener un formato válido."
+        );
+        return;
+      }
+
       /*
-       * =========================
-       * IDMPOTENCIA
-       * =========================
-       *
-       * Cada intento lógico recibe
-       * una clave única.
-       *
-       * El backend la envía a FazerCards.
+       * ============================================================
+       * 3. CLAVE DE IDEMPOTENCIA
+       * ============================================================
        */
 
       const idempotencyKey =
         crypto.randomUUID();
 
       /*
-       * =========================
-       * CREAR PEDIDO
-       * =========================
+       * ============================================================
+       * 4. ENVIAR PEDIDO AL SERVIDOR
+       * ============================================================
        */
 
-      const response = await fetch(
-        "/api/topups/free-fire",
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          "/api/topups/free-fire",
+          {
+            method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+            headers: {
+              "Content-Type":
+                "application/json",
 
-            Authorization:
-              `Bearer ${session.access_token}`,
-          },
+              Authorization:
+                `Bearer ${session.access_token}`,
+            },
 
-          body: JSON.stringify({
-            offerId:
-              selectedOffer.supplierOfferId,
+            body: JSON.stringify({
+              offerId:
+                selectedOffer.supplierOfferId,
 
-            offerName:
-              selectedOffer.name,
+              offerName:
+                selectedOffer.name,
 
-            retailPrice:
-              selectedOffer.price,
+              retailPrice:
+                selectedOffer.price,
 
-            playerId:
-              cleanPlayerId,
+              playerId:
+                cleanPlayerId,
 
-            idempotencyKey,
-          }),
-        }
-      );
+              idempotencyKey,
+            }),
+          }
+        );
 
       const result =
         await response.json();
 
-      if (!response.ok || !result.ok) {
+      /*
+       * ============================================================
+       * 5. ERROR DEL SERVIDOR
+       * ============================================================
+       */
+
+      if (
+        !response.ok ||
+        !result.ok
+      ) {
         setError(
           result.error ||
             "No se pudo crear la orden."
@@ -264,18 +268,34 @@ export default function FreeFireLatamPage() {
       }
 
       /*
-       * =========================
-       * ÉXITO
-       * =========================
+       * ============================================================
+       * 6. GUARDAR INFORMACIÓN DE LA ORDEN
+       * ============================================================
        */
 
       setOrderNumber(
-        result.orderNumber
+        result.orderNumber ||
+          result.id ||
+          ""
       );
 
-      setOrderCreated(true);
+      setSupplierOrderId(
+        result.supplierOrderId ||
+          ""
+      );
 
-      setShowConfirmation(false);
+      setOrderStatus(
+        result.status ||
+          "SUPPLIER_PENDING"
+      );
+
+      /*
+       * ============================================================
+       * 7. MOSTRAR ORDEN CREADA
+       * ============================================================
+       */
+
+      setOrderCreated(true);
 
       setTimeout(() => {
         document
@@ -294,11 +314,61 @@ export default function FreeFireLatamPage() {
       );
 
       setError(
-        "No se pudo conectar con el servidor. Su saldo no debe considerarse descontado si la orden no fue creada."
+        "No se pudo conectar con el servidor. Si la compra fue enviada, no vuelva a intentarla hasta revisar el estado de la orden."
       );
     } finally {
       setProcessing(false);
     }
+  }
+
+  function handleFinishPurchase(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (processing) {
+      return;
+    }
+
+    if (!selectedOffer) {
+      setError(
+        "Seleccione una oferta."
+      );
+      return;
+    }
+
+    const cleanId =
+      playerId.trim();
+
+    if (!cleanId) {
+      setError(
+        "Ponga el ID de su cuenta."
+      );
+      return;
+    }
+
+    if (
+      !/^[0-9]+$/.test(
+        cleanId
+      )
+    ) {
+      setError(
+        "El ID debe contener solamente números."
+      );
+      return;
+    }
+
+    if (
+      cleanId.length < 4 ||
+      cleanId.length > 20
+    ) {
+      setError(
+        "El ID parece no tener un formato válido."
+      );
+      return;
+    }
+
+    createOrder();
   }
 
   function goToOrders() {
@@ -307,6 +377,10 @@ export default function FreeFireLatamPage() {
 
   return (
     <main className="game-service-page free-fire-page">
+
+      {/* ============================================================
+          HEADER
+      ============================================================ */}
 
       <header className="game-service-header">
 
@@ -344,10 +418,9 @@ export default function FreeFireLatamPage() {
 
       </header>
 
-
-      {/* =========================
+      {/* ============================================================
           IMAGEN PRINCIPAL
-      ========================== */}
+      ============================================================ */}
 
       <section className="free-fire-main-image">
 
@@ -379,10 +452,9 @@ export default function FreeFireLatamPage() {
 
       </section>
 
-
-      {/* =========================
-          BOTÓN OFERTAS
-      ========================== */}
+      {/* ============================================================
+          BOTÓN PARA MOSTRAR OFERTAS
+      ============================================================ */}
 
       <button
         type="button"
@@ -410,10 +482,9 @@ export default function FreeFireLatamPage() {
 
       </button>
 
-
-      {/* =========================
+      {/* ============================================================
           OFERTAS
-      ========================== */}
+      ============================================================ */}
 
       {showOffers && (
 
@@ -435,7 +506,6 @@ export default function FreeFireLatamPage() {
 
           </div>
 
-
           <div className="offers-list">
 
             {offers.map((offer) => {
@@ -455,7 +525,9 @@ export default function FreeFireLatamPage() {
                       : ""
                   }`}
                   onClick={() =>
-                    selectOffer(offer)
+                    selectOffer(
+                      offer
+                    )
                   }
                 >
 
@@ -479,7 +551,6 @@ export default function FreeFireLatamPage() {
 
                   </div>
 
-
                   <div className="offer-right">
 
                     <strong>
@@ -495,11 +566,9 @@ export default function FreeFireLatamPage() {
                 </button>
 
               );
-
             })}
 
           </div>
-
 
           <div className="game-note">
 
@@ -525,12 +594,11 @@ export default function FreeFireLatamPage() {
 
       )}
 
-
-      {/* =========================
+      {/* ============================================================
           DATOS DEL PEDIDO
-      ========================== */}
+      ============================================================ */}
 
-      {selectedOffer && (
+      {selectedOffer && !orderCreated && (
 
         <section
           id="order-section"
@@ -557,6 +625,7 @@ export default function FreeFireLatamPage() {
 
           </div>
 
+          {/* OFERTA SELECCIONADA */}
 
           <div className="selected-order-card">
 
@@ -582,6 +651,7 @@ export default function FreeFireLatamPage() {
 
           </div>
 
+          {/* NOTA */}
 
           <div className="game-note game-note-order">
 
@@ -603,6 +673,7 @@ export default function FreeFireLatamPage() {
 
           </div>
 
+          {/* FORMULARIO */}
 
           <form
             onSubmit={
@@ -645,10 +716,12 @@ export default function FreeFireLatamPage() {
                 placeholder="Introduzca su ID"
                 autoComplete="off"
                 maxLength={20}
+                disabled={processing}
               />
 
             </div>
 
+            {/* ERROR */}
 
             {error && (
 
@@ -658,6 +731,7 @@ export default function FreeFireLatamPage() {
 
             )}
 
+            {/* PRECIO */}
 
             <div className="order-total-preview">
 
@@ -671,6 +745,7 @@ export default function FreeFireLatamPage() {
 
             </div>
 
+            {/* FINALIZAR COMPRA */}
 
             <button
               type="submit"
@@ -679,7 +754,9 @@ export default function FreeFireLatamPage() {
             >
 
               <span>
-                FINALIZAR COMPRA
+                {processing
+                  ? "PROCESANDO COMPRA..."
+                  : "FINALIZAR COMPRA"}
               </span>
 
               <b>
@@ -694,117 +771,9 @@ export default function FreeFireLatamPage() {
 
       )}
 
-
-      {/* =========================
-          CONFIRMACIÓN
-      ========================== */}
-
-      {showConfirmation &&
-        selectedOffer &&
-        !orderCreated && (
-
-          <section
-            id="confirmation-section"
-            className="confirmation-section"
-          >
-
-            <div className="section-title">
-
-              <span>
-                02
-              </span>
-
-              <div>
-
-                <small>
-                  CONFIRMAR
-                </small>
-
-                <h2>
-                  REVISE SU ORDEN
-                </h2>
-
-              </div>
-
-            </div>
-
-
-            <div className="confirmation-card">
-
-              <h3>
-                Usted va a realizar una
-                compra de Free Fire
-                Diamonds
-              </h3>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRODUCTO
-                </span>
-
-                <strong>
-                  {selectedOffer.name}
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRECIO A GASTAR
-                </span>
-
-                <strong>
-                  {selectedOffer.price.toFixed(2)}$
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  ID DEL JUGADOR
-                </span>
-
-                <strong>
-                  {playerId}
-                </strong>
-
-              </div>
-
-
-              <p className="confirmation-warning">
-                Revise cuidadosamente los
-                datos antes de finalizar la
-                compra.
-              </p>
-
-
-              <button
-                type="button"
-                className="confirm-final-button"
-                onClick={createOrder}
-                disabled={processing}
-              >
-                {processing
-                  ? "PROCESANDO..."
-                  : "FINALIZAR"}
-              </button>
-
-            </div>
-
-          </section>
-
-        )}
-
-
-      {/* =========================
+      {/* ============================================================
           ORDEN CREADA
-      ========================== */}
+      ============================================================ */}
 
       {orderCreated && (
 
@@ -827,7 +796,6 @@ export default function FreeFireLatamPage() {
             procesada.
           </p>
 
-
           <div className="success-order-number">
 
             <span>
@@ -840,14 +808,47 @@ export default function FreeFireLatamPage() {
 
           </div>
 
+          {supplierOrderId && (
+
+            <div className="success-order-number">
+
+              <span>
+                ID DE ORDEN DEL PROVEEDOR
+              </span>
+
+              <strong>
+                #{supplierOrderId}
+              </strong>
+
+            </div>
+
+          )}
+
+          {orderStatus && (
+
+            <div className="success-order-number">
+
+              <span>
+                ESTADO
+              </span>
+
+              <strong>
+                {orderStatus}
+              </strong>
+
+            </div>
+
+          )}
 
           <button
             type="button"
             className="view-orders-button"
-            onClick={goToOrders}
+            onClick={
+              goToOrders
+            }
           >
 
-            VER MIS ÓRDENES
+            REVISAR ORDEN
 
             <span>
               →
@@ -859,10 +860,9 @@ export default function FreeFireLatamPage() {
 
       )}
 
-
-      {/* =========================
-          INFORMACIÓN
-      ========================== */}
+      {/* ============================================================
+          INFORMACIÓN DEL SERVICIO
+      ============================================================ */}
 
       <section className="service-info">
 
@@ -887,7 +887,6 @@ export default function FreeFireLatamPage() {
 
         </div>
 
-
         <div className="service-info-item">
 
           <span>
@@ -907,7 +906,6 @@ export default function FreeFireLatamPage() {
           </div>
 
         </div>
-
 
         <div className="service-info-item">
 
@@ -932,10 +930,9 @@ export default function FreeFireLatamPage() {
 
       </section>
 
-
-      {/* =========================
+      {/* ============================================================
           FOOTER
-      ========================== */}
+      ============================================================ */}
 
       <footer className="game-service-footer">
 
@@ -951,4 +948,4 @@ export default function FreeFireLatamPage() {
 
     </main>
   );
-        }
+  }
