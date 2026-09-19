@@ -1,238 +1,168 @@
 export const FREE_FIRE_LATAM = {
   game: "Free Fire LATAM",
 
-  categoryId:
-    "free_fire_latam",
+  categoryId: "free_fire_latam",
 
-  image:
-    "/images/free-fire-latam.jpg",
+  image: "/images/free-fire-latam.jpg",
 
   note:
     "Región: LATAM Y N.A. Recarga automática de Free Fire. Los diamantes se entregan automáticamente después de realizar el pedido.",
 
   playerField: {
-    name:
-      "player_id",
+    name: "player_id",
 
-    label:
-      "PONGA SU ID",
+    label: "PONGA SU ID",
 
     description:
       "Introduzca el ID de la cuenta donde desea recibir la compra.",
 
-    placeholder:
-      "Introduzca su ID",
+    placeholder: "Introduzca su ID",
   },
 
   offers: [
-
     {
-      id:
-        "ff-110",
+      id: "ff-110",
 
-      supplierOfferId:
-        "110_diamonds",
+      supplierOfferId: "110_diamonds",
 
-      name:
-        "110 Diamonds",
+      name: "110 Diamonds",
 
-      display:
-        "110💎",
+      display: "110💎",
 
-      price:
-        0.78,
+      price: 0.78,
 
-      supplierPrice:
-        0.6972,
+      supplierPrice: 0.6972,
 
-      icon:
-        "💎",
+      icon: "💎",
     },
 
     {
-      id:
-        "ff-341",
+      id: "ff-341",
 
-      supplierOfferId:
-        "341_diamonds",
+      supplierOfferId: "341_diamonds",
 
-      name:
-        "341 Diamonds",
+      name: "341 Diamonds",
 
-      display:
-        "341💎",
+      display: "341💎",
 
-      price:
-        2.2,
+      price: 2.2,
 
-      supplierPrice:
-        2.0796,
+      supplierPrice: 2.0796,
 
-      icon:
-        "💎",
+      icon: "💎",
     },
 
     {
-      id:
-        "ff-572",
+      id: "ff-572",
 
-      supplierOfferId:
-        "572_diamonds",
+      supplierOfferId: "572_diamonds",
 
-      name:
-        "572 Diamonds",
+      name: "572 Diamonds",
 
-      display:
-        "572💎",
+      display: "572💎",
 
-      price:
-        3.67,
+      price: 3.67,
 
-      supplierPrice:
-        3.5131,
+      supplierPrice: 3.5131,
 
-      icon:
-        "💎",
+      icon: "💎",
     },
 
     {
-      id:
-        "ff-1166",
+      id: "ff-1166",
 
-      supplierOfferId:
-        "1166_diamonds",
+      supplierOfferId: "1166_diamonds",
 
-      name:
-        "1166 Diamonds",
+      name: "1166 Diamonds",
 
-      display:
-        "1166💎",
+      display: "1166💎",
 
-      price:
-        6.73,
+      price: 6.73,
 
-      supplierPrice:
-        6.5214,
+      supplierPrice: 6.5214,
 
-      icon:
-        "💎",
+      icon: "💎",
     },
 
     {
-      id:
-        "ff-2398",
+      id: "ff-2398",
 
-      supplierOfferId:
-        "2398_diamonds",
+      supplierOfferId: "2398_diamonds",
 
-      name:
-        "2398 Diamonds",
+      name: "2398 Diamonds",
 
-      display:
-        "2398💎",
+      display: "2398💎",
 
-      price:
-        13.27,
+      price: 13.27,
 
-      supplierPrice:
-        12.9519,
+      supplierPrice: 12.9519,
 
-      icon:
-        "💎",
+      icon: "💎",
     },
 
     {
-      id:
-        "ff-6160",
+      id: "ff-6160",
 
-      supplierOfferId:
-        "6160_diamonds",
+      supplierOfferId: "6160_diamonds",
 
-      name:
-        "6160 Diamonds",
+      name: "6160 Diamonds",
 
-      display:
-        "6160💎",
+      display: "6160💎",
 
-      price:
-        33.7,
+      price: 33.7,
 
-      supplierPrice:
-        32.9602,
+      supplierPrice: 32.9602,
 
-      icon:
-        "💎",
+      icon: "💎",
     },
 
     {
-      id:
-        "ff-elite-pass",
+      id: "ff-elite-pass",
 
-      supplierOfferId:
-        "booyah_pass",
+      supplierOfferId: "booyah_pass",
 
-      name:
-        "Pase Elite",
+      name: "Pase Elite",
 
-      display:
-        "PASE ELITE",
+      display: "PASE ELITE",
 
-      price:
-        4,
+      price: 4,
 
-      supplierPrice:
-        3.8738,
+      supplierPrice: 3.8738,
 
-      icon:
-        "🎟️",
+      icon: "🎟️",
     },
 
     {
-      id:
-        "ff-weekly-membership",
+      id: "ff-weekly-membership",
 
-      supplierOfferId:
-        "weekly_membership",
+      supplierOfferId: "weekly_membership",
 
-      name:
-        "Membresía semanal",
+      name: "Membresía semanal",
 
-      display:
-        "MEMBRESÍA SEMANAL",
+      display: "MEMBRESÍA SEMANAL",
 
-      price:
-        2.3,
+      price: 2.3,
 
-      supplierPrice:
-        2.1893,
+      supplierPrice: 2.1893,
 
-      icon:
-        "⭐",
+      icon: "⭐",
     },
 
     {
-      id:
-        "ff-monthly-membership",
+      id: "ff-monthly-membership",
 
-      supplierOfferId:
-        "monthly_membership",
+      supplierOfferId: "monthly_membership",
 
-      name:
-        "Membresía mensual",
+      name: "Membresía mensual",
 
-      display:
-        "MEMBRESÍA MENSUAL",
+      display: "MEMBRESÍA MENSUAL",
 
-      price:
-        10.72,
+      price: 10.72,
 
-      supplierPrice:
-        10.482,
+      supplierPrice: 10.482,
 
-      icon:
-        "⭐",
+      icon: "⭐",
     },
-
   ],
 } as const;
 
