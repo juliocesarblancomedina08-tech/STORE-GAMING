@@ -1,122 +1,79 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
 
-const gameNote =
-  "Región: Recarga Global Blood Strike. La moneda se entrega directamente a tu cuenta una vez realizada la orden.";
+import { supabase } from "../../../lib/supabase";
 
-const offers = [
-  {
-    id: "bs-51",
-    name: "51 Gold",
-    display: "51",
-    price: 0.52,
-    icon: "🪙",
-  },
-  {
-    id: "bs-105",
-    name: "105 Gold",
-    display: "105",
-    price: 0.85,
-    icon: "🪙",
-  },
-  {
-    id: "bs-320",
-    name: "320 Gold",
-    display: "320",
-    price: 2.35,
-    icon: "🪙",
-  },
-  {
-    id: "bs-540",
-    name: "540 Gold",
-    display: "540",
-    price: 3.85,
-    icon: "🪙",
-  },
-  {
-    id: "bs-1100",
-    name: "1100 Gold",
-    display: "1100",
-    price: 7.6,
-    icon: "🪙",
-  },
-  {
-    id: "bs-2260",
-    name: "2260 Gold",
-    display: "2260",
-    price: 15.1,
-    icon: "🪙",
-  },
-  {
-    id: "bs-5800",
-    name: "5800 Gold",
-    display: "5800",
-    price: 37.4,
-    icon: "🪙",
-  },
-  {
-    id: "bs-pass",
-    name: "Pase",
-    display: "PASE",
-    price: 3.4,
-    icon: "🎟️",
-  },
-  {
-    id: "bs-premium-pass",
-    name: "Pase Premium",
-    display: "PASE PREMIUM",
-    price: 7.5,
-    icon: "🎟️",
-  },
-];
+import {
+  BLOOD_STRIKE,
+  BloodStrikeOffer,
+} from "../../../lib/games/blood-strike";
 
 export default function BloodStrikePage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
+  const [offers, setOffers] = useState<BloodStrikeOffer[]>(
+    BLOOD_STRIKE.offers
+  );
 
   const [selectedOffer, setSelectedOffer] =
-    useState<(typeof offers)[number] | null>(null);
+    useState<BloodStrikeOffer | null>(null);
 
   const [playerId, setPlayerId] = useState("");
 
   const [error, setError] = useState("");
 
-  const [showConfirmation, setShowConfirmation] =
-    useState(false);
+  const [offersOpen, setOffersOpen] = useState(true);
 
   const [orderCreated, setOrderCreated] = useState(false);
 
   const [orderNumber, setOrderNumber] = useState("");
 
-  function selectOffer(
-    offer: (typeof offers)[number]
-  ) {
+  const [supplierOrderId, setSupplierOrderId] =
+    useState("");
+
+  const [orderStatus, setOrderStatus] =
+    useState("processing");
+
+  const [processing, setProcessing] = useState(false);
+
+  /*
+  |--------------------------------------------------------------------------
+  | CARGAR OFERTAS
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    setOffers(BLOOD_STRIKE.offers);
+  }, []);
+
+  /*
+  |--------------------------------------------------------------------------
+  | SELECCIONAR OFERTA
+  |--------------------------------------------------------------------------
+  */
+
+  const selectOffer = (offer: BloodStrikeOffer) => {
     setSelectedOffer(offer);
-
-    setPlayerId("");
-
     setError("");
-
-    setShowConfirmation(false);
-
     setOrderCreated(false);
+  };
 
-    setTimeout(() => {
-      document
-        .getElementById("order-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  }
+  /*
+  |--------------------------------------------------------------------------
+  | CREAR ORDEN
+  |--------------------------------------------------------------------------
+  */
 
-  function handleFinishPurchase(
+  const createOrder = async (
     event: FormEvent<HTMLFormElement>
-  ) {
+  ) => {
     event.preventDefault();
 
     setError("");
@@ -126,638 +83,557 @@ export default function BloodStrikePage() {
       return;
     }
 
-    const cleanId = playerId.trim();
+    const cleanPlayerId = playerId.trim();
 
-    if (!cleanId) {
-      setError("Ponga el ID de su cuenta.");
+    if (!cleanPlayerId) {
+      setError("Introduzca su ID de jugador.");
       return;
     }
 
-    if (cleanId.length < 4) {
-      setError("El ID parece demasiado corto.");
+    /*
+     * Blood Strike puede utilizar IDs alfanuméricos.
+     * Permitimos únicamente caracteres seguros.
+     */
+    if (
+      cleanPlayerId.length < 4 ||
+      cleanPlayerId.length > 32 ||
+      !/^[A-Za-z0-9_-]+$/.test(cleanPlayerId)
+    ) {
+      setError(
+        "El ID debe tener entre 4 y 32 caracteres."
+      );
       return;
     }
 
-    setShowConfirmation(true);
+    setProcessing(true);
 
-    setTimeout(() => {
-      document
-        .getElementById("confirmation-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  }
+    try {
+      /*
+       * Comprobar sesión antes de crear la orden.
+       */
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-  function createOrder() {
-    if (!selectedOffer) {
-      return;
-    }
+      if (!session?.access_token) {
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
 
-    const generatedNumber =
-      `BS-${Date.now().toString().slice(-8)}`;
+        setProcessing(false);
 
-    const order = {
-      id: generatedNumber,
-      game: "BLOOD STRIKE",
-      product: selectedOffer.name,
-      displayProduct: selectedOffer.display,
-      price: selectedOffer.price,
-      playerId: playerId.trim(),
-      status: "Pendiente",
-      createdAt: new Date().toISOString(),
-    };
+        router.push("/");
 
-    const existingOrders =
-      localStorage.getItem("storeGamingOrders");
-
-    let orders: any[] = [];
-
-    if (existingOrders) {
-      try {
-        const parsed = JSON.parse(existingOrders);
-
-        if (Array.isArray(parsed)) {
-          orders = parsed;
-        }
-      } catch {
-        orders = [];
+        return;
       }
+
+      /*
+       * Idempotency key.
+       *
+       * Evita crear dos órdenes si el usuario toca
+       * varias veces el botón.
+       */
+      const idempotencyKey =
+        crypto.randomUUID();
+
+      const response = await fetch(
+        "/api/topups/blood-strike",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+
+          body: JSON.stringify({
+            offerId: selectedOffer.id,
+            playerId: cleanPlayerId,
+            idempotencyKey,
+          }),
+        }
+      );
+
+      let result: any = null;
+
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(
+          result?.error ||
+            result?.message ||
+            "No se pudo crear la orden."
+        );
+      }
+
+      /*
+       * La API puede devolver la información
+       * dentro de result.order.
+       */
+      const order = result.order || {};
+
+      const createdOrderNumber =
+        result.orderNumber ||
+        order.order_number ||
+        order.orderNumber ||
+        order.id ||
+        result.id ||
+        "";
+
+      const createdSupplierOrderId =
+        result.supplierOrderId ||
+        order.supplier_order_id ||
+        order.supplierOrderId ||
+        "";
+
+      const createdStatus =
+        result.status ||
+        order.status ||
+        order.supplier_status ||
+        "processing";
+
+      setOrderNumber(
+        String(createdOrderNumber)
+      );
+
+      setSupplierOrderId(
+        String(createdSupplierOrderId || "")
+      );
+
+      setOrderStatus(
+        String(createdStatus)
+      );
+
+      setOrderCreated(true);
+
+      /*
+       * Ocultamos el teclado / limpiamos el formulario
+       * después de crear correctamente.
+       */
+      setPlayerId("");
+    } catch (err) {
+      console.error(
+        "Blood Strike order error:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la orden."
+      );
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | REVISAR ORDEN
+  |--------------------------------------------------------------------------
+  */
+
+  const reviewOrder = () => {
+    if (!orderNumber) {
+      return;
     }
 
-    orders.unshift(order);
-
-    localStorage.setItem(
-      "storeGamingOrders",
-      JSON.stringify(orders)
+    router.push(
+      `/orders?order=${encodeURIComponent(
+        orderNumber
+      )}`
     );
+  };
 
-    localStorage.setItem(
-      "storeGamingLastOrder",
-      JSON.stringify(order)
-    );
+  /*
+  |--------------------------------------------------------------------------
+  | VOLVER
+  |--------------------------------------------------------------------------
+  */
 
-    setOrderNumber(generatedNumber);
-
-    setOrderCreated(true);
-
-    setTimeout(() => {
-      document
-        .getElementById("success-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  }
-
-  function goToOrders() {
-    router.push("/orders");
-  }
+  const goBack = () => {
+    router.back();
+  };
 
   return (
-    <main className="game-service-page blood-strike-page">
+    <main className="game-page">
+      {/* =========================================================
+          HEADER
+      ========================================================= */}
 
-      <header className="game-service-header">
-
+      <header className="game-header">
         <button
           type="button"
           className="game-back-button"
-          onClick={() => router.push("/home")}
+          onClick={goBack}
+          aria-label="Volver"
         >
           ←
         </button>
 
         <div className="game-header-title">
-
-          <span>
-            STORE GAMING
-          </span>
-
-          <strong>
-            BLOOD STRIKE
-          </strong>
-
+          <span>🛒</span>
+          <strong>STORE GAMING</strong>
+          <span>🎮</span>
         </div>
 
+        <button
+          type="button"
+          className="game-cart-button"
+          onClick={() => router.push("/orders")}
+          aria-label="Pedidos"
+        >
+          🛒
+        </button>
       </header>
 
-      <section className="free-fire-main-image">
+      {/* =========================================================
+          CONTENIDO
+      ========================================================= */}
 
-        <img
-          src="/images/blood-strike.jpg"
-          alt="Blood Strike"
-        />
+      <section className="game-service-page">
+        <div className="game-service-card">
+          {/* =====================================================
+              TÍTULO
+          ===================================================== */}
 
-        <div className="free-fire-main-overlay" />
+          <div className="game-service-heading">
+            <h1>
+              Bienvenido al servicio TOP UP
+              de Blood Strike
+            </h1>
 
-        <div className="free-fire-main-text">
-
-          <span>
-            ⚡ TOP UP
-          </span>
-
-          <h1>
-            BLOOD
-            <strong>
-              STRIKE
-            </strong>
-          </h1>
-
-          <p>
-            Gold, pases y Pase Premium
-          </p>
-
-        </div>
-
-      </section>
-
-      <button
-        type="button"
-        className="offers-toggle"
-        onClick={() =>
-          setShowOffers((current) => !current)
-        }
-      >
-
-        <span className="offers-toggle-text">
-
-          ✎
-
-          <strong>
-            PRESIONE PARA VER OFERTAS
-          </strong>
-
-        </span>
-
-        <span className="offers-toggle-pencil">
-          ✎
-        </span>
-
-      </button>
-
-      {showOffers && (
-        <section className="offers-section">
-
-          <div className="offers-heading">
-
-            <div>
-
-              <span>
-                BLOOD STRIKE
-              </span>
-
-              <h2>
-                ELIGE TU OFERTA
-              </h2>
-
-            </div>
-
+            <p>
+              Recarga Gold y pases de Blood Strike
+              de forma rápida y segura.
+            </p>
           </div>
 
-          <div className="offers-list">
+          {/* =====================================================
+              IMAGEN DEL JUEGO
+          ===================================================== */}
 
-            {offers.map((offer) => {
+          <div className="game-image-container">
+            <img
+              src={BLOOD_STRIKE.image}
+              alt="Blood Strike"
+              className="game-main-image"
+            />
+          </div>
 
-              const selected =
-                selectedOffer?.id === offer.id;
+          {/* =====================================================
+              OFERTAS
+          ===================================================== */}
 
-              return (
-                <button
-                  key={offer.id}
-                  type="button"
-                  className={`offer-card ${
-                    selected ? "selected" : ""
-                  }`}
-                  onClick={() => selectOffer(offer)}
-                >
+          <button
+            type="button"
+            className="offers-toggle"
+            onClick={() =>
+              setOffersOpen((value) => !value)
+            }
+          >
+            <span className="offers-toggle-icon">
+              ✏️
+            </span>
 
-                  <div className="offer-left">
+            <span>
+              presione para ver ofertas
+            </span>
 
-                    <div className="diamond-icon">
-                      {offer.icon}
-                    </div>
+            <span className="offers-toggle-arrow">
+              {offersOpen ? "▲" : "▼"}
+            </span>
+          </button>
 
-                    <div className="offer-info">
+          {offersOpen && (
+            <div className="game-offers-list">
+              {offers.map((offer) => {
+                const selected =
+                  selectedOffer?.id === offer.id;
 
-                      <strong>
-                        {offer.display}
-                      </strong>
-
-                      <span>
+                return (
+                  <button
+                    key={offer.id}
+                    type="button"
+                    className={`game-offer-row ${
+                      selected
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      selectOffer(offer)
+                    }
+                  >
+                    <div className="game-offer-info">
+                      <span className="game-offer-name">
                         {offer.name}
                       </span>
 
+                      {selected && (
+                        <span className="game-offer-selected">
+                          ✓
+                        </span>
+                      )}
                     </div>
 
-                  </div>
-
-                  <div className="offer-right">
-
-                    <strong>
+                    <span className="game-offer-price">
                       {offer.price.toFixed(2)}$
-                    </strong>
-
-                    <span>
-                      SELECCIONAR →
                     </span>
-
-                  </div>
-
-                </button>
-              );
-            })}
-
-          </div>
-
-          {/* NOTA DEL SERVICIO */}
-          <div className="game-note">
-
-            <div className="game-note-icon">
-              !
+                  </button>
+                );
+              })}
             </div>
+          )}
 
-            <div className="game-note-content">
+          {/* =====================================================
+              NOTA
+          ===================================================== */}
 
-              <strong>
-                NOTA
-              </strong>
+          <div className="game-service-note">
+            <span>⚡</span>
 
-              <p>
-                {gameNote}
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-      )}
-
-      {selectedOffer && (
-        <section
-          id="order-section"
-          className="order-section"
-        >
-
-          <div className="section-title">
-
-            <span>
-              01
-            </span>
-
-            <div>
-
-              <small>
-                TU SELECCIÓN
-              </small>
-
-              <h2>
-                DATOS DEL PEDIDO
-              </h2>
-
-            </div>
-
-          </div>
-
-          <div className="selected-order-card">
-
-            <div className="selected-order-icon">
-              {selectedOffer.icon}
-            </div>
-
-            <div className="selected-order-info">
-
-              <span>
-                BLOOD STRIKE
-              </span>
-
-              <strong>
-                {selectedOffer.name}
-              </strong>
-
-            </div>
-
-            <div className="selected-order-price">
-              {selectedOffer.price.toFixed(2)}$
-            </div>
-
-          </div>
-
-          {/* NOTA ANTES DEL ID */}
-          <div className="game-note game-note-order">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {gameNote}
-              </p>
-
-            </div>
-
-          </div>
-
-          <form
-            onSubmit={handleFinishPurchase}
-            className="order-form"
-          >
-
-            <label
-              htmlFor="blood-strike-player-id"
-              className="player-id-label"
-            >
-              PONGA SU ID
-            </label>
-
-            <p className="player-id-description">
-              Introduzca el ID de la cuenta donde desea
-              recibir la compra.
+            <p>
+              Recarga Global de Blood Strike.
+              Los Gold y pases se entregan
+              automáticamente después de realizar
+              el pedido.
             </p>
+          </div>
 
-            <div className="player-id-input-wrapper">
+          {/* =====================================================
+              FORMULARIO
+          ===================================================== */}
 
-              <span>
-                🆔
-              </span>
+          {!orderCreated && (
+            <form
+              className="game-order-form"
+              onSubmit={createOrder}
+            >
+              <div className="game-selected-offer">
+                <span>
+                  Oferta seleccionada
+                </span>
+
+                <strong>
+                  {selectedOffer
+                    ? selectedOffer.displayName
+                    : "Ninguna"}
+                </strong>
+
+                {selectedOffer && (
+                  <span className="game-selected-price">
+                    {selectedOffer.price.toFixed(
+                      2
+                    )}
+                    $
+                  </span>
+                )}
+              </div>
+
+              <label
+                htmlFor="blood-strike-player-id"
+                className="game-player-label"
+              >
+                {BLOOD_STRIKE.playerField.label}
+              </label>
 
               <input
                 id="blood-strike-player-id"
                 type="text"
-                inputMode="numeric"
+                inputMode="text"
+                autoComplete="off"
                 value={playerId}
                 onChange={(event) =>
                   setPlayerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
+                    event.target.value
                   )
                 }
-                placeholder="Introduzca su ID"
-                autoComplete="off"
-                maxLength={20}
+                placeholder={
+                  BLOOD_STRIKE.playerField
+                    .placeholder
+                }
+                className="game-player-input"
+                maxLength={32}
               />
 
-            </div>
-
-            {error && (
-              <div className="order-error">
-                {error}
-              </div>
-            )}
-
-            <div className="order-total-preview">
-
-              <span>
-                PRECIO
-              </span>
-
-              <strong>
-                {selectedOffer.price.toFixed(2)}$
-              </strong>
-
-            </div>
-
-            <button
-              type="submit"
-              className="finish-order-button"
-            >
-
-              <span>
-                FINALIZAR COMPRA
-              </span>
-
-              <b>
-                →
-              </b>
-
-            </button>
-
-          </form>
-
-        </section>
-      )}
-
-      {showConfirmation &&
-        selectedOffer &&
-        !orderCreated && (
-          <section
-            id="confirmation-section"
-            className="confirmation-section"
-          >
-
-            <div className="section-title">
-
-              <span>
-                02
-              </span>
-
-              <div>
-
-                <small>
-                  CONFIRMAR
-                </small>
-
-                <h2>
-                  REVISE SU ORDEN
-                </h2>
-
-              </div>
-
-            </div>
-
-            <div className="confirmation-card">
-
-              <h3>
-                Usted va a realizar una compra de Blood
-                Strike
-              </h3>
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRODUCTO
-                </span>
-
-                <strong>
-                  {selectedOffer.name}
-                </strong>
-
-              </div>
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRECIO A GASTAR
-                </span>
-
-                <strong>
-                  {selectedOffer.price.toFixed(2)}$
-                </strong>
-
-              </div>
-
-              <div className="confirmation-row">
-
-                <span>
-                  ID DEL JUGADOR
-                </span>
-
-                <strong>
-                  {playerId}
-                </strong>
-
-              </div>
-
-              <p className="confirmation-warning">
-                Revise cuidadosamente los datos antes de
-                finalizar la compra.
+              <p className="game-player-description">
+                {BLOOD_STRIKE.playerField.description}
               </p>
+
+              {error && (
+                <div className="game-error">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="game-finish-button"
+                disabled={
+                  processing ||
+                  !selectedOffer ||
+                  !playerId.trim()
+                }
+              >
+                {processing
+                  ? "PROCESANDO..."
+                  : "FINALIZAR COMPRA"}
+              </button>
+            </form>
+          )}
+
+          {/* =====================================================
+              ORDEN CREADA
+          ===================================================== */}
+
+          {orderCreated && (
+            <section className="game-order-success">
+              <div className="game-success-circle">
+                ✓
+              </div>
+
+              <h2>orden creada</h2>
+
+              <p>
+                Su pedido fue creado
+                correctamente.
+              </p>
+
+              {orderNumber && (
+                <div className="game-order-number">
+                  <span>
+                    Número de orden
+                  </span>
+
+                  <strong>
+                    {orderNumber}
+                  </strong>
+                </div>
+              )}
+
+              {supplierOrderId && (
+                <div className="game-supplier-order">
+                  <span>
+                    Orden del proveedor
+                  </span>
+
+                  <strong>
+                    {supplierOrderId}
+                  </strong>
+                </div>
+              )}
+
+              <div className="game-order-status">
+                <span>
+                  Estado
+                </span>
+
+                <strong>
+                  {orderStatus}
+                </strong>
+              </div>
 
               <button
                 type="button"
-                className="confirm-final-button"
-                onClick={createOrder}
+                className="game-review-order-button"
+                onClick={reviewOrder}
               >
-                FINALIZAR
+                REVISAR ORDEN
               </button>
 
+              <button
+                type="button"
+                className="game-new-order-button"
+                onClick={() => {
+                  setOrderCreated(false);
+                  setSelectedOffer(null);
+                  setOrderNumber("");
+                  setSupplierOrderId("");
+                  setOrderStatus(
+                    "processing"
+                  );
+                  setError("");
+                }}
+              >
+                REALIZAR OTRA COMPRA
+              </button>
+            </section>
+          )}
+
+          {/* =====================================================
+              INFORMACIÓN DEL SERVICIO
+          ===================================================== */}
+
+          <section className="game-service-info">
+            <h2>
+              Información del servicio
+            </h2>
+
+            <div className="game-info-row">
+              <span>⚡</span>
+
+              <div>
+                <strong>
+                  Entrega rápida
+                </strong>
+
+                <p>
+                  La recarga se procesa
+                  automáticamente.
+                </p>
+              </div>
             </div>
 
+            <div className="game-info-row">
+              <span>🔒</span>
+
+              <div>
+                <strong>
+                  Compra segura
+                </strong>
+
+                <p>
+                  Tu pedido queda registrado
+                  en STORE GAMING.
+                </p>
+              </div>
+            </div>
+
+            <div className="game-info-row">
+              <span>🎮</span>
+
+              <div>
+                <strong>
+                  Blood Strike
+                </strong>
+
+                <p>
+                  Gold y pases disponibles
+                  para recarga.
+                </p>
+              </div>
+            </div>
           </section>
-        )}
-
-      {orderCreated && (
-        <section
-          id="success-section"
-          className="order-success-section"
-        >
-
-          <div className="success-circle">
-            ✓
-          </div>
-
-          <h2>
-            ORDEN CREADA
-          </h2>
-
-          <p>
-            Su orden ha sido creada correctamente.
-          </p>
-
-          <div className="success-order-number">
-
-            <span>
-              NÚMERO DE ORDEN
-            </span>
-
-            <strong>
-              #{orderNumber}
-            </strong>
-
-          </div>
-
-          <button
-            type="button"
-            className="view-orders-button"
-            onClick={goToOrders}
-          >
-            VER MIS ÓRDENES
-
-            <span>
-              →
-            </span>
-
-          </button>
-
-        </section>
-      )}
-
-      <section className="service-info">
-
-        <div className="service-info-item">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos rápidamente.
-            </p>
-
-          </div>
-
         </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🔒
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              BLOOD STRIKE
-            </strong>
-
-            <p>
-              Gold, pases y recargas.
-            </p>
-
-          </div>
-
-        </div>
-
       </section>
 
-      <footer className="game-service-footer">
+      {/* =========================================================
+          FOOTER
+      ========================================================= */}
+
+      <footer className="game-footer">
+        <span>🛒</span>
 
         <strong>
-          🛒STORE GAMING🎮
+          STORE GAMING
         </strong>
 
-        <span>
-          BLOOD STRIKE TOP UP
-        </span>
-
+        <span>🎮</span>
       </footer>
-
     </main>
   );
       }
