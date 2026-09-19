@@ -96,7 +96,9 @@ export default function FreeFireLatamPage() {
        */
 
       const cleanPlayerId =
-        playerId.trim();
+        playerId
+          .trim()
+          .replace(/\s+/g, "");
 
       if (!cleanPlayerId) {
         setError(
@@ -139,6 +141,24 @@ export default function FreeFireLatamPage() {
        * ============================================================
        * 4. ENVIAR PEDIDO AL SERVIDOR
        * ============================================================
+       *
+       * IMPORTANTE:
+       *
+       * Enviamos el ID INTERNO de la oferta:
+       *
+       * ff-110
+       * ff-341
+       * ff-572
+       * etc.
+       *
+       * El servidor es quien obtiene:
+       *
+       * supplierOfferId
+       *
+       * y lo envía al reseller.
+       *
+       * De esta manera el navegador no controla
+       * directamente la oferta del proveedor.
        */
 
       const response =
@@ -159,12 +179,6 @@ export default function FreeFireLatamPage() {
               offerId:
                 selectedOffer.id,
 
-              offerName:
-                selectedOffer.name,
-
-              retailPrice:
-                selectedOffer.price,
-
               playerId:
                 cleanPlayerId,
 
@@ -173,12 +187,24 @@ export default function FreeFireLatamPage() {
           }
         );
 
-      const result =
-        await response.json();
+      /*
+       * ============================================================
+       * 5. LEER RESPUESTA
+       * ============================================================
+       */
+
+      let result: any = {};
+
+      try {
+        result =
+          await response.json();
+      } catch {
+        result = {};
+      }
 
       /*
        * ============================================================
-       * 5. ERROR DEL SERVIDOR
+       * 6. ERROR DEL SERVIDOR
        * ============================================================
        */
 
@@ -196,7 +222,7 @@ export default function FreeFireLatamPage() {
 
       /*
        * ============================================================
-       * 6. OBTENER DATOS DE LA ORDEN
+       * 7. OBTENER PEDIDO
        * ============================================================
        */
 
@@ -204,8 +230,8 @@ export default function FreeFireLatamPage() {
         result.order || {};
 
       setOrderNumber(
-        order.order_number ||
-          result.orderNumber ||
+        result.orderNumber ||
+          order.order_number ||
           order.id ||
           result.id ||
           ""
@@ -218,15 +244,15 @@ export default function FreeFireLatamPage() {
       );
 
       setOrderStatus(
-        order.status ||
-          result.status ||
+        result.status ||
+          order.status ||
           order.supplier_status ||
           "processing"
       );
 
       /*
        * ============================================================
-       * 7. MOSTRAR ORDEN CREADA
+       * 8. MOSTRAR ORDEN CREADA
        * ============================================================
        */
 
@@ -242,7 +268,6 @@ export default function FreeFireLatamPage() {
             block: "start",
           });
       }, 100);
-
     } catch (err) {
       console.error(
         "ERROR CREANDO TOPUP:",
@@ -252,7 +277,6 @@ export default function FreeFireLatamPage() {
       setError(
         "No se pudo conectar con el servidor. Si la compra fue enviada, no vuelva a intentarla hasta revisar el estado de la orden."
       );
-
     } finally {
       setProcessing(false);
     }
@@ -275,7 +299,9 @@ export default function FreeFireLatamPage() {
     }
 
     const cleanId =
-      playerId.trim();
+      playerId
+        .trim()
+        .replace(/\s+/g, "");
 
     if (!cleanId) {
       setError(
@@ -304,6 +330,8 @@ export default function FreeFireLatamPage() {
       );
       return;
     }
+
+    setError("");
 
     createOrder();
   }
@@ -887,4 +915,4 @@ export default function FreeFireLatamPage() {
 
     </main>
   );
-      }
+  }
