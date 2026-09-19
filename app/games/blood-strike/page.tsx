@@ -896,4 +896,4 @@ export default function BloodStrikePage() {
 
     </main>
   );
-}
+        }
