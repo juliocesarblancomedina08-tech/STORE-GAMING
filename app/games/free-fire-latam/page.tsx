@@ -4,83 +4,10 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
-const offers = [
-  {
-    id: "ff-110",
-    supplierOfferId: "110_diamonds",
-    name: "110 Diamonds",
-    display: "110💎",
-    price: 0.78,
-    icon: "💎",
-  },
-  {
-    id: "ff-341",
-    supplierOfferId: "341_diamonds",
-    name: "341 Diamonds",
-    display: "341💎",
-    price: 2.2,
-    icon: "💎",
-  },
-  {
-    id: "ff-572",
-    supplierOfferId: "572_diamonds",
-    name: "572 Diamonds",
-    display: "572💎",
-    price: 3.67,
-    icon: "💎",
-  },
-  {
-    id: "ff-1166",
-    supplierOfferId: "1166_diamonds",
-    name: "1166 Diamonds",
-    display: "1166💎",
-    price: 6.73,
-    icon: "💎",
-  },
-  {
-    id: "ff-2398",
-    supplierOfferId: "2398_diamonds",
-    name: "2398 Diamonds",
-    display: "2398💎",
-    price: 13.27,
-    icon: "💎",
-  },
-  {
-    id: "ff-6160",
-    supplierOfferId: "6160_diamonds",
-    name: "6160 Diamonds",
-    display: "6160💎",
-    price: 33.7,
-    icon: "💎",
-  },
-  {
-    id: "ff-elite-pass",
-    supplierOfferId: "booyah_pass",
-    name: "Pase Elite",
-    display: "PASE ELITE",
-    price: 4,
-    icon: "🎟️",
-  },
-  {
-    id: "ff-weekly-membership",
-    supplierOfferId: "weekly_membership",
-    name: "Membresía semanal",
-    display: "MEMBRESÍA SEMANAL",
-    price: 2.3,
-    icon: "⭐",
-  },
-  {
-    id: "ff-monthly-membership",
-    supplierOfferId: "monthly_membership",
-    name: "Membresía mensual",
-    display: "MEMBRESÍA MENSUAL",
-    price: 10.72,
-    icon: "⭐",
-  },
-];
-
-const gameNote =
-  "Región: LATAM Y N.A. Recarga automática de Free Fire. Los diamantes se entregan automáticamente después de realizar el pedido.";
+import {
+  FREE_FIRE_LATAM,
+  type FreeFireLatamOffer,
+} from "../../../lib/games/free-fire-latam";
 
 export default function FreeFireLatamPage() {
   const router = useRouter();
@@ -88,7 +15,7 @@ export default function FreeFireLatamPage() {
   const [showOffers, setShowOffers] = useState(false);
 
   const [selectedOffer, setSelectedOffer] =
-    useState<(typeof offers)[number] | null>(null);
+    useState<FreeFireLatamOffer | null>(null);
 
   const [playerId, setPlayerId] = useState("");
 
@@ -110,7 +37,7 @@ export default function FreeFireLatamPage() {
     useState(false);
 
   function selectOffer(
-    offer: (typeof offers)[number]
+    offer: FreeFireLatamOffer
   ) {
     setSelectedOffer(offer);
     setPlayerId("");
@@ -230,7 +157,7 @@ export default function FreeFireLatamPage() {
 
             body: JSON.stringify({
               offerId:
-                selectedOffer.supplierOfferId,
+                selectedOffer.id,
 
               offerName:
                 selectedOffer.name,
@@ -508,65 +435,67 @@ export default function FreeFireLatamPage() {
 
           <div className="offers-list">
 
-            {offers.map((offer) => {
+            {FREE_FIRE_LATAM.offers.map(
+              (offer) => {
 
-              const selected =
-                selectedOffer?.id ===
-                offer.id;
+                const selected =
+                  selectedOffer?.id ===
+                  offer.id;
 
-              return (
+                return (
 
-                <button
-                  key={offer.id}
-                  type="button"
-                  className={`offer-card ${
-                    selected
-                      ? "selected"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    selectOffer(
-                      offer
-                    )
-                  }
-                >
+                  <button
+                    key={offer.id}
+                    type="button"
+                    className={`offer-card ${
+                      selected
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      selectOffer(
+                        offer
+                      )
+                    }
+                  >
 
-                  <div className="offer-left">
+                    <div className="offer-left">
 
-                    <div className="diamond-icon">
-                      {offer.icon}
+                      <div className="diamond-icon">
+                        {offer.icon}
+                      </div>
+
+                      <div className="offer-info">
+
+                        <strong>
+                          {offer.display}
+                        </strong>
+
+                        <span>
+                          {offer.name}
+                        </span>
+
+                      </div>
+
                     </div>
 
-                    <div className="offer-info">
+                    <div className="offer-right">
 
                       <strong>
-                        {offer.display}
+                        {offer.price.toFixed(2)}$
                       </strong>
 
                       <span>
-                        {offer.name}
+                        SELECCIONAR →
                       </span>
 
                     </div>
 
-                  </div>
+                  </button>
 
-                  <div className="offer-right">
-
-                    <strong>
-                      {offer.price.toFixed(2)}$
-                    </strong>
-
-                    <span>
-                      SELECCIONAR →
-                    </span>
-
-                  </div>
-
-                </button>
-
-              );
-            })}
+                );
+              }
+            )}
 
           </div>
 
@@ -583,7 +512,7 @@ export default function FreeFireLatamPage() {
               </strong>
 
               <p>
-                {gameNote}
+                {FREE_FIRE_LATAM.note}
               </p>
 
             </div>
@@ -650,302 +579,3 @@ export default function FreeFireLatamPage() {
             </div>
 
           </div>
-
-          {/* NOTA */}
-
-          <div className="game-note game-note-order">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {gameNote}
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* FORMULARIO */}
-
-          <form
-            onSubmit={
-              handleFinishPurchase
-            }
-            className="order-form"
-          >
-
-            <label
-              htmlFor="free-fire-player-id"
-              className="player-id-label"
-            >
-              PONGA SU ID
-            </label>
-
-            <p className="player-id-description">
-              Introduzca el ID de la cuenta
-              donde desea recibir la compra.
-            </p>
-
-            <div className="player-id-input-wrapper">
-
-              <span>
-                🆔
-              </span>
-
-              <input
-                id="free-fire-player-id"
-                type="text"
-                inputMode="numeric"
-                value={playerId}
-                onChange={(event) =>
-                  setPlayerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
-                  )
-                }
-                placeholder="Introduzca su ID"
-                autoComplete="off"
-                maxLength={20}
-                disabled={processing}
-              />
-
-            </div>
-
-            {/* ERROR */}
-
-            {error && (
-
-              <div className="order-error">
-                {error}
-              </div>
-
-            )}
-
-            {/* PRECIO */}
-
-            <div className="order-total-preview">
-
-              <span>
-                PRECIO
-              </span>
-
-              <strong>
-                {selectedOffer.price.toFixed(2)}$
-              </strong>
-
-            </div>
-
-            {/* FINALIZAR COMPRA */}
-
-            <button
-              type="submit"
-              className="finish-order-button"
-              disabled={processing}
-            >
-
-              <span>
-                {processing
-                  ? "PROCESANDO COMPRA..."
-                  : "FINALIZAR COMPRA"}
-              </span>
-
-              <b>
-                →
-              </b>
-
-            </button>
-
-          </form>
-
-        </section>
-
-      )}
-
-      {/* ============================================================
-          ORDEN CREADA
-      ============================================================ */}
-
-      {orderCreated && (
-
-        <section
-          id="success-section"
-          className="order-success-section"
-        >
-
-          <div className="success-circle">
-            ✓
-          </div>
-
-          <h2>
-            ORDEN CREADA
-          </h2>
-
-          <p>
-            Su orden ha sido creada
-            correctamente y está siendo
-            procesada.
-          </p>
-
-          <div className="success-order-number">
-
-            <span>
-              NÚMERO DE ORDEN
-            </span>
-
-            <strong>
-              #{orderNumber}
-            </strong>
-
-          </div>
-
-          {supplierOrderId && (
-
-            <div className="success-order-number">
-
-              <span>
-                ID DE ORDEN DEL PROVEEDOR
-              </span>
-
-              <strong>
-                #{supplierOrderId}
-              </strong>
-
-            </div>
-
-          )}
-
-          {orderStatus && (
-
-            <div className="success-order-number">
-
-              <span>
-                ESTADO
-              </span>
-
-              <strong>
-                {orderStatus}
-              </strong>
-
-            </div>
-
-          )}
-
-          <button
-            type="button"
-            className="view-orders-button"
-            onClick={
-              goToOrders
-            }
-          >
-
-            REVISAR ORDEN
-
-            <span>
-              →
-            </span>
-
-          </button>
-
-        </section>
-
-      )}
-
-      {/* ============================================================
-          INFORMACIÓN DEL SERVICIO
-      ============================================================ */}
-
-      <section className="service-info">
-
-        <div className="service-info-item">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🔒
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              FREE FIRE LATAM
-            </strong>
-
-            <p>
-              Diamantes, pases y
-              membresías.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* ============================================================
-          FOOTER
-      ============================================================ */}
-
-      <footer className="game-service-footer">
-
-        <strong>
-          🛒STORE GAMING🎮
-        </strong>
-
-        <span>
-          FREE FIRE LATAM TOP UP
-        </span>
-
-      </footer>
-
-    </main>
-  );
-  }
