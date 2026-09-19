@@ -5,9 +5,6 @@ export const dynamic = "force-dynamic";
 const FAZER_API_BASE =
   "https://api.fzr.cards/api/v2";
 
-const CATEGORY_ID =
-  "mobile_legends_united_states";
-
 export async function GET() {
   try {
     const apiKey =
@@ -26,85 +23,139 @@ export async function GET() {
       );
     }
 
-    const url =
-      `${FAZER_API_BASE}/topups/offers` +
-      `?category_id=${encodeURIComponent(
-        CATEGORY_ID
-      )}`;
+    const allCategories: any[] = [];
 
-    const response = await fetch(
-      url,
-      {
-        method: "GET",
-        headers: {
-          "X-API-Key": apiKey,
-          Accept: "application/json",
-        },
-        cache: "no-store",
-      }
-    );
+    let cursor: string | null = null;
 
-    const text =
-      await response.text();
+    let hasMore = true;
 
-    let data: any;
+    while (hasMore) {
+      const url =
+        `${FAZER_API_BASE}/topups` +
+        `?limit=100` +
+        (cursor
+          ? `&cursor=${encodeURIComponent(cursor)}`
+          : "");
 
-    try {
-      data = text
-        ? JSON.parse(text)
-        : null;
-    } catch {
-      data = {
-        raw: text,
-      };
-    }
-
-    if (!response.ok) {
-      return NextResponse.json(
+      const response = await fetch(
+        url,
         {
-          ok: false,
-          supplierStatus:
-            response.status,
-          supplierResponse:
-            data,
-        },
-        {
-          status:
-            response.status,
+          method: "GET",
+
+          headers: {
+            "X-API-Key": apiKey,
+            Accept: "application/json",
+          },
+
+          cache: "no-store",
         }
       );
+
+      const text =
+        await response.text();
+
+      let data: any;
+
+      try {
+        data = text
+          ? JSON.parse(text)
+          : null;
+      } catch {
+        data = {
+          raw: text,
+        };
+      }
+
+      if (!response.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            supplierStatus:
+              response.status,
+            supplierResponse:
+              data,
+          },
+          {
+            status:
+              response.status,
+          }
+        );
+      }
+
+      const categories =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(
+              data?.topups
+            )
+          ? data.topups
+          : Array.isArray(
+              data?.categories
+            )
+          ? data.categories
+          : [];
+
+      allCategories.push(
+        ...categories
+      );
+
+      hasMore =
+        Boolean(
+          data?.meta?.has_more
+        );
+
+      cursor =
+        data?.meta?.next_cursor ??
+        null;
+
+      if (!cursor) {
+        hasMore = false;
+      }
     }
 
     return NextResponse.json({
       ok: true,
 
-      category_id:
-        data?.category_id ??
-        CATEGORY_ID,
+      total:
+        allCategories.length,
 
-      name:
-        data?.name ??
-        "Mobile Legends (Estados Unidos)",
+      categories:
+        allCategories,
 
-      offers:
-        Array.isArray(data?.offers)
-          ? data.offers
-          : [],
+      mobileLegends:
+        allCategories.filter(
+          (item) =>
+            String(
+              item?.name ?? ""
+            )
+              .toLowerCase()
+              .includes(
+                "mobile legends"
+              )
+        ),
 
-      fields:
-        Array.isArray(data?.fields)
-          ? data.fields
-          : [],
+      bloodStrike:
+        allCategories.filter(
+          (item) =>
+            String(
+              item?.name ?? ""
+            )
+              .toLowerCase()
+              .includes(
+                "blood strike"
+              )
+        ),
     });
   } catch (error) {
     console.error(
-      "ERROR OBTENIENDO OFERTAS MOBILE LEGENDS:",
+      "ERROR OBTENIENDO CATEGORÍAS DE FAZERCARDS:",
       error
     );
 
     return NextResponse.json(
       {
         ok: false,
+
         error:
           error instanceof Error
             ? error.message
@@ -115,4 +166,4 @@ export async function GET() {
       }
     );
   }
-}
+          }
