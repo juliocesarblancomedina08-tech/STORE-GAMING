@@ -1,117 +1,140 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+
+const FAZERCARDS_API = "https://api.fzr.cards/api/v2";
 
 export const dynamic = "force-dynamic";
 
-const FAZER_API_BASE =
-  "https://api.fzr.cards/api/v2";
-
-export async function GET(
-  request: NextRequest
-) {
+export async function GET() {
   try {
-    const apiKey =
-      process.env.FAZERCARDS_API_KEY;
+    const apiKey = process.env.FAZERCARDS_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
         {
           ok: false,
-          error:
-            "FAZERCARDS_API_KEY no está configurada.",
+          error: "FAZERCARDS_API_KEY no está configurada",
         },
         { status: 500 }
       );
     }
 
-    const categoryId =
-      request.nextUrl.searchParams.get(
-        "category_id"
-      );
+    let cursor: string | null = null;
+    let pagesChecked = 0;
+    const allItems: any[] = [];
 
-    if (!categoryId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "Falta category_id. Ejemplo: ?category_id=blood_strike",
-        },
-        { status: 400 }
-      );
-    }
+    while (pagesChecked < 50) {
+      pagesChecked++;
 
-    const url =
-      `${FAZER_API_BASE}/topups/offers` +
-      `?category_id=${encodeURIComponent(
-        categoryId
-      )}`;
+      const url = new URL(`${FAZERCARDS_API}/topups`);
 
-    const response = await fetch(
-      url,
-      {
+      url.searchParams.set("limit", "50");
+
+      if (cursor) {
+        url.searchParams.set("cursor", cursor);
+      }
+
+      const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
           "X-API-Key": apiKey,
           Accept: "application/json",
         },
         cache: "no-store",
+      });
+
+      const text = await response.text();
+
+      let data: any;
+
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        return NextResponse.json(
+          {
+            ok: false,
+            step: "parse",
+            pages_checked: pagesChecked,
+            supplierStatus: response.status,
+            raw: text,
+          },
+          { status: response.status }
+        );
       }
-    );
 
-    const text =
-      await response.text();
+      if (!response.ok || !data?.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            step: "catalog",
+            pages_checked: pagesChecked,
+            supplierStatus: response.status,
+            supplierResponse: data,
+          },
+          { status: response.status }
+        );
+      }
 
-    let data: any;
+      const items = Array.isArray(data.items)
+        ? data.items
+        : [];
 
-    try {
-      data = text
-        ? JSON.parse(text)
-        : null;
-    } catch {
-      data = {
-        raw: text,
-      };
+      allItems.push(...items);
+
+      const meta = data.meta || {};
+
+      if (
+        !meta.has_more ||
+        !meta.next_cursor
+      ) {
+        break;
+      }
+
+      cursor = meta.next_cursor;
     }
 
-    if (!response.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          supplierStatus:
-            response.status,
-          supplierResponse:
-            data,
-        },
-        {
-          status:
-            response.status,
-        }
+    /*
+     * Buscar específicamente todo lo relacionado
+     * con Call of Duty.
+     *
+     * NO elegimos una categoría todavía.
+     */
+    const callOfDuty = allItems.filter((item) => {
+      const text = [
+        item?.category_id,
+        item?.name,
+        item?.note,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        text.includes("call of duty") ||
+        text.includes("cod mobile") ||
+        text.includes("codm")
       );
-    }
+    });
 
     return NextResponse.json({
       ok: true,
 
-      category_id:
-        data?.category_id ??
-        categoryId,
+      pages_checked: pagesChecked,
 
-      name:
-        data?.name ??
-        categoryId,
+      total_categories: allItems.length,
 
-      offers:
-        Array.isArray(data?.offers)
-          ? data.offers
-          : [],
+      call_of_duty_found: callOfDuty.length,
 
-      fields:
-        Array.isArray(data?.fields)
-          ? data.fields
-          : [],
+      call_of_duty: callOfDuty,
+
+      /*
+       * También devolvemos el catálogo completo por si
+       * necesitamos revisar otro juego después.
+       */
+      all_categories: allItems,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(
-      "ERROR OBTENIENDO OFERTAS DE FAZERCARDS:",
+      "FAZERCARDS ALL TOPUPS ERROR:",
       error
     );
 
@@ -119,9 +142,8 @@ export async function GET(
       {
         ok: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Error desconocido.",
+          error?.message ||
+          "Error interno del servidor",
       },
       { status: 500 }
     );
