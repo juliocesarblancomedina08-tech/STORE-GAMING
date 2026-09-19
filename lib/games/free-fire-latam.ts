@@ -10,9 +10,12 @@ export const FREE_FIRE_LATAM = {
 
   playerField: {
     name: "player_id",
+
     label: "PONGA SU ID",
+
     description:
       "Introduzca el ID de la cuenta donde desea recibir la compra.",
+
     placeholder: "Introduzca su ID",
   },
 
