@@ -579,3 +579,365 @@ export default function FreeFireLatamPage() {
             </div>
 
           </div>
+
+                    </div>
+
+        </section>
+
+      )}
+
+      {/* ============================================================
+          DATOS DEL PEDIDO
+      ============================================================ */}
+
+      {selectedOffer && !orderCreated && (
+
+        <section
+          id="order-section"
+          className="order-section"
+        >
+
+          <div className="section-title">
+
+            <span>
+              01
+            </span>
+
+            <div>
+
+              <small>
+                TU SELECCIÓN
+              </small>
+
+              <h2>
+                DATOS DEL PEDIDO
+              </h2>
+
+            </div>
+
+          </div>
+
+          {/* OFERTA SELECCIONADA */}
+
+          <div className="selected-order-card">
+
+            <div className="selected-order-icon">
+              {selectedOffer.icon}
+            </div>
+
+            <div className="selected-order-info">
+
+              <span>
+                FREE FIRE LATAM
+              </span>
+
+              <strong>
+                {selectedOffer.name}
+              </strong>
+
+            </div>
+
+            <div className="selected-order-price">
+              {selectedOffer.price.toFixed(2)}$
+            </div>
+
+          </div>
+
+          {/* NOTA */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {FREE_FIRE_LATAM.note}
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* FORMULARIO */}
+
+          <form
+            onSubmit={
+              handleFinishPurchase
+            }
+            className="order-form"
+          >
+
+            <label
+              htmlFor="free-fire-player-id"
+              className="player-id-label"
+            >
+              PONGA SU ID
+            </label>
+
+            <p className="player-id-description">
+              Introduzca el ID de la cuenta
+              donde desea recibir la compra.
+            </p>
+
+            <div className="player-id-input-wrapper">
+
+              <span>
+                🆔
+              </span>
+
+              <input
+                id="free-fire-player-id"
+                type="text"
+                inputMode="numeric"
+                value={playerId}
+                onChange={(event) =>
+                  setPlayerId(
+                    event.target.value.replace(
+                      /[^0-9]/g,
+                      ""
+                    )
+                  )
+                }
+                placeholder="Introduzca su ID"
+                autoComplete="off"
+                maxLength={20}
+                disabled={processing}
+              />
+
+            </div>
+
+            {/* ERROR */}
+
+            {error && (
+
+              <div className="order-error">
+                {error}
+              </div>
+
+            )}
+
+            {/* PRECIO */}
+
+            <div className="order-total-preview">
+
+              <span>
+                PRECIO
+              </span>
+
+              <strong>
+                {selectedOffer.price.toFixed(2)}$
+              </strong>
+
+            </div>
+
+            {/* FINALIZAR COMPRA */}
+
+            <button
+              type="submit"
+              className="finish-order-button"
+              disabled={processing}
+            >
+
+              <span>
+                {processing
+                  ? "PROCESANDO COMPRA..."
+                  : "FINALIZAR COMPRA"}
+              </span>
+
+              <b>
+                →
+              </b>
+
+            </button>
+
+          </form>
+
+        </section>
+
+      )}
+
+      {/* ============================================================
+          ORDEN CREADA
+      ============================================================ */}
+
+      {orderCreated && (
+
+        <section
+          id="success-section"
+          className="order-success-section"
+        >
+
+          <div className="success-circle">
+            ✓
+          </div>
+
+          <h2>
+            ORDEN CREADA
+          </h2>
+
+          <p>
+            Su orden ha sido creada
+            correctamente y está siendo
+            procesada.
+          </p>
+
+          <div className="success-order-number">
+
+            <span>
+              NÚMERO DE ORDEN
+            </span>
+
+            <strong>
+              #{orderNumber}
+            </strong>
+
+          </div>
+
+          {supplierOrderId && (
+
+            <div className="success-order-number">
+
+              <span>
+                ID DE ORDEN DEL PROVEEDOR
+              </span>
+
+              <strong>
+                #{supplierOrderId}
+              </strong>
+
+            </div>
+
+          )}
+
+          {orderStatus && (
+
+            <div className="success-order-number">
+
+              <span>
+                ESTADO
+              </span>
+
+              <strong>
+                {orderStatus}
+              </strong>
+
+            </div>
+
+          )}
+
+          <button
+            type="button"
+            className="view-orders-button"
+            onClick={
+              goToOrders
+            }
+          >
+
+            REVISAR ORDEN
+
+            <span>
+              →
+            </span>
+
+          </button>
+
+        </section>
+
+      )}
+
+      {/* ============================================================
+          INFORMACIÓN DEL SERVICIO
+      ============================================================ */}
+
+      <section className="service-info">
+
+        <div className="service-info-item">
+
+          <span>
+            ⚡
+          </span>
+
+          <div>
+
+            <strong>
+              ENTREGA RÁPIDA
+            </strong>
+
+            <p>
+              Procesamos tus pedidos
+              rápidamente.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="service-info-item">
+
+          <span>
+            🔒
+          </span>
+
+          <div>
+
+            <strong>
+              COMPRA SEGURA
+            </strong>
+
+            <p>
+              Tu pedido queda registrado.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="service-info-item">
+
+          <span>
+            🎮
+          </span>
+
+          <div>
+
+            <strong>
+              FREE FIRE LATAM
+            </strong>
+
+            <p>
+              Diamantes, pases y
+              membresías.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* ============================================================
+          FOOTER
+      ============================================================ */}
+
+      <footer className="game-service-footer">
+
+        <strong>
+          🛒STORE GAMING🎮
+        </strong>
+
+        <span>
+          FREE FIRE LATAM TOP UP
+        </span>
+
+      </footer>
+
+    </main>
+  );
+                }
