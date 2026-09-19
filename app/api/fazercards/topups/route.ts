@@ -17,9 +17,7 @@ export async function GET() {
           error:
             "FAZERCARDS_API_KEY no está configurada.",
         },
-        {
-          status: 500,
-        }
+        { status: 500 }
       );
     }
 
@@ -27,18 +25,17 @@ export async function GET() {
 
     let cursor: string | null = null;
 
-    let hasMore = true;
+    while (true) {
+      const params = new URLSearchParams();
 
-    while (hasMore) {
-      const url =
-        `${FAZER_API_BASE}/topups` +
-        `?limit=100` +
-        (cursor
-          ? `&cursor=${encodeURIComponent(cursor)}`
-          : "");
+      params.set("limit", "100");
+
+      if (cursor) {
+        params.set("cursor", cursor);
+      }
 
       const response = await fetch(
-        url,
+        `${FAZER_API_BASE}/topups?${params.toString()}`,
         {
           method: "GET",
 
@@ -82,36 +79,56 @@ export async function GET() {
         );
       }
 
-      const categories =
-        Array.isArray(data)
-          ? data
-          : Array.isArray(
-              data?.topups
-            )
-          ? data.topups
-          : Array.isArray(
-              data?.categories
-            )
-          ? data.categories
-          : [];
+      const items = Array.isArray(
+        data?.items
+      )
+        ? data.items
+        : [];
 
-      allCategories.push(
-        ...categories
-      );
+      allCategories.push(...items);
 
-      hasMore =
+      const hasMore =
         Boolean(
           data?.meta?.has_more
         );
 
-      cursor =
+      const nextCursor =
         data?.meta?.next_cursor ??
         null;
 
-      if (!cursor) {
-        hasMore = false;
+      if (
+        !hasMore ||
+        !nextCursor
+      ) {
+        break;
       }
+
+      cursor = nextCursor;
     }
+
+    const mobileLegends =
+      allCategories.filter(
+        (item) =>
+          String(
+            item?.name ?? ""
+          )
+            .toLowerCase()
+            .includes(
+              "mobile legends"
+            )
+      );
+
+    const bloodStrike =
+      allCategories.filter(
+        (item) =>
+          String(
+            item?.name ?? ""
+          )
+            .toLowerCase()
+            .includes(
+              "blood strike"
+            )
+      );
 
     return NextResponse.json({
       ok: true,
@@ -122,29 +139,9 @@ export async function GET() {
       categories:
         allCategories,
 
-      mobileLegends:
-        allCategories.filter(
-          (item) =>
-            String(
-              item?.name ?? ""
-            )
-              .toLowerCase()
-              .includes(
-                "mobile legends"
-              )
-        ),
+      mobileLegends,
 
-      bloodStrike:
-        allCategories.filter(
-          (item) =>
-            String(
-              item?.name ?? ""
-            )
-              .toLowerCase()
-              .includes(
-                "blood strike"
-              )
-        ),
+      bloodStrike,
     });
   } catch (error) {
     console.error(
@@ -166,4 +163,4 @@ export async function GET() {
       }
     );
   }
-          }
+      }
