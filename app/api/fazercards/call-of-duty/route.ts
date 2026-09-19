@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 const FAZERCARDS_API = "https://api.fzr.cards/api/v2";
-const CATEGORY_ID = "codm_activision_us";
 
 export async function GET() {
   try {
@@ -21,11 +18,13 @@ export async function GET() {
 
     let cursor: string | null = null;
     let pagesChecked = 0;
+    const matches: any[] = [];
 
     while (pagesChecked < 50) {
       pagesChecked++;
 
       const url = new URL(`${FAZERCARDS_API}/topups`);
+
       url.searchParams.set("limit", "50");
 
       if (cursor) {
@@ -33,72 +32,70 @@ export async function GET() {
       }
 
       const response = await fetch(url.toString(), {
-        method: "GET",
         headers: {
           "X-API-Key": apiKey,
-          Accept: "application/json",
         },
         cache: "no-store",
       });
 
-      const text = await response.text();
+      const data = await response.json();
 
-      let data: any;
-
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
+      if (!response.ok || !data.ok) {
         return NextResponse.json(
           {
             ok: false,
-            step: "parse",
-            supplierStatus: response.status,
-            raw: text,
+            step: "categories",
+            pages_checked: pagesChecked,
+            error:
+              data?.error ||
+              "Error obteniendo catálogo de FazerCards",
           },
           { status: response.status }
         );
       }
 
-      if (!response.ok) {
-        return NextResponse.json(
-          {
-            ok: false,
-            step: "topups",
-            supplierStatus: response.status,
-            supplierResponse: data,
-          },
-          { status: response.status }
-        );
+      const items = Array.isArray(data.items)
+        ? data.items
+        : [];
+
+      for (const item of items) {
+        const categoryId = String(
+          item?.category_id || ""
+        )
+          .trim()
+          .replace(/,$/, "");
+
+        const name = String(
+          item?.name || ""
+        ).toLowerCase();
+
+        const note = String(
+          item?.note || ""
+        ).toLowerCase();
+
+        if (
+          categoryId === "codm_activision_us" ||
+          (
+            name.includes("call of duty mobile") &&
+            name.includes("activision") &&
+            (
+              name.includes("ee. uu.") ||
+              name.includes("us") ||
+              note.includes("estados unidos") ||
+              note.includes("united states")
+            )
+          )
+        ) {
+          matches.push(item);
+        }
       }
 
-      const items = Array.isArray(data?.items) ? data.items : [];
+      const meta = data.meta || {};
 
-      // Buscar exactamente la categoría de COD Mobile US.
-      const match = items.find(
-        (item: any) =>
-          String(item?.category_id || "").trim() === CATEGORY_ID
-      );
-
-      if (match) {
-        return NextResponse.json({
-          ok: true,
-          category_id: CATEGORY_ID,
-          pages_checked: pagesChecked,
-
-          // Objeto completo que devuelve FazerCards
-          category: match,
-
-          // Por comodidad también exponemos estos campos
-          name: match?.name ?? "Call of Duty Mobile - Activision (EE. UU.)",
-          note: match?.note ?? null,
-          offers: Array.isArray(match?.offers) ? match.offers : [],
-          fields: Array.isArray(match?.fields) ? match.fields : [],
-        });
-      }
-
-      const meta = data?.meta || {};
-
-      if (!meta?.has_more || !meta?.next_cursor) {
+      if (
+        !meta.has_more ||
+        !meta.next_cursor
+      ) {
         break;
       }
 
@@ -106,23 +103,26 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      ok: false,
-      category_id: CATEGORY_ID,
+      ok: true,
+      category_id: "codm_activision_us",
       pages_checked: pagesChecked,
-      error: "No se encontró la categoría en el catálogo de FazerCards.",
+      matches_found: matches.length,
+      matches,
     });
-  } catch (error) {
-    console.error("FazerCards COD Mobile error:", error);
+  } catch (error: any) {
+    console.error(
+      "FAZERCARDS COD MOBILE CATALOG ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
         ok: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Error desconocido",
+          error?.message ||
+          "Error interno del servidor",
       },
       { status: 500 }
     );
   }
-}
+       }
