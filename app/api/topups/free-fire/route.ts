@@ -61,26 +61,33 @@ type SupplierResponse = {
   status?: string;
   message?: string;
   error?: string;
+
   order?: {
     id?: string | number | null;
     order_id?: string | number | null;
     status?: string | null;
     [key: string]: unknown;
   };
+
   data?: {
     id?: string | number | null;
     order_id?: string | number | null;
     status?: string | null;
+
     order?: {
       id?: string | number | null;
       order_id?: string | number | null;
       status?: string | null;
       [key: string]: unknown;
     };
+
     [key: string]: unknown;
   };
+
   id?: string | number | null;
+
   order_id?: string | number | null;
+
   [key: string]: unknown;
 };
 
@@ -168,9 +175,11 @@ function isValidIdempotencyKey(
 function roundMoney(
   value: number
 ): number {
-  return Math.round(
-    (value + Number.EPSILON) * 100
-  ) / 100;
+  return (
+    Math.round(
+      (value + Number.EPSILON) * 100
+    ) / 100
+  );
 }
 
 function toNumber(
@@ -189,7 +198,6 @@ function toNumber(
 function getSupplierOrderId(
   data: SupplierResponse
 ): string | null {
-
   const value =
     data?.order?.id ??
     data?.order?.order_id ??
@@ -214,7 +222,6 @@ function getSupplierOrderId(
 function getSupplierStatus(
   data: SupplierResponse
 ): string | null {
-
   const value =
     data?.order?.status ??
     data?.data?.order?.status ??
@@ -242,7 +249,6 @@ async function fetchWithTimeout(
   init: RequestInit = {},
   timeout = SUPPLIER_TIMEOUT
 ): Promise<Response> {
-
   const controller =
     new AbortController();
 
@@ -253,7 +259,6 @@ async function fetchWithTimeout(
     );
 
   try {
-
     return await fetch(
       input,
       {
@@ -262,11 +267,8 @@ async function fetchWithTimeout(
           controller.signal,
       }
     );
-
   } finally {
-
     clearTimeout(timer);
-
   }
 }
 
@@ -282,20 +284,17 @@ async function getAuthenticatedUser(
   user: AuthUser | null;
   error: string | null;
 }> {
-
   const authorization =
     request.headers.get(
       "authorization"
     );
 
   if (!authorization) {
-
     return {
       user: null,
       error:
         "Falta el token de autenticación.",
     };
-
   }
 
   const match =
@@ -304,26 +303,22 @@ async function getAuthenticatedUser(
     );
 
   if (!match) {
-
     return {
       user: null,
       error:
         "Token de autenticación inválido.",
     };
-
   }
 
   const accessToken =
     match[1].trim();
 
   if (!accessToken) {
-
     return {
       user: null,
       error:
         "Token de autenticación vacío.",
     };
-
   }
 
   const {
@@ -338,13 +333,11 @@ async function getAuthenticatedUser(
     error ||
     !data?.user
   ) {
-
     return {
       user: null,
       error:
         "No se pudo validar la sesión.",
     };
-
   }
 
   return {
@@ -365,7 +358,6 @@ async function getAuthenticatedUser(
 */
 
 function supplierHeaders(): HeadersInit {
-
   return {
     "Content-Type":
       "application/json",
@@ -400,16 +392,13 @@ async function createSupplierOrder(
   data: SupplierResponse | null;
   error: string | null;
 }> {
-
   if (!FAZERCARDS_API_KEY) {
-
     return {
       ok: false,
       data: null,
       error:
         "FAZERCARDS_API_KEY no está configurada.",
     };
-
   }
 
   const url =
@@ -430,7 +419,6 @@ async function createSupplierOrder(
   };
 
   try {
-
     const response =
       await fetchWithTimeout(
         url,
@@ -452,22 +440,17 @@ async function createSupplierOrder(
       SupplierResponse = {};
 
     try {
-
       data =
         raw
           ? JSON.parse(raw)
           : {};
-
     } catch {
-
       data = {
         message: raw,
       };
-
     }
 
     if (!response.ok) {
-
       return {
         ok: false,
         data,
@@ -476,7 +459,6 @@ async function createSupplierOrder(
           data?.error ||
           `Proveedor respondió con HTTP ${response.status}.`,
       };
-
     }
 
     return {
@@ -484,9 +466,7 @@ async function createSupplierOrder(
       data,
       error: null,
     };
-
   } catch (error) {
-
     return {
       ok: false,
       data: null,
@@ -495,7 +475,6 @@ async function createSupplierOrder(
           ? error.message
           : "Error desconocido al contactar al proveedor.",
     };
-
   }
 }
 
@@ -508,7 +487,6 @@ async function createSupplierOrder(
 export async function GET(
   request: NextRequest
 ) {
-
   const {
     user,
     error: authError,
@@ -518,13 +496,11 @@ export async function GET(
     );
 
   if (!user) {
-
     return jsonError(
       authError ||
         "No autenticado.",
       401
     );
-
   }
 
   return jsonSuccess({
@@ -538,11 +514,15 @@ export async function GET(
       FREE_FIRE_LATAM.offers.map(
         (offer) => ({
           id: offer.id,
+
           name: offer.name,
+
           display:
             offer.display,
+
           price:
             offer.price,
+
           icon:
             offer.icon,
         })
@@ -559,7 +539,6 @@ export async function GET(
 export async function POST(
   request: NextRequest
 ) {
-
   const {
     user,
     error: authError,
@@ -569,30 +548,24 @@ export async function POST(
     );
 
   if (!user) {
-
     return jsonError(
       authError ||
         "No autenticado.",
       401
     );
-
   }
 
   let body:
     Record<string, unknown>;
 
   try {
-
     body =
       await request.json();
-
   } catch {
-
     return jsonError(
       "El cuerpo de la solicitud no es un JSON válido.",
       400
     );
-
   }
 
   const offerId =
@@ -611,19 +584,15 @@ export async function POST(
     );
 
   if (!offerId) {
-
     return jsonError(
       "Debe seleccionar una oferta."
     );
-
   }
 
   if (!playerId) {
-
     return jsonError(
       "Debe introducir su ID de jugador."
     );
-
   }
 
   if (
@@ -631,11 +600,9 @@ export async function POST(
       playerId
     )
   ) {
-
     return jsonError(
       "El ID de jugador no es válido."
     );
-
   }
 
   if (
@@ -643,11 +610,9 @@ export async function POST(
       idempotencyKey
     )
   ) {
-
     return jsonError(
       "La clave de idempotencia no es válida."
     );
-
   }
 
   /*
@@ -663,23 +628,16 @@ export async function POST(
     );
 
   if (!offer) {
-
     return jsonError(
       "La oferta seleccionada no existe.",
       404
     );
-
   }
 
   /*
   |--------------------------------------------------------------------------
   | PRECIO CONTROLADO POR SERVIDOR
   |--------------------------------------------------------------------------
-  |
-  | IMPORTANTE:
-  | No confiamos en retailPrice enviado
-  | desde el navegador.
-  |
   */
 
   const retailPrice =
@@ -708,34 +666,28 @@ export async function POST(
   if (
     retailPrice <= 0
   ) {
-
     return jsonError(
       "La oferta tiene un precio inválido.",
       500
     );
-
   }
 
   if (
     supplierPrice <= 0
   ) {
-
     return jsonError(
       "La oferta no tiene un precio de proveedor válido.",
       500
     );
-
   }
 
   if (
     !supplierOfferId
   ) {
-
     return jsonError(
       "La oferta no tiene configurado el ID del proveedor.",
       500
     );
-
   }
 
   /*
@@ -764,12 +716,10 @@ export async function POST(
       .limit(1);
 
   if (existingOrderError) {
-
     console.error(
       "Error buscando pedido existente:",
       existingOrderError
     );
-
   }
 
   const existingOrder =
@@ -778,16 +728,16 @@ export async function POST(
       | undefined;
 
   if (existingOrder) {
-
     return jsonSuccess({
       message:
         "El pedido ya había sido creado.",
+
       order:
         existingOrder,
+
       duplicate:
         true,
     });
-
   }
 
   /*
@@ -855,13 +805,6 @@ export async function POST(
       .single();
 
   if (createOrderError) {
-
-    /*
-    |--------------------------------------------------------------------------
-    | SI LA BASE DE DATOS DETECTÓ DUPLICADO
-    |--------------------------------------------------------------------------
-    */
-
     const duplicateLookup =
       await supabaseAdmin
         .from("orders")
@@ -883,16 +826,16 @@ export async function POST(
         | undefined;
 
     if (duplicateOrder) {
-
       return jsonSuccess({
         message:
           "El pedido ya había sido creado.",
+
         order:
           duplicateOrder,
+
         duplicate:
           true,
       });
-
     }
 
     console.error(
@@ -904,7 +847,6 @@ export async function POST(
       "No se pudo crear el pedido.",
       500
     );
-
   }
 
   const createdOrder =
@@ -936,9 +878,12 @@ export async function POST(
   const supplierResult =
     await createSupplierOrder({
       supplierOfferId,
+
       playerId,
+
       orderId:
         localOrderNumber,
+
       idempotencyKey,
     });
 
@@ -952,17 +897,10 @@ export async function POST(
     !supplierResult.ok ||
     !supplierResult.data
   ) {
-
     console.error(
       "Error creando pedido en proveedor:",
       supplierResult.error
     );
-
-    /*
-    |--------------------------------------------------------------------------
-    | ACTUALIZAR PEDIDO LOCAL
-    |--------------------------------------------------------------------------
-    */
 
     await supabaseAdmin
       .from("orders")
@@ -982,19 +920,20 @@ export async function POST(
       "La orden fue creada localmente, pero no pudo enviarse al proveedor.",
       502,
       {
-        order:
-          {
-            ...createdOrder,
-            status:
-              "supplier_error",
-            supplier_status:
-              "error",
-          },
+        order: {
+          ...createdOrder,
+
+          status:
+            "supplier_error",
+
+          supplier_status:
+            "error",
+        },
+
         supplierError:
           supplierResult.error,
       }
     );
-
   }
 
   /*
@@ -1026,7 +965,6 @@ export async function POST(
     string,
     unknown
   > = {
-
     status:
       supplierStatus ||
       "processing",
@@ -1034,15 +972,12 @@ export async function POST(
     supplier_status:
       supplierStatus ||
       "processing",
-
   };
 
   if (supplierOrderId) {
-
     updatedFields
       .supplier_order_id =
       supplierOrderId;
-
   }
 
   const {
@@ -1064,7 +999,6 @@ export async function POST(
       .single();
 
   if (updateOrderError) {
-
     console.error(
       "Error actualizando pedido:",
       updateOrderError
@@ -1073,14 +1007,18 @@ export async function POST(
     return jsonSuccess({
       message:
         "Pedido enviado al proveedor.",
+
       order: {
         ...createdOrder,
+
         ...updatedFields,
       },
+
       supplier:
         supplierData,
-    });
 
+      supplierOrderId,
+    });
   }
 
   const updatedOrder =
@@ -1095,10 +1033,13 @@ export async function POST(
   return jsonSuccess({
     message:
       "Pedido creado correctamente.",
+
     order:
       updatedOrder,
+
     supplier:
       supplierData,
+
     supplierOrderId,
   });
-        }
+    }
