@@ -1,918 +1,1045 @@
-"use client";
+import { NextRequest, NextResponse } from "next/server";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
+import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 
-import {
-  FREE_FIRE_LATAM,
-  type FreeFireLatamOffer,
-} from "../../../lib/games/free-fire-latam";
+import { FREE_FIRE_LATAM } from "../../../../lib/games/free-fire-latam";
 
-export default function FreeFireLatamPage() {
-  const router = useRouter();
+export const dynamic = "force-dynamic";
 
-  const [showOffers, setShowOffers] = useState(false);
+/*
+|--------------------------------------------------------------------------
+| CONFIGURACIÓN
+|--------------------------------------------------------------------------
+*/
 
-  const [selectedOffer, setSelectedOffer] =
-    useState<FreeFireLatamOffer | null>(null);
+const CATEGORY_ID =
+  FREE_FIRE_LATAM.categoryId;
 
-  const [playerId, setPlayerId] = useState("");
+const FAZERCARDS_BASE_URL =
+  process.env.FAZERCARDS_BASE_URL ||
+  "https://api.fazercards.com";
 
-  const [error, setError] = useState("");
+const FAZERCARDS_API_KEY =
+  process.env.FAZERCARDS_API_KEY || "";
 
-  const [orderCreated, setOrderCreated] =
-    useState(false);
+const SUPPLIER_TIMEOUT =
+  30000;
 
-  const [orderNumber, setOrderNumber] =
-    useState("");
+/*
+|--------------------------------------------------------------------------
+| TIPOS
+|--------------------------------------------------------------------------
+*/
 
-  const [supplierOrderId, setSupplierOrderId] =
-    useState("");
+type AuthUser = {
+  id: string;
+  email?: string | null;
+};
 
-  const [orderStatus, setOrderStatus] =
-    useState("");
+type OrderRow = {
+  id?: string;
+  order_number?: string | null;
+  user_id?: string | null;
+  category_id?: string | null;
+  offer_id?: string | null;
+  offer_name?: string | null;
+  player_id?: string | null;
+  amount?: number | null;
+  price?: number | null;
+  supplier_price?: number | null;
+  supplier_order_id?: string | null;
+  supplier_status?: string | null;
+  status?: string | null;
+  idempotency_key?: string | null;
+  created_at?: string | null;
+  [key: string]: unknown;
+};
 
-  const [processing, setProcessing] =
-    useState(false);
+type SupplierResponse = {
+  ok?: boolean;
+  success?: boolean;
+  status?: string;
+  message?: string;
+  error?: string;
 
-  function selectOffer(
-    offer: FreeFireLatamOffer
+  order?: {
+    id?: string | number | null;
+    order_id?: string | number | null;
+    status?: string | null;
+    [key: string]: unknown;
+  };
+
+  data?: {
+    id?: string | number | null;
+    order_id?: string | number | null;
+    status?: string | null;
+
+    order?: {
+      id?: string | number | null;
+      order_id?: string | number | null;
+      status?: string | null;
+      [key: string]: unknown;
+    };
+
+    [key: string]: unknown;
+  };
+
+  id?: string | number | null;
+
+  order_id?: string | number | null;
+
+  [key: string]: unknown;
+};
+
+/*
+|--------------------------------------------------------------------------
+| UTILIDADES
+|--------------------------------------------------------------------------
+*/
+
+function jsonError(
+  message: string,
+  status = 400,
+  extra: Record<string, unknown> = {}
+) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+      ...extra,
+    },
+    {
+      status,
+    }
+  );
+}
+
+function jsonSuccess(
+  data: Record<string, unknown>,
+  status = 200
+) {
+  return NextResponse.json(
+    {
+      ok: true,
+      ...data,
+    },
+    {
+      status,
+    }
+  );
+}
+
+function normalizeString(
+  value: unknown
+): string {
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number"
   ) {
-    setSelectedOffer(offer);
-    setPlayerId("");
-    setError("");
-    setOrderCreated(false);
-    setOrderNumber("");
-    setSupplierOrderId("");
-    setOrderStatus("");
-
-    setTimeout(() => {
-      document
-        .getElementById("order-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
+    return "";
   }
 
-  async function createOrder() {
-    if (!selectedOffer || processing) {
-      return;
-    }
+  return String(value).trim();
+}
 
-    setError("");
-    setProcessing(true);
+function normalizePlayerId(
+  value: unknown
+): string {
+  return normalizeString(value)
+    .replace(/\s+/g, "");
+}
+
+function normalizeIdempotencyKey(
+  value: unknown
+): string {
+  return normalizeString(value);
+}
+
+function isValidPlayerId(
+  playerId: string
+): boolean {
+  return /^[0-9]{4,20}$/.test(
+    playerId
+  );
+}
+
+function isValidIdempotencyKey(
+  key: string
+): boolean {
+  return (
+    key.length >= 8 &&
+    key.length <= 200
+  );
+}
+
+function roundMoney(
+  value: number
+): number {
+  return (
+    Math.round(
+      (value + Number.EPSILON) * 100
+    ) / 100
+  );
+}
+
+function toNumber(
+  value: unknown
+): number {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : Number(value);
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : 0;
+}
+
+function getSupplierOrderId(
+  data: SupplierResponse
+): string | null {
+  const value =
+    data?.order?.id ??
+    data?.order?.order_id ??
+    data?.data?.id ??
+    data?.data?.order_id ??
+    data?.data?.order?.id ??
+    data?.data?.order?.order_id ??
+    data?.id ??
+    data?.order_id ??
+    null;
+
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  return String(value);
+}
+
+function getSupplierStatus(
+  data: SupplierResponse
+): string | null {
+  const value =
+    data?.order?.status ??
+    data?.data?.order?.status ??
+    data?.status ??
+    null;
+
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  return String(value);
+}
+
+/*
+|--------------------------------------------------------------------------
+| TIMEOUT
+|--------------------------------------------------------------------------
+*/
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeout = SUPPLIER_TIMEOUT
+): Promise<Response> {
+  const controller =
+    new AbortController();
+
+  const timer =
+    setTimeout(
+      () => controller.abort(),
+      timeout
+    );
+
+  try {
+    return await fetch(
+      input,
+      {
+        ...init,
+        signal:
+          controller.signal,
+      }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| AUTENTICACIÓN
+|--------------------------------------------------------------------------
+*/
+
+async function getAuthenticatedUser(
+  request: NextRequest
+): Promise<{
+  user: AuthUser | null;
+  error: string | null;
+}> {
+  const authorization =
+    request.headers.get(
+      "authorization"
+    );
+
+  if (!authorization) {
+    return {
+      user: null,
+      error:
+        "Falta el token de autenticación.",
+    };
+  }
+
+  const match =
+    authorization.match(
+      /^Bearer\s+(.+)$/i
+    );
+
+  if (!match) {
+    return {
+      user: null,
+      error:
+        "Token de autenticación inválido.",
+    };
+  }
+
+  const accessToken =
+    match[1].trim();
+
+  if (!accessToken) {
+    return {
+      user: null,
+      error:
+        "Token de autenticación vacío.",
+    };
+  }
+
+  const {
+    data,
+    error,
+  } =
+    await supabaseAdmin.auth.getUser(
+      accessToken
+    );
+
+  if (
+    error ||
+    !data?.user
+  ) {
+    return {
+      user: null,
+      error:
+        "No se pudo validar la sesión.",
+    };
+  }
+
+  return {
+    user: {
+      id: data.user.id,
+      email:
+        data.user.email ??
+        null,
+    },
+    error: null,
+  };
+}
+
+/*
+|--------------------------------------------------------------------------
+| PROVEEDOR
+|--------------------------------------------------------------------------
+*/
+
+function supplierHeaders(): HeadersInit {
+  return {
+    "Content-Type":
+      "application/json",
+
+    Accept:
+      "application/json",
+
+    ...(FAZERCARDS_API_KEY
+      ? {
+          Authorization:
+            `Bearer ${FAZERCARDS_API_KEY}`,
+        }
+      : {}),
+  };
+}
+
+/*
+|--------------------------------------------------------------------------
+| CREAR PEDIDO EN FAZERCARDS
+|--------------------------------------------------------------------------
+*/
+
+async function createSupplierOrder(
+  params: {
+    supplierOfferId: string;
+    playerId: string;
+    orderId: string;
+    idempotencyKey: string;
+  }
+): Promise<{
+  ok: boolean;
+  data: SupplierResponse | null;
+  error: string | null;
+}> {
+  if (!FAZERCARDS_API_KEY) {
+    return {
+      ok: false,
+      data: null,
+      error:
+        "FAZERCARDS_API_KEY no está configurada.",
+    };
+  }
+
+  const url =
+    `${FAZERCARDS_BASE_URL}/api/orders`;
+
+  const body = {
+    offer_id:
+      params.supplierOfferId,
+
+    player_id:
+      params.playerId,
+
+    external_order_id:
+      params.orderId,
+
+    idempotency_key:
+      params.idempotencyKey,
+  };
+
+  try {
+    const response =
+      await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+
+          headers:
+            supplierHeaders(),
+
+          body:
+            JSON.stringify(body),
+        }
+      );
+
+    const raw =
+      await response.text();
+
+    let data:
+      SupplierResponse = {};
 
     try {
-      /*
-       * ============================================================
-       * 1. COMPROBAR SESIÓN
-       * ============================================================
-       */
-
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (
-        sessionError ||
-        !session?.user
-      ) {
-        setError(
-          "Su sesión ha expirado. Inicie sesión nuevamente."
-        );
-
-        router.replace("/");
-        return;
-      }
-
-      /*
-       * ============================================================
-       * 2. LIMPIAR ID
-       * ============================================================
-       */
-
-      const cleanPlayerId =
-        playerId
-          .trim()
-          .replace(/\s+/g, "");
-
-      if (!cleanPlayerId) {
-        setError(
-          "Ponga el ID de su cuenta."
-        );
-        return;
-      }
-
-      if (
-        !/^[0-9]+$/.test(
-          cleanPlayerId
-        )
-      ) {
-        setError(
-          "El ID debe contener solamente números."
-        );
-        return;
-      }
-
-      if (
-        cleanPlayerId.length < 4 ||
-        cleanPlayerId.length > 20
-      ) {
-        setError(
-          "El ID parece no tener un formato válido."
-        );
-        return;
-      }
-
-      /*
-       * ============================================================
-       * 3. CLAVE DE IDEMPOTENCIA
-       * ============================================================
-       */
-
-      const idempotencyKey =
-        crypto.randomUUID();
-
-      /*
-       * ============================================================
-       * 4. ENVIAR PEDIDO AL SERVIDOR
-       * ============================================================
-       *
-       * IMPORTANTE:
-       *
-       * Enviamos el ID INTERNO de la oferta:
-       *
-       * ff-110
-       * ff-341
-       * ff-572
-       * etc.
-       *
-       * El servidor es quien obtiene:
-       *
-       * supplierOfferId
-       *
-       * y lo envía al reseller.
-       *
-       * De esta manera el navegador no controla
-       * directamente la oferta del proveedor.
-       */
-
-      const response =
-        await fetch(
-          "/api/topups/free-fire",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-
-            body: JSON.stringify({
-              offerId:
-                selectedOffer.id,
-
-              playerId:
-                cleanPlayerId,
-
-              idempotencyKey,
-            }),
-          }
-        );
-
-      /*
-       * ============================================================
-       * 5. LEER RESPUESTA
-       * ============================================================
-       */
-
-      let result: any = {};
-
-      try {
-        result =
-          await response.json();
-      } catch {
-        result = {};
-      }
-
-      /*
-       * ============================================================
-       * 6. ERROR DEL SERVIDOR
-       * ============================================================
-       */
-
-      if (
-        !response.ok ||
-        !result.ok
-      ) {
-        setError(
-          result.error ||
-            "No se pudo crear la orden."
-        );
-
-        return;
-      }
-
-      /*
-       * ============================================================
-       * 7. OBTENER PEDIDO
-       * ============================================================
-       */
-
-      const order =
-        result.order || {};
-
-      setOrderNumber(
-        result.orderNumber ||
-          order.order_number ||
-          order.id ||
-          result.id ||
-          ""
-      );
-
-      setSupplierOrderId(
-        result.supplierOrderId ||
-          order.supplier_order_id ||
-          ""
-      );
-
-      setOrderStatus(
-        result.status ||
-          order.status ||
-          order.supplier_status ||
-          "processing"
-      );
-
-      /*
-       * ============================================================
-       * 8. MOSTRAR ORDEN CREADA
-       * ============================================================
-       */
-
-      setOrderCreated(true);
-
-      setTimeout(() => {
-        document
-          .getElementById(
-            "success-section"
-          )
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-      }, 100);
-    } catch (err) {
-      console.error(
-        "ERROR CREANDO TOPUP:",
-        err
-      );
-
-      setError(
-        "No se pudo conectar con el servidor. Si la compra fue enviada, no vuelva a intentarla hasta revisar el estado de la orden."
-      );
-    } finally {
-      setProcessing(false);
+      data =
+        raw
+          ? JSON.parse(raw)
+          : {};
+    } catch {
+      data = {
+        message: raw,
+      };
     }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        data,
+        error:
+          data?.message ||
+          data?.error ||
+          `Proveedor respondió con HTTP ${response.status}.`,
+      };
+    }
+
+    return {
+      ok: true,
+      data,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      data: null,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al contactar al proveedor.",
+    };
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| GET
+|--------------------------------------------------------------------------
+*/
+
+export async function GET(
+  request: NextRequest
+) {
+  const {
+    user,
+    error: authError,
+  } =
+    await getAuthenticatedUser(
+      request
+    );
+
+  if (!user) {
+    return jsonError(
+      authError ||
+        "No autenticado.",
+      401
+    );
   }
 
-  function handleFinishPurchase(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
+  return jsonSuccess({
+    category:
+      CATEGORY_ID,
 
-    if (processing) {
-      return;
-    }
+    game:
+      FREE_FIRE_LATAM.game,
 
-    if (!selectedOffer) {
-      setError(
-        "Seleccione una oferta."
-      );
-      return;
-    }
+    offers:
+      FREE_FIRE_LATAM.offers.map(
+        (offer) => ({
+          id: offer.id,
 
-    const cleanId =
+          name: offer.name,
+
+          display:
+            offer.display,
+
+          price:
+            offer.price,
+
+          icon:
+            offer.icon,
+        })
+      ),
+  });
+}
+
+/*
+|--------------------------------------------------------------------------
+| POST
+|--------------------------------------------------------------------------
+*/
+
+export async function POST(
+  request: NextRequest
+) {
+  const {
+    user,
+    error: authError,
+  } =
+    await getAuthenticatedUser(
+      request
+    );
+
+  if (!user) {
+    return jsonError(
+      authError ||
+        "No autenticado.",
+      401
+    );
+  }
+
+  let body:
+    Record<string, unknown>;
+
+  try {
+    body =
+      await request.json();
+  } catch {
+    return jsonError(
+      "El cuerpo de la solicitud no es un JSON válido.",
+      400
+    );
+  }
+
+  const offerId =
+    normalizeString(
+      body.offerId
+    );
+
+  const playerId =
+    normalizePlayerId(
+      body.playerId
+    );
+
+  const idempotencyKey =
+    normalizeIdempotencyKey(
+      body.idempotencyKey
+    );
+
+  if (!offerId) {
+    return jsonError(
+      "Debe seleccionar una oferta."
+    );
+  }
+
+  if (!playerId) {
+    return jsonError(
+      "Debe introducir su ID de jugador."
+    );
+  }
+
+  if (
+    !isValidPlayerId(
       playerId
-        .trim()
-        .replace(/\s+/g, "");
+    )
+  ) {
+    return jsonError(
+      "El ID de jugador no es válido."
+    );
+  }
 
-    if (!cleanId) {
-      setError(
-        "Ponga el ID de su cuenta."
-      );
-      return;
-    }
+  if (
+    !isValidIdempotencyKey(
+      idempotencyKey
+    )
+  ) {
+    return jsonError(
+      "La clave de idempotencia no es válida."
+    );
+  }
 
-    if (
-      !/^[0-9]+$/.test(
-        cleanId
+  /*
+  |--------------------------------------------------------------------------
+  | BUSCAR OFERTA EN EL CATÁLOGO DEL SERVIDOR
+  |--------------------------------------------------------------------------
+  */
+
+  const offer =
+    FREE_FIRE_LATAM.offers.find(
+      (item) =>
+        item.id === offerId
+    );
+
+  if (!offer) {
+    return jsonError(
+      "La oferta seleccionada no existe.",
+      404
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | PRECIO CONTROLADO POR SERVIDOR
+  |--------------------------------------------------------------------------
+  */
+
+  const retailPrice =
+    roundMoney(
+      toNumber(
+        offer.price
       )
-    ) {
-      setError(
-        "El ID debe contener solamente números."
-      );
-      return;
-    }
+    );
 
-    if (
-      cleanId.length < 4 ||
-      cleanId.length > 20
-    ) {
-      setError(
-        "El ID parece no tener un formato válido."
-      );
-      return;
-    }
+  const supplierPrice =
+    roundMoney(
+      toNumber(
+        offer.supplierPrice
+      )
+    );
 
-    setError("");
+  const supplierOfferId =
+    offer.supplierOfferId;
 
-    createOrder();
+  /*
+  |--------------------------------------------------------------------------
+  | VALIDACIONES DEL CATÁLOGO
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    retailPrice <= 0
+  ) {
+    return jsonError(
+      "La oferta tiene un precio inválido.",
+      500
+    );
   }
 
-  function goToOrders() {
-    router.push("/orders");
+  if (
+    supplierPrice <= 0
+  ) {
+    return jsonError(
+      "La oferta no tiene un precio de proveedor válido.",
+      500
+    );
   }
 
-  return (
-    <main className="game-service-page free-fire-page">
-
-      {/* ============================================================
-          HEADER
-      ============================================================ */}
-
-      <header className="game-service-header">
-
-        <button
-          type="button"
-          className="game-back-button"
-          onClick={() =>
-            router.push("/home")
-          }
-        >
-          ←
-        </button>
-
-        <div className="game-header-title">
-
-          <span>
-            STORE GAMING
-          </span>
-
-          <strong>
-            FREE FIRE LATAM
-          </strong>
-
-        </div>
-
-        <button
-          type="button"
-          className="game-cart-button"
-          onClick={() =>
-            router.push("/cart")
-          }
-        >
-          🛒
-        </button>
-
-      </header>
-
-      {/* ============================================================
-          IMAGEN PRINCIPAL
-      ============================================================ */}
-
-      <section className="free-fire-main-image">
-
-        <img
-          src="/images/free-fire-latam.jpg"
-          alt="Free Fire LATAM"
-        />
-
-        <div className="free-fire-main-overlay" />
-
-        <div className="free-fire-main-text">
-
-          <span>
-            ⚡ TOP UP
-          </span>
-
-          <h1>
-            FREE FIRE
-            <strong>
-              LATAM
-            </strong>
-          </h1>
-
-          <p>
-            Diamantes, pases y membresías
-          </p>
-
-        </div>
-
-      </section>
-
-      {/* ============================================================
-          BOTÓN PARA MOSTRAR OFERTAS
-      ============================================================ */}
-
-      <button
-        type="button"
-        className="offers-toggle"
-        onClick={() =>
-          setShowOffers(
-            (current) => !current
-          )
-        }
-      >
-
-        <span className="offers-toggle-text">
-
-          ✎
-
-          <strong>
-            PRESIONE PARA VER OFERTAS
-          </strong>
-
-        </span>
-
-        <span className="offers-toggle-pencil">
-          ✎
-        </span>
-
-      </button>
-
-      {/* ============================================================
-          OFERTAS
-      ============================================================ */}
-
-      {showOffers && (
-
-        <section className="offers-section">
-
-          <div className="offers-heading">
-
-            <div>
-
-              <span>
-                FREE FIRE LATAM
-              </span>
-
-              <h2>
-                ELIGE TU OFERTA
-              </h2>
-
-            </div>
-
-          </div>
-
-          <div className="offers-list">
-
-            {FREE_FIRE_LATAM.offers.map(
-              (offer) => {
-
-                const selected =
-                  selectedOffer?.id ===
-                  offer.id;
-
-                return (
-
-                  <button
-                    key={offer.id}
-                    type="button"
-                    className={`offer-card ${
-                      selected
-                        ? "selected"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      selectOffer(
-                        offer
-                      )
-                    }
-                  >
-
-                    <div className="offer-left">
-
-                      <div className="diamond-icon">
-                        {offer.icon}
-                      </div>
-
-                      <div className="offer-info">
-
-                        <strong>
-                          {offer.display}
-                        </strong>
-
-                        <span>
-                          {offer.name}
-                        </span>
-
-                      </div>
-
-                    </div>
-
-                    <div className="offer-right">
-
-                      <strong>
-                        {offer.price.toFixed(2)}$
-                      </strong>
-
-                      <span>
-                        SELECCIONAR →
-                      </span>
-
-                    </div>
-
-                  </button>
-
-                );
-              }
-            )}
-
-          </div>
-
-          <div className="game-note">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {FREE_FIRE_LATAM.note}
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
-      )}
-
-      {/* ============================================================
-          DATOS DEL PEDIDO
-      ============================================================ */}
-
-      {selectedOffer && !orderCreated && (
-
-        <section
-          id="order-section"
-          className="order-section"
-        >
-
-          <div className="section-title">
-
-            <span>
-              01
-            </span>
-
-            <div>
-
-              <small>
-                TU SELECCIÓN
-              </small>
-
-              <h2>
-                DATOS DEL PEDIDO
-              </h2>
-
-            </div>
-
-          </div>
-
-          {/* OFERTA SELECCIONADA */}
-
-          <div className="selected-order-card">
-
-            <div className="selected-order-icon">
-              {selectedOffer.icon}
-            </div>
-
-            <div className="selected-order-info">
-
-              <span>
-                FREE FIRE LATAM
-              </span>
-
-              <strong>
-                {selectedOffer.name}
-              </strong>
-
-            </div>
-
-            <div className="selected-order-price">
-              {selectedOffer.price.toFixed(2)}$
-            </div>
-
-          </div>
-
-          {/* NOTA */}
-
-          <div className="game-note game-note-order">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {FREE_FIRE_LATAM.note}
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* FORMULARIO */}
-
-          <form
-            onSubmit={
-              handleFinishPurchase
-            }
-            className="order-form"
-          >
-
-            <label
-              htmlFor="free-fire-player-id"
-              className="player-id-label"
-            >
-              PONGA SU ID
-            </label>
-
-            <p className="player-id-description">
-              Introduzca el ID de la cuenta
-              donde desea recibir la compra.
-            </p>
-
-            <div className="player-id-input-wrapper">
-
-              <span>
-                🆔
-              </span>
-
-              <input
-                id="free-fire-player-id"
-                type="text"
-                inputMode="numeric"
-                value={playerId}
-                onChange={(event) =>
-                  setPlayerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
-                  )
-                }
-                placeholder="Introduzca su ID"
-                autoComplete="off"
-                maxLength={20}
-                disabled={processing}
-              />
-
-            </div>
-
-            {/* ERROR */}
-
-            {error && (
-
-              <div className="order-error">
-                {error}
-              </div>
-
-            )}
-
-            {/* PRECIO */}
-
-            <div className="order-total-preview">
-
-              <span>
-                PRECIO
-              </span>
-
-              <strong>
-                {selectedOffer.price.toFixed(2)}$
-              </strong>
-
-            </div>
-
-            {/* FINALIZAR COMPRA */}
-
-            <button
-              type="submit"
-              className="finish-order-button"
-              disabled={processing}
-            >
-
-              <span>
-                {processing
-                  ? "PROCESANDO COMPRA..."
-                  : "FINALIZAR COMPRA"}
-              </span>
-
-              <b>
-                →
-              </b>
-
-            </button>
-
-          </form>
-
-        </section>
-
-      )}
-
-      {/* ============================================================
-          ORDEN CREADA
-      ============================================================ */}
-
-      {orderCreated && (
-
-        <section
-          id="success-section"
-          className="order-success-section"
-        >
-
-          <div className="success-circle">
-            ✓
-          </div>
-
-          <h2>
-            ORDEN CREADA
-          </h2>
-
-          <p>
-            Su orden ha sido creada
-            correctamente y está siendo
-            procesada.
-          </p>
-
-          <div className="success-order-number">
-
-            <span>
-              NÚMERO DE ORDEN
-            </span>
-
-            <strong>
-              #{orderNumber}
-            </strong>
-
-          </div>
-
-          {supplierOrderId && (
-
-            <div className="success-order-number">
-
-              <span>
-                ID DE ORDEN DEL PROVEEDOR
-              </span>
-
-              <strong>
-                #{supplierOrderId}
-              </strong>
-
-            </div>
-
-          )}
-
-          {orderStatus && (
-
-            <div className="success-order-number">
-
-              <span>
-                ESTADO
-              </span>
-
-              <strong>
-                {orderStatus}
-              </strong>
-
-            </div>
-
-          )}
-
-          <button
-            type="button"
-            className="view-orders-button"
-            onClick={
-              goToOrders
-            }
-          >
-
-            REVISAR ORDEN
-
-            <span>
-              →
-            </span>
-
-          </button>
-
-        </section>
-
-      )}
-
-      {/* ============================================================
-          INFORMACIÓN DEL SERVICIO
-      ============================================================ */}
-
-      <section className="service-info">
-
-        <div className="service-info-item">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🔒
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              FREE FIRE LATAM
-            </strong>
-
-            <p>
-              Diamantes, pases y
-              membresías.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* ============================================================
-          FOOTER
-      ============================================================ */}
-
-      <footer className="game-service-footer">
-
-        <strong>
-          🛒STORE GAMING🎮
-        </strong>
-
-        <span>
-          FREE FIRE LATAM TOP UP
-        </span>
-
-      </footer>
-
-    </main>
-  );
-        }
+  if (
+    !supplierOfferId
+  ) {
+    return jsonError(
+      "La oferta no tiene configurado el ID del proveedor.",
+      500
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | EVITAR PEDIDOS DUPLICADOS
+  |--------------------------------------------------------------------------
+  */
+
+  const {
+    data:
+      existingOrders,
+    error:
+      existingOrderError,
+  } =
+    await supabaseAdmin
+      .from("orders")
+      .select("*")
+      .eq(
+        "user_id",
+        user.id
+      )
+      .eq(
+        "idempotency_key",
+        idempotencyKey
+      )
+      .limit(1);
+
+  if (existingOrderError) {
+    console.error(
+      "Error buscando pedido existente:",
+      existingOrderError
+    );
+  }
+
+  const existingOrder =
+    existingOrders?.[0] as
+      | OrderRow
+      | undefined;
+
+  if (existingOrder) {
+    return jsonSuccess({
+      message:
+        "El pedido ya había sido creado.",
+
+      order:
+        existingOrder,
+
+      duplicate:
+        true,
+    });
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | DATOS BÁSICOS DEL PEDIDO
+  |--------------------------------------------------------------------------
+  */
+
+  const orderPayload = {
+    user_id:
+      user.id,
+
+    category_id:
+      CATEGORY_ID,
+
+    offer_id:
+      offer.id,
+
+    offer_name:
+      offer.name,
+
+    player_id:
+      playerId,
+
+    amount:
+      retailPrice,
+
+    price:
+      retailPrice,
+
+    supplier_price:
+      supplierPrice,
+
+    supplier_order_id:
+      null,
+
+    supplier_status:
+      "pending",
+
+    status:
+      "pending",
+
+    idempotency_key:
+      idempotencyKey,
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | CREAR PEDIDO LOCAL
+  |--------------------------------------------------------------------------
+  */
+
+  const {
+    data:
+      createdOrderData,
+    error:
+      createOrderError,
+  } =
+    await supabaseAdmin
+      .from("orders")
+      .insert(
+        orderPayload
+      )
+      .select("*")
+      .single();
+
+  if (createOrderError) {
+    const duplicateLookup =
+      await supabaseAdmin
+        .from("orders")
+        .select("*")
+        .eq(
+          "user_id",
+          user.id
+        )
+        .eq(
+          "idempotency_key",
+          idempotencyKey
+        )
+        .limit(1);
+
+    const duplicateOrder =
+      duplicateLookup
+        .data?.[0] as
+        | OrderRow
+        | undefined;
+
+    if (duplicateOrder) {
+      return jsonSuccess({
+        message:
+          "El pedido ya había sido creado.",
+
+        order:
+          duplicateOrder,
+
+        duplicate:
+          true,
+      });
+    }
+
+    console.error(
+      "Error creando pedido:",
+      createOrderError
+    );
+
+    return jsonError(
+      "No se pudo crear el pedido.",
+      500
+    );
+  }
+
+  const createdOrder =
+    createdOrderData as OrderRow;
+
+  /*
+  |--------------------------------------------------------------------------
+  | ID LOCAL DEL PEDIDO
+  |--------------------------------------------------------------------------
+  */
+
+  const localOrderId =
+    normalizeString(
+      createdOrder.id
+    );
+
+  const localOrderNumber =
+    normalizeString(
+      createdOrder.order_number
+    ) ||
+    localOrderId;
+
+  /*
+  |--------------------------------------------------------------------------
+  | ENVIAR AL PROVEEDOR
+  |--------------------------------------------------------------------------
+  */
+
+  const supplierResult =
+    await createSupplierOrder({
+      supplierOfferId,
+
+      playerId,
+
+      orderId:
+        localOrderNumber,
+
+      idempotencyKey,
+    });
+
+  /*
+  |--------------------------------------------------------------------------
+  | ERROR DEL PROVEEDOR
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    !supplierResult.ok ||
+    !supplierResult.data
+  ) {
+    console.error(
+      "Error creando pedido en proveedor:",
+      supplierResult.error
+    );
+
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        status:
+          "supplier_error",
+
+        supplier_status:
+          "error",
+      })
+      .eq(
+        "id",
+        localOrderId
+      );
+
+    return jsonError(
+      "La orden fue creada localmente, pero no pudo enviarse al proveedor.",
+      502,
+      {
+        order: {
+          ...createdOrder,
+
+          status:
+            "supplier_error",
+
+          supplier_status:
+            "error",
+        },
+
+        supplierError:
+          supplierResult.error,
+      }
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | DATOS DEL PROVEEDOR
+  |--------------------------------------------------------------------------
+  */
+
+  const supplierData =
+    supplierResult.data;
+
+  const supplierOrderId =
+    getSupplierOrderId(
+      supplierData
+    );
+
+  const supplierStatus =
+    getSupplierStatus(
+      supplierData
+    );
+
+  /*
+  |--------------------------------------------------------------------------
+  | ACTUALIZAR PEDIDO
+  |--------------------------------------------------------------------------
+  */
+
+  const updatedFields: Record<
+    string,
+    unknown
+  > = {
+    status:
+      supplierStatus ||
+      "processing",
+
+    supplier_status:
+      supplierStatus ||
+      "processing",
+  };
+
+  if (supplierOrderId) {
+    updatedFields
+      .supplier_order_id =
+      supplierOrderId;
+  }
+
+  const {
+    data:
+      updatedOrderData,
+    error:
+      updateOrderError,
+  } =
+    await supabaseAdmin
+      .from("orders")
+      .update(
+        updatedFields
+      )
+      .eq(
+        "id",
+        localOrderId
+      )
+      .select("*")
+      .single();
+
+  if (updateOrderError) {
+    console.error(
+      "Error actualizando pedido:",
+      updateOrderError
+    );
+
+    return jsonSuccess({
+      message:
+        "Pedido enviado al proveedor.",
+
+      order: {
+        ...createdOrder,
+
+        ...updatedFields,
+      },
+
+      supplier:
+        supplierData,
+
+      supplierOrderId,
+    });
+  }
+
+  const updatedOrder =
+    updatedOrderData as OrderRow;
+
+  /*
+  |--------------------------------------------------------------------------
+  | RESPUESTA FINAL
+  |--------------------------------------------------------------------------
+  */
+
+  return jsonSuccess({
+    message:
+      "Pedido creado correctamente.",
+
+    order:
+      updatedOrder,
+
+    supplier:
+      supplierData,
+
+    supplierOrderId,
+  });
+      }
