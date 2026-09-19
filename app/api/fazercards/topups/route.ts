@@ -1,13 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 const FAZER_API_BASE =
   "https://api.fzr.cards/api/v2";
 
-export async function GET(
-  request: NextRequest
-) {
+export async function GET() {
   try {
     const apiKey =
       process.env.FAZERCARDS_API_KEY;
@@ -23,107 +21,146 @@ export async function GET(
       );
     }
 
-    const categoryId =
-      request.nextUrl.searchParams.get(
-        "category_id"
-      );
+    const allCategories: any[] = [];
 
-    if (!categoryId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "Falta category_id. Ejemplo: ?category_id=blood_strike",
-        },
-        { status: 400 }
-      );
-    }
+    let cursor: string | null = null;
 
-    const url =
-      `${FAZER_API_BASE}/topups/offers` +
-      `?category_id=${encodeURIComponent(
-        categoryId
-      )}`;
+    while (true) {
+      const params = new URLSearchParams();
 
-    const response = await fetch(
-      url,
-      {
-        method: "GET",
-        headers: {
-          "X-API-Key": apiKey,
-          Accept: "application/json",
-        },
-        cache: "no-store",
+      params.set("limit", "100");
+
+      if (cursor) {
+        params.set("cursor", cursor);
       }
-    );
 
-    const text =
-      await response.text();
-
-    let data: any;
-
-    try {
-      data = text
-        ? JSON.parse(text)
-        : null;
-    } catch {
-      data = {
-        raw: text,
-      };
-    }
-
-    if (!response.ok) {
-      return NextResponse.json(
+      const response = await fetch(
+        `${FAZER_API_BASE}/topups?${params.toString()}`,
         {
-          ok: false,
-          supplierStatus:
-            response.status,
-          supplierResponse:
-            data,
-        },
-        {
-          status:
-            response.status,
+          method: "GET",
+
+          headers: {
+            "X-API-Key": apiKey,
+            Accept: "application/json",
+          },
+
+          cache: "no-store",
         }
       );
+
+      const text =
+        await response.text();
+
+      let data: any;
+
+      try {
+        data = text
+          ? JSON.parse(text)
+          : null;
+      } catch {
+        data = {
+          raw: text,
+        };
+      }
+
+      if (!response.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            supplierStatus:
+              response.status,
+            supplierResponse:
+              data,
+          },
+          {
+            status:
+              response.status,
+          }
+        );
+      }
+
+      const items = Array.isArray(
+        data?.items
+      )
+        ? data.items
+        : [];
+
+      allCategories.push(...items);
+
+      const hasMore =
+        Boolean(
+          data?.meta?.has_more
+        );
+
+      const nextCursor =
+        data?.meta?.next_cursor ??
+        null;
+
+      if (
+        !hasMore ||
+        !nextCursor
+      ) {
+        break;
+      }
+
+      cursor = nextCursor;
     }
+
+    const mobileLegends =
+      allCategories.filter(
+        (item) =>
+          String(
+            item?.name ?? ""
+          )
+            .toLowerCase()
+            .includes(
+              "mobile legends"
+            )
+      );
+
+    const bloodStrike =
+      allCategories.filter(
+        (item) =>
+          String(
+            item?.name ?? ""
+          )
+            .toLowerCase()
+            .includes(
+              "blood strike"
+            )
+      );
 
     return NextResponse.json({
       ok: true,
 
-      category_id:
-        data?.category_id ??
-        categoryId,
+      total:
+        allCategories.length,
 
-      name:
-        data?.name ??
-        categoryId,
+      categories:
+        allCategories,
 
-      offers:
-        Array.isArray(data?.offers)
-          ? data.offers
-          : [],
+      mobileLegends,
 
-      fields:
-        Array.isArray(data?.fields)
-          ? data.fields
-          : [],
+      bloodStrike,
     });
   } catch (error) {
     console.error(
-      "ERROR OBTENIENDO OFERTAS DE FAZERCARDS:",
+      "ERROR OBTENIENDO CATEGORÍAS DE FAZERCARDS:",
       error
     );
 
     return NextResponse.json(
       {
         ok: false,
+
         error:
           error instanceof Error
             ? error.message
             : "Error desconocido.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
       }
