@@ -196,24 +196,32 @@ export default function FreeFireLatamPage() {
 
       /*
        * ============================================================
-       * 6. GUARDAR INFORMACIÓN DE LA ORDEN
+       * 6. OBTENER DATOS DE LA ORDEN
        * ============================================================
        */
 
+      const order =
+        result.order || {};
+
       setOrderNumber(
-        result.orderNumber ||
+        order.order_number ||
+          result.orderNumber ||
+          order.id ||
           result.id ||
           ""
       );
 
       setSupplierOrderId(
         result.supplierOrderId ||
+          order.supplier_order_id ||
           ""
       );
 
       setOrderStatus(
-        result.status ||
-          "SUPPLIER_PENDING"
+        order.status ||
+          result.status ||
+          order.supplier_status ||
+          "processing"
       );
 
       /*
@@ -234,6 +242,7 @@ export default function FreeFireLatamPage() {
             block: "start",
           });
       }, 100);
+
     } catch (err) {
       console.error(
         "ERROR CREANDO TOPUP:",
@@ -243,6 +252,7 @@ export default function FreeFireLatamPage() {
       setError(
         "No se pudo conectar con el servidor. Si la compra fue enviada, no vuelva a intentarla hasta revisar el estado de la orden."
       );
+
     } finally {
       setProcessing(false);
     }
@@ -518,69 +528,6 @@ export default function FreeFireLatamPage() {
             </div>
 
           </div>
-
-        </section>
-
-      )}
-
-      {/* ============================================================
-          DATOS DEL PEDIDO
-      ============================================================ */}
-
-      {selectedOffer && !orderCreated && (
-
-        <section
-          id="order-section"
-          className="order-section"
-        >
-
-          <div className="section-title">
-
-            <span>
-              01
-            </span>
-
-            <div>
-
-              <small>
-                TU SELECCIÓN
-              </small>
-
-              <h2>
-                DATOS DEL PEDIDO
-              </h2>
-
-            </div>
-
-          </div>
-
-          {/* OFERTA SELECCIONADA */}
-
-          <div className="selected-order-card">
-
-            <div className="selected-order-icon">
-              {selectedOffer.icon}
-            </div>
-
-            <div className="selected-order-info">
-
-              <span>
-                FREE FIRE LATAM
-              </span>
-
-              <strong>
-                {selectedOffer.name}
-              </strong>
-
-            </div>
-
-            <div className="selected-order-price">
-              {selectedOffer.price.toFixed(2)}$
-            </div>
-
-          </div>
-
-                    </div>
 
         </section>
 
@@ -940,4 +887,4 @@ export default function FreeFireLatamPage() {
 
     </main>
   );
-                }
+      }
