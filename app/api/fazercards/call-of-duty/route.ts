@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 const FAZERCARDS_API = "https://api.fzr.cards/api/v2";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const apiKey = process.env.FAZERCARDS_API_KEY;
@@ -32,23 +34,49 @@ export async function GET() {
       }
 
       const response = await fetch(url.toString(), {
+        method: "GET",
         headers: {
           "X-API-Key": apiKey,
+          Accept: "application/json",
         },
         cache: "no-store",
       });
 
-      const data = await response.json();
+      const text = await response.text();
 
-      if (!response.ok || !data.ok) {
+      let data: any = null;
+
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
         return NextResponse.json(
           {
             ok: false,
             step: "categories",
             pages_checked: pagesChecked,
+            supplierStatus: response.status,
+            status_text: response.statusText,
+            content_type:
+              response.headers.get("content-type"),
+            error:
+              "FazerCards devolvió una respuesta que no es JSON.",
+            raw: text.slice(0, 3000),
+          },
+          { status: response.status }
+        );
+      }
+
+      if (!response.ok || !data?.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            step: "categories",
+            pages_checked: pagesChecked,
+            supplierStatus: response.status,
             error:
               data?.error ||
               "Error obteniendo catálogo de FazerCards",
+            supplierResponse: data,
           },
           { status: response.status }
         );
@@ -125,4 +153,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-       }
+          }
