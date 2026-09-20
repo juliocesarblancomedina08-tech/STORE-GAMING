@@ -1,4 +1,3 @@
-cat > app/api/topups/fc-mobile-id/route.ts <<'EOF'
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 import {
@@ -324,17 +323,21 @@ export async function POST(
       const {
         data: existingOrderRaw,
         error: existingOrderError,
-      } = await supabaseAdmin
-        .from("topup_orders")
-        .select(
-          "id,status,supplier_order_id,offer_id,offer_name,player_id,retail_price,supplier_price"
-        )
-        .eq("user_id", user.id)
-        .eq(
-          "idempotency_key",
-          idempotencyKey
-        )
-        .maybeSingle();
+      } =
+        await supabaseAdmin
+          .from("topup_orders")
+          .select(
+            "id,status,supplier_order_id,offer_id,offer_name,player_id,retail_price,supplier_price"
+          )
+          .eq(
+            "user_id",
+            user.id
+          )
+          .eq(
+            "idempotency_key",
+            idempotencyKey
+          )
+          .maybeSingle();
 
       if (
         existingOrderError &&
@@ -377,11 +380,12 @@ export async function POST(
     const {
       data: profile,
       error: profileError,
-    } = await supabaseAdmin
-      .from("profiles")
-      .select("id,balance")
-      .eq("id", user.id)
-      .maybeSingle();
+    } =
+      await supabaseAdmin
+        .from("profiles")
+        .select("id,balance")
+        .eq("id", user.id)
+        .maybeSingle();
 
     if (profileError) {
       return jsonError(
@@ -414,8 +418,10 @@ export async function POST(
         "Saldo insuficiente.",
         400,
         {
-          balance: currentBalance,
-          required: totalPrice,
+          balance:
+            currentBalance,
+          required:
+            totalPrice,
         }
       );
     }
@@ -533,13 +539,15 @@ export async function POST(
       totalPrice;
 
     const apiKey =
-      process.env.FAZERCARDS_API_KEY;
+      process.env
+        .FAZERCARDS_API_KEY;
 
     if (!apiKey) {
       await supabaseAdmin.rpc(
         "refund_topup_balance",
         {
-          p_user_id: user.id,
+          p_user_id:
+            user.id,
           p_amount:
             reservedAmount,
           p_order_id:
@@ -629,12 +637,14 @@ export async function POST(
       await supabaseAdmin.rpc(
         "refund_topup_balance",
         {
-          p_user_id: user.id,
+          p_user_id:
+            user.id,
           p_amount:
             reservedAmount,
           p_order_id:
             createdOrder.id,
-          p_reason: message,
+          p_reason:
+            message,
         }
       );
 
@@ -683,12 +693,14 @@ export async function POST(
       await supabaseAdmin.rpc(
         "refund_topup_balance",
         {
-          p_user_id: user.id,
+          p_user_id:
+            user.id,
           p_amount:
             reservedAmount,
           p_order_id:
             createdOrder.id,
-          p_reason: message,
+          p_reason:
+            message,
         }
       );
 
@@ -734,7 +746,8 @@ export async function POST(
     await supabaseAdmin
       .from("topup_orders")
       .update({
-        status: localStatus,
+        status:
+          localStatus,
         supplier_order_id:
           supplierOrderId,
         supplier_status:
@@ -751,7 +764,8 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       order: {
-        id: createdOrder.id,
+        id:
+          createdOrder.id,
         game:
           fcMobileIdGame.name,
         categoryId:
@@ -828,5 +842,4 @@ export async function POST(
       500
     );
   }
-}
-EOF
+    }
