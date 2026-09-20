@@ -1,6 +1,8 @@
 export const fcMobileIdGame = {
   id: "fc-mobile-id",
+
   name: "EAFC Mobile (ID)",
+
   categoryId: "eafc_mobile_id",
 
   note:
@@ -42,7 +44,7 @@ export const fcMobileIdGame = {
 
     {
       id: "1070_fc_points",
-      name: "1070 FC Points",
+      name: "1070 FC Puntos",
       display: "1070 FC",
       price: 8.72,
       supplierPrice: 8.5738,
