@@ -10,9 +10,16 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationEmail, setVerificationEmail] = useState("");
+
+  const [showVerification, setShowVerification] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
 
   async function handleRegister(
     event: FormEvent<HTMLFormElement>
@@ -61,12 +68,22 @@ export default function RegisterPage() {
         return;
       }
 
+      /*
+       * Si Supabase tiene activada la confirmación de correo,
+       * normalmente devuelve usuario pero no sesión.
+       *
+       * En ese caso mostramos la pantalla para introducir
+       * el código de 6 dígitos recibido por correo.
+       */
       if (data.user && !data.session) {
+        setVerificationEmail(cleanEmail);
+        setVerificationCode("");
+        setShowVerification(true);
+
         setSuccess(
-          "Cuenta creada correctamente. Revisa tu correo electrónico y pulsa el enlace de confirmación para activar tu cuenta."
+          `Hemos enviado un código de verificación a ${cleanEmail}.`
         );
 
-        setEmail("");
         setPassword("");
         setConfirmPassword("");
 
@@ -74,13 +91,17 @@ export default function RegisterPage() {
         return;
       }
 
+      /*
+       * Si la confirmación de correo está desactivada,
+       * Supabase puede crear directamente la sesión.
+       */
       if (data.session) {
         router.push("/home");
         return;
       }
 
       setSuccess(
-        "Revisa tu correo electrónico para confirmar tu cuenta."
+        "Revisa tu correo electrónico para verificar tu cuenta."
       );
     } catch {
       setError(
@@ -89,6 +110,131 @@ export default function RegisterPage() {
     }
 
     setLoading(false);
+  }
+
+  async function handleVerifyCode(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    const cleanCode = verificationCode.trim();
+
+    if (!cleanCode) {
+      setError("Introduce el código de verificación.");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(cleanCode)) {
+      setError("El código debe tener 6 dígitos.");
+      return;
+    }
+
+    if (!verificationEmail) {
+      setError(
+        "No encontramos el correo que está pendiente de verificación."
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data, error: verifyError } =
+        await supabase.auth.verifyOtp({
+          email: verificationEmail,
+          token: cleanCode,
+          type: "signup",
+        });
+
+      if (verifyError) {
+        setError(
+          "El código no es válido o ha expirado. Comprueba el código e inténtalo nuevamente."
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (data.session) {
+        setSuccess(
+          "Correo verificado correctamente. ¡Bienvenido a STORE GAMING!"
+        );
+
+        setTimeout(() => {
+          router.push("/home");
+        }, 700);
+
+        return;
+      }
+
+      /*
+       * Normalmente verifyOtp devuelve una sesión cuando
+       * la verificación fue correcta.
+       */
+      setSuccess(
+        "Correo verificado correctamente. Ahora puedes iniciar sesión."
+      );
+
+      setTimeout(() => {
+        router.push("/login");
+      }, 900);
+    } catch {
+      setError(
+        "No se pudo verificar el código. Inténtalo nuevamente."
+      );
+    }
+
+    setLoading(false);
+  }
+
+  async function handleResendCode() {
+    if (!verificationEmail) {
+      setError(
+        "No encontramos el correo que está pendiente de verificación."
+      );
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setResending(true);
+
+    try {
+      const { error: resendError } =
+        await supabase.auth.resend({
+          type: "signup",
+          email: verificationEmail,
+        });
+
+      if (resendError) {
+        setError(
+          "No se pudo reenviar el código. Espera unos segundos e inténtalo nuevamente."
+        );
+        setResending(false);
+        return;
+      }
+
+      setVerificationCode("");
+
+      setSuccess(
+        "Hemos enviado un nuevo código a tu correo electrónico."
+      );
+    } catch {
+      setError(
+        "No se pudo reenviar el código. Inténtalo nuevamente."
+      );
+    }
+
+    setResending(false);
+  }
+
+  function backToRegister() {
+    setShowVerification(false);
+    setVerificationCode("");
+    setError("");
+    setSuccess("");
   }
 
   return (
@@ -102,7 +248,11 @@ export default function RegisterPage() {
         <button
           type="button"
           className="back-button auth-back-button register-back-button"
-          onClick={() => router.push("/")}
+          onClick={() =>
+            showVerification
+              ? backToRegister()
+              : router.push("/")
+          }
         >
           <span className="back-arrow">←</span>
           <span>ATRÁS</span>
@@ -121,190 +271,353 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* ENCABEZADO */}
+        {/* =====================================================
+            VERIFICACIÓN DEL CORREO
+           ===================================================== */}
 
-        <div className="register-heading">
+        {showVerification ? (
+          <>
+            <div className="register-heading">
 
-          <p className="auth-small">
-            ÚNETE A LA COMUNIDAD
-          </p>
+              <p className="auth-small">
+                VERIFICACIÓN DE CORREO
+              </p>
 
-          <h1 className="auth-title">
-            CREAR <span>CUENTA</span>
-          </h1>
+              <h1 className="auth-title">
+                CONFIRMA <span>TU CUENTA</span>
+              </h1>
 
-          <div className="register-title-line" />
+              <div className="register-title-line" />
 
-          <p className="auth-description">
-            Crea tu cuenta para comenzar a comprar
-            tus recargas gaming.
-          </p>
+              <p className="auth-description">
+                Hemos enviado un código de 6 dígitos a:
+              </p>
 
-        </div>
+              <p
+                style={{
+                  marginTop: "8px",
+                  color: "#ffffff",
+                  fontWeight: 800,
+                  fontSize: "14px",
+                  wordBreak: "break-word",
+                }}
+              >
+                {verificationEmail}
+              </p>
 
-        {/* FORMULARIO */}
+            </div>
 
-        <form
-          onSubmit={handleRegister}
-          className="auth-form register-form"
-        >
+            <form
+              onSubmit={handleVerifyCode}
+              className="auth-form register-form"
+            >
 
-          {/* CORREO */}
+              {/* CÓDIGO */}
 
-          <div className="register-field">
+              <div className="register-field">
 
-            <label htmlFor="register-email">
-              CORREO ELECTRÓNICO
-            </label>
+                <label htmlFor="verification-code">
+                  CÓDIGO DE VERIFICACIÓN
+                </label>
 
-            <div className="input-wrapper register-input-wrapper">
+                <div className="input-wrapper register-input-wrapper">
 
-              <span className="input-icon">
-                ✉
-              </span>
+                  <span className="input-icon">
+                    #
+                  </span>
 
-              <input
-                id="register-email"
-                type="email"
-                value={email}
-                onChange={(event) =>
-                  setEmail(event.target.value)
+                  <input
+                    id="verification-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(event) => {
+                      const value =
+                        event.target.value.replace(/\D/g, "");
+
+                      setVerificationCode(value);
+                    }}
+                    placeholder="000000"
+                  />
+
+                </div>
+
+              </div>
+
+              {/* ERROR */}
+
+              {error && (
+                <div className="auth-error register-message">
+                  <span>⚠</span>
+                  <p>{error}</p>
+                </div>
+              )}
+
+              {/* ÉXITO */}
+
+              {success && (
+                <div className="auth-success register-message">
+                  <span>✓</span>
+                  <p>{success}</p>
+                </div>
+              )}
+
+              {/* VERIFICAR */}
+
+              <button
+                type="submit"
+                className="auth-submit register-submit"
+                disabled={
+                  loading || verificationCode.length !== 6
                 }
-                placeholder="tucorreo@gmail.com"
-                autoComplete="email"
-                inputMode="email"
-              />
+              >
+                <span>
+                  {loading
+                    ? "VERIFICANDO..."
+                    : "VERIFICAR CORREO"}
+                </span>
+
+                {!loading && <b>✓</b>}
+              </button>
+
+            </form>
+
+            {/* REENVIAR */}
+
+            <div
+              style={{
+                marginTop: "18px",
+                textAlign: "center",
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  color: "#777",
+                  fontSize: "12px",
+                }}
+              >
+                ¿No recibiste el código?
+              </p>
+
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={resending}
+                style={{
+                  marginTop: "8px",
+                  background: "transparent",
+                  border: "none",
+                  color: "#e50914",
+                  fontWeight: 900,
+                  fontSize: "12px",
+                  cursor: resending
+                    ? "default"
+                    : "pointer",
+                  opacity: resending ? 0.6 : 1,
+                }}
+              >
+                {resending
+                  ? "ENVIANDO..."
+                  : "REENVIAR CÓDIGO"}
+              </button>
+            </div>
+
+          </>
+        ) : (
+
+          /* ===================================================
+             REGISTRO
+             =================================================== */
+
+          <>
+            {/* ENCABEZADO */}
+
+            <div className="register-heading">
+
+              <p className="auth-small">
+                ÚNETE A LA COMUNIDAD
+              </p>
+
+              <h1 className="auth-title">
+                CREAR <span>CUENTA</span>
+              </h1>
+
+              <div className="register-title-line" />
+
+              <p className="auth-description">
+                Crea tu cuenta para comenzar a comprar
+                tus recargas gaming.
+              </p>
 
             </div>
 
-          </div>
+            {/* FORMULARIO */}
 
-          {/* CONTRASEÑA */}
+            <form
+              onSubmit={handleRegister}
+              className="auth-form register-form"
+            >
 
-          <div className="register-field">
+              {/* CORREO */}
 
-            <label htmlFor="register-password">
-              CONTRASEÑA
-            </label>
+              <div className="register-field">
 
-            <div className="input-wrapper register-input-wrapper">
+                <label htmlFor="register-email">
+                  CORREO ELECTRÓNICO
+                </label>
 
-              <span className="input-icon">
-                🔒
-              </span>
+                <div className="input-wrapper register-input-wrapper">
 
-              <input
-                id="register-password"
-                type="password"
-                value={password}
-                onChange={(event) =>
-                  setPassword(event.target.value)
-                }
-                placeholder="Mínimo 6 caracteres"
-                autoComplete="new-password"
-              />
+                  <span className="input-icon">
+                    ✉
+                  </span>
+
+                  <input
+                    id="register-email"
+                    type="email"
+                    value={email}
+                    onChange={(event) =>
+                      setEmail(event.target.value)
+                    }
+                    placeholder="tucorreo@gmail.com"
+                    autoComplete="email"
+                    inputMode="email"
+                  />
+
+                </div>
+
+              </div>
+
+              {/* CONTRASEÑA */}
+
+              <div className="register-field">
+
+                <label htmlFor="register-password">
+                  CONTRASEÑA
+                </label>
+
+                <div className="input-wrapper register-input-wrapper">
+
+                  <span className="input-icon">
+                    🔒
+                  </span>
+
+                  <input
+                    id="register-password"
+                    type="password"
+                    value={password}
+                    onChange={(event) =>
+                      setPassword(event.target.value)
+                    }
+                    placeholder="Mínimo 6 caracteres"
+                    autoComplete="new-password"
+                  />
+
+                </div>
+
+              </div>
+
+              {/* CONFIRMAR CONTRASEÑA */}
+
+              <div className="register-field">
+
+                <label htmlFor="register-confirm-password">
+                  VERIFICAR CONTRASEÑA
+                </label>
+
+                <div className="input-wrapper register-input-wrapper">
+
+                  <span className="input-icon">
+                    ✓
+                  </span>
+
+                  <input
+                    id="register-confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) =>
+                      setConfirmPassword(event.target.value)
+                    }
+                    placeholder="Repite tu contraseña"
+                    autoComplete="new-password"
+                  />
+
+                </div>
+
+              </div>
+
+              {/* ERROR */}
+
+              {error && (
+                <div className="auth-error register-message">
+                  <span>⚠</span>
+                  <p>{error}</p>
+                </div>
+              )}
+
+              {/* ÉXITO */}
+
+              {success && (
+                <div className="auth-success register-message">
+                  <span>✓</span>
+                  <p>{success}</p>
+                </div>
+              )}
+
+              {/* CREAR CUENTA */}
+
+              <button
+                type="submit"
+                className="auth-submit register-submit"
+                disabled={loading}
+              >
+                <span>
+                  {loading
+                    ? "CREANDO CUENTA..."
+                    : "CREAR CUENTA"}
+                </span>
+
+                {!loading && <b>→</b>}
+              </button>
+
+            </form>
+
+            {/* DIVISOR */}
+
+            <div className="auth-divider register-divider">
+
+              <span />
+
+              <strong>O</strong>
+
+              <span />
 
             </div>
 
-          </div>
+            {/* LOGIN */}
 
-          {/* CONFIRMAR CONTRASEÑA */}
+            <div className="register-login-area">
 
-          <div className="register-field">
+              <p className="auth-register-text">
+                ¿YA TIENES UNA CUENTA?
+              </p>
 
-            <label htmlFor="register-confirm-password">
-              VERIFICAR CONTRASEÑA
-            </label>
-
-            <div className="input-wrapper register-input-wrapper">
-
-              <span className="input-icon">
-                ✓
-              </span>
-
-              <input
-                id="register-confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(event) =>
-                  setConfirmPassword(event.target.value)
-                }
-                placeholder="Repite tu contraseña"
-                autoComplete="new-password"
-              />
+              <button
+                type="button"
+                className="auth-register-button register-login-button"
+                onClick={() => router.push("/login")}
+              >
+                <span>INICIAR SESIÓN</span>
+                <b>→</b>
+              </button>
 
             </div>
 
-          </div>
-
-          {/* ERROR */}
-
-          {error && (
-            <div className="auth-error register-message">
-              <span>⚠</span>
-              <p>{error}</p>
-            </div>
-          )}
-
-          {/* ÉXITO */}
-
-          {success && (
-            <div className="auth-success register-message">
-              <span>✓</span>
-              <p>{success}</p>
-            </div>
-          )}
-
-          {/* CREAR CUENTA */}
-
-          <button
-            type="submit"
-            className="auth-submit register-submit"
-            disabled={loading}
-          >
-            <span>
-              {loading
-                ? "CREANDO CUENTA..."
-                : "CREAR CUENTA"}
-            </span>
-
-            {!loading && (
-              <b>→</b>
-            )}
-          </button>
-
-        </form>
-
-        {/* DIVISOR */}
-
-        <div className="auth-divider register-divider">
-
-          <span />
-
-          <strong>O</strong>
-
-          <span />
-
-        </div>
-
-        {/* LOGIN */}
-
-        <div className="register-login-area">
-
-          <p className="auth-register-text">
-            ¿YA TIENES UNA CUENTA?
-          </p>
-
-          <button
-            type="button"
-            className="auth-register-button register-login-button"
-            onClick={() => router.push("/login")}
-          >
-            <span>INICIAR SESIÓN</span>
-            <b>→</b>
-          </button>
-
-        </div>
+          </>
+        )}
 
         {/* PIE */}
 
@@ -315,4 +628,4 @@ export default function RegisterPage() {
       </section>
     </main>
   );
-}
+              }
