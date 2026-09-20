@@ -884,7 +884,7 @@ export default function SausageManPage() {
         </section>
       )}
 
-      {/* ========================================================
+            {/* ========================================================
           ORDEN CREADA
       ======================================================== */}
 
@@ -936,4 +936,191 @@ export default function SausageManPage() {
 
               <span>
                 Oferta
-          
+              </span>
+
+              <strong>
+                {selectedOffer?.name ||
+                  "Sausage Man"}
+              </strong>
+
+            </div>
+
+            <div>
+
+              <span>
+                ID de personaje
+              </span>
+
+              <strong>
+                {playerId}
+              </strong>
+
+            </div>
+
+            <div>
+
+              <span>
+                Total
+              </span>
+
+              <strong>
+                $
+                {selectedOffer?.price.toFixed(
+                  2
+                ) || "0.00"}
+              </strong>
+
+            </div>
+
+            {supplierOrderId && (
+              <div>
+
+                <span>
+                  Orden del proveedor
+                </span>
+
+                <strong>
+                  {supplierOrderId}
+                </strong>
+
+              </div>
+            )}
+
+            <div>
+
+              <span>
+                Estado
+              </span>
+
+              <strong>
+                {orderStatus}
+              </strong>
+
+            </div>
+
+          </div>
+
+          <button
+            type="button"
+            className="view-orders-button"
+            onClick={goToOrders}
+          >
+            revisar orden
+          </button>
+
+          <button
+            type="button"
+            className="back-to-game-button"
+            onClick={() => {
+
+              setOrderCreated(false);
+
+              setSelectedOffer(null);
+
+              setPlayerId("");
+
+              setOrderNumber("");
+
+              setSupplierOrderId("");
+
+              setOrderStatus("");
+
+              setError("");
+
+            }}
+          >
+            realizar otra compra
+          </button>
+
+        </section>
+      )}
+
+      {/* ========================================================
+          INFORMACIÓN DEL SERVICIO
+      ======================================================== */}
+
+      <section className="service-info">
+
+        <div className="service-info-item">
+
+          <span>
+            ⚡
+          </span>
+
+          <div>
+
+            <strong>
+              ENTREGA RÁPIDA
+            </strong>
+
+            <p>
+              Procesamos tus pedidos
+              rápidamente.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="service-info-item">
+
+          <span>
+            🔒
+          </span>
+
+          <div>
+
+            <strong>
+              COMPRA SEGURA
+            </strong>
+
+            <p>
+              Tu pedido queda registrado.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="service-info-item">
+
+          <span>
+            🎮
+          </span>
+
+          <div>
+
+            <strong>
+              SAUSAGE MAN
+            </strong>
+
+            <p>
+              Caramelos directamente
+              a tu cuenta.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* ========================================================
+          FOOTER
+      ======================================================== */}
+
+      <footer className="game-service-footer">
+
+        <strong>
+          🛒STORE GAMING🎮
+        </strong>
+
+        <span>
+          SAUSAGE MAN TOP UP
+        </span>
+
+      </footer>
+
+    </main>
+  );
+}
