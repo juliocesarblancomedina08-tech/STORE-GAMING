@@ -9,14 +9,14 @@ type Offer = {
 };
 
 const offers: Offer[] = [
-  { amount: "61 caramelos", price: 0.50 },
-  { amount: "186 caramelos", price: 1.29 },
-  { amount: "318 caramelos", price: 2.08 },
+  { amount: "61 caramelos", price: 0.54 },
+  { amount: "186 caramelos", price: 1.32 },
+  { amount: "318 caramelos", price: 2.10 },
   { amount: "686 caramelos", price: 4.06 },
-  { amount: "1378 caramelos", price: 7.62 },
-  { amount: "2118 caramelos", price: 11.58 },
-  { amount: "3548 caramelos", price: 19.90 },
-  { amount: "7108 caramelos", price: 39.71 },
+  { amount: "1378 caramelos", price: 7.57 },
+  { amount: "2118 caramelos", price: 11.46 },
+  { amount: "3548 caramelos", price: 19.67 },
+  { amount: "7108 caramelos", price: 39.18 },
 ];
 
 const GAME_NAME = "SAUSAGE MAN";
@@ -528,4 +528,4 @@ export default function SausageManPage() {
       </footer>
     </main>
   );
-}
+            }
