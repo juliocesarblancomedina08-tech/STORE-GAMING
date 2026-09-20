@@ -16,14 +16,7 @@ export const runtime = "nodejs";
 const CATEGORY_ID =
   FREE_FIRE_LATAM.categoryId;
 
-/*
- * FazerCards API v2
- *
- * URL oficial actual:
- * https://api.fzr.cards/api/v2
- */
 const FAZERCARDS_BASE_URL =
-  process.env.FAZERCARDS_BASE_URL ||
   "https://api.fzr.cards/api/v2";
 
 const FAZERCARDS_API_KEY =
@@ -45,31 +38,18 @@ type AuthUser = {
 type OrderRow = {
   id?: string;
   order_number?: string | null;
-
   user_id?: string | null;
-
   category_id?: string | null;
-
   offer_id?: string | null;
-
   offer_name?: string | null;
-
   player_id?: string | null;
-
   amount?: number | null;
-
   price?: number | null;
-
   supplier_price?: number | null;
-
   supplier_order_id?: string | null;
-
   supplier_status?: string | null;
-
   status?: string | null;
-
   idempotency_key?: string | null;
-
   created_at?: string | null;
 
   [key: string]: unknown;
@@ -77,41 +57,28 @@ type OrderRow = {
 
 type SupplierResponse = {
   ok?: boolean;
-
   success?: boolean;
-
   status?: string;
-
   message?: string;
-
   error?: string;
-
   code?: string;
 
   order?: {
     id?: string | number | null;
-
     order_id?: string | number | null;
-
     status?: string | null;
-
     [key: string]: unknown;
   };
 
   data?: {
     id?: string | number | null;
-
     order_id?: string | number | null;
-
     status?: string | null;
 
     order?: {
       id?: string | number | null;
-
       order_id?: string | number | null;
-
       status?: string | null;
-
       [key: string]: unknown;
     };
 
@@ -119,7 +86,6 @@ type SupplierResponse = {
   };
 
   id?: string | number | null;
-
   order_id?: string | number | null;
 
   [key: string]: unknown;
@@ -457,11 +423,6 @@ function supplierHeaders(
     "Idempotency-Key":
       idempotencyKey,
 
-    /*
-     * Estos headers ayudan cuando el
-     * tráfico pasa por las protecciones
-     * del proveedor.
-     */
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
 
@@ -482,48 +443,28 @@ function supplierHeaders(
 async function createSupplierOrder(
   params: {
     supplierOfferId: string;
-
     playerId: string;
-
     idempotencyKey: string;
   }
 ): Promise<{
   ok: boolean;
-
   data: SupplierResponse | null;
-
   error: string | null;
-
   uncertain: boolean;
 }> {
   if (!FAZERCARDS_API_KEY) {
     return {
       ok: false,
-
       data: null,
-
       error:
         "FAZERCARDS_API_KEY no está configurada.",
-
       uncertain: false,
     };
   }
 
-  /*
-   * Endpoint oficial:
-   *
-   * POST /api/v2/topups/order
-   */
   const url =
     `${FAZERCARDS_BASE_URL}/topups/order`;
 
-  /*
-   * IMPORTANTE:
-   *
-   * offer_id = ID de FazerCards
-   *
-   * player_id = ID del jugador
-   */
   const payload = {
     category_id:
       CATEGORY_ID,
@@ -601,17 +542,13 @@ async function createSupplierOrder(
     );
 
     /*
-     * 5xx:
-     *
-     * No sabemos si FazerCards recibió
-     * el pedido antes de fallar.
+     * 5xx = respuesta incierta.
      */
     if (
       response.status >= 500
     ) {
       return {
         ok: false,
-
         data,
 
         error:
@@ -625,14 +562,11 @@ async function createSupplierOrder(
     }
 
     /*
-     * 4xx:
-     *
-     * Error definitivo del pedido.
+     * 4xx = rechazo definitivo.
      */
     if (!response.ok) {
       return {
         ok: false,
-
         data,
 
         error:
@@ -645,22 +579,15 @@ async function createSupplierOrder(
       };
     }
 
-    /*
-     * Respuesta correcta.
-     */
     return {
       ok: true,
-
       data,
-
       error: null,
-
       uncertain: false,
     };
   } catch (error) {
     return {
       ok: false,
-
       data: null,
 
       error:
@@ -668,11 +595,6 @@ async function createSupplierOrder(
           ? error.message
           : "Error desconocido al contactar a FazerCards.",
 
-      /*
-       * Timeout/network:
-       * no sabemos si el proveedor
-       * llegó a recibir la petición.
-       */
       uncertain: true,
     };
   }
@@ -744,6 +666,7 @@ export async function POST(
   /*
    * 1. AUTENTICAR USUARIO
    */
+
   const {
     user,
     error: authError,
@@ -763,6 +686,7 @@ export async function POST(
   /*
    * 2. LEER JSON
    */
+
   let body:
     Record<string, unknown>;
 
@@ -779,6 +703,7 @@ export async function POST(
   /*
    * 3. DATOS DEL CLIENTE
    */
+
   const offerId =
     normalizeString(
       body.offerId
@@ -797,6 +722,7 @@ export async function POST(
   /*
    * 4. VALIDAR OFERTA
    */
+
   if (!offerId) {
     return jsonError(
       "Debe seleccionar una oferta."
@@ -806,6 +732,7 @@ export async function POST(
   /*
    * 5. VALIDAR PLAYER ID
    */
+
   if (!playerId) {
     return jsonError(
       "Debe introducir su ID de jugador."
@@ -825,6 +752,7 @@ export async function POST(
   /*
    * 6. VALIDAR IDEMPOTENCIA
    */
+
   if (
     !isValidIdempotencyKey(
       idempotencyKey
@@ -875,12 +803,9 @@ export async function POST(
     );
 
   /*
-   * Este es el ID REAL de FazerCards.
-   *
-   * NO se debe enviar offer.id aquí.
-   *
-   * Se debe enviar supplierOfferId.
+   * ID REAL DE FAZERCARDS
    */
+
   const supplierOfferId =
     normalizeString(
       offer.supplierOfferId
@@ -1051,10 +976,6 @@ export async function POST(
       .single();
 
   if (createOrderError) {
-    /*
-     * Si hubo una carrera de idempotencia,
-     * buscar nuevamente el pedido.
-     */
     const duplicateLookup =
       await supabaseAdmin
         .from("orders")
@@ -1180,10 +1101,6 @@ export async function POST(
         localOrderId
       );
 
-    /*
-     * No marcamos FAILED porque
-     * podría haberse creado en FazerCards.
-     */
     return jsonSuccess(
       {
         message:
@@ -1231,9 +1148,6 @@ export async function POST(
       supplierError
     );
 
-    /*
-     * Guardamos el error en el pedido.
-     */
     await supabaseAdmin
       .from("orders")
       .update({
@@ -1248,13 +1162,6 @@ export async function POST(
         localOrderId
       );
 
-    /*
-     * IMPORTANTE:
-     *
-     * Devolvemos el error real del proveedor
-     * para poder saber exactamente qué está
-     * rechazando FazerCards.
-     */
     return jsonError(
       supplierError,
       502,
@@ -1393,10 +1300,6 @@ export async function POST(
     finalStatus =
       "failed";
   } else {
-    /*
-     * processing, pending, created,
-     * queued, etc.
-     */
     finalStatus =
       "supplier_pending";
   }
@@ -1501,4 +1404,3 @@ export async function POST(
       supplierData,
   });
 }
-   
