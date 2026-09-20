@@ -26,10 +26,8 @@ export default function WelcomePage() {
 
   return (
     <main className="welcome-page">
-      {/* FONDO BATTLE ROYALE */}
       <div className="welcome-overlay" />
 
-      {/* CARTEL CENTRAL */}
       <section className="welcome-card">
         <div className="welcome-line" />
 
@@ -87,4 +85,4 @@ export default function WelcomePage() {
       </section>
     </main>
   );
-      }
+}
