@@ -79,8 +79,7 @@ const offers = [
 
 const GAME_NAME = "SAUSAGE MAN";
 
-const GAME_IMAGE =
-  "/images/sausage-man.jpg";
+const GAME_IMAGE = "/images/sausage-man.jpg";
 
 const gameNote =
   "Recarga de Sausage Man. Introduce tu ID de personaje antes de realizar el pedido. El producto seleccionado se entrega directamente a tu cuenta después de realizar el pedido.";
@@ -94,28 +93,20 @@ export default function SausageManPage() {
    * ============================================================
    */
 
-  const [showOffers, setShowOffers] =
-    useState(false);
+  const [showOffers, setShowOffers] = useState(false);
 
   const [selectedOffer, setSelectedOffer] =
-    useState<
-      (typeof offers)[number] | null
-    >(null);
+    useState<(typeof offers)[number] | null>(null);
 
-  const [playerId, setPlayerId] =
-    useState("");
+  const [playerId, setPlayerId] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
-  const [processing, setProcessing] =
-    useState(false);
+  const [processing, setProcessing] = useState(false);
 
-  const [orderCreated, setOrderCreated] =
-    useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
 
-  const [orderNumber, setOrderNumber] =
-    useState("");
+  const [orderNumber, setOrderNumber] = useState("");
 
   const [supplierOrderId, setSupplierOrderId] =
     useState("");
@@ -133,17 +124,11 @@ export default function SausageManPage() {
     offer: (typeof offers)[number]
   ) {
     setSelectedOffer(offer);
-
     setPlayerId("");
-
     setError("");
-
     setOrderCreated(false);
-
     setOrderNumber("");
-
     setSupplierOrderId("");
-
     setOrderStatus("");
 
     setTimeout(() => {
@@ -163,15 +148,11 @@ export default function SausageManPage() {
    */
 
   async function createOrder() {
-    if (
-      !selectedOffer ||
-      processing
-    ) {
+    if (!selectedOffer || processing) {
       return;
     }
 
     setError("");
-
     setProcessing(true);
 
     try {
@@ -184,18 +165,27 @@ export default function SausageManPage() {
       const {
         data: { session },
         error: sessionError,
-      } =
-        await supabase.auth.getSession();
+      } = await supabase.auth.getSession();
 
-      if (
-        sessionError ||
-        !session?.user
-      ) {
-        setError(
-          "Su sesión ha expirado. Inicie sesión nuevamente."
+      if (sessionError) {
+        console.error(
+          "ERROR OBTENIENDO SESIÓN:",
+          sessionError
         );
 
-        router.replace("/");
+        setError(
+          "No se pudo comprobar tu sesión."
+        );
+
+        return;
+      }
+
+      if (!session) {
+        setError(
+          "Tu sesión ha expirado. Inicia sesión nuevamente."
+        );
+
+        router.push("/login");
 
         return;
       }
@@ -206,8 +196,7 @@ export default function SausageManPage() {
        * ========================================================
        */
 
-      const cleanPlayerId =
-        playerId.trim();
+      const cleanPlayerId = playerId.trim();
 
       if (!cleanPlayerId) {
         setError(
@@ -217,32 +206,9 @@ export default function SausageManPage() {
         return;
       }
 
-      if (
-        !/^[0-9]+$/.test(
-          cleanPlayerId
-        )
-      ) {
-        setError(
-          "El ID de personaje solo puede contener números."
-        );
-
-        return;
-      }
-
-      if (
-        cleanPlayerId.length < 4 ||
-        cleanPlayerId.length > 30
-      ) {
-        setError(
-          "El ID de personaje parece no tener un formato válido."
-        );
-
-        return;
-      }
-
       /*
        * ========================================================
-       * 3. CLAVE DE IDEMPOTENCIA
+       * 3. IDEMPOTENCY KEY
        * ========================================================
        */
 
@@ -251,42 +217,38 @@ export default function SausageManPage() {
 
       /*
        * ========================================================
-       * 4. ENVIAR A NUESTRA API
+       * 4. ENVIAR PEDIDO A NUESTRA API
        * ========================================================
        */
 
-      const response =
-        await fetch(
-          "/api/topups/sausage-man",
-          {
-            method: "POST",
+      const response = await fetch(
+        "/api/topups/sausage-man",
+        {
+          method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:
+              `Bearer ${session.access_token}`,
+          },
 
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
+          body: JSON.stringify({
+            offerId:
+              selectedOffer.supplierOfferId,
 
-            body: JSON.stringify({
-              offerId:
-                selectedOffer
-                  .supplierOfferId,
+            offerName:
+              selectedOffer.name,
 
-              offerName:
-                selectedOffer.name,
+            retailPrice:
+              selectedOffer.price,
 
-              retailPrice:
-                selectedOffer.price,
+            playerId:
+              cleanPlayerId,
 
-              playerId:
-                cleanPlayerId,
-
-              idempotencyKey,
-            }),
-          }
-        );
+            idempotencyKey,
+          }),
+        }
+      );
 
       /*
        * ========================================================
@@ -297,25 +259,36 @@ export default function SausageManPage() {
       let result: any = null;
 
       try {
-        result =
-          await response.json();
+        result = await response.json();
       } catch {
         result = null;
       }
 
-      /*
-       * ========================================================
-       * 6. COMPROBAR ERROR
-       * ========================================================
-       */
+      if (!response.ok) {
+        console.error(
+          "ERROR API SAUSAGE MAN:",
+          result
+        );
 
-      if (
-        !response.ok ||
-        !result?.ok
-      ) {
         setError(
           result?.error ||
+            result?.message ||
             "No se pudo crear la orden."
+        );
+
+        return;
+      }
+
+      if (!result?.ok) {
+        console.error(
+          "RESPUESTA API NO OK:",
+          result
+        );
+
+        setError(
+          result?.error ||
+            result?.message ||
+            "La orden no pudo ser creada."
         );
 
         return;
@@ -323,99 +296,99 @@ export default function SausageManPage() {
 
       /*
        * ========================================================
-       * 7. GUARDAR INFORMACIÓN
+       * 6. OBTENER DATOS DE LA ORDEN
        * ========================================================
        */
 
-      const finalOrderNumber =
+      const apiOrder =
+        result.order || {};
+
+      const generatedOrderNumber =
         result.orderNumber ||
+        apiOrder.orderNumber ||
+        apiOrder.order_number ||
         result.id ||
+        apiOrder.id ||
+        `SM-${Date.now()}`;
+
+      const generatedSupplierOrderId =
+        result.supplierOrderId ||
+        apiOrder.supplierOrderId ||
+        apiOrder.supplier_order_id ||
         "";
 
+      const generatedStatus =
+        result.status ||
+        apiOrder.status ||
+        "SUPPLIER_PENDING";
+
+      /*
+       * ========================================================
+       * 7. GUARDAR ESTADO
+       * ========================================================
+       */
+
       setOrderNumber(
-        finalOrderNumber
+        String(generatedOrderNumber)
       );
 
       setSupplierOrderId(
-        result.supplierOrderId ||
-          ""
+        String(generatedSupplierOrderId)
       );
 
       setOrderStatus(
-        result.status ||
-          "SUPPLIER_PENDING"
+        String(generatedStatus)
       );
 
       /*
        * ========================================================
-       * 8. GUARDAR REFERENCIA LOCAL
+       * 8. GUARDAR ORDEN LOCALMENTE
        * ========================================================
        */
 
+      const localOrder = {
+        orderNumber:
+          String(generatedOrderNumber),
+
+        supplierOrderId:
+          String(generatedSupplierOrderId),
+
+        status:
+          String(generatedStatus),
+
+        game:
+          GAME_NAME,
+
+        offerId:
+          selectedOffer.id,
+
+        supplierOfferId:
+          selectedOffer.supplierOfferId,
+
+        offerName:
+          selectedOffer.name,
+
+        playerId:
+          cleanPlayerId,
+
+        price:
+          selectedOffer.price,
+
+        createdAt:
+          new Date().toISOString(),
+      };
+
       try {
-        const existingOrdersRaw =
-          localStorage.getItem(
-            "storeGamingOrders"
+        const existingOrders =
+          JSON.parse(
+            localStorage.getItem(
+              "storeGamingOrders"
+            ) || "[]"
           );
 
-        const existingOrders =
-          existingOrdersRaw
-            ? JSON.parse(
-                existingOrdersRaw
-              )
-            : [];
-
-        const newOrder = {
-          id:
-            finalOrderNumber,
-
-          orderNumber:
-            finalOrderNumber,
-
-          game:
-            GAME_NAME,
-
-          gameImage:
-            GAME_IMAGE,
-
-          product:
-            selectedOffer.name,
-
-          offerId:
-            selectedOffer
-              .supplierOfferId,
-
-          price:
-            selectedOffer.price,
-
-          quantity: 1,
-
-          total:
-            selectedOffer.price,
-
-          playerId:
-            cleanPlayerId,
-
-          status:
-            result.status ||
-            "SUPPLIER_PENDING",
-
-          supplierOrderId:
-            result.supplierOrderId ||
-            "",
-
-          createdAt:
-            new Date().toISOString(),
-        };
-
         const updatedOrders = [
-          newOrder,
-
-          ...(Array.isArray(
-            existingOrders
-          )
-            ? existingOrders
-            : []),
+          localOrder,
+          ...existingOrders,
         ];
 
         localStorage.setItem(
@@ -428,14 +401,12 @@ export default function SausageManPage() {
         localStorage.setItem(
           "storeGamingLastOrder",
           JSON.stringify(
-            newOrder
+            localOrder
           )
         );
-      } catch (
-        storageError
-      ) {
+      } catch (storageError) {
         console.error(
-          "Error guardando orden local:",
+          "ERROR GUARDANDO ORDEN LOCAL:",
           storageError
         );
       }
@@ -482,6 +453,8 @@ export default function SausageManPage() {
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
+    setError("");
 
     if (processing) {
       return;
@@ -660,7 +633,6 @@ export default function SausageManPage() {
       ======================================================== */}
 
       {showOffers && (
-
         <section className="offers-section">
 
           <div className="offers-heading">
@@ -689,7 +661,6 @@ export default function SausageManPage() {
                   offer.id;
 
                 return (
-
                   <button
                     key={offer.id}
                     type="button"
@@ -705,11 +676,11 @@ export default function SausageManPage() {
                     }
                   >
 
-                    <div className="offer-left">
+                    <div className="offer-card-left">
 
-                      <div className="diamond-icon">
+                      <span className="offer-icon">
                         {offer.icon}
-                      </div>
+                      </span>
 
                       <div className="offer-info">
 
@@ -725,308 +696,244 @@ export default function SausageManPage() {
 
                     </div>
 
-                    <div className="offer-right">
+                    <div className="offer-card-right">
 
                       <strong>
-                        {offer.price.toFixed(
-                          2
-                        )}
-                        $
+                        ${offer.price.toFixed(2)}
                       </strong>
 
                       <span>
-                        SELECCIONAR →
+                        USD
                       </span>
 
                     </div>
 
                   </button>
-
                 );
               }
             )}
 
           </div>
 
-          {/* NOTA */}
+        </section>
+      )}
 
-          <div className="game-note">
+      {/* ========================================================
+          NOTA DEL SERVICIO
+      ======================================================== */}
 
-            <div className="game-note-icon">
-              !
+      <section className="game-note">
+
+        <div className="game-note-icon">
+          ℹ️
+        </div>
+
+        <div>
+          <strong>
+            INFORMACIÓN DEL SERVICIO
+          </strong>
+
+          <p>
+            {gameNote}
+          </p>
+        </div>
+
+      </section>
+
+      {/* ========================================================
+          FORMULARIO DE ORDEN
+      ======================================================== */}
+
+      {selectedOffer && !orderCreated && (
+        <section
+          id="order-section"
+          className="order-section"
+        >
+
+          <div className="selected-order-card">
+
+            <div className="selected-order-icon">
+              {selectedOffer.icon}
             </div>
 
-            <div className="game-note-content">
+            <div className="selected-order-info">
+
+              <span>
+                OFERTA SELECCIONADA
+              </span>
 
               <strong>
-                NOTA
+                {selectedOffer.name}
               </strong>
 
-              <p>
-                {gameNote}
-              </p>
+            </div>
+
+            <div className="selected-order-price">
+
+              <strong>
+                ${selectedOffer.price.toFixed(2)}
+              </strong>
+
+              <span>
+                USD
+              </span>
 
             </div>
 
           </div>
 
-        </section>
-
-      )}
-
-      {/* ========================================================
-          DATOS DEL PEDIDO
-      ======================================================== */}
-
-      {selectedOffer &&
-        !orderCreated && (
-
-          <section
-            id="order-section"
-            className="order-section"
+          <form
+            className="order-form"
+            onSubmit={
+              handleFinishPurchase
+            }
           >
 
-            <div className="section-title">
-
-              <span>
-                01
-              </span>
-
-              <div>
-
-                <small>
-                  TU SELECCIÓN
-                </small>
-
-                <h2>
-                  DATOS DEL PEDIDO
-                </h2>
-
-              </div>
-
-            </div>
-
-            {/* OFERTA */}
-
-            <div className="selected-order-card">
-
-              <div className="selected-order-icon">
-                {selectedOffer.icon}
-              </div>
-
-              <div className="selected-order-info">
-
-                <span>
-                  SAUSAGE MAN
-                </span>
-
-                <strong>
-                  {selectedOffer.name}
-                </strong>
-
-              </div>
-
-              <div className="selected-order-price">
-
-                {selectedOffer.price.toFixed(
-                  2
-                )}
-                $
-
-              </div>
-
-            </div>
-
-            {/* NOTA */}
-
-            <div className="game-note game-note-order">
-
-              <div className="game-note-icon">
-                !
-              </div>
-
-              <div className="game-note-content">
-
-                <strong>
-                  NOTA
-                </strong>
-
-                <p>
-                  {gameNote}
-                </p>
-
-              </div>
-
-            </div>
-
-            {/* FORMULARIO */}
-
-            <form
-              onSubmit={
-                handleFinishPurchase
-              }
-              className="order-form"
-            >
+            <div className="player-id-field">
 
               <label
-                htmlFor="sausage-man-player-id"
+                htmlFor="player-id"
                 className="player-id-label"
               >
-                PONGA SU ID DE PERSONAJE
+                ID DE PERSONAJE
               </label>
 
               <p className="player-id-description">
-                Introduzca el ID de la
-                cuenta donde desea recibir
-                los caramelos.
+                Introduce el ID de personaje
+                de tu cuenta de Sausage Man.
               </p>
 
               <div className="player-id-input-wrapper">
 
                 <span>
-                  🆔
+                  🎮
                 </span>
 
                 <input
-                  id="sausage-man-player-id"
+                  id="player-id"
                   type="text"
                   inputMode="numeric"
+                  pattern="[0-9]*"
                   value={playerId}
-                  onChange={(
-                    event
-                  ) =>
-                    setPlayerId(
-                      event.target.value.replace(
-                        /[^0-9]/g,
-                        ""
-                      )
-                    )
-                  }
-                  placeholder="Introduzca su ID"
-                  autoComplete="off"
+                  onChange={(event) => {
+                    const value =
+                      event.target.value
+                        .replace(
+                          /[^0-9]/g,
+                          ""
+                        );
+
+                    setPlayerId(value);
+                    setError("");
+                  }}
+                  placeholder="Introduce tu ID de personaje"
                   maxLength={30}
+                  autoComplete="off"
                   disabled={processing}
                 />
 
               </div>
 
-              {/* ERROR */}
+            </div>
 
-              {error && (
+            {error && (
+              <div className="order-error">
+                {error}
+              </div>
+            )}
 
-                <div className="order-error">
-                  {error}
-                </div>
+            <div className="order-total-preview">
 
+              <span>
+                TOTAL
+              </span>
+
+              <strong>
+                ${selectedOffer.price.toFixed(2)}
+              </strong>
+
+            </div>
+
+            <button
+              type="submit"
+              className="finish-order-button"
+              disabled={processing}
+            >
+
+              {processing ? (
+                <>
+                  <span>
+                    ⏳
+                  </span>
+
+                  PROCESANDO...
+                </>
+              ) : (
+                <>
+                  FINALIZAR COMPRA
+                  <span>
+                    →
+                  </span>
+                </>
               )}
 
-              {/* PRECIO */}
+            </button>
 
-              <div className="order-total-preview">
+          </form>
 
-                <span>
-                  PRECIO
-                </span>
+        </section>
+      )}
 
-                <strong>
-                  {selectedOffer.price.toFixed(
-                    2
-                  )}
-                  $
-                </strong>
+      {/* ========================================================
+          ORDEN CREADA
+      ======================================================== */}
 
-              </div>
+      {orderCreated && (
+        <section
+          id="success-section"
+          className="order-success-section"
+        >
 
-              {/* FINALIZAR */}
+          <div className="success-circle">
+            ✓
+          </div>
 
-              <button
-                type="submit"
-                className="finish-order-button"
-                disabled={processing}
-              >
+          <h2>
+            orden creada
+          </h2>
 
-                <span>
-                  {processing
-                    ? "PROCESANDO COMPRA..."
-                    : "FINALIZAR COMPRA"}
-                </span>
+          <p className="success-message">
+            Tu pedido fue creado correctamente.
+          </p>
 
-                <b>
-                  →
-                </b>
+          <div className="success-order-number">
 
-              </button>
+            <span>
+              Número de orden
+            </span>
 
-            </form>
+            <strong>
+              {orderNumber}
+            </strong>
 
-          </section>
+          </div>
 
-        )}
+          <div className="success-order-info">
 
-      {/* =========================
-    ORDEN CREADA
-========================= */}
-{orderCreated && createdOrder && (
-  <section
-    id="success-section"
-    className="order-success-section"
-  >
-    <div className="success-circle">
-      ✓
-    </div>
+            <div>
 
-    <h2>orden creada</h2>
+              <span>
+                Servicio
+              </span>
 
-    <p className="success-message">
-      Tu pedido fue creado correctamente.
-    </p>
+              <strong>
+                {GAME_NAME}
+              </strong>
 
-    <div className="success-order-number">
-      <span>Número de orden</span>
-      <strong>{createdOrder.orderNumber}</strong>
-    </div>
+            </div>
 
-    <div className="success-order-info">
-      <div>
-        <span>Servicio</span>
-        <strong>{GAME_NAME}</strong>
-      </div>
+            <div>
 
-      <div>
-        <span>Oferta</span>
-        <strong>{createdOrder.offerName}</strong>
-      </div>
-
-      <div>
-        <span>ID de personaje</span>
-        <strong>{createdOrder.playerId}</strong>
-      </div>
-
-      <div>
-        <span>Total</span>
-        <strong>${createdOrder.price.toFixed(2)}</strong>
-      </div>
-    </div>
-
-    <button
-      type="button"
-      className="view-orders-button"
-      onClick={() => router.push("/orders")}
-    >
-      revisar orden
-    </button>
-
-    <button
-      type="button"
-      className="back-to-game-button"
-      onClick={() => {
-        setOrderCreated(false);
-        setCreatedOrder(null);
-        setSelectedOffer(null);
-        setPlayerId("");
-      }}
-    >
-      realizar otra compra
-    </button>
-  </section>
-)}
+              <span>
+                Oferta
+          
