@@ -69,11 +69,11 @@ export default function RegisterPage() {
       }
 
       /*
-       * Si Supabase tiene activada la confirmación de correo,
-       * normalmente devuelve usuario pero no sesión.
+       * Cuando la confirmación de correo está activada,
+       * Supabase devuelve el usuario pero no una sesión.
        *
-       * En ese caso mostramos la pantalla para introducir
-       * el código de 6 dígitos recibido por correo.
+       * En este caso mostramos la pantalla para introducir
+       * el código de 6 dígitos enviado al correo.
        */
       if (data.user && !data.session) {
         setVerificationEmail(cleanEmail);
@@ -142,11 +142,17 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      /*
+       * Verificación del OTP enviado por correo.
+       *
+       * Supabase utiliza type: "email" para verificar
+       * el código OTP recibido por email.
+       */
       const { data, error: verifyError } =
         await supabase.auth.verifyOtp({
           email: verificationEmail,
           token: cleanCode,
-          type: "signup",
+          type: "email",
         });
 
       if (verifyError) {
@@ -157,6 +163,10 @@ export default function RegisterPage() {
         return;
       }
 
+      /*
+       * Si Supabase devuelve una sesión significa que
+       * el correo fue verificado correctamente.
+       */
       if (data.session) {
         setSuccess(
           "Correo verificado correctamente. ¡Bienvenido a STORE GAMING!"
@@ -170,8 +180,8 @@ export default function RegisterPage() {
       }
 
       /*
-       * Normalmente verifyOtp devuelve una sesión cuando
-       * la verificación fue correcta.
+       * En caso de que no haya sesión inmediatamente,
+       * enviamos al usuario al inicio de sesión.
        */
       setSuccess(
         "Correo verificado correctamente. Ahora puedes iniciar sesión."
@@ -202,6 +212,10 @@ export default function RegisterPage() {
     setResending(true);
 
     try {
+      /*
+       * Para reenviar el correo de confirmación del registro
+       * Supabase utiliza type: "signup".
+       */
       const { error: resendError } =
         await supabase.auth.resend({
           type: "signup",
@@ -212,6 +226,7 @@ export default function RegisterPage() {
         setError(
           "No se pudo reenviar el código. Espera unos segundos e inténtalo nuevamente."
         );
+
         setResending(false);
         return;
       }
@@ -628,4 +643,4 @@ export default function RegisterPage() {
       </section>
     </main>
   );
-              }
+    }
