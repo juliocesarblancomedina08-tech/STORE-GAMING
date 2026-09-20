@@ -143,10 +143,7 @@ export default function RegisterPage() {
 
     try {
       /*
-       * Verificación del OTP enviado por correo.
-       *
-       * Supabase utiliza type: "email" para verificar
-       * el código OTP recibido por email.
+       * Verificación del código OTP enviado por correo.
        */
       const { data, error: verifyError } =
         await supabase.auth.verifyOtp({
@@ -164,7 +161,7 @@ export default function RegisterPage() {
       }
 
       /*
-       * Si Supabase devuelve una sesión significa que
+       * Si Supabase devuelve una sesión,
        * el correo fue verificado correctamente.
        */
       if (data.session) {
@@ -180,7 +177,7 @@ export default function RegisterPage() {
       }
 
       /*
-       * En caso de que no haya sesión inmediatamente,
+       * Si no devuelve sesión inmediatamente,
        * enviamos al usuario al inicio de sesión.
        */
       setSuccess(
@@ -213,8 +210,7 @@ export default function RegisterPage() {
 
     try {
       /*
-       * Para reenviar el correo de confirmación del registro
-       * Supabase utiliza type: "signup".
+       * Reenvía el correo de confirmación del registro.
        */
       const { error: resendError } =
         await supabase.auth.resend({
@@ -327,7 +323,7 @@ export default function RegisterPage() {
               className="auth-form register-form"
             >
 
-              {/* CÓDIGO */}
+              {/* CÓDIGO DE VERIFICACIÓN */}
 
               <div className="register-field">
 
@@ -379,7 +375,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* VERIFICAR */}
+              {/* VERIFICAR CORREO */}
 
               <button
                 type="submit"
@@ -399,7 +395,7 @@ export default function RegisterPage() {
 
             </form>
 
-            {/* REENVIAR */}
+            {/* REENVIAR CÓDIGO */}
 
             <div
               style={{
@@ -612,7 +608,7 @@ export default function RegisterPage() {
 
             </div>
 
-            {/* LOGIN */}
+            {/* INICIAR SESIÓN */}
 
             <div className="register-login-area">
 
@@ -643,4 +639,4 @@ export default function RegisterPage() {
       </section>
     </main>
   );
-    }
+        }
