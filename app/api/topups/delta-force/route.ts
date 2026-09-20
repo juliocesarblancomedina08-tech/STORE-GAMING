@@ -349,6 +349,10 @@ export async function POST(
     const supplierPrice =
       Number(offer.supplierPrice);
 
+    /*
+     * El precio del servidor es el válido.
+     */
+
     if (
       Number.isFinite(
         requestedRetailPrice
@@ -399,10 +403,13 @@ export async function POST(
      * Supabase puede inferir incorrectamente el tipo
      * de existingOrderData. Definimos explícitamente
      * la estructura esperada.
+     *
+     * Se utiliza unknown antes de la conversión para
+     * evitar el error GenericStringError de TypeScript.
      */
 
     const existingOrderData =
-      existingOrderRaw as
+      existingOrderRaw as unknown as
         | {
             id: string;
             status: string | null;
@@ -684,49 +691,20 @@ export async function POST(
         "El servicio de recargas no está configurado.",
         500
       );
-  }
+    }
 
     /*
      * ============================================================
-     * 10. PREPARAR SOLICITUD A FAZERCARDS
+     * 10. ENVIAR A FAZERCARDS
      * ============================================================
      */
 
-    const supplierPayload = {
-      category: CATEGORY_ID,
-
-      offer_id:
-        offer.id,
-
-      player_id:
-        playerId,
-
-      quantity: 1,
-
-      order_id:
-        internalOrderId,
-    };
-
-    console.log(
-      "FAZERCARDS REQUEST:",
-      JSON.stringify(
-        supplierPayload
-      )
-    );
-
-    /*
-     * ============================================================
-     * 11. ENVIAR ORDEN A FAZERCARDS
-     * ============================================================
-     */
-
-    let supplierResponse:
-      Response;
+    let supplierResponse: Response;
 
     try {
       supplierResponse =
         await fetch(
-          `${FAZER_API_BASE}/orders`,
+          `${FAZER_API_BASE}/topups/order`,
           {
             method: "POST",
 
@@ -734,24 +712,47 @@ export async function POST(
               "Content-Type":
                 "application/json",
 
-              Authorization:
-                `Bearer ${fazerApiKey}`,
+              "Accept":
+                "application/json",
 
               "X-API-Key":
                 fazerApiKey,
+
+              "Idempotency-Key":
+                idempotencyKey,
+
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
+
+              "Referer":
+                "https://reseller.fazercards.com/",
+
+              "Origin":
+                "https://reseller.fazercards.com/",
             },
 
-            body: JSON.stringify(
-              supplierPayload
-            ),
+            body:
+              JSON.stringify({
+                category_id:
+                  CATEGORY_ID,
 
-            cache: "no-store",
+                offer_id:
+                  offer.id,
+
+                fields: {
+                  player_id:
+                    playerId,
+                },
+              }),
+
+            cache:
+              "no-store",
           }
         );
-    } catch (fetchError) {
+    } catch (networkError) {
       console.error(
-        "ERROR FETCH FAZERCARDS:",
-        fetchError
+        "ERROR DE RED CON FAZERCARDS:",
+        networkError
       );
 
       await supabaseAdmin
@@ -773,46 +774,64 @@ export async function POST(
           internalOrderId
         );
 
-      return jsonError(
-        "No se pudo conectar con el proveedor. La orden quedó pendiente.",
-        502
+      return NextResponse.json(
+        {
+          ok: true,
+
+          orderNumber:
+            internalOrderId,
+
+          supplierOrderId:
+            null,
+
+          status:
+            "SUPPLIER_PENDING",
+
+          offerId:
+            offer.id,
+
+          offerName:
+            offer.name,
+
+          playerId,
+
+          retailPrice,
+
+          supplierPrice,
+
+          message:
+            "La orden quedó pendiente de confirmación del proveedor.",
+        },
+        {
+          status: 202,
+        }
       );
     }
 
     /*
      * ============================================================
-     * 12. LEER RESPUESTA DEL PROVEEDOR
+     * 11. LEER RESPUESTA
      * ============================================================
      */
 
-    const supplierText =
+    const responseText =
       await supplierResponse.text();
 
     let supplierData: any = null;
 
     try {
       supplierData =
-        supplierText
+        responseText
           ? JSON.parse(
-              supplierText
+              responseText
             )
           : null;
     } catch {
       supplierData = {
         raw:
-          supplierText,
+          responseText,
       };
     }
-
-    console.log(
-      "FAZERCARDS STATUS:",
-      supplierResponse.status
-    );
-
-    console.log(
-      "FAZERCARDS RESPONSE:",
-      supplierData
-    );
 
     const supplierOrderId =
       getSupplierOrderId(
@@ -826,51 +845,49 @@ export async function POST(
 
     /*
      * ============================================================
-     * 13. RESPUESTA HTTP DEL PROVEEDOR
+     * 12. PROVEEDOR RECHAZÓ
      * ============================================================
      */
 
     if (
-      !supplierResponse.ok
+      !supplierResponse.ok ||
+      isSupplierRejection(
+        supplierData
+      )
     ) {
       console.error(
-        "FAZERCARDS HTTP ERROR:",
-        supplierResponse.status,
-        supplierData
+        "FAZERCARDS RECHAZÓ LA ORDEN:",
+        {
+          httpStatus:
+            supplierResponse.status,
+
+          supplierData,
+        }
       );
 
-      /*
-       * Si FazerCards respondió claramente
-       * que rechazó la orden, podemos marcarla
-       * como fallida.
-       *
-       * Si fue un error ambiguo de servidor,
-       * mantenemos SUPPLIER_PENDING para evitar
-       * un doble envío.
-       */
+      const {
+        error: refundError,
+      } =
+        await supabaseAdmin.rpc(
+          "refund_topup_balance",
+          {
+            p_order_id:
+              internalOrderId,
+          }
+        );
 
-      if (
-        isSupplierRejection(
-          supplierData
-        )
-      ) {
+      if (refundError) {
         await supabaseAdmin
           .from("topup_orders")
           .update({
             status:
-              "FAILED",
+              "REFUND_PENDING",
 
             supplier_order_id:
               supplierOrderId,
 
-            supplier_status:
-              supplierStatus,
-
             supplier_response:
               supplierData,
-
-            failed_at:
-              new Date().toISOString(),
 
             updated_at:
               new Date().toISOString(),
@@ -880,48 +897,50 @@ export async function POST(
             internalOrderId
           );
 
-        /*
-         * Reembolso solamente cuando
-         * existe una respuesta explícita
-         * de rechazo.
-         */
-
-        if (reserved) {
-          await supabaseAdmin.rpc(
-            "refund_topup_balance",
-            {
-              p_order_id:
-                internalOrderId,
-            }
-          );
-
-          reserved = false;
-        }
-
         return jsonError(
-          "El proveedor rechazó la orden.",
-          502,
-          {
-            orderNumber:
-              internalOrderId,
-
-            supplierOrderId,
-          }
+          "El proveedor rechazó la orden y el reembolso quedó pendiente.",
+          502
         );
       }
 
+      reserved = false;
+
+      return NextResponse.json(
+        {
+          ok: false,
+
+          error:
+            supplierData?.error ||
+            supplierData?.message ||
+            "FazerCards rechazó la orden.",
+
+          orderNumber:
+            internalOrderId,
+
+          supplierOrderId,
+
+          status:
+            "REFUNDED",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * 13. RESPUESTA SIN ID
+     * ============================================================
+     */
+
+    if (!supplierOrderId) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
           status:
             "SUPPLIER_PENDING",
 
-          supplier_order_id:
-            supplierOrderId,
-
-          supplier_status:
-            supplierStatus,
-
           supplier_response:
             supplierData,
 
@@ -933,61 +952,80 @@ export async function POST(
           internalOrderId
         );
 
-      return jsonError(
-        "El proveedor no confirmó la solicitud. La orden quedó pendiente.",
-        502,
+      return NextResponse.json(
         {
+          ok: true,
+
           orderNumber:
             internalOrderId,
 
-          supplierOrderId,
+          supplierOrderId:
+            null,
+
+          status:
+            "SUPPLIER_PENDING",
+
+          offerId:
+            offer.id,
+
+          offerName:
+            offer.name,
+
+          playerId,
+
+          retailPrice,
+
+          supplierPrice,
+
+          supplierStatus,
+
+          message:
+            "La orden quedó pendiente de confirmación del proveedor.",
+        },
+        {
+          status: 202,
         }
       );
     }
 
     /*
      * ============================================================
-     * 14. RESPUESTA EXITOSA DE FAZERCARDS
+     * 14. ESTADO INTERNO
      * ============================================================
      */
 
-    const finalStatus =
+    let internalStatus =
+      "SUPPLIER_PENDING";
+
+    if (
       isSuccessfulSupplierStatus(
         supplierStatus
       )
-        ? "COMPLETED"
-        : "SUPPLIER_PENDING";
+    ) {
+      internalStatus =
+        "COMPLETED";
+    }
 
     /*
      * ============================================================
-     * 15. ACTUALIZAR ORDEN INTERNA
+     * 15. ACTUALIZAR ORDEN
      * ============================================================
      */
 
     const {
-      error:
-        updateOrderError,
+      error: updateError,
     } =
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            finalStatus,
-
           supplier_order_id:
             supplierOrderId,
 
-          supplier_status:
-            supplierStatus,
+          status:
+            internalStatus,
 
           supplier_response:
             supplierData,
-
-          completed_at:
-            finalStatus ===
-            "COMPLETED"
-              ? new Date().toISOString()
-              : null,
 
           updated_at:
             new Date().toISOString(),
@@ -997,30 +1035,19 @@ export async function POST(
           internalOrderId
         );
 
-    if (updateOrderError) {
+    if (updateError) {
       console.error(
         "ERROR ACTUALIZANDO ORDEN:",
-        updateOrderError
+        updateError
       );
-
-      /*
-       * La orden ya pudo haber sido
-       * aceptada por FazerCards.
-       *
-       * No hacemos reembolso automático.
-       */
 
       return jsonError(
-        "La orden fue enviada al proveedor, pero no se pudo actualizar su estado interno.",
-        500,
-        {
-          orderNumber:
-            internalOrderId,
-
-          supplierOrderId,
-        }
+        "La recarga fue enviada pero no se pudo actualizar la orden.",
+        500
       );
     }
+
+    reserved = false;
 
     /*
      * ============================================================
@@ -1037,7 +1064,7 @@ export async function POST(
       supplierOrderId,
 
       status:
-        finalStatus,
+        internalStatus,
 
       supplierStatus,
 
