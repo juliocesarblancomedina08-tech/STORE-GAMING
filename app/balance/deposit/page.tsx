@@ -5,10 +5,12 @@ import {
   useEffect,
   useState,
 } from "react";
+
 import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
+
 import { supabase } from "../../../lib/supabase";
 
 type Network = "BEP20" | "TRC20" | "TON";
@@ -40,11 +42,30 @@ const NETWORKS: Record<Network, NetworkInfo> = {
 
 const DEPOSIT_DURATION_MS = 10 * 60 * 1000;
 
+/*
+ * =========================================================
+ * LOGO USDT
+ * =========================================================
+ */
+
+function UsdtLogo() {
+  return (
+    <span
+      className="usdt-logo"
+      aria-label="USDT"
+    >
+      ₮
+    </span>
+  );
+}
+
 function DepositContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] =
+    useState("");
+
   const [network, setNetwork] =
     useState<Network | null>(null);
 
@@ -124,6 +145,7 @@ function DepositContent() {
           setError(
             "Los datos del depósito no son válidos."
           );
+
           setLoading(false);
           return;
         }
@@ -138,6 +160,7 @@ function DepositContent() {
           setError(
             "El monto del depósito no es válido."
           );
+
           setLoading(false);
           return;
         }
@@ -151,6 +174,7 @@ function DepositContent() {
           setError(
             "La red seleccionada no es válida."
           );
+
           setLoading(false);
           return;
         }
@@ -179,7 +203,10 @@ function DepositContent() {
     }
 
     initializeDeposit();
-  }, [router, searchParams]);
+  }, [
+    router,
+    searchParams,
+  ]);
 
   /*
    * =========================================================
@@ -219,6 +246,7 @@ function DepositContent() {
         setError(
           "Selecciona una red válida."
         );
+
         return;
       }
 
@@ -232,13 +260,15 @@ function DepositContent() {
         setError(
           "El monto del depósito no es válido."
         );
+
         return;
       }
 
       /*
-       * Obtener nombre de usuario desde
-       * el correo de la cuenta.
+       * Obtener nombre de usuario
+       * desde el correo.
        */
+
       const email =
         session.user.email || "";
 
@@ -248,16 +278,18 @@ function DepositContent() {
           .replace(/^@/, "");
 
       /*
-       * Referencia visible del depósito.
+       * Referencia visible.
        */
+
       const generatedOrderNumber =
         `DEP-${Date.now()
           .toString()
           .slice(-8)}`;
 
       /*
-       * La expiración se calcula ahora.
+       * Expiración.
        */
+
       const expiration =
         new Date(
           Date.now() +
@@ -265,32 +297,45 @@ function DepositContent() {
         ).toISOString();
 
       /*
-       * IMPORTANTE:
-       *
        * El balance NO se modifica aquí.
-       *
-       * Solo se crea el depósito
-       * con estado PENDING.
+       * Solo se crea el depósito PENDING.
        */
+
       const {
         data,
         error: insertError,
       } = await supabase
         .from("deposits")
         .insert({
-          user_id: session.user.id,
+          user_id:
+            session.user.id,
+
           username,
+
           email,
-          amount: numericAmount,
-          currency: "USDT",
+
+          amount:
+            numericAmount,
+
+          currency:
+            "USDT",
+
           payment_method:
             "CRYPTO",
+
           network,
+
           wallet_address:
             selectedNetwork.address,
-          tx_hash: null,
-          status: "PENDING",
-          expires_at: expiration,
+
+          tx_hash:
+            null,
+
+          status:
+            "PENDING",
+
+          expires_at:
+            expiration,
         })
         .select(
           `
@@ -320,10 +365,13 @@ function DepositContent() {
         setError(
           "No se recibió información del depósito."
         );
+
         return;
       }
 
-      setDepositId(data.id);
+      setDepositId(
+        data.id
+      );
 
       setOrderNumber(
         generatedOrderNumber
@@ -339,7 +387,9 @@ function DepositContent() {
         "PENDING"
       );
 
-      setCreated(true);
+      setCreated(
+        true
+      );
     } catch (err) {
       console.error(
         "ERROR CREANDO DEPÓSITO:",
@@ -378,16 +428,11 @@ function DepositContent() {
       const difference =
         expiresAt - now;
 
-      if (difference <= 0) {
+      if (
+        difference <= 0
+      ) {
         setRemainingSeconds(0);
 
-        /*
-         * La expiración definitiva debe
-         * quedar protegida también en servidor.
-         *
-         * Aquí solamente actualizamos
-         * la interfaz inmediatamente.
-         */
         setDepositStatus(
           "EXPIRED"
         );
@@ -411,7 +456,9 @@ function DepositContent() {
       );
 
     return () => {
-      window.clearInterval(timer);
+      window.clearInterval(
+        timer
+      );
     };
   }, [
     created,
@@ -423,12 +470,6 @@ function DepositContent() {
    * =========================================================
    * COMPROBAR ESTADO DEL DEPÓSITO
    * =========================================================
-   *
-   * Por ahora solamente consulta el estado
-   * guardado en Supabase.
-   *
-   * Más adelante nuestro backend será quien
-   * compruebe automáticamente la blockchain.
    */
 
   useEffect(() => {
@@ -440,7 +481,8 @@ function DepositContent() {
       return;
     }
 
-    let cancelled = false;
+    let cancelled =
+      false;
 
     async function checkDepositStatus() {
       try {
@@ -481,6 +523,7 @@ function DepositContent() {
           setDepositStatus(
             "CONFIRMED"
           );
+
           return;
         }
 
@@ -491,6 +534,7 @@ function DepositContent() {
           setDepositStatus(
             "REJECTED"
           );
+
           return;
         }
 
@@ -501,6 +545,7 @@ function DepositContent() {
           setDepositStatus(
             "EXPIRED"
           );
+
           return;
         }
 
@@ -568,10 +613,14 @@ function DepositContent() {
         selectedNetwork.address
       );
 
-      setCopied(true);
+      setCopied(
+        true
+      );
 
       window.setTimeout(() => {
-        setCopied(false);
+        setCopied(
+          false
+        );
       }, 2000);
     } catch (err) {
       console.error(
@@ -600,9 +649,15 @@ function DepositContent() {
 
     return `${String(
       minutes
-    ).padStart(2, "0")}:${String(
+    ).padStart(
+      2,
+      "0"
+    )}:${String(
       secs
-    ).padStart(2, "0")}`;
+    ).padStart(
+      2,
+      "0"
+    )}`;
   }
 
   /*
@@ -614,9 +669,11 @@ function DepositContent() {
   if (loading) {
     return (
       <main className="balance-page">
+
         <div className="balance-background" />
 
         <div className="balance-loading">
+
           <div className="balance-loading-logo">
             🛒🎮
           </div>
@@ -626,7 +683,9 @@ function DepositContent() {
           <p>
             PREPARANDO DEPÓSITO...
           </p>
+
         </div>
+
       </main>
     );
   }
@@ -640,12 +699,15 @@ function DepositContent() {
   if (error) {
     return (
       <main className="balance-page">
+
         <div className="balance-background" />
 
         <section className="balance-section">
+
           <div className="balance-card">
 
             <div className="balance-card-header">
+
               <span>
                 ⚠️
               </span>
@@ -653,6 +715,7 @@ function DepositContent() {
               <h1>
                 DEPÓSITO
               </h1>
+
             </div>
 
             <div className="deposit-error">
@@ -669,20 +732,24 @@ function DepositContent() {
               }
             >
               VOLVER A MI BILLETERA
+
               <span>
                 →
               </span>
+
             </button>
 
           </div>
+
         </section>
+
       </main>
     );
   }
 
   /*
    * =========================================================
-   * PANTALLA ANTES DE CREAR EL DEPÓSITO
+   * PANTALLA ANTES DE CREAR DEPÓSITO
    * =========================================================
    */
 
@@ -692,6 +759,7 @@ function DepositContent() {
   ) {
     return (
       <main className="balance-page">
+
         <div className="balance-background" />
 
         <section className="balance-section">
@@ -699,19 +767,19 @@ function DepositContent() {
           <div className="balance-card">
 
             <div className="balance-card-header">
-              <span>
-                ₮
-              </span>
+
+              <UsdtLogo />
 
               <h1>
-                DEPÓSITO USDT
+                DEPOSITAR USDT
               </h1>
+
             </div>
 
             <div className="deposit-amount-card">
 
               <small>
-                MONTO
+                MONTO A DEPOSITAR
               </small>
 
               <strong>
@@ -725,7 +793,13 @@ function DepositContent() {
             </div>
 
             <div className="deposit-network-badge">
-              ₮ {selectedNetwork.name}
+
+              <UsdtLogo />
+
+              <span>
+                {selectedNetwork.name}
+              </span>
+
             </div>
 
             <div className="deposit-warning">
@@ -763,6 +837,7 @@ function DepositContent() {
                   →
                 </span>
               )}
+
             </button>
 
             <button
@@ -780,6 +855,7 @@ function DepositContent() {
           </div>
 
         </section>
+
       </main>
     );
   }
@@ -796,6 +872,7 @@ function DepositContent() {
   ) {
     return (
       <main className="balance-page">
+
         <div className="balance-background" />
 
         <section className="balance-section">
@@ -816,11 +893,15 @@ function DepositContent() {
             </p>
 
             <div className="deposit-reference-text">
+
               ID DE DEPÓSITO:
+
               <br />
+
               <strong>
                 {depositId}
               </strong>
+
             </div>
 
             <button
@@ -833,14 +914,17 @@ function DepositContent() {
               }
             >
               VOLVER A MI BILLETERA
+
               <span>
                 →
               </span>
+
             </button>
 
           </div>
 
         </section>
+
       </main>
     );
   }
@@ -857,6 +941,7 @@ function DepositContent() {
   ) {
     return (
       <main className="balance-page">
+
         <div className="balance-background" />
 
         <section className="balance-section">
@@ -893,11 +978,15 @@ function DepositContent() {
             </div>
 
             <div className="deposit-reference-text">
+
               ID DE DEPÓSITO:
+
               <br />
+
               <strong>
                 {depositId}
               </strong>
+
             </div>
 
             <button
@@ -910,14 +999,17 @@ function DepositContent() {
               }
             >
               VOLVER A MI BILLETERA
+
               <span>
                 →
               </span>
+
             </button>
 
           </div>
 
         </section>
+
       </main>
     );
   }
@@ -934,6 +1026,7 @@ function DepositContent() {
   ) {
     return (
       <main className="balance-page">
+
         <div className="balance-background" />
 
         <section className="balance-section">
@@ -954,11 +1047,15 @@ function DepositContent() {
             </p>
 
             <div className="deposit-reference-text">
+
               ID DE DEPÓSITO:
+
               <br />
+
               <strong>
                 {depositId}
               </strong>
+
             </div>
 
             <button
@@ -971,20 +1068,23 @@ function DepositContent() {
               }
             >
               VOLVER A MI BILLETERA
+
               <span>
                 →
               </span>
+
             </button>
 
           </div>
 
         </section>
+
       </main>
     );
   }
 
-  /*
-   *=========================================================
+    /*
+   * =========================================================
    * PANTALLA DE PAGO
    * =========================================================
    */
@@ -996,44 +1096,101 @@ function DepositContent() {
 
       <section className="balance-section">
 
-        <div className="balance-card">
+        <div className="balance-card deposit-payment-card">
 
-          <div className="balance-card-header">
+          {/* =================================================
+              CABECERA
+              ================================================= */}
 
-            <span>
-              ₮
-            </span>
+          <div className="balance-card-header deposit-payment-header">
 
-            <h1>
-              DEPÓSITO USDT
-            </h1>
+            <div className="deposit-title-icon">
+              <UsdtLogo />
+            </div>
+
+            <div className="deposit-title-content">
+              <span className="deposit-title-label">
+                PAGAR CON
+              </span>
+
+              <h1>
+                DEPÓSITO USDT
+              </h1>
+            </div>
+
+            {depositStatus === "PENDING" && (
+              <div className="deposit-timer">
+
+                <span>
+                  ⏱ TIEMPO RESTANTE
+                </span>
+
+                <strong>
+                  {formatRemainingTime(
+                    remainingSeconds
+                  )}
+                </strong>
+
+              </div>
+            )}
 
           </div>
+
+
+          {/* =================================================
+              MONTO
+              ================================================= */}
 
           <div className="deposit-amount-card">
 
             <small>
-              MONTO
+              MONTO A ENVIAR
             </small>
 
-            <strong>
-              ${amount}
-            </strong>
+            <div className="deposit-amount-value">
 
-            <span>
-              USDT
-            </span>
+              <strong>
+                ${amount}
+              </strong>
+
+              <span>
+                USDT
+              </span>
+
+            </div>
 
           </div>
+
+
+          {/* =================================================
+              RED SELECCIONADA
+              ================================================= */}
 
           <div className="deposit-network-badge">
-            ₮ {selectedNetwork?.name}
+
+            <UsdtLogo />
+
+            <div>
+              <span className="deposit-network-label">
+                RED DE PAGO
+              </span>
+
+              <strong>
+                {selectedNetwork?.name}
+              </strong>
+            </div>
+
           </div>
+
+
+          {/* =================================================
+              REFERENCIA
+              ================================================= */}
 
           <div className="deposit-order-reference">
 
             <span>
-              REFERENCIA
+              REFERENCIA DEL PEDIDO
             </span>
 
             <strong>
@@ -1042,52 +1199,99 @@ function DepositContent() {
 
           </div>
 
-          {depositStatus ===
-            "PENDING" && (
-            <div className="deposit-timer">
+
+          {/* =================================================
+              DIRECCIÓN DE PAGO
+              ================================================= */}
+
+          <div className="deposit-payment-section">
+
+            <div className="deposit-payment-section-title">
 
               <span>
-                ⏱️ TIEMPO RESTANTE
+                01
               </span>
 
-              <strong>
-                {formatRemainingTime(
-                  remainingSeconds
-                )}
-              </strong>
+              <div>
+                <strong>
+                  DIRECCIÓN DE PAGO
+                </strong>
+
+                <small>
+                  Envía el monto a esta dirección
+                </small>
+              </div>
 
             </div>
-          )}
 
-          <div className="deposit-address-box">
 
-            <span>
-              {selectedNetwork?.address}
-            </span>
+            <div className="deposit-address-box">
 
-            <button
-              type="button"
-              onClick={copyAddress}
-              className="deposit-copy-button"
-            >
-              {copied
-                ? "✓ COPIADO"
-                : "COPIAR"}
-            </button>
+              <div className="deposit-address-content">
+
+                <span>
+                  {selectedNetwork?.address}
+                </span>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={copyAddress}
+                className="deposit-copy-button"
+              >
+                {copied
+                  ? "✓ COPIADO"
+                  : "COPIAR"}
+              </button>
+
+            </div>
+
+          </div>
+
+
+          {/* =================================================
+              QR
+              ================================================= */}
+
+          <div className="deposit-payment-section">
+
+            <div className="deposit-payment-section-title">
+
+              <span>
+                02
+              </span>
+
+              <div>
+                <strong>
+                  CÓDIGO QR
+                </strong>
+
+                <small>
+                  Escanea para realizar el pago
+                </small>
+              </div>
+
+            </div>
+
+
+            <div className="deposit-qr-box">
+
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(
+                  selectedNetwork?.address || ""
+                )}`}
+                alt={`QR ${selectedNetwork?.name}`}
+              />
+
+            </div>
 
           </div>
 
-          <div className="deposit-qr-box">
 
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(
-                selectedNetwork?.address ||
-                  ""
-              )}`}
-              alt={`QR ${selectedNetwork?.name}`}
-            />
-
-          </div>
+          {/* =================================================
+              INSTRUCCIONES
+              ================================================= */}
 
           <div className="deposit-warning">
 
@@ -1095,30 +1299,51 @@ function DepositContent() {
               ⚠️
             </span>
 
-            <p>
-              Envía exactamente{" "}
+            <div>
+
               <strong>
-                ${amount} USDT
-              </strong>{" "}
-              utilizando la red{" "}
-              <strong>
-                {selectedNetwork?.name}
+                IMPORTANTE
               </strong>
-              .
-              <br />
-              <br />
-              No utilices otra red.
-              Una transferencia enviada
-              por una red incorrecta puede
-              perderse.
-            </p>
+
+              <p>
+
+                Envía exactamente{" "}
+
+                <b>
+                  ${amount} USDT
+                </b>{" "}
+
+                utilizando la red{" "}
+
+                <b>
+                  {selectedNetwork?.name}
+                </b>
+                .
+
+                <br />
+                <br />
+
+                No utilices otra red.
+                Una transferencia enviada
+                por una red incorrecta puede
+                perderse.
+
+              </p>
+
+            </div>
 
           </div>
 
+
+          {/* =================================================
+              ID DEL DEPÓSITO
+              ================================================= */}
+
           <div className="deposit-reference-text">
 
-            ID DE DEPÓSITO:
-            <br />
+            <span>
+              ID DE DEPÓSITO
+            </span>
 
             <strong>
               {depositId}
@@ -1126,21 +1351,39 @@ function DepositContent() {
 
           </div>
 
+
+          {/* =================================================
+              ESTADO PENDIENTE
+              ================================================= */}
+
           <div className="deposit-pending-message">
 
             <span>
               🔎
             </span>
 
-            <p>
-              Estamos esperando la
-              confirmación del pago.
-              <br />
-              No cierres esta página
-              hasta completar la transferencia.
-            </p>
+            <div>
+
+              <strong>
+                ESPERANDO EL PAGO
+              </strong>
+
+              <p>
+                Estamos esperando la
+                confirmación del depósito.
+                <br />
+                No cierres esta página hasta
+                completar la transferencia.
+              </p>
+
+            </div>
 
           </div>
+
+
+          {/* =================================================
+              VOLVER
+              ================================================= */}
 
           <button
             type="button"
