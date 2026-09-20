@@ -173,6 +173,7 @@ export default function GiftCardsPage() {
       <header className="gift-cards-header">
 
         <button
+          type="button"
           className="gift-cards-back-button"
           onClick={() => router.push("/home")}
           aria-label="Volver"
@@ -189,6 +190,7 @@ export default function GiftCardsPage() {
         </div>
 
         <button
+          type="button"
           className="gift-cards-cart-button"
           onClick={() => router.push("/orders")}
           aria-label="Pedidos"
@@ -455,4 +457,4 @@ export default function GiftCardsPage() {
 
     </main>
   );
-    }
+              }
