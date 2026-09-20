@@ -134,22 +134,25 @@ export default function HomePage() {
    * ESTADÍSTICAS DEL CLIENTE
    * =========================
    */
+
   async function loadStatistics(userId: string) {
     /*
+     * =========================
      * ÓRDENES
-     *
-     * Las órdenes actuales de STORE GAMING
-     * se guardan en storeGamingOrders.
+     * =========================
      */
+
     let orders: StoreOrder[] = [];
 
     try {
-      const savedOrders = localStorage.getItem(
-        "storeGamingOrders"
-      );
+      const savedOrders =
+        localStorage.getItem(
+          "storeGamingOrders"
+        );
 
       if (savedOrders) {
-        const parsedOrders = JSON.parse(savedOrders);
+        const parsedOrders =
+          JSON.parse(savedOrders);
 
         if (Array.isArray(parsedOrders)) {
           orders = parsedOrders;
@@ -159,9 +162,6 @@ export default function HomePage() {
       orders = [];
     }
 
-    /*
-     * Todas las órdenes creadas.
-     */
     setOrdersCreated(orders.length);
 
     /*
@@ -169,9 +169,10 @@ export default function HomePage() {
      * GASTO TOTAL
      * =========================
      *
-     * Solo contamos órdenes completadas,
-     * confirmadas o confirmada.
+     * Solo contamos órdenes
+     * completadas o confirmadas.
      */
+
     const completedStatuses = [
       "COMPLETADA",
       "COMPLETADO",
@@ -183,23 +184,25 @@ export default function HomePage() {
       "confirmado",
     ];
 
-    const completedOrders = orders.filter((order) =>
-      completedStatuses.includes(
-        String(order.status || "")
-      )
-    );
+    const completedOrders =
+      orders.filter((order) =>
+        completedStatuses.includes(
+          String(order.status || "")
+        )
+      );
 
-    const spent = completedOrders.reduce(
-      (sum, order) => {
-        const value =
-          Number(order.total) ||
-          Number(order.price) ||
-          0;
+    const spent =
+      completedOrders.reduce(
+        (sum, order) => {
+          const value =
+            Number(order.total) ||
+            Number(order.price) ||
+            0;
 
-        return sum + value;
-      },
-      0
-    );
+          return sum + value;
+        },
+        0
+      );
 
     setTotalSpent(spent);
 
@@ -208,18 +211,25 @@ export default function HomePage() {
      * DINERO DEPOSITADO
      * =========================
      *
-     * El balance pertenece a la cuenta
-     * autenticada y se consulta desde Supabase.
+     * Por ahora se mantiene la
+     * misma fuente utilizada por
+     * el sistema actual: balance
+     * de la cuenta.
      */
+
     try {
-      const { data, error } = await supabase
+      const {
+        data,
+        error,
+      } = await supabase
         .from("profiles")
         .select("balance")
         .eq("id", userId)
         .single();
 
       if (!error && data) {
-        const balance = Number(data.balance) || 0;
+        const balance =
+          Number(data.balance) || 0;
 
         setDeposited(balance);
       } else {
@@ -230,6 +240,12 @@ export default function HomePage() {
     }
   }
 
+  /*
+   * =========================
+   * CERRAR SESIÓN
+   * =========================
+   */
+
   async function logout() {
     setMenuOpen(false);
 
@@ -238,10 +254,22 @@ export default function HomePage() {
     router.replace("/");
   }
 
+  /*
+   * =========================
+   * NAVEGACIÓN
+   * =========================
+   */
+
   function goTo(path: string) {
     setMenuOpen(false);
     router.push(path);
   }
+
+  /*
+   * =========================
+   * LOADING
+   * =========================
+   */
 
   if (loading) {
     return (
@@ -274,7 +302,9 @@ export default function HomePage() {
             type="button"
             className="menu-backdrop"
             aria-label="Cerrar menú"
-            onClick={() => setMenuOpen(false)}
+            onClick={() =>
+              setMenuOpen(false)
+            }
           />
 
           <aside className="side-menu">
@@ -302,14 +332,15 @@ export default function HomePage() {
               <button
                 type="button"
                 className="side-menu-close"
-                onClick={() => setMenuOpen(false)}
+                onClick={() =>
+                  setMenuOpen(false)
+                }
                 aria-label="Cerrar menú"
               >
                 ×
               </button>
 
             </div>
-
 
             <div className="side-menu-user">
 
@@ -331,13 +362,14 @@ export default function HomePage() {
 
             </div>
 
-
             <nav className="side-menu-nav">
 
               <button
                 type="button"
                 className="side-menu-item active"
-                onClick={() => goTo("/home")}
+                onClick={() =>
+                  goTo("/home")
+                }
               >
 
                 <span className="menu-icon home-icon">
@@ -350,11 +382,12 @@ export default function HomePage() {
 
               </button>
 
-
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={() => goTo("/orders")}
+                onClick={() =>
+                  goTo("/orders")
+                }
               >
 
                 <span className="menu-icon">
@@ -367,7 +400,6 @@ export default function HomePage() {
 
               </button>
 
-
               <div className="side-menu-section-title">
 
                 <span />
@@ -378,11 +410,12 @@ export default function HomePage() {
 
               </div>
 
-
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={() => goTo("/telegram-stars")}
+                onClick={() =>
+                  goTo("/telegram-stars")
+                }
               >
 
                 <span className="menu-icon">
@@ -395,11 +428,12 @@ export default function HomePage() {
 
               </button>
 
-
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={() => goTo("/gift-cards")}
+                onClick={() =>
+                  goTo("/gift-cards")
+                }
               >
 
                 <span className="menu-icon gift-icon">
@@ -412,11 +446,12 @@ export default function HomePage() {
 
               </button>
 
-
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={() => goTo("/top-up")}
+                onClick={() =>
+                  goTo("/top-up")
+                }
               >
 
                 <span className="menu-icon">
@@ -429,7 +464,6 @@ export default function HomePage() {
 
               </button>
 
-
               <div className="side-menu-section-title">
 
                 <span />
@@ -440,11 +474,12 @@ export default function HomePage() {
 
               </div>
 
-
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={() => goTo("/balance")}
+                onClick={() =>
+                  goTo("/balance")
+                }
               >
 
                 <span className="menu-icon">
@@ -457,11 +492,12 @@ export default function HomePage() {
 
               </button>
 
-
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={() => goTo("/statistics")}
+                onClick={() =>
+                  goTo("/statistics")
+                }
               >
 
                 <span className="menu-icon">
@@ -474,7 +510,6 @@ export default function HomePage() {
 
               </button>
 
-
               <div className="side-menu-section-title">
 
                 <span />
@@ -485,11 +520,12 @@ export default function HomePage() {
 
               </div>
 
-
               <button
                 type="button"
                 className="side-menu-item"
-                onClick={() => goTo("/profile")}
+                onClick={() =>
+                  goTo("/profile")
+                }
               >
 
                 <span className="menu-icon">
@@ -502,11 +538,12 @@ export default function HomePage() {
 
               </button>
 
-
               <button
                 type="button"
                 className="side-menu-item support-item"
-                onClick={() => goTo("/support")}
+                onClick={() =>
+                  goTo("/support")
+                }
               >
 
                 <span className="support-headset-icon">
@@ -526,7 +563,6 @@ export default function HomePage() {
               </button>
 
             </nav>
-
 
             <div className="side-menu-bottom">
 
@@ -552,7 +588,6 @@ export default function HomePage() {
         </>
       )}
 
-
       {/* =========================
           HEADER
       ========================== */}
@@ -562,7 +597,9 @@ export default function HomePage() {
         <button
           type="button"
           className="menu-button"
-          onClick={() => setMenuOpen(true)}
+          onClick={() =>
+            setMenuOpen(true)
+          }
           aria-label="Abrir menú"
         >
 
@@ -572,11 +609,12 @@ export default function HomePage() {
 
         </button>
 
-
         <button
           type="button"
           className="store-logo"
-          onClick={() => router.push("/home")}
+          onClick={() =>
+            router.push("/home")
+          }
           aria-label="STORE GAMING"
         >
 
@@ -601,12 +639,10 @@ export default function HomePage() {
 
         </button>
 
-
         <div className="store-header-actions">
         </div>
 
       </header>
-
 
       {/* =========================
           BIENVENIDA
@@ -622,7 +658,6 @@ export default function HomePage() {
             ⚡ STORE GAMING
           </div>
 
-
           <h1 className="hero-title">
 
             <span className="hero-greeting">
@@ -635,7 +670,6 @@ export default function HomePage() {
 
           </h1>
 
-
           <p className="hero-text">
 
             Bienvenido a STORE GAMING.
@@ -644,102 +678,63 @@ export default function HomePage() {
 
           </p>
 
+          {/* =========================
+              RESUMEN DE CUENTA
+          ========================== */}
 
           <div className="hero-stats">
 
-            <div>
+            {/* DEPOSITADO */}
 
-              <strong>
-                ⚡
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                $
               </strong>
 
-              <span>
-                RÁPIDO
-              </span>
-
-            </div>
-
-
-            <div>
-
-              <strong>
-                🔒
-              </strong>
-
-              <span>
-                SEGURO
-              </span>
-
-            </div>
-
-
-            <div>
-
-              <strong>
-                🎮
-              </strong>
-
-              <span>
-                GAMING
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-
-      {/* =========================
-          ESTADÍSTICAS DEL CLIENTE
-      ========================== */}
-
-      <section className="customer-statistics">
-
-        <div className="customer-statistics-row">
-
-          {/* ÓRDENES */}
-
-          <div className="customer-stat-card">
-
-            <div className="customer-stat-icon">
-              ▣
-            </div>
-
-            <div className="customer-stat-content">
-
-              <span>
-                ÓRDENES CREADAS
-              </span>
-
-              <strong>
-                {ordersCreated}
-              </strong>
-
-            </div>
-
-          </div>
-
-
-          {/* DEPOSITADO */}
-
-          <div className="customer-stat-card">
-
-            <div className="customer-stat-icon">
-              $
-            </div>
-
-            <div className="customer-stat-content">
-
-              <span>
+              <span className="hero-stat-label">
                 DEPOSITADO
               </span>
 
-              <strong>
+              <b className="hero-stat-value">
                 ${deposited.toFixed(2)}
+              </b>
+
+            </div>
+
+            {/* GASTO TOTAL */}
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                💳
               </strong>
+
+              <span className="hero-stat-label">
+                GASTO TOTAL
+              </span>
+
+              <b className="hero-stat-value">
+                ${totalSpent.toFixed(2)}
+              </b>
+
+            </div>
+
+            {/* ÓRDENES */}
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                ▣
+              </strong>
+
+              <span className="hero-stat-label">
+                ÓRDENES
+              </span>
+
+              <b className="hero-stat-value">
+                {ordersCreated}
+              </b>
 
             </div>
 
@@ -747,31 +742,7 @@ export default function HomePage() {
 
         </div>
 
-
-        {/* GASTO TOTAL */}
-
-        <div className="customer-stat-card customer-stat-card-wide">
-
-          <div className="customer-stat-icon">
-            💳
-          </div>
-
-          <div className="customer-stat-content">
-
-            <span>
-              GASTO TOTAL
-            </span>
-
-            <strong>
-              ${totalSpent.toFixed(2)}
-            </strong>
-
-          </div>
-
-        </div>
-
       </section>
-
 
       {/* =========================
           SERVICIOS
@@ -793,7 +764,6 @@ export default function HomePage() {
 
           </div>
 
-
           <div className="catalog-decoration">
 
             <i />
@@ -804,7 +774,6 @@ export default function HomePage() {
 
         </div>
 
-
         <div className="services-grid">
 
           {services.map((service) => (
@@ -813,22 +782,20 @@ export default function HomePage() {
               key={service.name}
               type="button"
               className="service-card"
-              onClick={() => router.push(service.route)}
+              onClick={() =>
+                router.push(
+                  service.route
+                )
+              }
             >
 
               <div className="service-card-icon">
-
                 {service.icon}
-
               </div>
-
 
               <div className="service-card-tag">
-
                 {service.tag}
-
               </div>
-
 
               <div className="service-card-info">
 
@@ -839,7 +806,6 @@ export default function HomePage() {
                 <p>
                   {service.description}
                 </p>
-
 
                 <div className="service-card-bottom">
 
@@ -862,7 +828,6 @@ export default function HomePage() {
         </div>
 
       </section>
-
 
       {/* =========================
           BENEFICIOS
@@ -891,7 +856,6 @@ export default function HomePage() {
 
         </div>
 
-
         <div className="benefit">
 
           <span>
@@ -911,7 +875,6 @@ export default function HomePage() {
           </div>
 
         </div>
-
 
         <div className="benefit">
 
@@ -936,7 +899,6 @@ export default function HomePage() {
 
       </section>
 
-
       {/* =========================
           FOOTER
       ========================== */}
@@ -947,12 +909,10 @@ export default function HomePage() {
           STORE GAMING
         </div>
 
-
         <p>
           TU MEJOR OPCIÓN PARA
           RECARGAS GAMING
         </p>
-
 
         <small>
           © 2026 STORE GAMING
@@ -962,4 +922,4 @@ export default function HomePage() {
 
     </main>
   );
-          }
+    }
