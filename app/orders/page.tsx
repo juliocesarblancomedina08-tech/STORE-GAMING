@@ -58,7 +58,8 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<Filter>("TODAS");
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] =
+    useState<Order | null>(null);
 
   /*
    * ============================================================
@@ -135,23 +136,29 @@ export default function OrdersPage() {
 
         const rows = (data || []) as TopupOrderRow[];
 
-        const mappedOrders: Order[] = rows.map((row) => ({
-          id: row.id,
-          user_id: row.user_id,
-          email: row.email || undefined,
-          username: row.username || undefined,
-          game: row.game,
-          product: row.offer_name,
-          displayProduct: row.offer_name,
-          price: Number(row.retail_price) || 0,
-          total: Number(row.retail_price) || 0,
-          playerId: row.player_id,
-          status: row.status,
-          createdAt: row.created_at,
-          supplierOrderId:
-            row.supplier_order_id || undefined,
-          currency: row.currency || "USD",
-        }));
+        const mappedOrders: Order[] = rows.map(
+          (row) => ({
+            id: row.id,
+            user_id: row.user_id,
+            email: row.email || undefined,
+            username: row.username || undefined,
+            game: row.game,
+            product: row.offer_name,
+            displayProduct: row.offer_name,
+            price:
+              Number(row.retail_price) || 0,
+            total:
+              Number(row.retail_price) || 0,
+            playerId: row.player_id,
+            status: row.status,
+            createdAt: row.created_at,
+            supplierOrderId:
+              row.supplier_order_id ||
+              undefined,
+            currency:
+              row.currency || "USD",
+          })
+        );
 
         if (mounted) {
           setOrders(mappedOrders);
@@ -239,18 +246,26 @@ export default function OrdersPage() {
     }
 
     if (isCancelled(status)) {
-      if (status.toUpperCase() === "REFUNDED") {
+      if (
+        status.toUpperCase() === "REFUNDED"
+      ) {
         return "REEMBOLSADA";
       }
 
       return "CANCELADA";
     }
 
-    if (status.toUpperCase() === "SUPPLIER_PENDING") {
+    if (
+      status.toUpperCase() ===
+      "SUPPLIER_PENDING"
+    ) {
       return "PROCESANDO";
     }
 
-    if (status.toUpperCase() === "REFUND_PENDING") {
+    if (
+      status.toUpperCase() ===
+      "REFUND_PENDING"
+    ) {
       return "REEMBOLSO PENDIENTE";
     }
 
@@ -260,7 +275,10 @@ export default function OrdersPage() {
   function getGameIcon(game: string) {
     const normalized = game.toLowerCase();
 
-    if (normalized.includes("free") && normalized.includes("fire")) {
+    if (
+      normalized.includes("free") &&
+      normalized.includes("fire")
+    ) {
       return "🔥";
     }
 
@@ -268,11 +286,18 @@ export default function OrdersPage() {
       return "🔫";
     }
 
-    if (normalized.includes("call") || normalized.includes("cod")) {
+    if (
+      normalized.includes("call") ||
+      normalized.includes("cod")
+    ) {
       return "🎯";
     }
 
-    if (normalized.includes("mobile legends")) {
+    if (
+      normalized.includes(
+        "mobile legends"
+      )
+    ) {
       return "⚔️";
     }
 
@@ -280,18 +305,40 @@ export default function OrdersPage() {
       return "🪂";
     }
 
+    if (
+      normalized.includes("telegram")
+    ) {
+      return "⭐";
+    }
+
+    if (
+      normalized.includes("ea") ||
+      normalized.includes("fc mobile")
+    ) {
+      return "⚽";
+    }
+
+    if (
+      normalized.includes("delta")
+    ) {
+      return "🎯";
+    }
+
     return "🎮";
   }
 
   function formatDate(date: string) {
     try {
-      return new Date(date).toLocaleString("es-ES", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return new Date(date).toLocaleString(
+        "es-ES",
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      );
     } catch {
       return date;
     }
@@ -337,16 +384,28 @@ export default function OrdersPage() {
 
   const totalOrders = orders.length;
 
-  const completedOrders = orders.filter((order) =>
-    isCompleted(order.status)
+  const totalAmount = orders.reduce(
+    (sum, order) =>
+      sum +
+      (Number(order.total) ||
+        Number(order.price) ||
+        0),
+    0
+  );
+
+  const completedOrders = orders.filter(
+    (order) =>
+      isCompleted(order.status)
   ).length;
 
-  const pendingOrders = orders.filter((order) =>
-    isPending(order.status)
+  const pendingOrders = orders.filter(
+    (order) =>
+      isPending(order.status)
   ).length;
 
-  const cancelledOrders = orders.filter((order) =>
-    isCancelled(order.status)
+  const cancelledOrders = orders.filter(
+    (order) =>
+      isCancelled(order.status)
   ).length;
 
   /*
@@ -414,9 +473,7 @@ export default function OrdersPage() {
         </button>
 
         <div className="orders-header-title">
-          <span>
-            🛒
-          </span>
+          <span>🛒</span>
 
           <strong>
             MIS ÓRDENES
@@ -433,19 +490,40 @@ export default function OrdersPage() {
 
       <section className="orders-hero">
 
-        <div className="orders-hero-icon">
-          📦
-        </div>
+        <div className="orders-hero-glow" />
 
-        <div>
+        <div className="orders-hero-content">
+
+          <span className="orders-hero-label">
+            STORE GAMING
+          </span>
+
           <h1>
-            HISTORIAL DE ÓRDENES
+            HISTORIAL
+            <strong>DE ÓRDENES</strong>
           </h1>
 
           <p>
-            Aquí puedes consultar todas tus
-            compras y el estado de cada pedido.
+            Consulta tus compras, productos
+            y el estado de cada pedido.
           </p>
+
+        </div>
+
+        <div className="orders-total-box">
+
+          <span>
+            PEDIDOS
+          </span>
+
+          <strong>
+            {totalOrders}
+          </strong>
+
+          <small>
+            REGISTRADOS
+          </small>
+
         </div>
 
       </section>
@@ -467,7 +545,55 @@ export default function OrdersPage() {
           </strong>
 
           <small>
+            PEDIDOS
+          </small>
+
+        </div>
+
+        <div className="orders-stat-card">
+
+          <span className="orders-stat-icon">
+            💵
+          </span>
+
+          <strong>
+            ${totalAmount.toFixed(2)}
+          </strong>
+
+          <small>
             TOTAL
+          </small>
+
+        </div>
+
+        <div className="orders-stat-card">
+
+          <span className="orders-stat-icon">
+            ✅
+          </span>
+
+          <strong>
+            {completedOrders}
+          </strong>
+
+          <small>
+            COMPLETADOS
+          </small>
+
+        </div>
+
+        <div className="orders-stat-card">
+
+          <span className="orders-stat-icon">
+            ❌
+          </span>
+
+          <strong>
+            {cancelledOrders}
+          </strong>
+
+          <small>
+            CANCELADOS
           </small>
 
         </div>
@@ -488,38 +614,6 @@ export default function OrdersPage() {
 
         </div>
 
-        <div className="orders-stat-card">
-
-          <span className="orders-stat-icon">
-            ✅
-          </span>
-
-          <strong>
-            {completedOrders}
-          </strong>
-
-          <small>
-            COMPLETADAS
-          </small>
-
-        </div>
-
-        <div className="orders-stat-card">
-
-          <span className="orders-stat-icon">
-            ❌
-          </span>
-
-          <strong>
-            {cancelledOrders}
-          </strong>
-
-          <small>
-            CANCELADAS
-          </small>
-
-        </div>
-
       </section>
 
       {/* ======================================================
@@ -535,7 +629,9 @@ export default function OrdersPage() {
               ? "orders-filter active"
               : "orders-filter"
           }
-          onClick={() => setFilter("TODAS")}
+          onClick={() =>
+            setFilter("TODAS")
+          }
         >
           TODAS
         </button>
@@ -547,7 +643,9 @@ export default function OrdersPage() {
               ? "orders-filter active"
               : "orders-filter"
           }
-          onClick={() => setFilter("PENDIENTES")}
+          onClick={() =>
+            setFilter("PENDIENTES")
+          }
         >
           PENDIENTES
         </button>
@@ -559,7 +657,9 @@ export default function OrdersPage() {
               ? "orders-filter active"
               : "orders-filter"
           }
-          onClick={() => setFilter("COMPLETADAS")}
+          onClick={() =>
+            setFilter("COMPLETADAS")
+          }
         >
           COMPLETADAS
         </button>
@@ -571,7 +671,9 @@ export default function OrdersPage() {
               ? "orders-filter active"
               : "orders-filter"
           }
-          onClick={() => setFilter("CANCELADAS")}
+          onClick={() =>
+            setFilter("CANCELADAS")
+          }
         >
           CANCELADAS
         </button>
@@ -587,9 +689,7 @@ export default function OrdersPage() {
         <div className="orders-section-title">
 
           <div>
-            <span>
-              📋
-            </span>
+            <span>📋</span>
 
             <strong>
               HISTORIAL
@@ -618,14 +718,16 @@ export default function OrdersPage() {
             </strong>
 
             <p>
-              No encontramos órdenes en esta
-              categoría.
+              No encontramos órdenes en
+              esta categoría.
             </p>
 
             {filter !== "TODAS" && (
               <button
                 type="button"
-                onClick={() => setFilter("TODAS")}
+                onClick={() =>
+                  setFilter("TODAS")
+                }
               >
                 VER TODAS LAS ÓRDENES
               </button>
@@ -637,70 +739,80 @@ export default function OrdersPage() {
 
           <div className="orders-list">
 
-            {filteredOrders.map((order) => (
+            {filteredOrders.map(
+              (order) => (
 
-              <button
-                key={order.id}
-                type="button"
-                className="order-card"
-                onClick={() => openOrder(order)}
-              >
+                <button
+                  key={order.id}
+                  type="button"
+                  className="order-card"
+                  onClick={() =>
+                    openOrder(order)
+                  }
+                >
 
-                <div className="order-card-left">
+                  <div className="order-card-left">
 
-                  <div className="order-game-icon">
-                    {getGameIcon(order.game)}
+                    <div className="order-game-icon">
+                      {getGameIcon(
+                        order.game
+                      )}
+                    </div>
+
+                    <div className="order-card-info">
+
+                      <strong>
+                        {order.displayProduct ||
+                          order.product}
+                      </strong>
+
+                      <span>
+                        {order.game}
+                      </span>
+
+                      <small>
+                        ID: {order.playerId}
+                      </small>
+
+                      <small>
+                        {formatDate(
+                          order.createdAt
+                        )}
+                      </small>
+
+                    </div>
+
                   </div>
 
-                  <div className="order-card-info">
+                  <div className="order-card-right">
 
                     <strong>
-                      {order.displayProduct ||
-                        order.product}
+                      $
+                      {order.price.toFixed(
+                        2
+                      )}
                     </strong>
 
-                    <span>
-                      {order.game}
+                    <span
+                      className={getStatusClass(
+                        order.status
+                      )}
+                    >
+                      {getStatusText(
+                        order.status
+                      )}
                     </span>
 
-                    <small>
-                      ID: {order.playerId}
-                    </small>
-
-                    <small>
-                      {formatDate(order.createdAt)}
-                    </small>
+                    <span className="order-card-arrow">
+                      ›
+                    </span>
 
                   </div>
 
-                </div>
+                </button>
 
-                <div className="order-card-right">
-
-                  <strong>
-                    $
-                    {order.price.toFixed(2)}
-                  </strong>
-
-                  <span
-                    className={getStatusClass(
-                      order.status
-                    )}
-                  >
-                    {getStatusText(
-                      order.status
-                    )}
-                  </span>
-
-                  <span className="order-card-arrow">
-                    ›
-                  </span>
-
-                </div>
-
-              </button>
-
-            ))}
+              )
+            )}
 
           </div>
 
@@ -748,7 +860,8 @@ export default function OrdersPage() {
         </strong>
 
         <span>
-          TU MEJOR OPCIÓN PARA RECARGAS GAMING
+          TU MEJOR OPCIÓN PARA
+          RECARGAS GAMING
         </span>
 
       </footer>
@@ -764,12 +877,16 @@ export default function OrdersPage() {
         >
           <div
             className="order-detail-modal"
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event) =>
+              event.stopPropagation()
+            }
           >
             <div className="order-detail-header">
               <div>
                 <span>
-                  {getGameIcon(selectedOrder.game)}
+                  {getGameIcon(
+                    selectedOrder.game
+                  )}
                 </span>
 
                 <div>
@@ -805,6 +922,7 @@ export default function OrdersPage() {
             </div>
 
             <div className="order-detail-content">
+
               <div className="order-detail-row">
                 <span>
                   🎮 Juego
@@ -890,6 +1008,7 @@ export default function OrdersPage() {
                   </strong>
                 </div>
               )}
+
             </div>
 
             <button
@@ -902,6 +1021,7 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
     </main>
   );
 }
