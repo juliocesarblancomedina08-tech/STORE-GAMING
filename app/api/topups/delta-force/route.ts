@@ -375,9 +375,8 @@ export async function POST(
      */
 
     const {
-      data: existingOrderData,
-      error:
-        existingOrderError,
+      data: existingOrderRaw,
+      error: existingOrderError,
     } =
       await supabaseAdmin
         .from("topup_orders")
@@ -399,6 +398,39 @@ export async function POST(
         )
         .maybeSingle();
 
+    /*
+     * FIX:
+     * Supabase puede inferir incorrectamente el tipo
+     * de existingOrderData. Definimos explícitamente
+     * la estructura esperada.
+     */
+
+    const existingOrderData =
+      existingOrderRaw as
+        | {
+            id: string;
+            status: string | null;
+            supplier_order_id:
+              | string
+              | null;
+            offer_id:
+              | string
+              | null;
+            offer_name:
+              | string
+              | null;
+            player_id:
+              | string
+              | null;
+            retail_price:
+              | number
+              | null;
+            supplier_price:
+              | number
+              | null;
+          }
+        | null;
+
     if (existingOrderError) {
       console.error(
         "ERROR BUSCANDO IDEMPOTENCIA:",
@@ -414,21 +446,30 @@ export async function POST(
     if (existingOrderData) {
       return NextResponse.json({
         ok: true,
+
         alreadyCreated: true,
+
         orderNumber:
           existingOrderData.id,
+
         supplierOrderId:
           existingOrderData.supplier_order_id,
+
         status:
           existingOrderData.status,
+
         offerId:
           existingOrderData.offer_id,
+
         offerName:
           existingOrderData.offer_name,
+
         playerId:
           existingOrderData.player_id,
+
         retailPrice:
           existingOrderData.retail_price,
+
         supplierPrice:
           existingOrderData.supplier_price,
       });
@@ -482,8 +523,7 @@ export async function POST(
 
     const {
       data: insertedOrder,
-      error:
-        insertOrderError,
+      error: insertOrderError,
     } =
       await supabaseAdmin
         .from("topup_orders")
@@ -565,8 +605,7 @@ export async function POST(
      */
 
     const {
-      error:
-        reserveError,
+      error: reserveError,
     } =
       await supabaseAdmin.rpc(
         "reserve_topup_balance",
@@ -824,8 +863,7 @@ export async function POST(
       );
 
       const {
-        error:
-          refundError,
+        error: refundError,
       } =
         await supabaseAdmin.rpc(
           "refund_topup_balance",
@@ -966,120 +1004,126 @@ export async function POST(
     }
 
     /*
-     * ============================================================
-     * 15. ACTUALIZAR ORDEN
-     * ============================================================
-     */
+ * ============================================================
+ * 15. ACTUALIZAR ORDEN
+ * ============================================================
+ */
 
-    const {
-      error:
-        updateError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          supplier_order_id:
-            supplierOrderId,
-
-          status:
-            internalStatus,
-
-          supplier_response:
-            supplierData,
-
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          internalOrderId
-        );
-
-    if (updateError) {
-      console.error(
-        "ERROR ACTUALIZANDO ORDEN:",
-        updateError
-      );
-
-      return jsonError(
-        "La recarga fue enviada pero no se pudo actualizar la orden.",
-        500
-      );
-    }
-
-    reserved = false;
-
-    /*
-     * ============================================================
-     * 16. RESPUESTA FINAL
-     * ============================================================
-     */
-
-   return NextResponse.json({
-      ok: true,
-
-      orderNumber:
-        internalOrderId,
-
-      supplierOrderId,
+const {
+  error: updateError,
+} =
+  await supabaseAdmin
+    .from("topup_orders")
+    .update({
+      supplier_order_id:
+        supplierOrderId,
 
       status:
         internalStatus,
 
-      supplierStatus,
-
-      offerId:
-        offer.id,
-
-      offerName:
-        offer.name,
-
-      playerId,
-
-      retailPrice,
-
-      supplierPrice,
-
-      supplierResponse:
+      supplier_response:
         supplierData,
-    });
-  } catch (error) {
-    console.error(
-      "ERROR GENERAL DELTA FORCE:",
-      error
+
+      updated_at:
+        new Date().toISOString(),
+    })
+    .eq(
+      "id",
+      internalOrderId
     );
 
-    /*
-     * Si algo falla antes de conocer si FazerCards
-     * recibió la petición, NO hacemos reembolso automático.
-     */
+if (updateError) {
+  console.error(
+    "ERROR ACTUALIZANDO ORDEN:",
+    updateError
+  );
 
-    if (internalOrderId) {
-      await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          status:
-            reserved
-              ? "SUPPLIER_PENDING"
-              : "FAILED",
+  return jsonError(
+    "La recarga fue enviada pero no se pudo actualizar la orden.",
+    500
+  );
+}
 
-          supplier_response: {
-            error:
-              "INTERNAL_SERVER_ERROR",
-          },
+reserved = false;
 
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          internalOrderId
-        );
-    }
+/*
+ * ============================================================
+ * 16. RESPUESTA FINAL
+ * ============================================================
+ */
 
-    return jsonError(
-      "Ocurrió un error procesando la orden.",
-      500
-    );
+return NextResponse.json({
+  ok: true,
+
+  orderNumber:
+    internalOrderId,
+
+  supplierOrderId,
+
+  status:
+    internalStatus,
+
+  supplierStatus,
+
+  offerId:
+    offer.id,
+
+  offerName:
+    offer.name,
+
+  playerId,
+
+  retailPrice,
+
+  supplierPrice,
+
+  supplierResponse:
+    supplierData,
+});
+
+/*
+ * ============================================================
+ * FIN DEL POST
+ * ============================================================
+ */
+
+} catch (error) {
+  console.error(
+    "ERROR GENERAL DELTA FORCE:",
+    error
+  );
+
+  /*
+   * Si algo falla después de crear la orden,
+   * no hacemos un reembolso automático porque
+   * FazerCards podría haber recibido la solicitud.
+   */
+
+  if (internalOrderId) {
+    await supabaseAdmin
+      .from("topup_orders")
+      .update({
+        status:
+          reserved
+            ? "SUPPLIER_PENDING"
+            : "FAILED",
+
+        supplier_response: {
+          error:
+            "INTERNAL_SERVER_ERROR",
+        },
+
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        internalOrderId
+      );
   }
+
+  return jsonError(
+    "Ocurrió un error procesando la orden.",
+    500
+  );
 }
