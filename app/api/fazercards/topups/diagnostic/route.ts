@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
-import { FazerCardsClient } from "fazercards";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const API_BASE =
+const FAZERCARDS_API =
   process.env.FAZERCARDS_API_URL ||
   "https://api.fzr.cards/api/v2";
 
 const API_KEY =
   process.env.FAZERCARDS_API_KEY;
 
-function errorMessage(error: unknown): string {
+function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
@@ -27,57 +26,7 @@ function errorMessage(error: unknown): string {
   }
 }
 
-function errorStatus(error: unknown): number | null {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "status" in error
-  ) {
-    const value = (error as { status?: unknown }).status;
-
-    return typeof value === "number"
-      ? value
-      : null;
-  }
-
-  return null;
-}
-
-function errorCode(error: unknown): string | null {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error
-  ) {
-    const value = (error as { code?: unknown }).code;
-
-    return typeof value === "string"
-      ? value
-      : null;
-  }
-
-  return null;
-}
-
-function errorResponseBody(
-  error: unknown
-): unknown {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "responseBody" in error
-  ) {
-    return (
-      error as {
-        responseBody?: unknown;
-      }
-    ).responseBody;
-  }
-
-  return null;
-}
-
-function detectDdosGuard(
+function isDdosGuard(
   status: number,
   text: string
 ): boolean {
@@ -94,23 +43,21 @@ function detectDdosGuard(
   );
 }
 
-async function restRequest(
+async function testRequest(
+  name: string,
   url: string,
-  headers: HeadersInit
+  headers: Record<string, string>
 ) {
-  const started =
-    Date.now();
+  const started = Date.now();
 
   try {
-    const response =
-      await fetch(url, {
-        method: "GET",
-        headers,
-        cache: "no-store",
-      });
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    });
 
-    const text =
-      await response.text();
+    const text = await response.text();
 
     let json: unknown = null;
 
@@ -121,38 +68,39 @@ async function restRequest(
     }
 
     return {
-      ok: response.ok,
+      test: name,
       status: response.status,
-      contentType:
+      ok: response.ok,
+      duration_ms: Date.now() - started,
+
+      content_type:
         response.headers.get(
           "content-type"
         ),
-      durationMs:
-        Date.now() - started,
-      isJson:
+
+      is_json:
         json !== null,
-      isDdosGuard:
-        detectDdosGuard(
+
+      ddos_guard:
+        isDdosGuard(
           response.status,
           text
         ),
-      data: json,
-      raw:
-        json === null
-          ? text.slice(0, 1500)
-          : undefined,
+
+      response:
+        json !== null
+          ? json
+          : text.slice(0, 2000),
     };
   } catch (error) {
     return {
-      ok: false,
+      test: name,
       status: null,
-      contentType: null,
-      durationMs:
-        Date.now() - started,
-      isJson: false,
-      isDdosGuard: false,
+      ok: false,
+      duration_ms: Date.now() - started,
+
       error:
-        errorMessage(error),
+        getErrorMessage(error),
     };
   }
 }
@@ -160,10 +108,13 @@ async function restRequest(
 export async function GET(
   request: Request
 ) {
-  const started =
-    Date.now();
-
   try {
+    /*
+     * ============================================================
+     * CONFIGURACIÓN
+     * ============================================================
+     */
+
     if (!API_KEY) {
       return NextResponse.json(
         {
@@ -180,11 +131,10 @@ export async function GET(
       new URL(request.url);
 
     /*
-     * Por defecto probamos Delta Force.
+     * Podemos cambiar la categoría desde la URL.
      *
-     * También puedes utilizar:
-     *
-     * ?category_id=eafc_mobile_id
+     * Por defecto:
+     * delta_force
      */
 
     const categoryId =
@@ -193,112 +143,163 @@ export async function GET(
       ) ||
       "delta_force";
 
-    const offersUrl =
-      `${API_BASE}/topups/offers` +
-      `?category_id=${encodeURIComponent(
+    const endpoint =
+      `${FAZERCARDS_API}/topups/offers`;
+
+    const url =
+      `${endpoint}?category_id=${encodeURIComponent(
         categoryId
       )}`;
 
     /*
      * ============================================================
      * PRUEBA 1
-     * REST + X-API-Key
+     *
+     * X-API-Key
      * ============================================================
      */
 
-    const test1 =
-      await restRequest(
-        offersUrl,
+    const xApiKey =
+      await testRequest(
+        "X-API-Key",
+        url,
         {
           "X-API-Key":
             API_KEY,
+
           "Accept":
             "application/json",
+
           "User-Agent":
-            "STORE-GAMING-DIAGNOSTIC/1.0",
+            "STORE-GAMING/1.0",
         }
       );
 
     /*
      * ============================================================
      * PRUEBA 2
-     * REST + Authorization: Bearer
+     *
+     * Authorization Bearer
      * ============================================================
      */
 
-    const test2 =
-      await restRequest(
-        offersUrl,
+    const bearer =
+      await testRequest(
+        "Authorization Bearer",
+        url,
         {
           "Authorization":
             `Bearer ${API_KEY}`,
+
           "Accept":
             "application/json",
+
           "User-Agent":
-            "STORE-GAMING-DIAGNOSTIC/1.0",
+            "STORE-GAMING/1.0",
         }
       );
 
     /*
      * ============================================================
      * PRUEBA 3
-     * SDK OFICIAL
      *
-     * No hacemos ninguna compra.
-     * Solo GET de ofertas.
+     * X-API-Key + headers adicionales
+     *
+     * Esto sirve para descartar que el servidor esté rechazando
+     * una petición demasiado básica.
      * ============================================================
      */
 
-    let test3;
+    const browserLike =
+      await testRequest(
+        "X-API-Key + browser headers",
+        url,
+        {
+          "X-API-Key":
+            API_KEY,
 
-    try {
-      const fz =
-        new FazerCardsClient({
-          apiKey: API_KEY,
-          baseUrl: API_BASE,
-          timeoutMs: 30000,
-          retries: 0,
-          appName:
-            "STORE-GAMING-DIAGNOSTIC/1.0",
-        });
+          "Accept":
+            "application/json,text/plain,*/*",
 
-      const sdkStarted =
-        Date.now();
+          "Accept-Language":
+            "en-US,en;q=0.9",
 
-      const result =
-        await fz.topups.offers(
-          categoryId
-        );
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
 
-      test3 = {
-        ok: true,
-        status: 200,
-        durationMs:
-          Date.now() -
-          sdkStarted,
-        category_id:
-          categoryId,
-        result,
-      };
-    } catch (error) {
-      test3 = {
-        ok: false,
-        status:
-          errorStatus(error),
-        code:
-          errorCode(error),
-        message:
-          errorMessage(error),
-        responseBody:
-          errorResponseBody(
-            error
-          ),
-      };
-    }
+          "Cache-Control":
+            "no-cache",
+
+          "Pragma":
+            "no-cache",
+        }
+      );
 
     /*
      * ============================================================
-     * RESUMEN
+     * PRUEBA 4
+     *
+     * Endpoint con la URL construida mediante URL()
+     *
+     * Es la misma consulta, pero sirve para descartar problemas
+     * de construcción de la URL.
+     * ============================================================
+     */
+
+    const urlObject =
+      new URL(
+        `${FAZERCARDS_API}/topups/offers`
+      );
+
+    urlObject.searchParams.set(
+      "category_id",
+      categoryId
+    );
+
+    const urlBuilder =
+      await testRequest(
+        "URL builder + X-API-Key",
+        urlObject.toString(),
+        {
+          "X-API-Key":
+            API_KEY,
+
+          "Accept":
+            "application/json",
+
+          "User-Agent":
+            "STORE-GAMING/1.0",
+        }
+      );
+
+    /*
+     * ============================================================
+     * ANÁLISIS
+     * ============================================================
+     */
+
+    const tests = [
+      xApiKey,
+      bearer,
+      browserLike,
+      urlBuilder,
+    ];
+
+    const successful =
+      tests.filter(
+        (test) =>
+          test.ok
+      ).length;
+
+    const ddosBlocked =
+      tests.filter(
+        (test) =>
+          test.ddos_guard === true
+      ).length;
+
+    /*
+     * ============================================================
+     * RESULTADO
      * ============================================================
      */
 
@@ -307,47 +308,45 @@ export async function GET(
 
       diagnostic: true,
 
+      supplier:
+        "FazerCards",
+
       category_id:
         categoryId,
 
-      endpoint:
-        "/topups/offers",
+      endpoint,
 
-      url:
-        offersUrl,
+      requested_url:
+        url,
 
-      elapsedMs:
-        Date.now() - started,
+      total_tests:
+        tests.length,
+
+      successful_tests:
+        successful,
+
+      ddos_guard_tests:
+        ddosBlocked,
+
+      conclusion:
+        successful > 0
+          ? "Al menos una forma de consulta respondió correctamente."
+          : ddosBlocked === tests.length
+            ? "Todas las pruebas fueron bloqueadas por DDoS-Guard."
+            : "Ninguna prueba obtuvo una respuesta correcta; revisar los resultados individuales.",
 
       tests: {
-        rest_x_api_key: test1,
+        x_api_key:
+          xApiKey,
 
-        rest_bearer: test2,
+        authorization_bearer:
+          bearer,
 
-        official_sdk: test3,
-      },
+        browser_headers:
+          browserLike,
 
-      interpretation: {
-        rest_x_api_key:
-          test1.ok
-            ? "RESPONDE"
-            : test1.isDdosGuard
-              ? "403 DDOS-GUARD"
-              : "ERROR",
-
-        rest_bearer:
-          test2.ok
-            ? "RESPONDE"
-            : test2.isDdosGuard
-              ? "403 DDOS-GUARD"
-              : "ERROR",
-
-        official_sdk:
-          test3.ok
-            ? "RESPONDE"
-            : test3.status === 403
-              ? "403 / AUTH O PROTECCIÓN"
-              : "ERROR",
+        url_builder:
+          urlBuilder,
       },
     });
   } catch (error) {
@@ -359,11 +358,14 @@ export async function GET(
     return NextResponse.json(
       {
         ok: false,
-        step: "diagnostic",
+
+        step:
+          "diagnostic",
+
         error:
-          errorMessage(error),
+          getErrorMessage(error),
       },
       { status: 500 }
     );
   }
-    }
+      }
