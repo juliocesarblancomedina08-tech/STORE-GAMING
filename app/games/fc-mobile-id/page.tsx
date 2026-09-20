@@ -3,60 +3,14 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const offers = [
-  {
-    id: "fc-40",
-    name: "40 PUNTOS FC / 39 PLATA",
-    display: "40 PUNTOS FC",
-    price: 0.45,
-    icon: "⚽",
-  },
-  {
-    id: "fc-100",
-    name: "100 PUNTOS FC / 99 PLATA",
-    display: "100 PUNTOS FC",
-    price: 0.97,
-    icon: "⚽",
-  },
-  {
-    id: "fc-520",
-    name: "520 PUNTOS FC / 499 PLATA",
-    display: "520 PUNTOS FC",
-    price: 4.36,
-    icon: "⚽",
-  },
-  {
-    id: "fc-1070",
-    name: "1070 PUNTOS FC / 999 PLATA",
-    display: "1070 PUNTOS FC",
-    price: 8.67,
-    icon: "⚽",
-  },
-  {
-    id: "fc-2200",
-    name: "2200 PUNTOS FC / 1999 PLATA",
-    display: "2200 PUNTOS FC",
-    price: 17.83,
-    icon: "⚽",
-  },
-  {
-    id: "fc-5750",
-    name: "5750 PUNTOS FC / 4999 PLATA",
-    display: "5750 PUNTOS FC",
-    price: 43.17,
-    icon: "⚽",
-  },
-  {
-    id: "fc-12000",
-    name: "12000 PUNTOS FC / 9999 PLATA",
-    display: "12000 PUNTOS FC",
-    price: 86.30,
-    icon: "⚽",
-  },
-];
+import {
+  fcMobileIdGame,
+  FcMobileIdOffer,
+} from "@/lib/games/fc-mobile-id";
 
-const gameNote =
-  "Región: Indonesia. Recarga móvil de EA Sports FC. Introduce tu ID de jugador antes de realizar el pedido. Asegúrate de que tu cuenta de EA esté registrada en Indonesia; los códigos están restringidos por región. El producto seleccionado se entregará directamente a tu cuenta una vez realizado el pedido.";
+const offers = fcMobileIdGame.offers;
+
+const gameNote = fcMobileIdGame.note;
 
 export default function FcMobileIdPage() {
   const router = useRouter();
@@ -64,7 +18,7 @@ export default function FcMobileIdPage() {
   const [showOffers, setShowOffers] = useState(false);
 
   const [selectedOffer, setSelectedOffer] =
-    useState<(typeof offers)[number] | null>(null);
+    useState<FcMobileIdOffer | null>(null);
 
   const [playerId, setPlayerId] = useState("");
 
@@ -81,9 +35,7 @@ export default function FcMobileIdPage() {
   const [orderNumber, setOrderNumber] =
     useState("");
 
-  function selectOffer(
-    offer: (typeof offers)[number]
-  ) {
+  function selectOffer(offer: FcMobileIdOffer) {
     setSelectedOffer(offer);
     setPlayerId("");
     setQuantity(1);
@@ -161,25 +113,50 @@ export default function FcMobileIdPage() {
 
     const order = {
       id: generatedNumber,
+
       game: "FC MOBILE (ID)",
+
       product: selectedOffer.name,
-      displayProduct: selectedOffer.display,
+
+      displayProduct:
+        selectedOffer.display,
+
+      offerId:
+        selectedOffer.id,
+
+      categoryId:
+        fcMobileIdGame.categoryId,
+
       price: total,
-      unitPrice: selectedOffer.price,
+
+      unitPrice:
+        selectedOffer.price,
+
+      supplierPrice:
+        selectedOffer.supplierPrice,
+
       quantity,
-      playerId: playerId.trim(),
+
+      playerId:
+        playerId.trim(),
+
       status: "Pendiente",
-      createdAt: new Date().toISOString(),
+
+      createdAt:
+        new Date().toISOString(),
     };
 
     const existingOrders =
-      localStorage.getItem("storeGamingOrders");
+      localStorage.getItem(
+        "storeGamingOrders"
+      );
 
     let orders: any[] = [];
 
     if (existingOrders) {
       try {
-        const parsed = JSON.parse(existingOrders);
+        const parsed =
+          JSON.parse(existingOrders);
 
         if (Array.isArray(parsed)) {
           orders = parsed;
@@ -201,12 +178,17 @@ export default function FcMobileIdPage() {
       JSON.stringify(order)
     );
 
-    setOrderNumber(generatedNumber);
+    setOrderNumber(
+      generatedNumber
+    );
+
     setOrderCreated(true);
 
     setTimeout(() => {
       document
-        .getElementById("success-section")
+        .getElementById(
+          "success-section"
+        )
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -230,7 +212,9 @@ export default function FcMobileIdPage() {
         <button
           type="button"
           className="game-back-button"
-          onClick={() => router.push("/top-up")}
+          onClick={() =>
+            router.push("/top-up")
+          }
         >
           ←
         </button>
@@ -250,7 +234,9 @@ export default function FcMobileIdPage() {
         <button
           type="button"
           className="game-cart-button"
-          onClick={() => router.push("/cart")}
+          onClick={() =>
+            router.push("/cart")
+          }
         >
           🛒
         </button>
@@ -293,12 +279,15 @@ export default function FcMobileIdPage() {
         type="button"
         className="offers-toggle"
         onClick={() =>
-          setShowOffers((current) => !current)
+          setShowOffers(
+            (current) => !current
+          )
         }
       >
 
         <span className="offers-toggle-text">
           ✎
+
           <strong>
             PRESIONE PARA VER OFERTAS
           </strong>
@@ -337,14 +326,17 @@ export default function FcMobileIdPage() {
             {offers.map((offer) => {
 
               const selected =
-                selectedOffer?.id === offer.id;
+                selectedOffer?.id ===
+                offer.id;
 
               return (
                 <button
                   key={offer.id}
                   type="button"
                   className={`offer-card ${
-                    selected ? "selected" : ""
+                    selected
+                      ? "selected"
+                      : ""
                   }`}
                   onClick={() =>
                     selectOffer(offer)
@@ -498,7 +490,9 @@ export default function FcMobileIdPage() {
 
               <button
                 type="button"
-                onClick={decreaseQuantity}
+                onClick={
+                  decreaseQuantity
+                }
               >
                 −
               </button>
@@ -509,7 +503,9 @@ export default function FcMobileIdPage() {
 
               <button
                 type="button"
-                onClick={increaseQuantity}
+                onClick={
+                  increaseQuantity
+                }
               >
                 +
               </button>
@@ -520,7 +516,9 @@ export default function FcMobileIdPage() {
 
 
           <form
-            onSubmit={handleFinishPurchase}
+            onSubmit={
+              handleFinishPurchase
+            }
             className="order-form"
           >
 
@@ -566,9 +564,11 @@ export default function FcMobileIdPage() {
 
 
             {error && (
+
               <div className="order-error">
                 {error}
               </div>
+
             )}
 
 
@@ -589,6 +589,7 @@ export default function FcMobileIdPage() {
               type="submit"
               className="finish-order-button"
             >
+
               <span>
                 FINALIZAR COMPRA
               </span>
@@ -596,6 +597,7 @@ export default function FcMobileIdPage() {
               <b>
                 →
               </b>
+
             </button>
 
           </form>
@@ -767,11 +769,13 @@ export default function FcMobileIdPage() {
             className="view-orders-button"
             onClick={goToOrders}
           >
+
             VER MIS ÓRDENES
 
             <span>
               →
             </span>
+
           </button>
 
         </section>
