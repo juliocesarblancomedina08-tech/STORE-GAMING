@@ -4,71 +4,46 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  fcMobileIdGame,
+  FC_MOBILE_ID,
   FcMobileIdOffer,
 } from "@/lib/games/fc-mobile-id";
-
-const offers = fcMobileIdGame.offers;
-
-const gameNote = fcMobileIdGame.note;
 
 export default function FcMobileIdPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
+  const offers = FC_MOBILE_ID.offers;
+  const gameNote = FC_MOBILE_ID.note;
 
+  const [showOffers, setShowOffers] = useState(false);
   const [selectedOffer, setSelectedOffer] =
     useState<FcMobileIdOffer | null>(null);
 
   const [playerId, setPlayerId] = useState("");
-
   const [quantity, setQuantity] = useState(1);
 
   const [error, setError] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const [showConfirmation, setShowConfirmation] =
-    useState(false);
-
-  const [orderCreated, setOrderCreated] =
-    useState(false);
-
-  const [orderNumber, setOrderNumber] =
-    useState("");
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
 
   function selectOffer(offer: FcMobileIdOffer) {
     setSelectedOffer(offer);
-    setPlayerId("");
     setQuantity(1);
     setError("");
     setShowConfirmation(false);
     setOrderCreated(false);
-    setOrderNumber("");
-
-    setTimeout(() => {
-      document
-        .getElementById("order-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
   }
 
   function decreaseQuantity() {
-    setQuantity((current) =>
-      Math.max(1, current - 1)
-    );
+    setQuantity((current) => Math.max(1, current - 1));
   }
 
   function increaseQuantity() {
-    setQuantity((current) =>
-      current + 1
-    );
+    setQuantity((current) => Math.min(10, current + 1));
   }
 
-  function handleFinishPurchase(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  function handleFinishPurchase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
@@ -78,279 +53,217 @@ export default function FcMobileIdPage() {
       return;
     }
 
-    const cleanId = playerId.trim();
-
-    if (!cleanId) {
-      setError("Ponga el ID de su cuenta.");
+    if (!playerId.trim()) {
+      setError("Introduzca el ID del jugador.");
       return;
     }
 
-    if (cleanId.length < 4) {
-      setError("El ID parece demasiado corto.");
+    if (!/^\d+$/.test(playerId.trim())) {
+      setError("El ID del jugador debe contener solamente números.");
+      return;
+    }
+
+    if (playerId.trim().length < 4) {
+      setError("El ID del jugador no es válido.");
       return;
     }
 
     setShowConfirmation(true);
-
-    setTimeout(() => {
-      document
-        .getElementById("confirmation-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
   }
 
-  function createOrder() {
-    if (!selectedOffer) return;
-
-    const generatedNumber =
-      `FC-${Date.now().toString().slice(-8)}`;
-
-    const total =
-      selectedOffer.price * quantity;
-
-    const order = {
-      id: generatedNumber,
-
-      game: "FC MOBILE (ID)",
-
-      product: selectedOffer.name,
-
-      displayProduct:
-        selectedOffer.display,
-
-      offerId:
-        selectedOffer.id,
-
-      categoryId:
-        fcMobileIdGame.categoryId,
-
-      price: total,
-
-      unitPrice:
-        selectedOffer.price,
-
-      supplierPrice:
-        selectedOffer.supplierPrice,
-
-      quantity,
-
-      playerId:
-        playerId.trim(),
-
-      status: "Pendiente",
-
-      createdAt:
-        new Date().toISOString(),
-    };
-
-    const existingOrders =
-      localStorage.getItem(
-        "storeGamingOrders"
-      );
-
-    let orders: any[] = [];
-
-    if (existingOrders) {
-      try {
-        const parsed =
-          JSON.parse(existingOrders);
-
-        if (Array.isArray(parsed)) {
-          orders = parsed;
-        }
-      } catch {
-        orders = [];
-      }
+  async function createOrder() {
+    if (!selectedOffer) {
+      setError("Seleccione una oferta.");
+      return;
     }
 
-    orders.unshift(order);
+    try {
+      setError("");
 
-    localStorage.setItem(
-      "storeGamingOrders",
-      JSON.stringify(orders)
-    );
+      const idempotencyKey = `fc-mobile-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}`;
 
-    localStorage.setItem(
-      "storeGamingLastOrder",
-      JSON.stringify(order)
-    );
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("supabase_access_token")
+          : null;
 
-    setOrderNumber(
-      generatedNumber
-    );
+      if (!token) {
+        setError(
+          "Su sesión no está disponible. Inicie sesión nuevamente."
+        );
+        return;
+      }
 
-    setOrderCreated(true);
+      const response = await fetch(
+        "/api/topups/fc-mobile-id",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            offerId: selectedOffer.supplierOfferId,
+            offerName: selectedOffer.name,
+            playerId: playerId.trim(),
+            retailPrice: selectedOffer.price,
+            quantity,
+            idempotencyKey,
+          }),
+        }
+      );
 
-    setTimeout(() => {
-      document
-        .getElementById(
-          "success-section"
-        )
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || "No se pudo crear la orden."
+        );
+      }
+
+      const generatedOrderNumber =
+        data.orderId ||
+        `FC-${Date.now().toString().slice(-8)}`;
+
+      const order = {
+        id: generatedOrderNumber,
+        orderNumber: generatedOrderNumber,
+
+        game: FC_MOBILE_ID.game,
+        categoryId: FC_MOBILE_ID.categoryId,
+
+        offerId: selectedOffer.id,
+        supplierOfferId: selectedOffer.supplierOfferId,
+
+        offerName: selectedOffer.name,
+        offerDisplay: selectedOffer.display,
+
+        price: selectedOffer.price,
+        supplierPrice: selectedOffer.supplierPrice,
+
+        quantity,
+
+        playerId: playerId.trim(),
+
+        status: data.status || "SUPPLIER_PENDING",
+
+        supplierOrderId:
+          data.supplierOrderId || null,
+
+        createdAt: new Date().toISOString(),
+      };
+
+      const existingOrders =
+        JSON.parse(
+          localStorage.getItem("orders") || "[]"
+        );
+
+      existingOrders.unshift(order);
+
+      localStorage.setItem(
+        "orders",
+        JSON.stringify(existingOrders)
+      );
+
+      setOrderNumber(generatedOrderNumber);
+      setShowConfirmation(false);
+      setOrderCreated(true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la orden."
+      );
+    }
   }
 
   function goToOrders() {
     router.push("/orders");
   }
 
-  const total = selectedOffer
+  const totalPrice = selectedOffer
     ? selectedOffer.price * quantity
     : 0;
 
   return (
     <main className="game-service-page">
-
       <header className="game-service-header">
-
         <button
           type="button"
           className="game-back-button"
-          onClick={() =>
-            router.push("/top-up")
-          }
+          onClick={() => router.push("/top-up")}
         >
           ←
         </button>
 
-        <div className="game-header-title">
-
-          <span>
-            STORE GAMING
-          </span>
-
-          <strong>
-            FC MOBILE (ID)
-          </strong>
-
-        </div>
+        <h1 className="game-header-title">
+          EAFC MOBILE
+        </h1>
 
         <button
           type="button"
           className="game-cart-button"
-          onClick={() =>
-            router.push("/cart")
-          }
+          onClick={() => router.push("/cart")}
         >
           🛒
         </button>
-
       </header>
 
-
       <section className="free-fire-main-image">
-
         <img
-          src="/images/fc-mobile.jpg"
-          alt="FC Mobile"
+          src={FC_MOBILE_ID.image}
+          alt={FC_MOBILE_ID.game}
         />
 
-        <div className="free-fire-main-overlay" />
-
-        <div className="free-fire-main-text">
-
-          <span>
-            ⚡ TOP UP
-          </span>
-
-          <h1>
-            FC
-            <strong>
-              MOBILE
-            </strong>
-          </h1>
-
-          <p>
-            Puntos FC y plata
-          </p>
-
+        <div className="free-fire-main-overlay">
+          <div className="free-fire-main-text">
+            Bienvenido al servicio TOP UP de EAFC Mobile
+          </div>
         </div>
-
       </section>
-
 
       <button
         type="button"
         className="offers-toggle"
-        onClick={() =>
-          setShowOffers(
-            (current) => !current
-          )
-        }
+        onClick={() => setShowOffers((value) => !value)}
       >
-
-        <span className="offers-toggle-text">
-          ✎
-
-          <strong>
-            PRESIONE PARA VER OFERTAS
-          </strong>
-        </span>
-
         <span className="offers-toggle-pencil">
           ✎
         </span>
 
+        <span className="offers-toggle-text">
+          presione para ver ofertas
+        </span>
       </button>
 
-
       {showOffers && (
-
         <section className="offers-section">
-
-          <div className="offers-heading">
-
-            <div>
-
-              <span>
-                FC MOBILE (ID)
-              </span>
-
-              <h2>
-                ELIGE TU OFERTA
-              </h2>
-
-            </div>
-
-          </div>
-
+          <h2 className="offers-heading">
+            OFERTAS DISPONIBLES
+          </h2>
 
           <div className="offers-list">
-
             {offers.map((offer) => {
-
-              const selected =
-                selectedOffer?.id ===
-                offer.id;
+              const isSelected =
+                selectedOffer?.id === offer.id;
 
               return (
                 <button
-                  key={offer.id}
                   type="button"
+                  key={offer.id}
                   className={`offer-card ${
-                    selected
-                      ? "selected"
-                      : ""
+                    isSelected ? "selected" : ""
                   }`}
-                  onClick={() =>
-                    selectOffer(offer)
-                  }
+                  onClick={() => selectOffer(offer)}
                 >
-
                   <div className="offer-left">
-
                     <div className="diamond-icon">
                       {offer.icon}
                     </div>
 
                     <div className="offer-info">
-
                       <strong>
                         {offer.display}
                       </strong>
@@ -358,385 +271,205 @@ export default function FcMobileIdPage() {
                       <span>
                         {offer.name}
                       </span>
-
                     </div>
-
                   </div>
 
                   <div className="offer-right">
-
-                    <strong>
-                      {offer.price.toFixed(2)}$
-                    </strong>
-
-                    <span>
-                      SELECCIONAR →
-                    </span>
-
+                    {offer.price.toFixed(2)}$
                   </div>
-
                 </button>
               );
             })}
-
           </div>
-
-
-          <div className="game-note">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {gameNote}
-              </p>
-
-            </div>
-
-          </div>
-
         </section>
       )}
 
+      <div className="game-note">
+        {gameNote}
+      </div>
 
-      {selectedOffer && (
-
-        <section
-          id="order-section"
-          className="order-section"
-        >
-
-          <div className="section-title">
-
-            <span>
-              01
-            </span>
-
-            <div>
-
-              <small>
-                TU SELECCIÓN
-              </small>
-
-              <h2>
-                DATOS DEL PEDIDO
-              </h2>
-
-            </div>
-
-          </div>
-
+      {selectedOffer && !orderCreated && (
+        <section className="order-section">
+          <h2 className="section-title">
+            SU ORDEN
+          </h2>
 
           <div className="selected-order-card">
-
             <div className="selected-order-icon">
               {selectedOffer.icon}
             </div>
 
             <div className="selected-order-info">
-
-              <span>
-                FC MOBILE (ID)
-              </span>
-
               <strong>
-                {selectedOffer.name}
+                {selectedOffer.display}
               </strong>
 
+              <span>
+                {selectedOffer.name}
+              </span>
             </div>
 
             <div className="selected-order-price">
               {selectedOffer.price.toFixed(2)}$
             </div>
-
           </div>
 
-
-          <div className="game-note game-note-order">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {gameNote}
-              </p>
-
-            </div>
-
+          <div className="game-note-order">
+            {gameNote}
           </div>
-
 
           <div className="quantity-section">
-
-            <span>
+            <div className="section-title">
               CANTIDAD
-            </span>
+            </div>
 
             <div className="quantity-control">
-
               <button
                 type="button"
-                onClick={
-                  decreaseQuantity
-                }
+                onClick={decreaseQuantity}
               >
                 −
               </button>
 
-              <strong>
-                {quantity}
-              </strong>
+              <span>{quantity}</span>
 
               <button
                 type="button"
-                onClick={
-                  increaseQuantity
-                }
+                onClick={increaseQuantity}
               >
                 +
               </button>
-
             </div>
-
           </div>
 
-
           <form
-            onSubmit={
-              handleFinishPurchase
-            }
             className="order-form"
+            onSubmit={handleFinishPurchase}
           >
-
             <label
-              htmlFor="fc-mobile-player-id"
+              htmlFor="player-id"
               className="player-id-label"
             >
-              PONGA SU ID
+              {FC_MOBILE_ID.playerField.label}
             </label>
 
-            <p className="player-id-description">
-              Introduzca el ID de la cuenta
-              de FC Mobile donde desea
-              recibir la compra.
-            </p>
-
+            <div className="player-id-description">
+              {FC_MOBILE_ID.playerField.description}
+            </div>
 
             <div className="player-id-input-wrapper">
-
-              <span>
-                🆔
-              </span>
-
               <input
-                id="fc-mobile-player-id"
+                id="player-id"
                 type="text"
                 inputMode="numeric"
                 value={playerId}
                 onChange={(event) =>
-                  setPlayerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
-                  )
+                  setPlayerId(event.target.value)
                 }
-                placeholder="Introduzca su ID"
+                placeholder={
+                  FC_MOBILE_ID.playerField.placeholder
+                }
                 autoComplete="off"
-                maxLength={20}
               />
-
             </div>
 
-
             {error && (
-
               <div className="order-error">
                 {error}
               </div>
-
             )}
 
-
             <div className="order-total-preview">
-
               <span>
-                PRECIO TOTAL
+                TOTAL
               </span>
 
               <strong>
-                {total.toFixed(2)}$
+                {totalPrice.toFixed(2)}$
               </strong>
-
             </div>
-
 
             <button
               type="submit"
               className="finish-order-button"
             >
-
-              <span>
-                FINALIZAR COMPRA
-              </span>
-
-              <b>
-                →
-              </b>
-
+              FINALIZAR COMPRA
             </button>
-
           </form>
-
         </section>
       )}
 
+      {showConfirmation && selectedOffer && (
+        <section className="confirmation-section">
+          <div className="confirmation-card">
+            <h2>
+              CONFIRMAR ORDEN
+            </h2>
 
-      {showConfirmation &&
-        selectedOffer &&
-        !orderCreated && (
-
-          <section
-            id="confirmation-section"
-            className="confirmation-section"
-          >
-
-            <div className="section-title">
-
+            <div className="confirmation-row">
               <span>
-                02
+                Producto
               </span>
 
-              <div>
-
-                <small>
-                  CONFIRMAR
-                </small>
-
-                <h2>
-                  REVISE SU ORDEN
-                </h2>
-
-              </div>
-
+              <strong>
+                {selectedOffer.display}
+              </strong>
             </div>
 
+            <div className="confirmation-row">
+              <span>
+                ID del jugador
+              </span>
 
-            <div className="confirmation-card">
-
-              <h3>
-                Usted va a realizar una
-                compra de FC Mobile.
-              </h3>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRODUCTO
-                </span>
-
-                <strong>
-                  {selectedOffer.name}
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  CANTIDAD
-                </span>
-
-                <strong>
-                  {quantity}
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRECIO UNITARIO
-                </span>
-
-                <strong>
-                  {selectedOffer.price.toFixed(2)}$
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRECIO TOTAL
-                </span>
-
-                <strong>
-                  {total.toFixed(2)}$
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  ID DEL JUGADOR
-                </span>
-
-                <strong>
-                  {playerId}
-                </strong>
-
-              </div>
-
-
-              <p className="confirmation-warning">
-                Revise cuidadosamente los
-                datos antes de finalizar la
-                compra.
-              </p>
-
-
-              <button
-                type="button"
-                className="confirm-final-button"
-                onClick={createOrder}
-              >
-                FINALIZAR
-              </button>
-
+              <strong>
+                {playerId}
+              </strong>
             </div>
 
-          </section>
-        )}
+            <div className="confirmation-row">
+              <span>
+                Cantidad
+              </span>
 
+              <strong>
+                {quantity}
+              </strong>
+            </div>
+
+            <div className="confirmation-row">
+              <span>
+                Total
+              </span>
+
+              <strong>
+                {totalPrice.toFixed(2)}$
+              </strong>
+            </div>
+
+            <div className="confirmation-warning">
+              Verifique que el ID del jugador sea
+              correcto antes de continuar.
+            </div>
+
+            {error && (
+              <div className="order-error">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="confirm-final-button"
+              onClick={createOrder}
+            >
+              CONFIRMAR Y COMPRAR
+            </button>
+          </div>
+        </section>
+      )}
 
       {orderCreated && (
-
-        <section
-          id="success-section"
-          className="order-success-section"
-        >
-
+        <section className="order-success-section">
           <div className="success-circle">
             ✓
           </div>
@@ -745,124 +478,35 @@ export default function FcMobileIdPage() {
             ORDEN CREADA
           </h2>
 
-          <p>
-            Su orden ha sido creada
-            correctamente.
-          </p>
-
-
           <div className="success-order-number">
-
-            <span>
-              NÚMERO DE ORDEN
-            </span>
-
-            <strong>
-              #{orderNumber}
-            </strong>
-
+            Orden #{orderNumber}
           </div>
-
 
           <button
             type="button"
             className="view-orders-button"
             onClick={goToOrders}
           >
-
-            VER MIS ÓRDENES
-
-            <span>
-              →
-            </span>
-
+            REVISAR ORDEN
           </button>
-
         </section>
       )}
 
-
-      <section className="service-info">
-
-        <div className="service-info-item">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
-          </div>
-
-        </div>
-
-
-        <div className="service-info-item">
-
-          <span>
-            🔒
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-
-        <div className="service-info-item">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              FC MOBILE (ID)
-            </strong>
-
-            <p>
-              Puntos FC y plata directamente
-              a tu cuenta.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-
       <footer className="game-service-footer">
+        <div className="service-info">
+          <div className="service-info-item">
+            ⚡ Recarga automática
+          </div>
 
-        <strong>
-          🛒STORE GAMING🎮
-        </strong>
+          <div className="service-info-item">
+            🔒 Compra segura
+          </div>
 
-        <span>
-          FC MOBILE (ID) TOP UP
-        </span>
-
+          <div className="service-info-item">
+            🎮 EAFC Mobile
+          </div>
+        </div>6
       </footer>
-
     </main>
   );
-      }
+        }
