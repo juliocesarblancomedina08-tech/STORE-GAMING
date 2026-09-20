@@ -1,166 +1,281 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+const FAZERCARDS_API = "https://api.fzr.cards/api/v2";
 
 export const dynamic = "force-dynamic";
 
-const FAZER_API_BASE =
-  "https://api.fzr.cards/api/v2";
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const apiKey =
-      process.env.FAZERCARDS_API_KEY;
+    const apiKey = process.env.FAZERCARDS_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
         {
           ok: false,
-          error:
-            "FAZERCARDS_API_KEY no está configurada.",
+          error: "FAZERCARDS_API_KEY no está configurada",
         },
         { status: 500 }
       );
     }
 
-    const allCategories: any[] = [];
+    /*
+     * =========================================================
+     * 1. OBTENER CATÁLOGO COMPLETO
+     * =========================================================
+     */
 
     let cursor: string | null = null;
+    let pagesChecked = 0;
+    const allItems: any[] = [];
 
-    while (true) {
-      const params = new URLSearchParams();
+    while (pagesChecked < 50) {
+      pagesChecked++;
 
-      params.set("limit", "100");
+      const url = new URL(`${FAZERCARDS_API}/topups`);
+
+      url.searchParams.set("limit", "50");
 
       if (cursor) {
-        params.set("cursor", cursor);
+        url.searchParams.set("cursor", cursor);
       }
 
-      const response = await fetch(
-        `${FAZER_API_BASE}/topups?${params.toString()}`,
-        {
-          method: "GET",
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          "X-API-Key": apiKey,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
 
-          headers: {
-            "X-API-Key": apiKey,
-            Accept: "application/json",
-          },
-
-          cache: "no-store",
-        }
-      );
-
-      const text =
-        await response.text();
+      const text = await response.text();
 
       let data: any;
 
       try {
-        data = text
-          ? JSON.parse(text)
-          : null;
+        data = text ? JSON.parse(text) : null;
       } catch {
-        data = {
-          raw: text,
-        };
-      }
-
-      if (!response.ok) {
         return NextResponse.json(
           {
             ok: false,
-            supplierStatus:
-              response.status,
-            supplierResponse:
-              data,
+            step: "parse",
+            pages_checked: pagesChecked,
+            supplierStatus: response.status,
+            raw: text,
           },
-          {
-            status:
-              response.status,
-          }
+          { status: response.status }
         );
       }
 
-      const items = Array.isArray(
-        data?.items
-      )
+      if (!response.ok || !data?.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            step: "catalog",
+            pages_checked: pagesChecked,
+            supplierStatus: response.status,
+            supplierResponse: data,
+          },
+          { status: response.status }
+        );
+      }
+
+      const items = Array.isArray(data.items)
         ? data.items
         : [];
 
-      allCategories.push(...items);
+      allItems.push(...items);
 
-      const hasMore =
-        Boolean(
-          data?.meta?.has_more
-        );
-
-      const nextCursor =
-        data?.meta?.next_cursor ??
-        null;
+      const meta = data.meta || {};
 
       if (
-        !hasMore ||
-        !nextCursor
+        !meta.has_more ||
+        !meta.next_cursor
       ) {
         break;
       }
 
-      cursor = nextCursor;
+      cursor = meta.next_cursor;
     }
 
-    const mobileLegends =
-      allCategories.filter(
-        (item) =>
-          String(
-            item?.name ?? ""
-          )
-            .toLowerCase()
-            .includes(
-              "mobile legends"
-            )
+    /*
+     * =========================================================
+     * 2. SI VIENE category_id, BUSCAR ESA CATEGORÍA
+     * =========================================================
+     */
+
+    const requestedCategory =
+      request.nextUrl.searchParams.get(
+        "category_id"
       );
 
-    const bloodStrike =
-      allCategories.filter(
+    if (requestedCategory) {
+      const category = allItems.find(
         (item) =>
-          String(
-            item?.name ?? ""
-          )
+          String(item?.category_id)
+            .trim()
+            .toLowerCase() ===
+          requestedCategory
+            .trim()
             .toLowerCase()
-            .includes(
-              "blood strike"
-            )
       );
+
+      if (!category) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Categoría no encontrada en el catálogo de FazerCards.",
+            category_id: requestedCategory,
+            total_categories: allItems.length,
+          },
+          { status: 404 }
+        );
+      }
+
+      /*
+       * =======================================================
+       * 3. INTENTAR OBTENER LAS OFERTAS
+       * =======================================================
+       *
+       * Usamos la categoría REAL encontrada en /topups.
+       */
+
+      const offersUrl = new URL(
+        `${FAZERCARDS_API}/topups/offers`
+      );
+
+      offersUrl.searchParams.set(
+        "category_id",
+        String(category.category_id).trim()
+      );
+
+      const offersResponse = await fetch(
+        offersUrl.toString(),
+        {
+          method: "GET",
+          headers: {
+            "X-API-Key": apiKey,
+            Accept: "application/json",
+          },
+          cache: "no-store",
+        }
+      );
+
+      const offersText =
+        await offersResponse.text();
+
+      let offersData: any;
+
+      try {
+        offersData = offersText
+          ? JSON.parse(offersText)
+          : null;
+      } catch {
+        return NextResponse.json(
+          {
+            ok: false,
+            step: "offers_parse",
+            category: {
+              category_id:
+                category.category_id,
+              name: category.name,
+              note: category.note,
+            },
+            supplierStatus:
+              offersResponse.status,
+            raw: offersText,
+          },
+          {
+            status:
+              offersResponse.status,
+          }
+        );
+      }
+
+      if (!offersResponse.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            step: "offers",
+            category: {
+              category_id:
+                category.category_id,
+              name: category.name,
+              note: category.note,
+            },
+            supplierStatus:
+              offersResponse.status,
+            supplierResponse:
+              offersData,
+          },
+          {
+            status:
+              offersResponse.status,
+          }
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+
+        category_id:
+          category.category_id,
+
+        name:
+          category.name,
+
+        note:
+          category.note,
+
+        offers:
+          Array.isArray(
+            offersData?.offers
+          )
+            ? offersData.offers
+            : [],
+
+        fields:
+          Array.isArray(
+            offersData?.fields
+          )
+            ? offersData.fields
+            : [],
+
+        total_categories:
+          allItems.length,
+      });
+    }
+
+    /*
+     * =========================================================
+     * 4. SIN category_id
+     * DEVOLVER CATÁLOGO COMPLETO
+     * =========================================================
+     */
 
     return NextResponse.json({
       ok: true,
 
       total:
-        allCategories.length,
+        allItems.length,
 
       categories:
-        allCategories,
-
-      mobileLegends,
-
-      bloodStrike,
+        allItems,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(
-      "ERROR OBTENIENDO CATEGORÍAS DE FAZERCARDS:",
+      "FAZERCARDS TOPUPS ERROR:",
       error
     );
 
     return NextResponse.json(
       {
         ok: false,
-
         error:
-          error instanceof Error
-            ? error.message
-            : "Error desconocido.",
+          error?.message ||
+          "Error interno del servidor",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
-      }
+}
