@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 import { FREE_FIRE_LATAM } from "../../../../lib/games/free-fire-latam";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 /*
 |--------------------------------------------------------------------------
@@ -15,15 +16,14 @@ export const dynamic = "force-dynamic";
 const CATEGORY_ID =
   FREE_FIRE_LATAM.categoryId;
 
-const FAZERCARDS_BASE_URL =
-  process.env.FAZERCARDS_BASE_URL ||
-  "https://api.fazercards.com";
+const FAZER_API_BASE =
+  process.env.FAZERCARDS_API_URL ||
+  "https://api.fzr.cards/api/v2";
 
 const FAZERCARDS_API_KEY =
   process.env.FAZERCARDS_API_KEY || "";
 
-const SUPPLIER_TIMEOUT =
-  30000;
+const SUPPLIER_TIMEOUT = 30000;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,7 +36,17 @@ type AuthUser = {
   email?: string | null;
 };
 
-type OrderRow = {
+type OfferRow = {
+  id: string;
+  supplierOfferId: string;
+  name: string;
+  display: string;
+  price: number;
+  supplierPrice: number;
+  icon?: string;
+};
+
+type TopupOrderRow = {
   id?: string;
   order_number?: string | null;
   user_id?: string | null;
@@ -44,13 +54,18 @@ type OrderRow = {
   offer_id?: string | null;
   offer_name?: string | null;
   player_id?: string | null;
+  quantity?: number | null;
+  retail_price?: number | null;
   amount?: number | null;
   price?: number | null;
   supplier_price?: number | null;
+  currency?: string | null;
   supplier_order_id?: string | null;
   supplier_status?: string | null;
+  supplier_response?: unknown;
   status?: string | null;
   idempotency_key?: string | null;
+  error_message?: string | null;
   created_at?: string | null;
   [key: string]: unknown;
 };
@@ -85,7 +100,6 @@ type SupplierResponse = {
   };
 
   id?: string | number | null;
-
   order_id?: string | number | null;
 
   [key: string]: unknown;
@@ -145,8 +159,10 @@ function normalizeString(
 function normalizePlayerId(
   value: unknown
 ): string {
-  return normalizeString(value)
-    .replace(/\s+/g, "");
+  return normalizeString(value).replace(
+    /\s+/g,
+    ""
+  );
 }
 
 function normalizeIdempotencyKey(
@@ -252,21 +268,16 @@ async function fetchWithTimeout(
   const controller =
     new AbortController();
 
-  const timer =
-    setTimeout(
-      () => controller.abort(),
-      timeout
-    );
+  const timer = setTimeout(
+    () => controller.abort(),
+    timeout
+  );
 
   try {
-    return await fetch(
-      input,
-      {
-        ...init,
-        signal:
-          controller.signal,
-      }
-    );
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timer);
   }
@@ -344,8 +355,7 @@ async function getAuthenticatedUser(
     user: {
       id: data.user.id,
       email:
-        data.user.email ??
-        null,
+        data.user.email ?? null,
     },
     error: null,
   };
@@ -353,11 +363,13 @@ async function getAuthenticatedUser(
 
 /*
 |--------------------------------------------------------------------------
-| PROVEEDOR
+| HEADERS FAZERCARDS
 |--------------------------------------------------------------------------
 */
 
-function supplierHeaders(): HeadersInit {
+function supplierHeaders(
+  idempotencyKey: string
+): HeadersInit {
   return {
     "Content-Type":
       "application/json",
@@ -365,12 +377,20 @@ function supplierHeaders(): HeadersInit {
     Accept:
       "application/json",
 
-    ...(FAZERCARDS_API_KEY
-      ? {
-          Authorization:
-            `Bearer ${FAZERCARDS_API_KEY}`,
-        }
-      : {}),
+    "X-API-Key":
+      FAZERCARDS_API_KEY,
+
+    "Idempotency-Key":
+      idempotencyKey,
+
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
+
+    Referer:
+      "https://reseller.fazercards.com/",
+
+    Origin:
+      "https://reseller.fazercards.com",
   };
 }
 
@@ -384,13 +404,13 @@ async function createSupplierOrder(
   params: {
     supplierOfferId: string;
     playerId: string;
-    orderId: string;
     idempotencyKey: string;
   }
 ): Promise<{
   ok: boolean;
   data: SupplierResponse | null;
   error: string | null;
+  uncertain?: boolean;
 }> {
   if (!FAZERCARDS_API_KEY) {
     return {
@@ -402,20 +422,19 @@ async function createSupplierOrder(
   }
 
   const url =
-    `${FAZERCARDS_BASE_URL}/api/orders`;
+    `${FAZER_API_BASE}/topups/order`;
 
   const body = {
+    category_id:
+      CATEGORY_ID,
+
     offer_id:
       params.supplierOfferId,
 
-    player_id:
-      params.playerId,
-
-    external_order_id:
-      params.orderId,
-
-    idempotency_key:
-      params.idempotencyKey,
+    fields: {
+      player_id:
+        params.playerId,
+    },
   };
 
   try {
@@ -426,7 +445,9 @@ async function createSupplierOrder(
           method: "POST",
 
           headers:
-            supplierHeaders(),
+            supplierHeaders(
+              params.idempotencyKey
+            ),
 
           body:
             JSON.stringify(body),
@@ -450,6 +471,25 @@ async function createSupplierOrder(
       };
     }
 
+    /*
+     * Los errores 5xx pueden significar que
+     * el proveedor recibió el pedido pero
+     * nuestra aplicación no obtuvo respuesta.
+     */
+    if (
+      response.status >= 500
+    ) {
+      return {
+        ok: false,
+        data,
+        error:
+          data?.message ||
+          data?.error ||
+          `El proveedor respondió con HTTP ${response.status}.`,
+        uncertain: true,
+      };
+    }
+
     if (!response.ok) {
       return {
         ok: false,
@@ -457,7 +497,8 @@ async function createSupplierOrder(
         error:
           data?.message ||
           data?.error ||
-          `Proveedor respondió con HTTP ${response.status}.`,
+          `El proveedor respondió con HTTP ${response.status}.`,
+        uncertain: false,
       };
     }
 
@@ -465,6 +506,7 @@ async function createSupplierOrder(
       ok: true,
       data,
       error: null,
+      uncertain: false,
     };
   } catch (error) {
     return {
@@ -474,6 +516,7 @@ async function createSupplierOrder(
         error instanceof Error
           ? error.message
           : "Error desconocido al contactar al proveedor.",
+      uncertain: true,
     };
   }
 }
@@ -617,7 +660,7 @@ export async function POST(
 
   /*
   |--------------------------------------------------------------------------
-  | BUSCAR OFERTA EN EL CATÁLOGO DEL SERVIDOR
+  | BUSCAR OFERTA
   |--------------------------------------------------------------------------
   */
 
@@ -625,7 +668,9 @@ export async function POST(
     FREE_FIRE_LATAM.offers.find(
       (item) =>
         item.id === offerId
-    );
+    ) as
+      | OfferRow
+      | undefined;
 
   if (!offer) {
     return jsonError(
@@ -655,13 +700,9 @@ export async function POST(
     );
 
   const supplierOfferId =
-    offer.supplierOfferId;
-
-  /*
-  |--------------------------------------------------------------------------
-  | VALIDACIONES DEL CATÁLOGO
-  |--------------------------------------------------------------------------
-  */
+    normalizeString(
+      offer.supplierOfferId
+    );
 
   if (
     retailPrice <= 0
@@ -681,9 +722,7 @@ export async function POST(
     );
   }
 
-  if (
-    !supplierOfferId
-  ) {
+  if (!supplierOfferId) {
     return jsonError(
       "La oferta no tiene configurado el ID del proveedor.",
       500
@@ -692,7 +731,7 @@ export async function POST(
 
   /*
   |--------------------------------------------------------------------------
-  | EVITAR PEDIDOS DUPLICADOS
+  | IDEMPOTENCIA
   |--------------------------------------------------------------------------
   */
 
@@ -703,7 +742,7 @@ export async function POST(
       existingOrderError,
   } =
     await supabaseAdmin
-      .from("orders")
+      .from("topup_orders")
       .select("*")
       .eq(
         "user_id",
@@ -724,7 +763,7 @@ export async function POST(
 
   const existingOrder =
     existingOrders?.[0] as
-      | OrderRow
+      | TopupOrderRow
       | undefined;
 
   if (existingOrder) {
@@ -735,6 +774,19 @@ export async function POST(
       order:
         existingOrder,
 
+      orderNumber:
+        existingOrder.order_number ||
+        existingOrder.id ||
+        "",
+
+      supplierOrderId:
+        existingOrder.supplier_order_id ||
+        null,
+
+      status:
+        existingOrder.status ||
+        "PENDING",
+
       duplicate:
         true,
     });
@@ -742,7 +794,7 @@ export async function POST(
 
   /*
   |--------------------------------------------------------------------------
-  | DATOS BÁSICOS DEL PEDIDO
+  | CREAR PEDIDO LOCAL
   |--------------------------------------------------------------------------
   */
 
@@ -762,6 +814,12 @@ export async function POST(
     player_id:
       playerId,
 
+    quantity:
+      1,
+
+    retail_price:
+      retailPrice,
+
     amount:
       retailPrice,
 
@@ -771,24 +829,18 @@ export async function POST(
     supplier_price:
       supplierPrice,
 
-    supplier_order_id:
-      null,
-
-    supplier_status:
-      "pending",
+    currency:
+      "USD",
 
     status:
-      "pending",
+      "RESERVED",
+
+    supplier_status:
+      "PENDING",
 
     idempotency_key:
       idempotencyKey,
   };
-
-  /*
-  |--------------------------------------------------------------------------
-  | CREAR PEDIDO LOCAL
-  |--------------------------------------------------------------------------
-  */
 
   const {
     data:
@@ -797,7 +849,7 @@ export async function POST(
       createOrderError,
   } =
     await supabaseAdmin
-      .from("orders")
+      .from("topup_orders")
       .insert(
         orderPayload
       )
@@ -805,9 +857,13 @@ export async function POST(
       .single();
 
   if (createOrderError) {
+    /*
+     * Puede ser una condición de carrera
+     * con la misma idempotency key.
+     */
     const duplicateLookup =
       await supabaseAdmin
-        .from("orders")
+        .from("topup_orders")
         .select("*")
         .eq(
           "user_id",
@@ -822,7 +878,7 @@ export async function POST(
     const duplicateOrder =
       duplicateLookup
         .data?.[0] as
-        | OrderRow
+        | TopupOrderRow
         | undefined;
 
     if (duplicateOrder) {
@@ -833,30 +889,41 @@ export async function POST(
         order:
           duplicateOrder,
 
+        orderNumber:
+          duplicateOrder.order_number ||
+          duplicateOrder.id ||
+          "",
+
+        supplierOrderId:
+          duplicateOrder.supplier_order_id ||
+          null,
+
+        status:
+          duplicateOrder.status ||
+          "PENDING",
+
         duplicate:
           true,
       });
     }
 
     console.error(
-      "Error creando pedido:",
+      "Error creando topup_orders:",
       createOrderError
     );
 
     return jsonError(
       "No se pudo crear el pedido.",
-      500
+      500,
+      {
+        detail:
+          createOrderError.message,
+      }
     );
   }
 
   const createdOrder =
-    createdOrderData as OrderRow;
-
-  /*
-  |--------------------------------------------------------------------------
-  | ID LOCAL DEL PEDIDO
-  |--------------------------------------------------------------------------
-  */
+    createdOrderData as TopupOrderRow;
 
   const localOrderId =
     normalizeString(
@@ -871,7 +938,7 @@ export async function POST(
 
   /*
   |--------------------------------------------------------------------------
-  | ENVIAR AL PROVEEDOR
+  | ENVIAR A FAZERCARDS
   |--------------------------------------------------------------------------
   */
 
@@ -881,15 +948,70 @@ export async function POST(
 
       playerId,
 
-      orderId:
-        localOrderNumber,
-
       idempotencyKey,
     });
 
   /*
   |--------------------------------------------------------------------------
-  | ERROR DEL PROVEEDOR
+  | RESPUESTA INCIERTA
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    !supplierResult.ok &&
+    supplierResult.uncertain
+  ) {
+    await supabaseAdmin
+      .from("topup_orders")
+      .update({
+        status:
+          "SUPPLIER_PENDING",
+
+        supplier_status:
+          "PENDING",
+
+        error_message:
+          supplierResult.error,
+
+        supplier_response:
+          supplierResult.data,
+      })
+      .eq(
+        "id",
+        localOrderId
+      );
+
+    return jsonSuccess(
+      {
+        message:
+          "El pedido fue recibido y está pendiente de confirmación.",
+
+        orderNumber:
+          localOrderNumber,
+
+        order: {
+          ...createdOrder,
+
+          status:
+            "SUPPLIER_PENDING",
+
+          supplier_status:
+            "PENDING",
+        },
+
+        supplierOrderId:
+          null,
+
+        status:
+          "SUPPLIER_PENDING",
+      },
+      202
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | ERROR DEFINITIVO DEL PROVEEDOR
   |--------------------------------------------------------------------------
   */
 
@@ -898,18 +1020,24 @@ export async function POST(
     !supplierResult.data
   ) {
     console.error(
-      "Error creando pedido en proveedor:",
+      "FazerCards rechazó el pedido:",
       supplierResult.error
     );
 
     await supabaseAdmin
-      .from("orders")
+      .from("topup_orders")
       .update({
         status:
-          "supplier_error",
+          "FAILED",
 
         supplier_status:
-          "error",
+          "FAILED",
+
+        error_message:
+          supplierResult.error,
+
+        supplier_response:
+          supplierResult.data,
       })
       .eq(
         "id",
@@ -917,28 +1045,22 @@ export async function POST(
       );
 
     return jsonError(
-      "La orden fue creada localmente, pero no pudo enviarse al proveedor.",
+      supplierResult.error ||
+        "FazerCards rechazó el pedido.",
       502,
       {
-        order: {
-          ...createdOrder,
+        orderNumber:
+          localOrderNumber,
 
-          status:
-            "supplier_error",
-
-          supplier_status:
-            "error",
-        },
-
-        supplierError:
-          supplierResult.error,
+        status:
+          "FAILED",
       }
     );
   }
 
   /*
   |--------------------------------------------------------------------------
-  | DATOS DEL PROVEEDOR
+  | RESPUESTA DEL PROVEEDOR
   |--------------------------------------------------------------------------
   */
 
@@ -957,28 +1079,145 @@ export async function POST(
 
   /*
   |--------------------------------------------------------------------------
+  | SI FAZERCARDS NO DEVUELVE ID
+  |--------------------------------------------------------------------------
+  */
+
+  if (!supplierOrderId) {
+    await supabaseAdmin
+      .from("topup_orders")
+      .update({
+        status:
+          "SUPPLIER_PENDING",
+
+        supplier_status:
+          supplierStatus ||
+          "PENDING",
+
+        supplier_response:
+          supplierData,
+
+        error_message:
+          "El proveedor respondió, pero no devolvió un número de orden.",
+      })
+      .eq(
+        "id",
+        localOrderId
+      );
+
+    return jsonSuccess(
+      {
+        message:
+          "El pedido fue enviado y está pendiente de confirmación.",
+
+        orderNumber:
+          localOrderNumber,
+
+        supplierOrderId:
+          null,
+
+        status:
+          "SUPPLIER_PENDING",
+
+        order: {
+          ...createdOrder,
+
+          status:
+            "SUPPLIER_PENDING",
+
+          supplier_status:
+            supplierStatus ||
+            "PENDING",
+        },
+
+        supplier:
+          supplierData,
+      },
+      202
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | DETERMINAR ESTADO
+  |--------------------------------------------------------------------------
+  */
+
+  const normalizedSupplierStatus =
+    (
+      supplierStatus ||
+      ""
+    ).toLowerCase();
+
+  let finalStatus =
+    "SUPPLIER_PENDING";
+
+  if (
+    [
+      "completed",
+      "complete",
+      "success",
+      "successful",
+      "delivered",
+      "done",
+    ].includes(
+      normalizedSupplierStatus
+    )
+  ) {
+    finalStatus =
+      "COMPLETED";
+  } else if (
+    [
+      "failed",
+      "failure",
+      "rejected",
+      "cancelled",
+      "canceled",
+      "error",
+    ].includes(
+      normalizedSupplierStatus
+    )
+  ) {
+    finalStatus =
+      "FAILED";
+  } else if (
+    [
+      "pending",
+      "processing",
+      "in_progress",
+      "created",
+      "queued",
+    ].includes(
+      normalizedSupplierStatus
+    )
+  ) {
+    finalStatus =
+      "SUPPLIER_PENDING";
+  }
+
+  /*
+  |--------------------------------------------------------------------------
   | ACTUALIZAR PEDIDO
   |--------------------------------------------------------------------------
   */
 
-  const updatedFields: Record<
+  const updateData: Record<
     string,
     unknown
   > = {
     status:
-      supplierStatus ||
-      "processing",
+      finalStatus,
 
     supplier_status:
       supplierStatus ||
-      "processing",
-  };
+      "PENDING",
 
-  if (supplierOrderId) {
-    updatedFields
-      .supplier_order_id =
-      supplierOrderId;
-  }
+    supplier_order_id:
+      supplierOrderId,
+
+    supplier_response:
+      supplierData,
+  };
 
   const {
     data:
@@ -987,9 +1226,9 @@ export async function POST(
       updateOrderError,
   } =
     await supabaseAdmin
-      .from("orders")
+      .from("topup_orders")
       .update(
-        updatedFields
+        updateData
       )
       .eq(
         "id",
@@ -1000,29 +1239,35 @@ export async function POST(
 
   if (updateOrderError) {
     console.error(
-      "Error actualizando pedido:",
+      "Error actualizando topup_orders:",
       updateOrderError
     );
 
     return jsonSuccess({
       message:
-        "Pedido enviado al proveedor.",
+        "Pedido enviado al proveedor correctamente.",
+
+      orderNumber:
+        localOrderNumber,
+
+      supplierOrderId,
+
+      status:
+        finalStatus,
 
       order: {
         ...createdOrder,
 
-        ...updatedFields,
+        ...updateData,
       },
 
       supplier:
         supplierData,
-
-      supplierOrderId,
     });
   }
 
   const updatedOrder =
-    updatedOrderData as OrderRow;
+    updatedOrderData as TopupOrderRow;
 
   /*
   |--------------------------------------------------------------------------
@@ -1032,14 +1277,24 @@ export async function POST(
 
   return jsonSuccess({
     message:
-      "Pedido creado correctamente.",
+      finalStatus ===
+      "COMPLETED"
+        ? "Pedido completado correctamente."
+        : "Pedido creado correctamente.",
+
+    orderNumber:
+      updatedOrder.order_number ||
+      localOrderNumber,
+
+    supplierOrderId,
+
+    status:
+      finalStatus,
 
     order:
       updatedOrder,
 
     supplier:
       supplierData,
-
-    supplierOrderId,
   });
-      }
+}
