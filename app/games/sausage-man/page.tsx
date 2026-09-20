@@ -1,53 +1,150 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../../lib/supabase";
 
-type Offer = {
-  amount: string;
-  price: number;
-};
+/*
+ * ============================================================
+ * SAUSAGE MAN — OFERTAS REALES FAZERCARDS
+ * ============================================================
+ */
 
-const offers: Offer[] = [
-  { amount: "61 caramelos", price: 0.54 },
-  { amount: "186 caramelos", price: 1.32 },
-  { amount: "318 caramelos", price: 2.10 },
-  { amount: "686 caramelos", price: 4.06 },
-  { amount: "1378 caramelos", price: 7.57 },
-  { amount: "2118 caramelos", price: 11.46 },
-  { amount: "3548 caramelos", price: 19.67 },
-  { amount: "7108 caramelos", price: 39.18 },
-];
+const offers = [
+  {
+    id: "sausage-61",
+    supplierOfferId: "61_candies",
+    name: "61 Candies",
+    display: "61 🍬",
+    price: 0.54,
+    icon: "🍬",
+  },
+  {
+    id: "sausage-186",
+    supplierOfferId: "186_candies",
+    name: "186 Candies",
+    display: "186 🍬",
+    price: 1.32,
+    icon: "🍬",
+  },
+  {
+    id: "sausage-318",
+    supplierOfferId: "318_candies",
+    name: "318 Candies",
+    display: "318 🍬",
+    price: 2.1,
+    icon: "🍬",
+  },
+  {
+    id: "sausage-686",
+    supplierOfferId: "686_candies",
+    name: "686 Candies",
+    display: "686 🍬",
+    price: 4.06,
+    icon: "🍬",
+  },
+  {
+    id: "sausage-1378",
+    supplierOfferId: "1378_candies",
+    name: "1378 Caramelos",
+    display: "1378 🍬",
+    price: 7.57,
+    icon: "🍬",
+  },
+  {
+    id: "sausage-2118",
+    supplierOfferId: "2118_caramelos",
+    name: "2118 Caramelos",
+    display: "2118 🍬",
+    price: 11.46,
+    icon: "🍬",
+  },
+  {
+    id: "sausage-3548",
+    supplierOfferId: "3548_caramelos",
+    name: "3548 Caramelos",
+    display: "3548 🍬",
+    price: 19.67,
+    icon: "🍬",
+  },
+  {
+    id: "sausage-7108",
+    supplierOfferId: "7108_caramelos",
+    name: "7108 Caramelos",
+    display: "7108 🍬",
+    price: 39.18,
+    icon: "🍬",
+  },
+] as const;
 
 const GAME_NAME = "SAUSAGE MAN";
-const GAME_IMAGE = "/images/sausage-man.jpg";
 
-const GAME_NOTE =
-  "Recarga de Sausage Man. Introduce tu ID de personaje antes de realizar el pedido. El producto seleccionado se entregará directamente a tu cuenta una vez realizado el pedido.";
+const GAME_IMAGE =
+  "/images/sausage-man.jpg";
+
+const gameNote =
+  "Recarga de Sausage Man. Introduce tu ID de personaje antes de realizar el pedido. El producto seleccionado se entrega directamente a tu cuenta después de realizar el pedido.";
 
 export default function SausageManPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(true);
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
-  const [playerId, setPlayerId] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  /*
+   * ============================================================
+   * ESTADOS
+   * ============================================================
+   */
 
-  const [error, setError] = useState("");
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [orderCreated, setOrderCreated] = useState(false);
-  const [orderNumber, setOrderNumber] = useState("");
+  const [showOffers, setShowOffers] =
+    useState(false);
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  const [selectedOffer, setSelectedOffer] =
+    useState<
+      (typeof offers)[number] | null
+    >(null);
 
-  const selectOffer = (offer: Offer) => {
+  const [playerId, setPlayerId] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  const [processing, setProcessing] =
+    useState(false);
+
+  const [orderCreated, setOrderCreated] =
+    useState(false);
+
+  const [orderNumber, setOrderNumber] =
+    useState("");
+
+  const [supplierOrderId, setSupplierOrderId] =
+    useState("");
+
+  const [orderStatus, setOrderStatus] =
+    useState("");
+
+  /*
+   * ============================================================
+   * SELECCIONAR OFERTA
+   * ============================================================
+   */
+
+  function selectOffer(
+    offer: (typeof offers)[number]
+  ) {
     setSelectedOffer(offer);
+
+    setPlayerId("");
+
     setError("");
-    setShowConfirmation(false);
+
     setOrderCreated(false);
-    setQuantity(1);
+
+    setOrderNumber("");
+
+    setSupplierOrderId("");
+
+    setOrderStatus("");
 
     setTimeout(() => {
       document
@@ -57,475 +154,879 @@ export default function SausageManPage() {
           block: "start",
         });
     }, 100);
-  };
+  }
 
-  const increaseQuantity = () => {
-    setQuantity((current) => Math.min(current + 1, 99));
-  };
+  /*
+   * ============================================================
+   * CREAR ORDEN
+   * ============================================================
+   */
 
-  const decreaseQuantity = () => {
-    setQuantity((current) => Math.max(current - 1, 1));
-  };
-
-  const handleFinishPurchase = () => {
-    const cleanId = playerId.trim();
-
-    if (!selectedOffer) {
-      setError("Seleccione un producto.");
-      return;
-    }
-
-    if (!cleanId) {
-      setError("Introduzca su ID de personaje.");
+  async function createOrder() {
+    if (
+      !selectedOffer ||
+      processing
+    ) {
       return;
     }
 
     setError("");
-    setShowConfirmation(true);
 
-    setTimeout(() => {
-      document
-        .getElementById("confirmation-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  };
-
-  const createOrder = () => {
-    if (!selectedOffer) return;
-
-    const total = Number(
-      (selectedOffer.price * quantity).toFixed(2)
-    );
-
-    const newOrderNumber = `SM-${Date.now()
-      .toString()
-      .slice(-8)}`;
-
-    const newOrder = {
-      id: newOrderNumber,
-      orderNumber: newOrderNumber,
-      game: GAME_NAME,
-      gameImage: GAME_IMAGE,
-      product: selectedOffer.amount,
-      price: selectedOffer.price,
-      quantity,
-      total,
-      playerId: playerId.trim(),
-      status: "Pendiente",
-      createdAt: new Date().toISOString(),
-    };
+    setProcessing(true);
 
     try {
-      const existingOrdersRaw =
-        localStorage.getItem("storeGamingOrders");
+      /*
+       * ========================================================
+       * 1. COMPROBAR SESIÓN
+       * ========================================================
+       */
 
-      const existingOrders = existingOrdersRaw
-        ? JSON.parse(existingOrdersRaw)
-        : [];
+      const {
+        data: { session },
+        error: sessionError,
+      } =
+        await supabase.auth.getSession();
 
-      const updatedOrders = [
-        newOrder,
-        ...(Array.isArray(existingOrders)
-          ? existingOrders
-          : []),
-      ];
+      if (
+        sessionError ||
+        !session?.user
+      ) {
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
 
-      localStorage.setItem(
-        "storeGamingOrders",
-        JSON.stringify(updatedOrders)
+        router.replace("/");
+
+        return;
+      }
+
+      /*
+       * ========================================================
+       * 2. LIMPIAR ID
+       * ========================================================
+       */
+
+      const cleanPlayerId =
+        playerId.trim();
+
+      if (!cleanPlayerId) {
+        setError(
+          "Introduzca su ID de personaje."
+        );
+
+        return;
+      }
+
+      if (
+        !/^[0-9]+$/.test(
+          cleanPlayerId
+        )
+      ) {
+        setError(
+          "El ID de personaje solo puede contener números."
+        );
+
+        return;
+      }
+
+      if (
+        cleanPlayerId.length < 4 ||
+        cleanPlayerId.length > 30
+      ) {
+        setError(
+          "El ID de personaje parece no tener un formato válido."
+        );
+
+        return;
+      }
+
+      /*
+       * ========================================================
+       * 3. CLAVE DE IDEMPOTENCIA
+       * ========================================================
+       */
+
+      const idempotencyKey =
+        crypto.randomUUID();
+
+      /*
+       * ========================================================
+       * 4. ENVIAR A NUESTRA API
+       * ========================================================
+       */
+
+      const response =
+        await fetch(
+          "/api/topups/sausage-man",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${session.access_token}`,
+            },
+
+            body: JSON.stringify({
+              offerId:
+                selectedOffer
+                  .supplierOfferId,
+
+              offerName:
+                selectedOffer.name,
+
+              retailPrice:
+                selectedOffer.price,
+
+              playerId:
+                cleanPlayerId,
+
+              idempotencyKey,
+            }),
+          }
+        );
+
+      /*
+       * ========================================================
+       * 5. LEER RESPUESTA
+       * ========================================================
+       */
+
+      let result: any = null;
+
+      try {
+        result =
+          await response.json();
+      } catch {
+        result = null;
+      }
+
+      /*
+       * ========================================================
+       * 6. COMPROBAR ERROR
+       * ========================================================
+       */
+
+      if (
+        !response.ok ||
+        !result?.ok
+      ) {
+        setError(
+          result?.error ||
+            "No se pudo crear la orden."
+        );
+
+        return;
+      }
+
+      /*
+       * ========================================================
+       * 7. GUARDAR INFORMACIÓN
+       * ========================================================
+       */
+
+      const finalOrderNumber =
+        result.orderNumber ||
+        result.id ||
+        "";
+
+      setOrderNumber(
+        finalOrderNumber
       );
 
-      localStorage.setItem(
-        "storeGamingLastOrder",
-        JSON.stringify(newOrder)
+      setSupplierOrderId(
+        result.supplierOrderId ||
+          ""
       );
-    } catch (storageError) {
-      console.error(
-        "Error guardando el pedido:",
+
+      setOrderStatus(
+        result.status ||
+          "SUPPLIER_PENDING"
+      );
+
+      /*
+       * ========================================================
+       * 8. GUARDAR REFERENCIA LOCAL
+       * ========================================================
+       */
+
+      try {
+        const existingOrdersRaw =
+          localStorage.getItem(
+            "storeGamingOrders"
+          );
+
+        const existingOrders =
+          existingOrdersRaw
+            ? JSON.parse(
+                existingOrdersRaw
+              )
+            : [];
+
+        const newOrder = {
+          id:
+            finalOrderNumber,
+
+          orderNumber:
+            finalOrderNumber,
+
+          game:
+            GAME_NAME,
+
+          gameImage:
+            GAME_IMAGE,
+
+          product:
+            selectedOffer.name,
+
+          offerId:
+            selectedOffer
+              .supplierOfferId,
+
+          price:
+            selectedOffer.price,
+
+          quantity: 1,
+
+          total:
+            selectedOffer.price,
+
+          playerId:
+            cleanPlayerId,
+
+          status:
+            result.status ||
+            "SUPPLIER_PENDING",
+
+          supplierOrderId:
+            result.supplierOrderId ||
+            "",
+
+          createdAt:
+            new Date().toISOString(),
+        };
+
+        const updatedOrders = [
+          newOrder,
+
+          ...(Array.isArray(
+            existingOrders
+          )
+            ? existingOrders
+            : []),
+        ];
+
+        localStorage.setItem(
+          "storeGamingOrders",
+          JSON.stringify(
+            updatedOrders
+          )
+        );
+
+        localStorage.setItem(
+          "storeGamingLastOrder",
+          JSON.stringify(
+            newOrder
+          )
+        );
+      } catch (
         storageError
+      ) {
+        console.error(
+          "Error guardando orden local:",
+          storageError
+        );
+      }
+
+      /*
+       * ========================================================
+       * 9. MOSTRAR ÉXITO
+       * ========================================================
+       */
+
+      setOrderCreated(true);
+
+      setTimeout(() => {
+        document
+          .getElementById(
+            "success-section"
+          )
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      }, 100);
+    } catch (err) {
+      console.error(
+        "ERROR CREANDO TOPUP SAUSAGE MAN:",
+        err
       );
+
+      setError(
+        "No se pudo conectar con el servidor. Si la compra pudo haber sido enviada, no vuelva a intentarla hasta revisar el estado de la orden."
+      );
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  /*
+   * ============================================================
+   * FINALIZAR COMPRA
+   * ============================================================
+   */
+
+  function handleFinishPurchase(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (processing) {
+      return;
     }
 
-    setOrderNumber(newOrderNumber);
-    setOrderCreated(true);
-    setShowConfirmation(false);
+    if (!selectedOffer) {
+      setError(
+        "Seleccione una oferta."
+      );
 
-    setTimeout(() => {
-      document
-        .getElementById("order-success-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  };
+      return;
+    }
 
-  const goToOrders = () => {
-    router.push("/orders");
-  };
+    const cleanId =
+      playerId.trim();
 
-  const totalPrice = selectedOffer
-    ? Number(
-        (selectedOffer.price * quantity).toFixed(2)
+    if (!cleanId) {
+      setError(
+        "Introduzca su ID de personaje."
+      );
+
+      return;
+    }
+
+    if (
+      !/^[0-9]+$/.test(
+        cleanId
       )
-    : 0;
+    ) {
+      setError(
+        "El ID de personaje solo puede contener números."
+      );
+
+      return;
+    }
+
+    if (
+      cleanId.length < 4 ||
+      cleanId.length > 30
+    ) {
+      setError(
+        "El ID de personaje parece no tener un formato válido."
+      );
+
+      return;
+    }
+
+    createOrder();
+  }
+
+  /*
+   * ============================================================
+   * IR A ÓRDENES
+   * ============================================================
+   */
+
+  function goToOrders() {
+    router.push("/orders");
+  }
+
+  /*
+   * ============================================================
+   * RENDER
+   * ============================================================
+   */
 
   return (
     <main className="game-service-page">
-      {/* HEADER */}
+
+      {/* ========================================================
+          HEADER
+      ======================================================== */}
+
       <header className="game-service-header">
+
         <button
+          type="button"
           className="game-back-button"
-          onClick={() => router.push("/top-up")}
-          aria-label="Volver"
+          onClick={() =>
+            router.push("/home")
+          }
         >
           ←
         </button>
 
         <div className="game-header-title">
-          {GAME_NAME}
+
+          <span>
+            STORE GAMING
+          </span>
+
+          <strong>
+            SAUSAGE MAN
+          </strong>
+
         </div>
 
         <button
+          type="button"
           className="game-cart-button"
-          onClick={() => router.push("/orders")}
-          aria-label="Pedidos"
+          onClick={() =>
+            router.push("/cart")
+          }
         >
           🛒
         </button>
+
       </header>
 
-      {/* GAME IMAGE */}
+      {/* ========================================================
+          IMAGEN PRINCIPAL
+      ======================================================== */}
+
       <section className="free-fire-main-image">
+
         <img
           src={GAME_IMAGE}
-          alt={GAME_NAME}
+          alt="Sausage Man"
         />
 
-        <div className="free-fire-main-overlay">
-          <div className="free-fire-main-text">
-            <span>RECARGA</span>
-            <strong>SAUSAGE MAN</strong>
-          </div>
+        <div className="free-fire-main-overlay" />
+
+        <div className="free-fire-main-text">
+
+          <span>
+            ⚡ TOP UP
+          </span>
+
+          <h1>
+            SAUSAGE
+            <strong>
+              MAN
+            </strong>
+          </h1>
+
+          <p>
+            Caramelos para tu cuenta
+          </p>
+
         </div>
+
       </section>
 
-      {/* OFFERS TOGGLE */}
+      {/* ========================================================
+          BOTÓN OFERTAS
+      ======================================================== */}
+
       <button
+        type="button"
         className="offers-toggle"
-        onClick={() => setShowOffers((value) => !value)}
+        onClick={() =>
+          setShowOffers(
+            (current) => !current
+          )
+        }
       >
+
         <span className="offers-toggle-text">
-          OFERTAS DISPONIBLES
+
+          ✎
+
+          <strong>
+            PRESIONE PARA VER OFERTAS
+          </strong>
+
         </span>
 
         <span className="offers-toggle-pencil">
-          {showOffers ? "⌃" : "⌄"}
+          ✎
         </span>
+
       </button>
 
-      {/* OFFERS */}
+      {/* ========================================================
+          OFERTAS
+      ======================================================== */}
+
       {showOffers && (
+
         <section className="offers-section">
-          <h2 className="offers-heading">
-            SELECCIONA TU RECARGA
-          </h2>
+
+          <div className="offers-heading">
+
+            <div>
+
+              <span>
+                SAUSAGE MAN
+              </span>
+
+              <h2>
+                ELIGE TU OFERTA
+              </h2>
+
+            </div>
+
+          </div>
 
           <div className="offers-list">
-            {offers.map((offer) => {
-              const isSelected =
-                selectedOffer?.amount === offer.amount;
 
-              return (
-                <button
-                  key={`${offer.amount}-${offer.price}`}
-                  type="button"
-                  className={`offer-card ${
-                    isSelected ? "selected" : ""
-                  }`}
-                  onClick={() => selectOffer(offer)}
-                >
-                  <div className="offer-left">
-                    <div className="diamond-icon">
-                      🌭
+            {offers.map(
+              (offer) => {
+
+                const selected =
+                  selectedOffer?.id ===
+                  offer.id;
+
+                return (
+
+                  <button
+                    key={offer.id}
+                    type="button"
+                    className={`offer-card ${
+                      selected
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      selectOffer(
+                        offer
+                      )
+                    }
+                  >
+
+                    <div className="offer-left">
+
+                      <div className="diamond-icon">
+                        {offer.icon}
+                      </div>
+
+                      <div className="offer-info">
+
+                        <strong>
+                          {offer.display}
+                        </strong>
+
+                        <span>
+                          {offer.name}
+                        </span>
+
+                      </div>
+
                     </div>
 
-                    <div className="offer-info">
-                      <strong>{offer.amount}</strong>
-                      <span>Sausage Man</span>
+                    <div className="offer-right">
+
+                      <strong>
+                        {offer.price.toFixed(
+                          2
+                        )}
+                        $
+                      </strong>
+
+                      <span>
+                        SELECCIONAR →
+                      </span>
+
                     </div>
-                  </div>
 
-                  <div className="offer-right">
-                    <strong>
-                      {offer.price.toFixed(2)}$
-                    </strong>
+                  </button>
 
-                    <span>Comprar</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* INFORMATION NOTE */}
-      <section className="game-note">
-        <div className="game-note-icon">!</div>
-
-        <div className="game-note-content">
-          {GAME_NOTE}
-        </div>
-      </section>
-
-      {/* ORDER SECTION */}
-      {selectedOffer && !orderCreated && (
-        <section
-          id="order-section"
-          className="order-section"
-        >
-          <h2 className="section-title">
-            COMPLETA TU PEDIDO
-          </h2>
-
-          <div className="selected-order-card">
-            <div className="selected-order-icon">
-              <img
-                src={GAME_IMAGE}
-                alt=""
-              />
-            </div>
-
-            <div className="selected-order-info">
-              <strong>{selectedOffer.amount}</strong>
-              <span>{GAME_NAME}</span>
-            </div>
-
-            <div className="selected-order-price">
-              {selectedOffer.price.toFixed(2)}$
-            </div>
-          </div>
-
-          <div className="game-note game-note-order">
-            <div className="game-note-icon">!</div>
-
-            <div className="game-note-content">
-              {GAME_NOTE}
-            </div>
-          </div>
-
-          {/* QUANTITY */}
-          <div className="quantity-section">
-            <span>CANTIDAD</span>
-
-            <div className="quantity-control">
-              <button
-                type="button"
-                onClick={decreaseQuantity}
-                disabled={quantity <= 1}
-              >
-                −
-              </button>
-
-              <strong>{quantity}</strong>
-
-              <button
-                type="button"
-                onClick={increaseQuantity}
-                disabled={quantity >= 99}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          {/* PLAYER ID */}
-          <div className="order-form">
-            <label className="player-id-label">
-              ID DE PERSONAJE
-            </label>
-
-            <p className="player-id-description">
-              Introduce el ID de personaje de tu cuenta
-              de Sausage Man.
-            </p>
-
-            <div className="player-id-input-wrapper">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={playerId}
-                onChange={(event) => {
-                  const value =
-                    event.target.value.replace(/\D/g, "");
-
-                  setPlayerId(value);
-                  setError("");
-                }}
-                placeholder="Introduce tu ID de personaje"
-                maxLength={30}
-                autoComplete="off"
-              />
-            </div>
-
-            {error && (
-              <div className="order-error">
-                {error}
-              </div>
+                );
+              }
             )}
 
-            {/* TOTAL */}
-            <div className="order-total-preview">
-              <span>TOTAL</span>
+          </div>
+
+          {/* NOTA */}
+
+          <div className="game-note">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
 
               <strong>
-                {totalPrice.toFixed(2)}$
+                NOTA
               </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
             </div>
 
-            <button
-              type="button"
-              className="finish-order-button"
-              onClick={handleFinishPurchase}
-            >
-              CONTINUAR
-            </button>
           </div>
+
         </section>
+
       )}
 
-      {/* CONFIRMATION */}
-      {showConfirmation && selectedOffer && (
-        <section
-          id="confirmation-section"
-          className="confirmation-section"
-        >
-          <h2 className="section-title">
-            CONFIRMA TU PEDIDO
-          </h2>
+      {/* ========================================================
+          DATOS DEL PEDIDO
+      ======================================================== */}
 
-          <div className="confirmation-card">
-            <div className="confirmation-row">
-              <span>Juego</span>
-              <strong>{GAME_NAME}</strong>
-            </div>
+      {selectedOffer &&
+        !orderCreated && (
 
-            <div className="confirmation-row">
-              <span>Producto</span>
-              <strong>{selectedOffer.amount}</strong>
-            </div>
-
-            <div className="confirmation-row">
-              <span>Cantidad</span>
-              <strong>{quantity}</strong>
-            </div>
-
-            <div className="confirmation-row">
-              <span>ID de personaje</span>
-              <strong>{playerId.trim()}</strong>
-            </div>
-
-            <div className="confirmation-row">
-              <span>Total</span>
-              <strong>
-                {totalPrice.toFixed(2)}$
-              </strong>
-            </div>
-
-            <div className="confirmation-warning">
-              ⚠️ Verifica que tu ID de personaje sea
-              correcto antes de confirmar el pedido.
-            </div>
-
-            <button
-              type="button"
-              className="confirm-final-button"
-              onClick={createOrder}
-            >
-              CONFIRMAR PEDIDO
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* SUCCESS */}
-      {orderCreated && (
-        <section
-          id="order-success-section"
-          className="order-success-section"
-        >
-          <div className="success-circle">
-            ✓
-          </div>
-
-          <h2>PEDIDO CREADO</h2>
-
-          <p>
-            Tu pedido fue registrado correctamente.
-          </p>
-
-          <div className="success-order-number">
-            <span>NÚMERO DE PEDIDO</span>
-            <strong>{orderNumber}</strong>
-          </div>
-
-          <button
-            type="button"
-            className="view-orders-button"
-            onClick={goToOrders}
+          <section
+            id="order-section"
+            className="order-section"
           >
-            VER MIS PEDIDOS
-          </button>
-        </section>
-      )}
 
-      {/* SERVICE INFO */}
-      <section className="service-info">
-        <div className="service-info-item">
-          <span>⚡</span>
+            <div className="section-title">
 
-          <div>
-            <strong>ENTREGA DIRECTA</strong>
-            <p>
-              El producto se entrega directamente en tu
-              cuenta.
-            </p>
-          </div>
-        </div>
+              <span>
+                01
+              </span>
 
-        <div className="service-info-item">
-          <span>🔒</span>
+              <div>
 
-          <div>
-            <strong>COMPRA SEGURA</strong>
-            <p>
-              Procesamos tus pedidos de forma segura.
-            </p>
-          </div>
-        </div>
+                <small>
+                  TU SELECCIÓN
+                </small>
 
-        <div className="service-info-item">
-          <span>🎧</span>
+                <h2>
+                  DATOS DEL PEDIDO
+                </h2>
 
-          <div>
-            <strong>SOPORTE</strong>
-            <p>
-              Si tienes algún problema, puedes contactar
-              con soporte.
-            </p>
-          </div>
-        </div>
-      </section>
+              </div>
 
-      {/* FOOTER */}
-      <footer className="game-service-footer">
-        <strong>STORE GAMING</strong>
-        <span>© {new Date().getFullYear()}</span>
-      </footer>
-    </main>
-  );
-            }
+            </div>
+
+            {/* OFERTA */}
+
+            <div className="selected-order-card">
+
+              <div className="selected-order-icon">
+                {selectedOffer.icon}
+              </div>
+
+              <div className="selected-order-info">
+
+                <span>
+                  SAUSAGE MAN
+                </span>
+
+                <strong>
+                  {selectedOffer.name}
+                </strong>
+
+              </div>
+
+              <div className="selected-order-price">
+
+                {selectedOffer.price.toFixed(
+                  2
+                )}
+                $
+
+              </div>
+
+            </div>
+
+            {/* NOTA */}
+
+            <div className="game-note game-note-order">
+
+              <div className="game-note-icon">
+                !
+              </div>
+
+              <div className="game-note-content">
+
+                <strong>
+                  NOTA
+                </strong>
+
+                <p>
+                  {gameNote}
+                </p>
+
+              </div>
+
+            </div>
+
+            {/* FORMULARIO */}
+
+            <form
+              onSubmit={
+                handleFinishPurchase
+              }
+              className="order-form"
+            >
+
+              <label
+                htmlFor="sausage-man-player-id"
+                className="player-id-label"
+              >
+                PONGA SU ID DE PERSONAJE
+              </label>
+
+              <p className="player-id-description">
+                Introduzca el ID de la
+                cuenta donde desea recibir
+                los caramelos.
+              </p>
+
+              <div className="player-id-input-wrapper">
+
+                <span>
+                  🆔
+                </span>
+
+                <input
+                  id="sausage-man-player-id"
+                  type="text"
+                  inputMode="numeric"
+                  value={playerId}
+                  onChange={(
+                    event
+                  ) =>
+                    setPlayerId(
+                      event.target.value.replace(
+                        /[^0-9]/g,
+                        ""
+                      )
+                    )
+                  }
+                  placeholder="Introduzca su ID"
+                  autoComplete="off"
+                  maxLength={30}
+                  disabled={processing}
+                />
+
+              </div>
+
+              {/* ERROR */}
+
+              {error && (
+
+                <div className="order-error">
+                  {error}
+                </div>
+
+              )}
+
+              {/* PRECIO */}
+
+              <div className="order-total-preview">
+
+                <span>
+                  PRECIO
+                </span>
+
+                <strong>
+                  {selectedOffer.price.toFixed(
+                    2
+                  )}
+                  $
+                </strong>
+
+              </div>
+
+              {/* FINALIZAR */}
+
+              <button
+                type="submit"
+                className="finish-order-button"
+                disabled={processing}
+              >
+
+                <span>
+                  {processing
+                    ? "PROCESANDO COMPRA..."
+                    : "FINALIZAR COMPRA"}
+                </span>
+
+                <b>
+                  →
+                </b>
+
+              </button>
+
+            </form>
+
+          </section>
+
+        )}
+
+      {/* =========================
+    ORDEN CREADA
+========================= */}
+{orderCreated && createdOrder && (
+  <section
+    id="success-section"
+    className="order-success-section"
+  >
+    <div className="success-circle">
+      ✓
+    </div>
+
+    <h2>orden creada</h2>
+
+    <p className="success-message">
+      Tu pedido fue creado correctamente.
+    </p>
+
+    <div className="success-order-number">
+      <span>Número de orden</span>
+      <strong>{createdOrder.orderNumber}</strong>
+    </div>
+
+    <div className="success-order-info">
+      <div>
+        <span>Servicio</span>
+        <strong>{GAME_NAME}</strong>
+      </div>
+
+      <div>
+        <span>Oferta</span>
+        <strong>{createdOrder.offerName}</strong>
+      </div>
+
+      <div>
+        <span>ID de personaje</span>
+        <strong>{createdOrder.playerId}</strong>
+      </div>
+
+      <div>
+        <span>Total</span>
+        <strong>${createdOrder.price.toFixed(2)}</strong>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      className="view-orders-button"
+      onClick={() => router.push("/orders")}
+    >
+      revisar orden
+    </button>
+
+    <button
+      type="button"
+      className="back-to-game-button"
+      onClick={() => {
+        setOrderCreated(false);
+        setCreatedOrder(null);
+        setSelectedOffer(null);
+        setPlayerId("");
+      }}
+    >
+      realizar otra compra
+    </button>
+  </section>
+)}
