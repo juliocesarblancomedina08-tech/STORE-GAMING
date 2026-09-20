@@ -4,17 +4,88 @@ const FAZERCARDS_API = "https://api.fzr.cards/api/v2";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
+function isDdosGuardResponse(
+  status: number,
+  text: string
+) {
+  const body = String(text || "").toLowerCase();
+
+  return (
+    status === 403 &&
+    (
+      body.includes("ddos-guard") ||
+      body.includes("check.ddos-guard.net") ||
+      body.includes("comprobando su navegador antes de acceder") ||
+      body.includes("checking your browser")
+    )
+  );
+}
+
+async function parseSupplierResponse(
+  response: Response
+) {
+  const text = await response.text();
+
+  if (
+    isDdosGuardResponse(
+      response.status,
+      text
+    )
+  ) {
+    return {
+      ok: false,
+      ddosGuard: true,
+      text,
+      data: null,
+    };
+  }
+
+  let data: any = null;
+
   try {
-    const apiKey = process.env.FAZERCARDS_API_KEY;
+    data = text
+      ? JSON.parse(text)
+      : null;
+  } catch {
+    return {
+      ok: false,
+      ddosGuard: false,
+      text,
+      data: null,
+    };
+  }
+
+  return {
+    ok: true,
+    ddosGuard: false,
+    text,
+    data,
+  };
+}
+
+export async function GET(
+  request: NextRequest
+) {
+  try {
+    /*
+     * =========================================================
+     * 0. API KEY
+     * =========================================================
+     */
+
+    const apiKey =
+      process.env.FAZERCARDS_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
         {
           ok: false,
-          error: "FAZERCARDS_API_KEY no está configurada",
+          error:
+            "FAZERCARDS_API_KEY no está configurada",
         },
-        { status: 500 }
+        {
+          status: 500,
+        }
       );
     }
 
@@ -26,67 +97,214 @@ export async function GET(request: NextRequest) {
 
     let cursor: string | null = null;
     let pagesChecked = 0;
+
     const allItems: any[] = [];
 
     while (pagesChecked < 50) {
       pagesChecked++;
 
-      const url = new URL(`${FAZERCARDS_API}/topups`);
+      const url = new URL(
+        `${FAZERCARDS_API}/topups`
+      );
 
-      url.searchParams.set("limit", "50");
+      url.searchParams.set(
+        "limit",
+        "50"
+      );
 
       if (cursor) {
-        url.searchParams.set("cursor", cursor);
+        url.searchParams.set(
+          "cursor",
+          cursor
+        );
       }
 
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-          "X-API-Key": apiKey,
-          Accept: "application/json",
-        },
-        cache: "no-store",
-      });
-
-      const text = await response.text();
-
-      let data: any;
+      let response: Response;
 
       try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
+        response = await fetch(
+          url.toString(),
+          {
+            method: "GET",
+
+            headers: {
+              "X-API-Key": apiKey,
+              Accept:
+                "application/json",
+              "User-Agent":
+                "STORE-GAMING/1.0",
+            },
+
+            cache: "no-store",
+          }
+        );
+      } catch (networkError: any) {
+        console.error(
+          "FAZERCARDS NETWORK ERROR:",
+          networkError
+        );
+
         return NextResponse.json(
           {
             ok: false,
+            step: "network",
+            pages_checked:
+              pagesChecked,
+            error:
+              networkError?.message ||
+              "No se pudo conectar con FazerCards.",
+          },
+          {
+            status: 502,
+          }
+        );
+      }
+
+      const parsed =
+        await parseSupplierResponse(
+          response
+        );
+
+      /*
+       * =======================================================
+       * DDoS-GUARD
+       * =======================================================
+       */
+
+      if (parsed.ddosGuard) {
+        console.error(
+          "FAZERCARDS BLOQUEÓ LA SOLICITUD CON DDOS-GUARD."
+        );
+
+        return NextResponse.json(
+          {
+            ok: false,
+
+            step: "supplier",
+
+            pages_checked:
+              pagesChecked,
+
+            supplierStatus:
+              response.status,
+
+            error:
+              "FazerCards está devolviendo una protección DDoS-Guard en lugar de la respuesta JSON de la API.",
+
+            reason:
+              "El servidor de STORE-GAMING no puede obtener el catálogo mientras el proveedor mantenga este bloqueo.",
+
+            supplier:
+              "FazerCards",
+
+            endpoint:
+              `${FAZERCARDS_API}/topups`,
+          },
+          {
+            status: 503,
+          }
+        );
+      }
+
+      /*
+       * =======================================================
+       * RESPUESTA NO JSON
+       * =======================================================
+       */
+
+      if (!parsed.ok) {
+        console.error(
+          "FAZERCARDS DEVOLVIÓ UNA RESPUESTA NO JSON:",
+          response.status
+        );
+
+        return NextResponse.json(
+          {
+            ok: false,
+
             step: "parse",
-            pages_checked: pagesChecked,
-            supplierStatus: response.status,
-            raw: text,
+
+            pages_checked:
+              pagesChecked,
+
+            supplierStatus:
+              response.status,
+
+            error:
+              "FazerCards devolvió una respuesta que no es JSON.",
+
+            raw:
+              parsed.text,
           },
-          { status: response.status }
+          {
+            status:
+              response.status ||
+              502,
+          }
         );
       }
 
-      if (!response.ok || !data?.ok) {
+      const data =
+        parsed.data;
+
+      /*
+       * =======================================================
+       * RESPUESTA HTTP / API NO OK
+       * =======================================================
+       */
+
+      if (
+        !response.ok ||
+        !data?.ok
+      ) {
         return NextResponse.json(
           {
             ok: false,
+
             step: "catalog",
-            pages_checked: pagesChecked,
-            supplierStatus: response.status,
-            supplierResponse: data,
+
+            pages_checked:
+              pagesChecked,
+
+            supplierStatus:
+              response.status,
+
+            supplierResponse:
+              data,
           },
-          { status: response.status }
+          {
+            status:
+              response.status ||
+              502,
+          }
         );
       }
 
-      const items = Array.isArray(data.items)
-        ? data.items
-        : [];
+      /*
+       * =======================================================
+       * GUARDAR ITEMS
+       * =======================================================
+       */
 
-      allItems.push(...items);
+      const items =
+        Array.isArray(
+          data.items
+        )
+          ? data.items
+          : [];
 
-      const meta = data.meta || {};
+      allItems.push(
+        ...items
+      );
+
+      /*
+       * =======================================================
+       * PAGINACIÓN
+       * =======================================================
+       */
+
+      const meta =
+        data.meta || {};
 
       if (
         !meta.has_more ||
@@ -95,12 +313,15 @@ export async function GET(request: NextRequest) {
         break;
       }
 
-      cursor = meta.next_cursor;
+      cursor =
+        String(
+          meta.next_cursor
+        );
     }
 
     /*
      * =========================================================
-     * 2. SI VIENE category_id, BUSCAR ESA CATEGORÍA
+     * 2. LEER category_id
      * =========================================================
      */
 
@@ -109,111 +330,247 @@ export async function GET(request: NextRequest) {
         "category_id"
       );
 
+    /*
+     * =========================================================
+     * 3. SI category_id FUE ENVIADO
+     * =========================================================
+     */
+
     if (requestedCategory) {
-      const category = allItems.find(
-        (item) =>
-          String(item?.category_id)
-            .trim()
-            .toLowerCase() ===
-          requestedCategory
-            .trim()
-            .toLowerCase()
-      );
+      const normalizedCategory =
+        requestedCategory
+          .trim()
+          .toLowerCase();
+
+      const category =
+        allItems.find(
+          (item) =>
+            String(
+              item?.category_id
+            )
+              .trim()
+              .toLowerCase() ===
+            normalizedCategory
+        );
+
+      /*
+       * =======================================================
+       * CATEGORÍA NO ENCONTRADA
+       * =======================================================
+       */
 
       if (!category) {
         return NextResponse.json(
           {
             ok: false,
-            error: "Categoría no encontrada en el catálogo de FazerCards.",
-            category_id: requestedCategory,
-            total_categories: allItems.length,
+
+            error:
+              "Categoría no encontrada en el catálogo de FazerCards.",
+
+            category_id:
+              requestedCategory,
+
+            total_categories:
+              allItems.length,
           },
-          { status: 404 }
+          {
+            status: 404,
+          }
         );
       }
 
       /*
        * =======================================================
-       * 3. INTENTAR OBTENER LAS OFERTAS
+       * 4. OBTENER OFERTAS
        * =======================================================
-       *
-       * Usamos la categoría REAL encontrada en /topups.
        */
 
-      const offersUrl = new URL(
-        `${FAZERCARDS_API}/topups/offers`
-      );
+      const offersUrl =
+        new URL(
+          `${FAZERCARDS_API}/topups/offers`
+        );
 
       offersUrl.searchParams.set(
         "category_id",
-        String(category.category_id).trim()
+        String(
+          category.category_id
+        ).trim()
       );
 
-      const offersResponse = await fetch(
-        offersUrl.toString(),
-        {
-          method: "GET",
-          headers: {
-            "X-API-Key": apiKey,
-            Accept: "application/json",
-          },
-          cache: "no-store",
-        }
-      );
-
-      const offersText =
-        await offersResponse.text();
-
-      let offersData: any;
+      let offersResponse: Response;
 
       try {
-        offersData = offersText
-          ? JSON.parse(offersText)
-          : null;
-      } catch {
+        offersResponse =
+          await fetch(
+            offersUrl.toString(),
+            {
+              method: "GET",
+
+              headers: {
+                "X-API-Key":
+                  apiKey,
+
+                Accept:
+                  "application/json",
+
+                "User-Agent":
+                  "STORE-GAMING/1.0",
+              },
+
+              cache:
+                "no-store",
+            }
+          );
+      } catch (networkError: any) {
+        console.error(
+          "FAZERCARDS OFFERS NETWORK ERROR:",
+          networkError
+        );
+
         return NextResponse.json(
           {
             ok: false,
-            step: "offers_parse",
-            category: {
-              category_id:
-                category.category_id,
-              name: category.name,
-              note: category.note,
-            },
-            supplierStatus:
-              offersResponse.status,
-            raw: offersText,
+
+            step:
+              "offers_network",
+
+            category_id:
+              category.category_id,
+
+            error:
+              networkError?.message ||
+              "No se pudo conectar con FazerCards para obtener las ofertas.",
           },
           {
-            status:
-              offersResponse.status,
+            status: 502,
           }
         );
       }
 
-      if (!offersResponse.ok) {
+      const offersParsed =
+        await parseSupplierResponse(
+          offersResponse
+        );
+
+      /*
+       * =======================================================
+       * DDoS-GUARD EN OFFERS
+       * =======================================================
+       */
+
+      if (
+        offersParsed.ddosGuard
+      ) {
+        console.error(
+          "FAZERCARDS OFFERS BLOQUEADO POR DDOS-GUARD."
+        );
+
         return NextResponse.json(
           {
             ok: false,
-            step: "offers",
-            category: {
-              category_id:
-                category.category_id,
-              name: category.name,
-              note: category.note,
-            },
+
+            step:
+              "offers_supplier",
+
+            category_id:
+              category.category_id,
+
             supplierStatus:
               offersResponse.status,
+
+            error:
+              "FazerCards está devolviendo una protección DDoS-Guard en lugar de las ofertas JSON.",
+
+            supplier:
+              "FazerCards",
+
+            endpoint:
+              `${FAZERCARDS_API}/topups/offers`,
+          },
+          {
+            status: 503,
+          }
+        );
+      }
+
+      /*
+       * =======================================================
+       * OFFERS NO JSON
+       * =======================================================
+       */
+
+      if (
+        !offersParsed.ok
+      ) {
+        return NextResponse.json(
+          {
+            ok: false,
+
+            step:
+              "offers_parse",
+
+            category_id:
+              category.category_id,
+
+            supplierStatus:
+              offersResponse.status,
+
+            error:
+              "FazerCards devolvió una respuesta no JSON al solicitar las ofertas.",
+
+            raw:
+              offersParsed.text,
+          },
+          {
+            status:
+              offersResponse.status ||
+              502,
+          }
+        );
+      }
+
+      const offersData =
+        offersParsed.data;
+
+      /*
+       * =======================================================
+       * OFFERS HTTP / API NO OK
+       * =======================================================
+       */
+
+      if (
+        !offersResponse.ok ||
+        !offersData?.ok
+      ) {
+        return NextResponse.json(
+          {
+            ok: false,
+
+            step:
+              "offers",
+
+            category_id:
+              category.category_id,
+
+            supplierStatus:
+              offersResponse.status,
+
             supplierResponse:
               offersData,
           },
           {
             status:
-              offersResponse.status,
+              offersResponse.status ||
+              502,
           }
         );
       }
+
+      /*
+       * =======================================================
+       * 5. DEVOLVER CATEGORÍA + OFERTAS + CAMPOS
+       * =======================================================
+       */
 
       return NextResponse.json({
         ok: true,
@@ -248,7 +605,7 @@ export async function GET(request: NextRequest) {
 
     /*
      * =========================================================
-     * 4. SIN category_id
+     * 6. SIN category_id
      * DEVOLVER CATÁLOGO COMPLETO
      * =========================================================
      */
@@ -271,11 +628,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
+
         error:
           error?.message ||
           "Error interno del servidor",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
-}
+              }
