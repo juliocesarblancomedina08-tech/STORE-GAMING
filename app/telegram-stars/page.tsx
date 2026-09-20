@@ -1,5 +1,5 @@
 "use client";
- 
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -116,9 +116,7 @@ export default function TelegramStarsPage() {
 
     setTimeout(() => {
       document
-        .getElementById(
-          "telegram-order-section"
-        )
+        .getElementById("telegram-order-section")
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -135,8 +133,7 @@ export default function TelegramStarsPage() {
   function isValidTelegramUsername(
     username: string
   ) {
-    const clean =
-      username.trim();
+    const clean = username.trim();
 
     if (!clean) {
       return false;
@@ -165,9 +162,7 @@ export default function TelegramStarsPage() {
       telegramUsername.trim();
 
     if (
-      !isValidTelegramUsername(
-        username
-      )
+      !isValidTelegramUsername(username)
     ) {
       alert(
         "Introduce un @usuario de Telegram válido. Ejemplo: @usuario"
@@ -262,16 +257,12 @@ export default function TelegramStarsPage() {
 
       localStorage.setItem(
         "storeGamingOrders",
-        JSON.stringify(
-          orders
-        )
+        JSON.stringify(orders)
       );
 
       localStorage.setItem(
         "storeGamingLastOrder",
-        JSON.stringify(
-          order
-        )
+        JSON.stringify(order)
       );
     } catch (error) {
       console.error(
@@ -280,9 +271,7 @@ export default function TelegramStarsPage() {
       );
     }
 
-    setOrderNumber(
-      orderId
-    );
+    setOrderNumber(orderId);
 
     setOrderCreated(true);
     setShowConfirmation(false);
@@ -358,12 +347,15 @@ export default function TelegramStarsPage() {
 
       </header>
 
-
       {/* =========================
           CONTENIDO
       ========================== */}
 
       <section className="telegram-stars-content">
+
+        {/* =========================
+            INTRO
+        ========================== */}
 
         <div className="telegram-stars-intro">
 
@@ -381,7 +373,6 @@ export default function TelegramStarsPage() {
           </p>
 
         </div>
-
 
         {/* =========================
             SELECTOR
@@ -401,6 +392,7 @@ export default function TelegramStarsPage() {
               setSelectedOffer(null);
               setShowConfirmation(false);
               setOrderCreated(false);
+              setOrderNumber("");
             }}
           >
             ⭐ STARS
@@ -418,13 +410,13 @@ export default function TelegramStarsPage() {
               setSelectedOffer(null);
               setShowConfirmation(false);
               setOrderCreated(false);
+              setOrderNumber("");
             }}
           >
             ✈️ PREMIUM
           </button>
 
         </div>
-
 
         {/* =========================
             TÍTULO DE OFERTAS
@@ -446,72 +438,74 @@ export default function TelegramStarsPage() {
 
         </div>
 
-
         {/* =========================
             OFERTAS
+            ESTILO TOP UP
         ========================== */}
 
         <div className="telegram-stars-offers-grid">
 
-          {offers.map(
-            (offer) => (
+          {offers.map((offer) => {
+
+            const isSelected =
+              selectedOffer?.name ===
+                offer.name;
+
+            return (
               <button
-                key={
-                  `${section}-${offer.name}`
-                }
+                key={`${section}-${offer.name}`}
                 type="button"
                 className={
-                  selectedOffer?.name ===
-                    offer.name
-                    ? "telegram-stars-offer-card selected"
-                    : "telegram-stars-offer-card"
+                  isSelected
+                    ? "telegram-stars-offer-card offer-card selected"
+                    : "telegram-stars-offer-card offer-card"
                 }
                 onClick={() =>
-                  selectOffer(
-                    offer
-                  )
+                  selectOffer(offer)
                 }
               >
 
-                <div className="telegram-stars-offer-top">
+                <div className="offer-left">
 
-                  <span className="telegram-stars-offer-icon">
-                    {section ===
-                    "stars"
+                  <span className="diamond-icon">
+                    {section === "stars"
                       ? "⭐"
                       : "✈️"}
                   </span>
 
-                  <strong>
-                    {offer.name}
-                  </strong>
+                  <div className="offer-info">
+
+                    <strong>
+                      {offer.name}
+                    </strong>
+
+                    <span>
+                      {section === "stars"
+                        ? "TELEGRAM STARS"
+                        : "TELEGRAM PREMIUM"}
+                    </span>
+
+                  </div>
 
                 </div>
 
-
-                <div className="telegram-stars-offer-bottom">
-
-                  <span>
-                    PRECIO
-                  </span>
+                <div className="offer-right">
 
                   <strong>
                     {offer.price}
                   </strong>
 
-                </div>
+                  <span>
+                    SELECCIONAR →
+                  </span>
 
-
-                <div className="telegram-stars-offer-action">
-                  SELECCIONAR →
                 </div>
 
               </button>
-            )
-          )}
+            );
+          })}
 
         </div>
-
 
         {/* =========================
             PEDIDO
@@ -531,7 +525,9 @@ export default function TelegramStarsPage() {
                 <div className="telegram-order-card-title">
 
                   <span>
-                    ⭐
+                    {section === "stars"
+                      ? "⭐"
+                      : "✈️"}
                   </span>
 
                   <h2>
@@ -539,7 +535,6 @@ export default function TelegramStarsPage() {
                   </h2>
 
                 </div>
-
 
                 <div className="telegram-selected-offer">
 
@@ -557,7 +552,6 @@ export default function TelegramStarsPage() {
 
                 </div>
 
-
                 <label
                   htmlFor="telegram-username"
                 >
@@ -567,9 +561,7 @@ export default function TelegramStarsPage() {
                 <input
                   id="telegram-username"
                   type="text"
-                  value={
-                    telegramUsername
-                  }
+                  value={telegramUsername}
                   onChange={(event) =>
                     setTelegramUsername(
                       event.target.value
@@ -580,19 +572,15 @@ export default function TelegramStarsPage() {
                   inputMode="text"
                 />
 
-
                 <p className="telegram-input-help">
                   Introduce tu usuario
                   comenzando con @.
                 </p>
 
-
                 <button
                   type="button"
                   className="telegram-continue-button"
-                  onClick={
-                    finishOrder
-                  }
+                  onClick={finishOrder}
                 >
                   CONTINUAR →
                 </button>
@@ -601,7 +589,6 @@ export default function TelegramStarsPage() {
 
             </section>
           )}
-
 
         {/* =========================
             CONFIRMACIÓN
@@ -629,7 +616,6 @@ export default function TelegramStarsPage() {
 
                 </div>
 
-
                 <div className="telegram-confirmation-data">
 
                   <div>
@@ -639,14 +625,12 @@ export default function TelegramStarsPage() {
                     </span>
 
                     <strong>
-                      {section ===
-                      "stars"
+                      {section === "stars"
                         ? "TELEGRAM STARS"
                         : "TELEGRAM PREMIUM"}
                     </strong>
 
                   </div>
-
 
                   <div>
 
@@ -660,7 +644,6 @@ export default function TelegramStarsPage() {
 
                   </div>
 
-
                   <div>
 
                     <span>
@@ -672,7 +655,6 @@ export default function TelegramStarsPage() {
                     </strong>
 
                   </div>
-
 
                   <div>
 
@@ -688,25 +670,19 @@ export default function TelegramStarsPage() {
 
                 </div>
 
-
                 <button
                   type="button"
                   className="telegram-confirm-button"
-                  onClick={
-                    createOrder
-                  }
+                  onClick={createOrder}
                 >
                   CONFIRMAR PEDIDO
                 </button>
-
 
                 <button
                   type="button"
                   className="telegram-cancel-button"
                   onClick={() =>
-                    setShowConfirmation(
-                      false
-                    )
+                    setShowConfirmation(false)
                   }
                 >
                   ← VOLVER
@@ -716,7 +692,6 @@ export default function TelegramStarsPage() {
 
             </section>
           )}
-
 
         {/* =========================
             PEDIDO CREADO
@@ -740,12 +715,10 @@ export default function TelegramStarsPage() {
               </h2>
 
               <p>
-                Tu pedido de
-                Telegram ha sido
-                registrado
+                Tu pedido de Telegram
+                ha sido registrado
                 correctamente.
               </p>
-
 
               <div className="telegram-success-order">
 
@@ -758,7 +731,6 @@ export default function TelegramStarsPage() {
                 </strong>
 
               </div>
-
 
               <div className="telegram-success-summary">
 
@@ -774,7 +746,6 @@ export default function TelegramStarsPage() {
 
                 </div>
 
-
                 <div>
 
                   <span>
@@ -786,7 +757,6 @@ export default function TelegramStarsPage() {
                   </strong>
 
                 </div>
-
 
                 <div>
 
@@ -802,26 +772,20 @@ export default function TelegramStarsPage() {
 
               </div>
 
-
               <button
                 type="button"
                 className="finish-order-button"
                 onClick={() =>
-                  router.push(
-                    "/orders"
-                  )
+                  router.push("/orders")
                 }
               >
                 VER MIS PEDIDOS
               </button>
 
-
               <button
                 type="button"
                 className="secondary-button"
-                onClick={
-                  resetOrder
-                }
+                onClick={resetOrder}
               >
                 HACER OTRO PEDIDO
               </button>
@@ -832,7 +796,6 @@ export default function TelegramStarsPage() {
         )}
 
       </section>
-
 
       {/* =========================
           FOOTER
@@ -852,4 +815,4 @@ export default function TelegramStarsPage() {
 
     </main>
   );
-        }
+ }
