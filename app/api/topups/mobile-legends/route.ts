@@ -70,7 +70,7 @@ const OFFERS: Offer[] = [
   {
     id: "5010_1002_diamantes",
     name: "5010 + 1002 Diamantes",
-    retailPrice: 86.80,
+    retailPrice: 86.8,
     supplierPrice: 86.645,
   },
 ];
@@ -86,7 +86,10 @@ type ExistingOrder = {
   supplier_price: number | null;
 };
 
-function jsonError(message: string, status = 400) {
+function jsonError(
+  message: string,
+  status = 400
+) {
   return NextResponse.json(
     {
       ok: false,
@@ -96,10 +99,13 @@ function jsonError(message: string, status = 400) {
   );
 }
 
-function getOffer(offerId: string): Offer | null {
+function getOffer(
+  offerId: string
+): Offer | null {
   return (
-    OFFERS.find((offer) => offer.id === offerId) ??
-    null
+    OFFERS.find(
+      (offer) => offer.id === offerId
+    ) ?? null
   );
 }
 
@@ -140,7 +146,10 @@ function isRejectedSupplierStatus(
 export async function POST(
   request: NextRequest
 ) {
-  let internalOrderId: string | null = null;
+  let internalOrderId:
+    | string
+    | null = null;
+
   let reserved = false;
 
   try {
@@ -151,11 +160,15 @@ export async function POST(
      */
 
     const authorization =
-      request.headers.get("authorization");
+      request.headers.get(
+        "authorization"
+      );
 
     if (
       !authorization ||
-      !authorization.startsWith("Bearer ")
+      !authorization.startsWith(
+        "Bearer "
+      )
     ) {
       return jsonError(
         "No autorizado.",
@@ -226,7 +239,8 @@ export async function POST(
         : "";
 
     const idempotencyKey =
-      typeof body?.idempotencyKey === "string"
+      typeof body?.idempotencyKey ===
+      "string"
         ? body.idempotencyKey.trim()
         : "";
 
@@ -355,8 +369,15 @@ export async function POST(
         )
         .maybeSingle();
 
+    /*
+     * IMPORTANTE:
+     * Se usa unknown para que TypeScript permita
+     * la conversión del resultado de Supabase.
+     */
     const existingOrder =
-      existingOrderData as ExistingOrder | null;
+      existingOrderData as unknown as
+        | ExistingOrder
+        | null;
 
     if (
       existingOrderError &&
@@ -372,7 +393,6 @@ export async function POST(
     if (existingOrder) {
       return NextResponse.json({
         ok: true,
-
         alreadyCreated: true,
 
         orderNumber:
@@ -415,8 +435,7 @@ export async function POST(
       null;
 
     const email =
-      user.email ??
-      null;
+      user.email ?? null;
 
     const {
       data: insertedOrder,
@@ -486,6 +505,7 @@ export async function POST(
       /*
        * Puede existir una carrera de idempotencia.
        */
+
       const {
         data: raceOrderData,
       } =
@@ -510,12 +530,13 @@ export async function POST(
           .maybeSingle();
 
       const raceOrder =
-        raceOrderData as ExistingOrder | null;
+        raceOrderData as unknown as
+          | ExistingOrder
+          | null;
 
       if (raceOrder) {
         return NextResponse.json({
           ok: true,
-
           alreadyCreated: true,
 
           orderNumber:
@@ -555,11 +576,10 @@ export async function POST(
 
     /*
      * ============================================================
-     * 9. RESERVAR / DESCONTAR SALDO
+     * 9. RESERVAR SALDO
      * ============================================================
      *
-     * MISMA FUNCIÓN QUE FREE FIRE.
-     * ============================================================
+     * MISMA FUNCIÓN QUE FREE FIRE
      */
 
     const {
@@ -589,9 +609,6 @@ export async function POST(
           status:
             "FAILED",
 
-          failed_at:
-            new Date().toISOString(),
-
           updated_at:
             new Date().toISOString(),
         })
@@ -599,19 +616,6 @@ export async function POST(
           "id",
           internalOrderId
         );
-
-      if (
-        reserveError.message
-          ?.toLowerCase()
-          .includes(
-            "saldo insuficiente"
-          )
-      ) {
-        return jsonError(
-          "SALDO INSUFICIENTE",
-          400
-        );
-      }
 
       return jsonError(
         reserveError.message ||
@@ -624,7 +628,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 10. VERIFICAR API KEY
+     * 10. COMPROBAR API KEY
      * ============================================================
      */
 
@@ -656,6 +660,20 @@ export async function POST(
         );
       }
 
+      await supabaseAdmin
+        .from("topup_orders")
+        .update({
+          status:
+            "FAILED",
+
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          internalOrderId
+        );
+
       return jsonError(
         "El servicio de recargas no está configurado.",
         500
@@ -667,11 +685,10 @@ export async function POST(
      * 11. ENVIAR PEDIDO A FAZERCARDS
      * ============================================================
      *
-     * CAMPOS CONFIRMADOS POR EL CATÁLOGO:
+     * CAMPOS CONFIRMADOS:
      *
      * id_jugador
      * id_servidor
-     * ============================================================
      */
 
     let supplierResponse: Response;
@@ -732,28 +749,28 @@ export async function POST(
         supplierConnectionError
       );
 
-      /*
-       * Todavía no sabemos si FazerCards recibió
-       * el pedido. Como no existe respuesta HTTP,
-       * devolvemos el saldo mediante la orden interna.
-       */
-      try {
-        await supabaseAdmin.rpc(
-          "refund_topup_balance",
-          {
-            p_order_id:
-              internalOrderId,
-          }
-        );
-
-        reserved = false;
-      } catch (
-        refundError
+      if (
+        reserved &&
+        internalOrderId
       ) {
-        console.error(
-          "ERROR DEVOLVIENDO SALDO:",
+        try {
+          await supabaseAdmin.rpc(
+            "refund_topup_balance",
+            {
+              p_order_id:
+                internalOrderId,
+            }
+          );
+
+          reserved = false;
+        } catch (
           refundError
-        );
+        ) {
+          console.error(
+            "ERROR DEVOLVIENDO SALDO:",
+            refundError
+          );
+        }
       }
 
       await supabaseAdmin
@@ -761,14 +778,6 @@ export async function POST(
         .update({
           status:
             "FAILED",
-
-          supplier_response:
-            {
-              error:
-                String(
-                  supplierConnectionError
-                ),
-            },
 
           updated_at:
             new Date().toISOString(),
@@ -815,7 +824,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 13. EXTRAER INFORMACIÓN DEL PROVEEDOR
+     * 13. ID DEL PEDIDO DEL PROVEEDOR
      * ============================================================
      */
 
@@ -837,7 +846,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 14. SI FAZERCARDS RECHAZA
+     * 14. FAZERCARDS RECHAZÓ
      * ============================================================
      */
 
@@ -856,15 +865,8 @@ export async function POST(
       );
 
       /*
-       * AQUÍ ESTABA EL ERROR ANTERIOR.
-       *
-       * Usamos:
-       *
-       * refund_topup_balance
-       *
-       * con:
-       *
-       * p_order_id
+       * MISMA FUNCIÓN QUE FREE FIRE:
+       * refund_topup_balance(p_order_id)
        */
 
       if (
@@ -902,15 +904,12 @@ export async function POST(
           supplier_order_id:
             supplierOrderId,
 
-          supplier_response:
-            supplierData,
-
           supplier_status:
             supplierStatus ||
             `HTTP_${supplierResponse.status}`,
 
-          failed_at:
-            new Date().toISOString(),
+          supplier_response:
+            supplierData,
 
           updated_at:
             new Date().toISOString(),
@@ -941,25 +940,13 @@ export async function POST(
 
     /*
      * ============================================================
-     * 15. SI FAZERCARDS RESPONDE CORRECTAMENTE
+     * 15. FAZERCARDS NO DEVOLVIÓ ID
      * ============================================================
      */
 
     if (
       !supplierOrderId
     ) {
-      console.error(
-        "FAZERCARDS NO DEVOLVIÓ ID DE ORDEN:",
-        supplierData
-      );
-
-      /*
-       * Como FazerCards respondió HTTP OK pero
-       * no entregó un ID de pedido, mantenemos
-       * la orden pendiente para no crear un
-       * posible doble pedido.
-       */
-
       await supabaseAdmin
         .from("topup_orders")
         .update({
@@ -1022,7 +1009,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 16. MAPEAR ESTADO DE FAZERCARDS
+     * 16. DETERMINAR ESTADO
      * ============================================================
      */
 
@@ -1049,7 +1036,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 17. ACTUALIZAR ORDEN INTERNA
+     * 17. ACTUALIZAR ORDEN
      * ============================================================
      */
 
@@ -1108,15 +1095,10 @@ export async function POST(
       updateOrderError
     ) {
       console.error(
-        "ERROR ACTUALIZANDO ORDEN INTERNA:",
+        "ERROR ACTUALIZANDO ORDEN:",
         updateOrderError
       );
 
-      /*
-       * NO reembolsamos aquí automáticamente.
-       *
-       * FazerCards ya recibió la orden.
-       */
       return jsonError(
         "La orden fue enviada al proveedor, pero no se pudo actualizar su registro interno.",
         500
@@ -1125,7 +1107,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 18. SI FAZERCARDS RECHAZÓ DESPUÉS DE ACEPTAR
+     * 18. PROVEEDOR RECHAZÓ
      * ============================================================
      */
 
@@ -1200,7 +1182,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 19. SI FAZERCARDS YA DEVOLVIÓ COMPLETED
+     * 19. PROVEEDOR COMPLETÓ INMEDIATAMENTE
      * ============================================================
      */
 
@@ -1224,15 +1206,9 @@ export async function POST(
         completeError
       ) {
         console.error(
-          "ERROR MARCANDO COMPLETED:",
+          "ERROR COMPLETANDO ORDEN:",
           completeError
         );
-
-        /*
-         * NO devolvemos saldo.
-         *
-         * La orden del proveedor ya fue completada.
-         */
       } else {
         reserved = false;
       }
@@ -1287,10 +1263,6 @@ export async function POST(
       error
     );
 
-    /*
-     * Solo devolvemos el saldo si todavía
-     * estaba reservado y tenemos una orden interna.
-     */
     if (
       internalOrderId &&
       reserved
@@ -1301,9 +1273,7 @@ export async function POST(
         } =
           await supabaseAdmin
             .from("topup_orders")
-            .select(
-              "status"
-            )
+            .select("status")
             .eq(
               "id",
               internalOrderId
