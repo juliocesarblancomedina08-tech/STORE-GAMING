@@ -291,6 +291,10 @@ export async function POST(request: NextRequest) {
 
     const orderPayload = {
       user_id: user.id,
+
+      // CAMPO OBLIGATORIO DE topup_orders
+      game: "Free Fire LATAM",
+
       category_id: CATEGORY_ID,
       offer_id: offer.id,
       offer_name: offer.name,
@@ -835,4 +839,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-    }
+            }
