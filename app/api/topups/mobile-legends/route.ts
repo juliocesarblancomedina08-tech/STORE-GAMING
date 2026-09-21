@@ -481,7 +481,7 @@ export async function POST(
             player_id:
               playerId,
 
-            id_servidor:
+            server_id:
               serverId,
           },
         })
@@ -678,15 +678,10 @@ export async function POST(
      * 11. ENVIAR PEDIDO A FAZERCARDS
      * ============================================================
      *
-     * IMPORTANTE:
-     *
-     * FazerCards está exigiendo:
+     * CAMPOS CONFIRMADOS POR LOS ERRORES DEL PROVEEDOR:
      *
      * player_id
-     *
-     * Para el servidor mantenemos:
-     *
-     * id_servidor
+     * server_id
      *
      * ============================================================
      */
@@ -735,7 +730,7 @@ export async function POST(
                   player_id:
                     playerId,
 
-                  id_servidor:
+                  server_id:
                     serverId,
                 },
               }),
