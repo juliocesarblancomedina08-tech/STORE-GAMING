@@ -216,7 +216,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 2. LEER DATOS DEL PEDIDO
+     * 2. LEER DATOS
      * ============================================================
      */
 
@@ -224,17 +224,20 @@ export async function POST(
       await request.json();
 
     const offerId =
-      typeof body?.offerId === "string"
+      typeof body?.offerId ===
+      "string"
         ? body.offerId.trim()
         : "";
 
     const playerId =
-      typeof body?.playerId === "string"
+      typeof body?.playerId ===
+      "string"
         ? body.playerId.trim()
         : "";
 
     const serverId =
-      typeof body?.serverId === "string"
+      typeof body?.serverId ===
+      "string"
         ? body.serverId.trim()
         : "";
 
@@ -262,7 +265,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 4. VALIDAR ID DEL JUGADOR
+     * 4. VALIDAR PLAYER ID
      * ============================================================
      */
 
@@ -296,7 +299,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 5. VALIDAR ID DEL SERVIDOR
+     * 5. VALIDAR SERVER ID
      * ============================================================
      */
 
@@ -330,7 +333,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 6. CLAVE DE IDEMPOTENCIA
+     * 6. IDEMPOTENCIA
      * ============================================================
      */
 
@@ -340,7 +343,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 7. COMPROBAR SI YA EXISTE LA ORDEN
+     * 7. BUSCAR ORDEN EXISTENTE
      * ============================================================
      */
 
@@ -498,7 +501,7 @@ export async function POST(
       );
 
       /*
-       * Puede existir una carrera de idempotencia.
+       * Comprobar posible carrera de idempotencia.
        */
 
       const {
@@ -601,9 +604,6 @@ export async function POST(
         .update({
           status:
             "FAILED",
-
-          updated_at:
-            new Date().toISOString(),
         })
         .eq(
           "id",
@@ -621,7 +621,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 10. COMPROBAR API KEY
+     * 10. API KEY DE FAZERCARDS
      * ============================================================
      */
 
@@ -658,9 +658,6 @@ export async function POST(
         .update({
           status:
             "FAILED",
-
-          updated_at:
-            new Date().toISOString(),
         })
         .eq(
           "id",
@@ -675,10 +672,10 @@ export async function POST(
 
     /*
      * ============================================================
-     * 11. ENVIAR PEDIDO A FAZERCARDS
+     * 11. CREAR PEDIDO EN FAZERCARDS
      * ============================================================
      *
-     * CAMPOS CONFIRMADOS POR LOS ERRORES DEL PROVEEDOR:
+     * CAMPOS CONFIRMADOS POR FAZERCARDS:
      *
      * player_id
      * server_id
@@ -773,9 +770,6 @@ export async function POST(
         .update({
           status:
             "FAILED",
-
-          updated_at:
-            new Date().toISOString(),
         })
         .eq(
           "id",
@@ -790,7 +784,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 12. LEER RESPUESTA DE FAZERCARDS
+     * 12. LEER RESPUESTA DEL PROVEEDOR
      * ============================================================
      */
 
@@ -819,7 +813,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 13. ID DEL PEDIDO DEL PROVEEDOR
+     * 13. OBTENER ID Y ESTADO DEL PROVEEDOR
      * ============================================================
      */
 
@@ -885,29 +879,36 @@ export async function POST(
         }
       }
 
-      await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          status:
-            "FAILED",
+      /*
+       * Solo utilizamos columnas confirmadas.
+       */
 
-          supplier_order_id:
-            supplierOrderId,
+      const {
+        error:
+          failedUpdateError,
+      } =
+        await supabaseAdmin
+          .from("topup_orders")
+          .update({
+            status:
+              "FAILED",
 
-          supplier_status:
-            supplierStatus ||
-            `HTTP_${supplierResponse.status}`,
+            supplier_order_id:
+              supplierOrderId,
+          })
+          .eq(
+            "id",
+            internalOrderId
+          );
 
-          supplier_response:
-            supplierData,
-
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          internalOrderId
+      if (
+        failedUpdateError
+      ) {
+        console.error(
+          "ERROR ACTUALIZANDO ORDEN FALLIDA:",
+          failedUpdateError
         );
+      }
 
       return NextResponse.json(
         {
@@ -937,26 +938,29 @@ export async function POST(
     if (
       !supplierOrderId
     ) {
-      await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          status:
-            "SUPPLIER_PENDING",
+      const {
+        error:
+          pendingUpdateError,
+      } =
+        await supabaseAdmin
+          .from("topup_orders")
+          .update({
+            status:
+              "SUPPLIER_PENDING",
+          })
+          .eq(
+            "id",
+            internalOrderId
+          );
 
-          supplier_response:
-            supplierData,
-
-          supplier_status:
-            supplierStatus ||
-            "pending",
-
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          internalOrderId
+      if (
+        pendingUpdateError
+      ) {
+        console.error(
+          "ERROR ACTUALIZANDO ORDEN PENDIENTE:",
+          pendingUpdateError
         );
+      }
 
       return NextResponse.json(
         {
@@ -1026,46 +1030,15 @@ export async function POST(
 
     /*
      * ============================================================
-     * 17. ACTUALIZAR ORDEN
+     * 17. GUARDAR PEDIDO DEL PROVEEDOR
+     * ============================================================
+     *
+     * NO se utiliza supplier_status.
+     * NO se utiliza supplier_response.
+     * Solo columnas confirmadas.
+     *
      * ============================================================
      */
-
-    const updateData: Record<
-      string,
-      unknown
-    > = {
-      supplier_order_id:
-        supplierOrderId,
-
-      status:
-        internalStatus,
-
-      supplier_status:
-        supplierStatus ||
-        "pending",
-
-      supplier_response:
-        supplierData,
-
-      updated_at:
-        new Date().toISOString(),
-    };
-
-    if (
-      internalStatus ===
-      "COMPLETED"
-    ) {
-      updateData.completed_at =
-        new Date().toISOString();
-    }
-
-    if (
-      internalStatus ===
-      "FAILED"
-    ) {
-      updateData.failed_at =
-        new Date().toISOString();
-    }
 
     const {
       error:
@@ -1073,9 +1046,13 @@ export async function POST(
     } =
       await supabaseAdmin
         .from("topup_orders")
-        .update(
-          updateData
-        )
+        .update({
+          supplier_order_id:
+            supplierOrderId,
+
+          status:
+            internalStatus,
+        })
         .eq(
           "id",
           internalOrderId
@@ -1089,15 +1066,24 @@ export async function POST(
         updateOrderError
       );
 
+      /*
+       * IMPORTANTE:
+       *
+       * FazerCards ya recibió la orden.
+       * No devolvemos automáticamente el saldo aquí,
+       * porque el proveedor ya pudo haber creado
+       * la recarga.
+       */
+
       return jsonError(
-        "La orden fue enviada al proveedor, pero no se pudo actualizar su registro interno.",
+        "La orden fue enviada a FazerCards, pero no se pudo actualizar el registro interno.",
         500
       );
     }
 
     /*
      * ============================================================
-     * 18. PROVEEDOR RECHAZÓ
+     * 18. PROVEEDOR RECHAZÓ DESPUÉS DE CREAR
      * ============================================================
      */
 
@@ -1253,6 +1239,11 @@ export async function POST(
       error
     );
 
+    /*
+     * Solo intentamos reembolso si la orden
+     * sigue realmente reservada.
+     */
+
     if (
       internalOrderId &&
       reserved
@@ -1310,4 +1301,4 @@ export async function POST(
       500
     );
   }
-}
+  }
