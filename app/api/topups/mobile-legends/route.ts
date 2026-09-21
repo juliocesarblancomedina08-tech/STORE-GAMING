@@ -369,11 +369,6 @@ export async function POST(
         )
         .maybeSingle();
 
-    /*
-     * IMPORTANTE:
-     * Se usa unknown para que TypeScript permita
-     * la conversión del resultado de Supabase.
-     */
     const existingOrder =
       existingOrderData as unknown as
         | ExistingOrder
@@ -483,7 +478,7 @@ export async function POST(
             finalIdempotencyKey,
 
           supplier_fields: {
-            id_jugador:
+            player_id:
               playerId,
 
             id_servidor:
@@ -578,8 +573,6 @@ export async function POST(
      * ============================================================
      * 9. RESERVAR SALDO
      * ============================================================
-     *
-     * MISMA FUNCIÓN QUE FREE FIRE
      */
 
     const {
@@ -685,10 +678,17 @@ export async function POST(
      * 11. ENVIAR PEDIDO A FAZERCARDS
      * ============================================================
      *
-     * CAMPOS CONFIRMADOS:
+     * IMPORTANTE:
      *
-     * id_jugador
+     * FazerCards está exigiendo:
+     *
+     * player_id
+     *
+     * Para el servidor mantenemos:
+     *
      * id_servidor
+     *
+     * ============================================================
      */
 
     let supplierResponse: Response;
@@ -732,7 +732,7 @@ export async function POST(
                   offer.id,
 
                 fields: {
-                  id_jugador:
+                  player_id:
                     playerId,
 
                   id_servidor:
@@ -863,11 +863,6 @@ export async function POST(
             supplierData,
         }
       );
-
-      /*
-       * MISMA FUNCIÓN QUE FREE FIRE:
-       * refund_topup_balance(p_order_id)
-       */
 
       if (
         reserved &&
