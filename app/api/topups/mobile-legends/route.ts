@@ -15,6 +15,7 @@ const GAME_NAME =
 
 type Offer = {
   id: string;
+  supplierOfferId: string;
   name: string;
   display: string;
   price: number;
@@ -24,6 +25,7 @@ type Offer = {
 const OFFERS: Offer[] = [
   {
     id: "51_5_diamonds",
+    supplierOfferId: "51_5_diamonds",
     name: "51 + 5 Diamantes",
     display: "51 + 5💎",
     price: 0.97,
@@ -32,6 +34,7 @@ const OFFERS: Offer[] = [
 
   {
     id: "weekly_diamond_pass",
+    supplierOfferId: "weekly_diamond_pass",
     name: "Pase Semanal de Diamantes",
     display: "PASE SEMANAL",
     price: 1.85,
@@ -40,6 +43,7 @@ const OFFERS: Offer[] = [
 
   {
     id: "253_25_diamonds",
+    supplierOfferId: "253_25_diamonds",
     name: "253 + 25 Diamantes",
     display: "253 + 25💎",
     price: 4.45,
@@ -48,6 +52,7 @@ const OFFERS: Offer[] = [
 
   {
     id: "505_66_diamonds",
+    supplierOfferId: "505_66_diamonds",
     name: "505 + 66 Diamantes",
     display: "505 + 66💎",
     price: 8.80,
@@ -56,6 +61,7 @@ const OFFERS: Offer[] = [
 
   {
     id: "1010_182_diamonds",
+    supplierOfferId: "1010_182_diamonds",
     name: "1010 + 182 Diamantes",
     display: "1010 + 182💎",
     price: 17.45,
@@ -168,6 +174,7 @@ function isSuccessfulSupplierStatus(
     "complete",
     "success",
     "successful",
+    "done",
   ].includes(
     status.toLowerCase()
   );
@@ -188,6 +195,7 @@ function isSupplierRejection(
       "cancelled",
       "canceled",
       "declined",
+      "error",
     ].includes(
       status.toLowerCase()
     )
@@ -202,6 +210,106 @@ function isSupplierRejection(
   }
 
   return false;
+}
+
+async function getFazerDiagnostics(
+  apiKey: string
+) {
+  const headers = {
+    Accept:
+      "application/json",
+
+    "X-API-Key":
+      apiKey,
+
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
+
+    Referer:
+      "https://reseller.fazercards.com/",
+
+    Origin:
+      "https://reseller.fazercards.com",
+  };
+
+  let meStatus:
+    | number
+    | null = null;
+
+  let meData:
+    | any
+    | null = null;
+
+  let balanceStatus:
+    | number
+    | null = null;
+
+  let balanceData:
+    | any
+    | null = null;
+
+  try {
+    const response =
+      await fetch(
+        `${FAZER_API_BASE}/me`,
+        {
+          method: "GET",
+          headers,
+          cache:
+            "no-store",
+        }
+      );
+
+    meStatus =
+      response.status;
+
+    try {
+      meData =
+        await response.json();
+    } catch {
+      meData = null;
+    }
+  } catch (error) {
+    console.error(
+      "Error consultando FazerCards /me:",
+      error
+    );
+  }
+
+  try {
+    const response =
+      await fetch(
+        `${FAZER_API_BASE}/balance`,
+        {
+          method: "GET",
+          headers,
+          cache:
+            "no-store",
+        }
+      );
+
+    balanceStatus =
+      response.status;
+
+    try {
+      balanceData =
+        await response.json();
+    } catch {
+      balanceData = null;
+    }
+  } catch (error) {
+    console.error(
+      "Error consultando FazerCards /balance:",
+      error
+    );
+  }
+
+  return {
+    meStatus,
+    meData,
+    balanceStatus,
+    balanceData,
+  };
 }
 
 export async function POST(
@@ -352,7 +460,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 5. BUSCAR OFERTA EN EL SERVIDOR
+     * 5. OFERTA
      * ============================================================
      */
 
@@ -369,19 +477,22 @@ export async function POST(
     }
 
     const retailPrice =
-      offer.price;
+      Number(offer.price);
 
     const supplierPrice =
-      offer.supplierPrice;
+      Number(
+        offer.supplierPrice
+      );
 
     /*
      * ============================================================
-     * 6. DUPLICADO POR IDEMPOTENCIA
+     * 6. IDEMPOTENCIA
      * ============================================================
      */
 
     const {
       data: existingOrderData,
+      error: existingOrderError,
     } =
       await supabaseAdmin
         .from("topup_orders")
@@ -402,6 +513,18 @@ export async function POST(
           idempotencyKey
         )
         .maybeSingle();
+
+    if (existingOrderError) {
+      console.error(
+        "ERROR COMPROBANDO IDEMPOTENCIA:",
+        existingOrderError
+      );
+
+      return jsonError(
+        "No se pudo comprobar el pedido existente.",
+        500
+      );
+    }
 
     const existingOrder =
       existingOrderData as unknown as
@@ -537,10 +660,10 @@ export async function POST(
             idempotencyKey,
 
           supplier_fields: {
-            id_jugador:
+            player_id:
               playerId,
 
-            id_servidor:
+            server_id:
               serverId,
           },
         })
@@ -633,7 +756,7 @@ export async function POST(
       error: reserveError,
     } =
       await supabaseAdmin.rpc(
-        "reserve_topup_balance",
+        "store_gaming_reserve_balance",
         {
           p_user_id:
             user.id,
@@ -654,9 +777,6 @@ export async function POST(
         .update({
           status:
             "FAILED",
-
-          failed_at:
-            new Date().toISOString(),
 
           updated_at:
             new Date().toISOString(),
@@ -690,7 +810,7 @@ export async function POST(
 
     /*
      * ============================================================
-     * 10. API FAZERCARDS
+     * 10. API KEY
      * ============================================================
      */
 
@@ -699,7 +819,7 @@ export async function POST(
 
     if (!apiKey) {
       await supabaseAdmin.rpc(
-        "refund_topup_balance",
+        "store_gaming_refund_balance",
         {
           p_order_id:
             internalOrderId,
@@ -716,70 +836,102 @@ export async function POST(
 
     /*
      * ============================================================
-     * 11. CREAR PEDIDO EN FAZERCARDS
+     * 11. PEDIDO A FAZERCARDS
      * ============================================================
      */
 
-    const supplierResponse =
-      await fetch(
-        `${FAZER_API_BASE}/topups/order`,
-        {
-          method: "POST",
+    const supplierPayload = {
+      category_id:
+        CATEGORY_ID,
 
-          headers: {
-            "X-API-Key":
-              apiKey,
+      offer_id:
+        offer.supplierOfferId,
 
-            "Content-Type":
-              "application/json",
+      fields: {
+        player_id:
+          playerId,
 
-            Accept:
-              "application/json",
+        server_id:
+          serverId,
+      },
+    };
 
-            "Idempotency-Key":
-              idempotencyKey,
-          },
+    console.log(
+      "Enviando Mobile Legends a FazerCards:",
+      {
+        category_id:
+          CATEGORY_ID,
 
-          body: JSON.stringify({
-            category_id:
-              CATEGORY_ID,
+        offer_id:
+          offer.supplierOfferId,
 
-            offer_id:
-              offer.id,
+        fields: {
+          player_id:
+            playerId,
 
-            fields: {
-              id_jugador:
-                playerId,
+          server_id:
+            serverId,
+        },
+      }
+    );
 
-              id_servidor:
-                serverId,
+    let supplierResponse:
+      Response;
+
+    try {
+      supplierResponse =
+        await fetch(
+          `${FAZER_API_BASE}/topups/order`,
+          {
+            method:
+              "POST",
+
+            headers: {
+              "X-API-Key":
+                apiKey,
+
+              "Content-Type":
+                "application/json",
+
+              Accept:
+                "application/json",
+
+              "Idempotency-Key":
+                idempotencyKey,
+
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
+
+              Referer:
+                "https://reseller.fazercards.com/",
+
+              Origin:
+                "https://reseller.fazercards.com",
             },
-          }),
 
-          cache:
-            "no-store",
-        }
+            body:
+              JSON.stringify(
+                supplierPayload
+              ),
+
+            cache:
+              "no-store",
+          }
+        );
+    } catch (supplierNetworkError) {
+      console.error(
+        "ERROR DE RED CON FAZERCARDS:",
+        supplierNetworkError
       );
 
-    /*
-     * ============================================================
-     * 12. ERROR DE RED
-     * ============================================================
-     */
-
-    if (
-      !supplierResponse
-    ) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
           status:
             "SUPPLIER_PENDING",
 
-          supplier_response: {
-            error:
-              "NETWORK_ERROR",
-          },
+          supplier_status:
+            "pending",
 
           updated_at:
             new Date().toISOString(),
@@ -789,9 +941,13 @@ export async function POST(
           internalOrderId
         );
 
+      reserved = false;
+
       return NextResponse.json(
         {
           ok: true,
+
+          pending: true,
 
           orderNumber:
             internalOrderId,
@@ -820,14 +976,15 @@ export async function POST(
             "La orden quedó pendiente de confirmación del proveedor.",
         },
         {
-          status: 202,
+          status:
+            202,
         }
       );
     }
 
     /*
      * ============================================================
-     * 13. LEER RESPUESTA
+     * 12. RESPUESTA DEL PROVEEDOR
      * ============================================================
      */
 
@@ -863,7 +1020,113 @@ export async function POST(
 
     /*
      * ============================================================
-     * 14. RECHAZO DEL PROVEEDOR
+     * 13. ERROR 403
+     * ============================================================
+     */
+
+    if (
+      supplierResponse.status ===
+      403
+    ) {
+      console.error(
+        "FAZERCARDS RECHAZÓ MOBILE LEGENDS: 403",
+        supplierData
+      );
+
+      const diagnostics =
+        await getFazerDiagnostics(
+          apiKey
+        );
+
+      console.error(
+        "DIAGNÓSTICO FAZERCARDS MOBILE LEGENDS:",
+        diagnostics
+      );
+
+      await supabaseAdmin
+        .from("topup_orders")
+        .update({
+          status:
+            "REJECTED",
+
+          supplier_status:
+            "forbidden",
+
+          supplier_response: {
+            status:
+              403,
+
+            response:
+              supplierData,
+
+            diagnostics,
+          },
+
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          internalOrderId
+        );
+
+      const {
+        error: refundError,
+      } =
+        await supabaseAdmin.rpc(
+          "store_gaming_refund_balance",
+          {
+            p_order_id:
+              internalOrderId,
+          }
+        );
+
+      if (refundError) {
+        console.error(
+          "ERROR DEVOLVIENDO SALDO:",
+          refundError
+        );
+      }
+
+      reserved = false;
+
+      return NextResponse.json(
+        {
+          ok: false,
+
+          error:
+            "FazerCards rechazó el pedido con código 403.",
+
+          orderNumber:
+            internalOrderId,
+
+          supplierStatus:
+            403,
+
+          diagnostics: {
+            meStatus:
+              diagnostics.meStatus,
+
+            me:
+              diagnostics.meData,
+
+            balanceStatus:
+              diagnostics.balanceStatus,
+
+            balance:
+              diagnostics.balanceData,
+          },
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * 14. OTROS RECHAZOS
      * ============================================================
      */
 
@@ -883,11 +1146,35 @@ export async function POST(
         }
       );
 
+      await supabaseAdmin
+        .from("topup_orders")
+        .update({
+          status:
+            "REJECTED",
+
+          supplier_order_id:
+            supplierOrderId,
+
+          supplier_status:
+            supplierStatus ??
+            "rejected",
+
+          supplier_response:
+            supplierData,
+
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          internalOrderId
+        );
+
       const {
         error: refundError,
       } =
         await supabaseAdmin.rpc(
-          "refund_topup_balance",
+          "store_gaming_refund_balance",
           {
             p_order_id:
               internalOrderId,
@@ -898,31 +1185,6 @@ export async function POST(
         console.error(
           "ERROR DEVOLVIENDO SALDO:",
           refundError
-        );
-
-        await supabaseAdmin
-          .from("topup_orders")
-          .update({
-            status:
-              "REFUND_PENDING",
-
-            supplier_order_id:
-              supplierOrderId,
-
-            supplier_response:
-              supplierData,
-
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            internalOrderId
-          );
-
-        return jsonError(
-          "El proveedor rechazó la orden y el reembolso quedó pendiente.",
-          502
         );
       }
 
@@ -943,17 +1205,18 @@ export async function POST(
           supplierOrderId,
 
           status:
-            "REFUNDED",
+            "REJECTED",
         },
         {
-          status: 400,
+          status:
+            400,
         }
       );
     }
 
     /*
      * ============================================================
-     * 15. SIN ID DE PROVEEDOR
+     * 15. SIN ID DEL PROVEEDOR
      * ============================================================
      */
 
@@ -966,6 +1229,10 @@ export async function POST(
           status:
             "SUPPLIER_PENDING",
 
+          supplier_status:
+            supplierStatus ??
+            "pending",
+
           supplier_response:
             supplierData,
 
@@ -977,9 +1244,13 @@ export async function POST(
           internalOrderId
         );
 
+      reserved = false;
+
       return NextResponse.json(
         {
           ok: true,
+
+          pending: true,
 
           orderNumber:
             internalOrderId,
@@ -1004,10 +1275,13 @@ export async function POST(
 
           supplierPrice,
 
-          supplierStatus,
+          supplierStatus:
+            supplierStatus ??
+            "pending",
         },
         {
-          status: 202,
+          status:
+            202,
         }
       );
     }
@@ -1047,6 +1321,9 @@ export async function POST(
       status:
         internalStatus,
 
+      supplier_status:
+        supplierStatus,
+
       supplier_response:
         supplierData,
 
@@ -1054,19 +1331,37 @@ export async function POST(
         new Date().toISOString(),
     };
 
-    await supabaseAdmin
-      .from("topup_orders")
-      .update(
-        updateData
-      )
-      .eq(
-        "id",
-        internalOrderId
+    if (
+      internalStatus ===
+      "COMPLETED"
+    ) {
+      updateData.completed_at =
+        new Date().toISOString();
+    }
+
+    const {
+      error: updateError,
+    } =
+      await supabaseAdmin
+        .from("topup_orders")
+        .update(
+          updateData
+        )
+        .eq(
+          "id",
+          internalOrderId
+        );
+
+    if (updateError) {
+      console.error(
+        "ERROR ACTUALIZANDO ORDEN:",
+        updateError
       );
+    }
 
     /*
      * ============================================================
-     * 18. COMPLETADA INMEDIATAMENTE
+     * 18. COMPLETADA
      * ============================================================
      */
 
@@ -1074,13 +1369,23 @@ export async function POST(
       internalStatus ===
       "COMPLETED"
     ) {
-      await supabaseAdmin.rpc(
-        "complete_topup_order",
-        {
-          p_supplier_order_id:
-            supplierOrderId,
-        }
-      );
+      const {
+        error: completeError,
+      } =
+        await supabaseAdmin.rpc(
+          "store_gaming_complete_order",
+          {
+            p_supplier_order_id:
+              supplierOrderId,
+          }
+        );
+
+      if (completeError) {
+        console.error(
+          "ERROR COMPLETANDO SALDO:",
+          completeError
+        );
+      }
 
       reserved = false;
     }
@@ -1091,7 +1396,6 @@ export async function POST(
      * ============================================================
      */
 
-    
     return NextResponse.json({
       ok: true,
 
@@ -1125,19 +1429,13 @@ export async function POST(
       error
     );
 
-    /*
-     * Si todavía tenemos una orden reservada
-     * y el proveedor no confirmó claramente
-     * la operación, intentamos devolver el saldo.
-     */
-
     if (
       internalOrderId &&
       reserved
     ) {
       try {
         await supabaseAdmin.rpc(
-          "refund_topup_balance",
+          "store_gaming_refund_balance",
           {
             p_order_id:
               internalOrderId,
