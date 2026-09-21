@@ -38,18 +38,29 @@ type AuthUser = {
 type OrderRow = {
   id?: string;
   order_number?: string | null;
+
   user_id?: string | null;
+
   category_id?: string | null;
+
   offer_id?: string | null;
+
   offer_name?: string | null;
+
   player_id?: string | null;
-  amount?: number | null;
+
   price?: number | null;
+
   supplier_price?: number | null;
+
   supplier_order_id?: string | null;
+
   supplier_status?: string | null;
+
   status?: string | null;
+
   idempotency_key?: string | null;
+
   created_at?: string | null;
 
   [key: string]: unknown;
@@ -57,28 +68,41 @@ type OrderRow = {
 
 type SupplierResponse = {
   ok?: boolean;
+
   success?: boolean;
+
   status?: string;
+
   message?: string;
+
   error?: string;
+
   code?: string;
 
   order?: {
     id?: string | number | null;
+
     order_id?: string | number | null;
+
     status?: string | null;
+
     [key: string]: unknown;
   };
 
   data?: {
     id?: string | number | null;
+
     order_id?: string | number | null;
+
     status?: string | null;
 
     order?: {
       id?: string | number | null;
+
       order_id?: string | number | null;
+
       status?: string | null;
+
       [key: string]: unknown;
     };
 
@@ -86,6 +110,7 @@ type SupplierResponse = {
   };
 
   id?: string | number | null;
+
   order_id?: string | number | null;
 
   [key: string]: unknown;
@@ -105,7 +130,9 @@ function jsonError(
   return NextResponse.json(
     {
       ok: false,
+
       error: message,
+
       ...extra,
     },
     {
@@ -121,6 +148,7 @@ function jsonSuccess(
   return NextResponse.json(
     {
       ok: true,
+
       ...data,
     },
     {
@@ -313,6 +341,7 @@ async function fetchWithTimeout(
       input,
       {
         ...init,
+
         signal:
           controller.signal,
       }
@@ -342,6 +371,7 @@ async function getAuthenticatedUser(
   if (!authorization) {
     return {
       user: null,
+
       error:
         "Falta el token de autenticación.",
     };
@@ -355,6 +385,7 @@ async function getAuthenticatedUser(
   if (!match) {
     return {
       user: null,
+
       error:
         "Token de autenticación inválido.",
     };
@@ -366,6 +397,7 @@ async function getAuthenticatedUser(
   if (!accessToken) {
     return {
       user: null,
+
       error:
         "Token de autenticación vacío.",
     };
@@ -385,6 +417,7 @@ async function getAuthenticatedUser(
   ) {
     return {
       user: null,
+
       error:
         "No se pudo validar la sesión.",
     };
@@ -393,6 +426,7 @@ async function getAuthenticatedUser(
   return {
     user: {
       id: data.user.id,
+
       email:
         data.user.email ?? null,
     },
@@ -443,21 +477,29 @@ function supplierHeaders(
 async function createSupplierOrder(
   params: {
     supplierOfferId: string;
+
     playerId: string;
+
     idempotencyKey: string;
   }
 ): Promise<{
   ok: boolean;
+
   data: SupplierResponse | null;
+
   error: string | null;
+
   uncertain: boolean;
 }> {
   if (!FAZERCARDS_API_KEY) {
     return {
       ok: false,
+
       data: null,
+
       error:
         "FAZERCARDS_API_KEY no está configurada.",
+
       uncertain: false,
     };
   }
@@ -544,11 +586,13 @@ async function createSupplierOrder(
     /*
      * 5xx = respuesta incierta.
      */
+
     if (
       response.status >= 500
     ) {
       return {
         ok: false,
+
         data,
 
         error:
@@ -564,9 +608,11 @@ async function createSupplierOrder(
     /*
      * 4xx = rechazo definitivo.
      */
+
     if (!response.ok) {
       return {
         ok: false,
+
         data,
 
         error:
@@ -581,13 +627,17 @@ async function createSupplierOrder(
 
     return {
       ok: true,
+
       data,
+
       error: null,
+
       uncertain: false,
     };
   } catch (error) {
     return {
       ok: false,
+
       data: null,
 
       error:
@@ -621,6 +671,7 @@ export async function GET(
     return jsonError(
       authError ||
         "No autenticado.",
+
       401
     );
   }
@@ -679,6 +730,7 @@ export async function POST(
     return jsonError(
       authError ||
         "No autenticado.",
+
       401
     );
   }
@@ -696,6 +748,7 @@ export async function POST(
   } catch {
     return jsonError(
       "El cuerpo de la solicitud no es un JSON válido.",
+
       400
     );
   }
@@ -778,6 +831,7 @@ export async function POST(
   if (!offer) {
     return jsonError(
       "La oferta seleccionada no existe.",
+
       404
     );
   }
@@ -822,6 +876,7 @@ export async function POST(
   ) {
     return jsonError(
       "La oferta tiene un precio inválido.",
+
       500
     );
   }
@@ -831,6 +886,7 @@ export async function POST(
   ) {
     return jsonError(
       "La oferta no tiene un precio de proveedor válido.",
+
       500
     );
   }
@@ -844,6 +900,7 @@ export async function POST(
   if (!supplierOfferId) {
     return jsonError(
       "La oferta no tiene configurado el ID de FazerCards.",
+
       500
     );
   }
@@ -857,6 +914,7 @@ export async function POST(
   const {
     data:
       existingOrders,
+
     error:
       existingOrderError,
   } =
@@ -915,6 +973,13 @@ export async function POST(
   |--------------------------------------------------------------------------
   | CREAR PEDIDO LOCAL
   |--------------------------------------------------------------------------
+  |
+  | IMPORTANTE:
+  |
+  | La tabla orders NO tiene la columna "amount".
+  |
+  | Por eso usamos solamente "price".
+  |
   */
 
   const orderPayload = {
@@ -932,9 +997,6 @@ export async function POST(
 
     player_id:
       playerId,
-
-    amount:
-      retailPrice,
 
     price:
       retailPrice,
@@ -964,6 +1026,7 @@ export async function POST(
   const {
     data:
       createdOrderData,
+
     error:
       createOrderError,
   } =
@@ -976,6 +1039,11 @@ export async function POST(
       .single();
 
   if (createOrderError) {
+    /*
+     * Si hubo una carrera de idempotencia,
+     * buscar nuevamente el pedido.
+     */
+
     const duplicateLookup =
       await supabaseAdmin
         .from("orders")
@@ -1029,7 +1097,9 @@ export async function POST(
 
     return jsonError(
       "No se pudo crear el pedido.",
+
       500,
+
       {
         detail:
           createOrderError.message,
@@ -1078,6 +1148,7 @@ export async function POST(
   |--------------------------------------------------------------------------
   */
 
+  
   if (
     !supplierResult.ok &&
     supplierResult.uncertain
@@ -1125,6 +1196,7 @@ export async function POST(
             "pending",
         },
       },
+
       202
     );
   }
@@ -1164,7 +1236,9 @@ export async function POST(
 
     return jsonError(
       supplierError,
+
       502,
+
       {
         orderNumber:
           localOrderNumber,
@@ -1252,6 +1326,7 @@ export async function POST(
         supplier:
           supplierData,
       },
+
       202
     );
   }
@@ -1325,6 +1400,7 @@ export async function POST(
   const {
     data:
       updatedOrderData,
+
     error:
       updateOrderError,
   } =
@@ -1403,4 +1479,4 @@ export async function POST(
     supplier:
       supplierData,
   });
-}
+    }
