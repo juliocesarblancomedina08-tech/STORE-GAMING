@@ -3,6 +3,7 @@
 import {
   FormEvent,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -55,6 +56,10 @@ const supabase = createClient(
 
 export default function SupportPage() {
   const router = useRouter();
+
+  const chatEndRef = useRef<HTMLDivElement | null>(
+    null
+  );
 
   const [supportView, setSupportView] =
     useState<SupportView>("closed");
@@ -124,6 +129,14 @@ export default function SupportPage() {
     loadUser();
   }, []);
 
+  useEffect(() => {
+    if (supportView === "chat") {
+      chatEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+      });
+    }
+  }, [chatMessages, loading]);
+
   async function loadUser() {
     try {
       const {
@@ -136,7 +149,6 @@ export default function SupportPage() {
           "ERROR OBTENIENDO USUARIO:",
           userError
         );
-
         return;
       }
 
@@ -298,7 +310,8 @@ export default function SupportPage() {
    */
 
   async function sendToSupportAI(
-    messages: ChatMessage[]
+    messages: ChatMessage[],
+    ticketIdOverride?: number | null
   ) {
     try {
       setLoading(true);
@@ -354,12 +367,12 @@ export default function SupportPage() {
       }
 
       /*
-       * Guardamos también la respuesta de la IA
-       * dentro del ticket.
+       * Guardamos la respuesta de la IA
+       * usando el ID correcto del ticket.
        */
       await saveTicket(
         finalMessages,
-        currentTicketId
+        ticketIdOverride ?? currentTicketId
       );
     } catch (error) {
       console.error(
@@ -435,24 +448,28 @@ export default function SupportPage() {
         null
       );
 
-      if (ticketData?.ticketId) {
-        setCurrentTicketId(
-          Number(ticketData.ticketId)
-        );
+      const newTicketId =
+        ticketData?.ticketId
+          ? Number(ticketData.ticketId)
+          : null;
+
+      if (newTicketId) {
+        setCurrentTicketId(newTicketId);
       }
 
       setTicketLoading(false);
 
       /*
        * Después enviamos la consulta a la IA.
+       *
+       * Se pasa directamente el ID recién creado
+       * para evitar usar un estado antiguo.
        */
       await sendToSupportAI(
-        [firstMessage]
+        [firstMessage],
+        newTicketId
       );
 
-      /*
-       * Actualizamos la lista de tickets.
-       */
       await loadTickets(userId);
     } catch (error) {
       console.error(
@@ -477,9 +494,9 @@ export default function SupportPage() {
    */
 
   async function handleSendChat(
-    event: FormEvent<HTMLFormElement>
+    event?: FormEvent<HTMLFormElement>
   ) {
-    event.preventDefault();
+    event?.preventDefault();
 
     const text = chatInput.trim();
 
@@ -519,7 +536,8 @@ export default function SupportPage() {
        * Luego pedimos respuesta a la IA.
        */
       await sendToSupportAI(
-        updatedMessages
+        updatedMessages,
+        currentTicketId
       );
     } catch (error) {
       console.error(
@@ -567,9 +585,7 @@ export default function SupportPage() {
         : []
     );
 
-    setTicketCreated(
-      ticket.status === "COMPLETED"
-    );
+    setTicketCreated(false);
 
     setShowAdminButton(
       ticket.status !== "COMPLETED"
@@ -610,11 +626,8 @@ export default function SupportPage() {
       setError("");
 
       /*
-       * El ticket ya existe desde que comenzó
-       * la conversación.
-       *
-       * Aquí solamente actualizamos la conversación
-       * y la marcamos para atención administrativa.
+       * El ticket ya existe.
+       * Actualizamos su conversación.
        */
       const data = await saveTicket(
         chatMessages,
@@ -628,6 +641,7 @@ export default function SupportPage() {
       }
 
       setTicketCreated(true);
+      setShowAdminButton(false);
 
       await loadTickets(userId);
     } catch (error) {
@@ -672,9 +686,11 @@ export default function SupportPage() {
 
   function openSupportForm() {
     setError("");
+    setCategory(SUPPORT_CATEGORIES[0]);
     setSubject("");
     setMessage("");
     setChatMessages([]);
+    setChatInput("");
     setCurrentTicketId(null);
     setCurrentTicketStatus(null);
     setShowAdminButton(false);
@@ -703,29 +719,6 @@ export default function SupportPage() {
 
   /*
    * =====================================================
-   * VOLVER A FORMULARIO
-   * =====================================================
-   */
-
-  function goBackToForm() {
-    if (
-      loading ||
-      ticketLoading
-    ) {
-      return;
-    }
-
-    setSupportView("form");
-    setChatMessages([]);
-    setCurrentTicketId(null);
-    setCurrentTicketStatus(null);
-    setShowAdminButton(false);
-    setTicketCreated(false);
-    setError("");
-  }
-
-  /*
-   * =====================================================
    * RENDER
    * =====================================================
    */
@@ -734,153 +727,72 @@ export default function SupportPage() {
     <main className="support-page">
       <div className="support-page-background" />
 
-      <section className="support-content">
-        <div className="support-header">
-          <button
-            type="button"
-            className="support-back-button"
-            onClick={() => router.back()}
-          >
-            ←
-          </button>
-
-          <div className="support-header-title">
-            <span>🛠️</span>
-            <h1>Soporte</h1>
-          </div>
-        </div>
-
-        <div className="support-main-card">
-          <div className="support-main-icon">
-            🎧
-          </div>
-
-          <h2>
-            ¿Necesitas ayuda?
-          </h2>
-
-          <p>
-            Nuestro asistente puede ayudarte con
-            tus dudas sobre STORE GAMING.
-          </p>
-
-          {tickets.length > 0 && (
-            <button
-              type="button"
-              className="support-main-button"
-              onClick={openTickets}
-            >
-              💬 Mis consultas
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="support-main-button"
-            onClick={openSupportForm}
-          >
-            📩 Crear nueva consulta
-          </button>
-        </div>
-      </section>
-
       {supportView === "closed" && (
-        <button
-          type="button"
-          className="support-floating-button"
-          onClick={openSupportForm}
-          aria-label="Crear nueva consulta"
-        >
-          📩
-        </button>
-      )}
+        <>
+          <section className="support-content">
+            <div className="support-header">
+              <button
+                type="button"
+                className="support-back-button"
+                onClick={() => router.back()}
+              >
+                ←
+              </button>
 
-      {supportView === "tickets" && (
-        <div className="support-sheet-overlay">
-          <div className="support-sheet">
-            <div className="support-sheet-handle" />
-
-            <div className="support-sheet-header">
-              <div>
-                <span className="support-sheet-icon">
-                  💬
-                </span>
+              <div className="support-header-title">
+                <span>🛠️</span>
 
                 <div>
-                  <h2>
-                    Mis consultas
-                  </h2>
+                  <h1>Soporte</h1>
 
                   <p>
-                    Aquí puedes continuar tus
-                    conversaciones.
+                    ¿Necesitas ayuda con tu compra?
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="support-main-card">
+              <div className="support-main-icon">
+                🎧
+              </div>
+
+              <h2>
+                ¿En qué podemos ayudarte?
+              </h2>
+
+              <p>
+                Nuestro asistente puede ayudarte a
+                resolver tus dudas y problemas.
+              </p>
 
               <button
                 type="button"
-                className="support-close-button"
-                onClick={closeSupport}
+                className="support-main-button"
+                onClick={openSupportForm}
               >
-                ✕
+                CREAR NUEVA CONSULTA
+              </button>
+
+              <button
+                type="button"
+                className="support-history-button"
+                onClick={openTickets}
+              >
+                📋 MIS CONSULTAS
               </button>
             </div>
+          </section>
 
-            {ticketsLoading ? (
-              <div className="support-error">
-                Cargando consultas...
-              </div>
-            ) : tickets.length === 0 ? (
-              <div className="support-error">
-                No tienes consultas abiertas.
-              </div>
-            ) : (
-              <div className="support-chat-messages">
-                {tickets.map((ticket) => (
-                  <button
-                    key={ticket.id}
-                    type="button"
-                    className="support-main-button"
-                    onClick={() =>
-                      openExistingTicket(ticket)
-                    }
-                  >
-                    <strong>
-                      📂 {ticket.subject}
-                    </strong>
-
-                    <br />
-
-                    <small>
-                      {ticket.category}
-                    </small>
-
-                    <br />
-
-                    <small>
-                      {ticket.status ===
-                      "COMPLETED"
-                        ? "✓ FINALIZADA"
-                        : ticket.status ===
-                          "IN_PROGRESS"
-                        ? "🟡 EN REVISIÓN"
-                        : "🔴 PENDIENTE"}
-                    </small>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <button
-              type="button"
-              className="support-submit-button"
-              onClick={openSupportForm}
-            >
-              📩 Nueva consulta
-            </button>
-          </div>
-        </div>
+          <button
+            type="button"
+            className="support-floating-button"
+            onClick={openSupportForm}
+            aria-label="Crear consulta de soporte"
+          >
+            📩
+          </button>
+        </>
       )}
 
       {supportView === "form" && (
@@ -920,12 +832,13 @@ export default function SupportPage() {
                 handleCreateConversation
               }
             >
-              <label className="support-field">
-                <span>
+              <div className="support-field">
+                <label htmlFor="support-category">
                   Categoría
-                </span>
+                </label>
 
                 <select
+                  id="support-category"
                   value={category}
                   onChange={(event) =>
                     setCategory(
@@ -933,231 +846,277 @@ export default function SupportPage() {
                     )
                   }
                 >
-                  {                    SUPPORT_CATEGORIES.map(
-                      (item) => (
-                        <option
-                          key={item}
-                          value={item}
-                        >
-                          {item}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                <div className="support-field">
-                  <label>Sujeto</label>
-
-                  <input
-                    type="text"
-                    value={subject}
-                    onChange={(event) =>
-                      setSubject(event.target.value)
-                    }
-                    placeholder="¿Cuál es el problema?"
-                    maxLength={120}
-                  />
-                </div>
-
-                <div className="support-field">
-                  <label>Mensaje</label>
-
-                  <textarea
-                    value={message}
-                    onChange={(event) =>
-                      setMessage(event.target.value)
-                    }
-                    placeholder="Explícanos detalladamente tu problema..."
-                    rows={5}
-                    maxLength={2000}
-                  />
-                </div>
-
-                {error && (
-                  <div className="support-error">
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="support-main-button"
-                  disabled={loading}
-                >
-                  {loading
-                    ? "Creando consulta..."
-                    : "ENVIAR"}
-                </button>
-
-                <button
-                  type="button"
-                  className="support-cancel-button"
-                  onClick={() => {
-                    setSupportView("closed");
-                    setError("");
-                  }}
-                  disabled={loading}
-                >
-                  CANCELAR
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {supportView === "tickets" && (
-          <div className="support-overlay">
-            <div className="support-sheet support-tickets-sheet">
-              <div className="support-sheet-header">
-                <button
-                  type="button"
-                  className="support-back-button"
-                  onClick={() =>
-                    setSupportView("closed")
-                  }
-                >
-                  ←
-                </button>
-
-                <div>
-                  <h2>Mis consultas</h2>
-                  <p>
-                    Revisa tus conversaciones de soporte.
-                  </p>
-                </div>
+                  {SUPPORT_CATEGORIES.map(
+                    (item) => (
+                      <option
+                        key={item}
+                        value={item}
+                      >
+                        {item}
+                      </option>
+                    )
+                  )}
+                </select>
               </div>
 
-              {ticketsLoading ? (
-                <div className="support-loading">
-                  Cargando consultas...
-                </div>
-              ) : tickets.length === 0 ? (
-                <div className="support-empty">
-                  <div className="support-empty-icon">
-                    💬
-                  </div>
+              <div className="support-field">
+                <label htmlFor="support-subject">
+                  Sujeto
+                </label>
 
-                  <h3>No tienes consultas</h3>
+                <input
+                  id="support-subject"
+                  type="text"
+                  value={subject}
+                  onChange={(event) =>
+                    setSubject(
+                      event.target.value
+                    )
+                  }
+                  placeholder="¿Cuál es el problema?"
+                  maxLength={120}
+                />
+              </div>
 
-                  <p>
-                    Cuando necesites ayuda, crea una nueva
-                    consulta desde el botón 📩.
-                  </p>
-                </div>
-              ) : (
-                <div className="support-ticket-list">
-                  {tickets.map((ticket) => (
-                    <button
-                      key={ticket.id}
-                      type="button"
-                      className="support-ticket-card"
-                      onClick={() =>
-                        openExistingTicket(ticket)
-                      }
-                    >
-                      <div className="support-ticket-card-top">
-                        <span className="support-ticket-id">
-                          #{ticket.id}
-                        </span>
+              <div className="support-field">
+                <label htmlFor="support-message">
+                  Mensaje
+                </label>
 
-                        <span
-                          className={`support-ticket-status ${
-                            ticket.status === "COMPLETED"
-                              ? "completed"
-                              : ticket.status ===
-                                "IN_PROGRESS"
-                              ? "in-progress"
-                              : "pending"
-                          }`}
-                        >
-                          {ticket.status ===
-                          "COMPLETED"
-                            ? "FINALIZADA"
-                            : ticket.status ===
-                              "IN_PROGRESS"
-                            ? "EN PROCESO"
-                            : "PENDIENTE"}
-                        </span>
-                      </div>
+                <textarea
+                  id="support-message"
+                  value={message}
+                  onChange={(event) =>
+                    setMessage(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Explícanos detalladamente tu problema..."
+                  rows={5}
+                  maxLength={2000}
+                />
+              </div>
 
-                      <div className="support-ticket-category">
-                        {ticket.category}
-                      </div>
-
-                      <div className="support-ticket-subject">
-                        {ticket.subject}
-                      </div>
-
-                      <div className="support-ticket-date">
-                        {new Date(
-                          ticket.updated_at ||
-                            ticket.created_at
-                        ).toLocaleString("es-ES")}
-                      </div>
-                    </button>
-                  ))}
+              {error && (
+                <div className="support-error">
+                  {error}
                 </div>
               )}
 
               <button
+                type="submit"
+                className="support-main-button"
+                disabled={
+                  loading ||
+                  ticketLoading
+                }
+              >
+                {ticketLoading
+                  ? "Creando consulta..."
+                  : "ENVIAR"}
+              </button>
+
+              <button
                 type="button"
                 className="support-cancel-button"
+                onClick={closeSupport}
+                disabled={
+                  loading ||
+                  ticketLoading
+                }
+              >
+                CANCELAR
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+            {supportView === "tickets" && (
+        <div className="support-overlay">
+          <div className="support-sheet support-tickets-sheet">
+            <div className="support-sheet-header">
+              <button
+                type="button"
+                className="support-back-button"
                 onClick={() =>
                   setSupportView("closed")
                 }
               >
-                CERRAR
-              </button>
-            </div>
-          </div>
-        )}
-
-        {supportView === "chat" && (
-          <div className="support-chat-page">
-            <div className="support-chat-header">
-              <button
-                type="button"
-                className="support-back-button"
-                onClick={() => {
-                  setSupportView("closed");
-                  loadTickets();
-                }}
-              >
                 ←
               </button>
 
-              <div className="support-chat-title">
-                <div className="support-chat-icon">
-                  🤖
-                </div>
+              <div>
+                <h2>
+                  Mis consultas
+                </h2>
 
-                <div>
-                  <h2>Soporte STORE GAMING</h2>
-
-                  <p>
-                    {currentTicketId
-                      ? `Consulta #${currentTicketId}`
-                      : "Asistente de soporte"}
-                  </p>
-                </div>
+                <p>
+                  Revisa tus conversaciones de
+                  soporte.
+                </p>
               </div>
+
+              <button
+                type="button"
+                className="support-close-button"
+                onClick={closeSupport}
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="support-chat-messages">
-              {chatMessages.map((chatMessage) => (
+            {error && (
+              <div className="support-error">
+                {error}
+              </div>
+            )}
+
+            {ticketsLoading ? (
+              <div className="support-loading">
+                Cargando consultas...
+              </div>
+            ) : tickets.length === 0 ? (
+              <div className="support-empty">
+                <div className="support-empty-icon">
+                  💬
+                </div>
+
+                <h3>
+                  No tienes consultas
+                </h3>
+
+                <p>
+                  Cuando necesites ayuda, crea
+                  una nueva consulta desde el
+                  botón 📩.
+                </p>
+              </div>
+            ) : (
+              <div className="support-ticket-list">
+                {tickets.map((ticket) => (
+                  <button
+                    key={ticket.id}
+                    type="button"
+                    className="support-ticket-card"
+                    onClick={() =>
+                      openExistingTicket(ticket)
+                    }
+                  >
+                    <div className="support-ticket-card-top">
+                      <span className="support-ticket-id">
+                        #{ticket.id}
+                      </span>
+
+                      <span
+                        className={`support-ticket-status ${
+                          ticket.status ===
+                          "COMPLETED"
+                            ? "completed"
+                            : ticket.status ===
+                              "IN_PROGRESS"
+                            ? "in-progress"
+                            : "pending"
+                        }`}
+                      >
+                        {ticket.status ===
+                        "COMPLETED"
+                          ? "FINALIZADA"
+                          : ticket.status ===
+                            "IN_PROGRESS"
+                          ? "EN PROCESO"
+                          : "PENDIENTE"}
+                      </span>
+                    </div>
+
+                    <div className="support-ticket-category">
+                      {ticket.category}
+                    </div>
+
+                    <div className="support-ticket-subject">
+                      {ticket.subject}
+                    </div>
+
+                    <div className="support-ticket-date">
+                      {new Date(
+                        ticket.updated_at ||
+                          ticket.created_at
+                      ).toLocaleString(
+                        "es-ES"
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="support-submit-button"
+              onClick={openSupportForm}
+            >
+              📩 Nueva consulta
+            </button>
+
+            <button
+              type="button"
+              className="support-cancel-button"
+              onClick={closeSupport}
+            >
+              CERRAR
+            </button>
+          </div>
+        </div>
+      )}
+
+      {supportView === "chat" && (
+        <div className="support-chat-page">
+          <div className="support-chat-header">
+            <button
+              type="button"
+              className="support-back-button"
+              onClick={goBackToTickets}
+            >
+              ←
+            </button>
+
+            <div className="support-chat-title">
+              <div className="support-chat-icon">
+                🤖
+              </div>
+
+              <div>
+                <h2>
+                  Soporte STORE GAMING
+                </h2>
+
+                <p>
+                  {currentTicketId
+                    ? `Consulta #${currentTicketId}`
+                    : "Asistente de soporte"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="support-chat-messages">
+            {chatMessages.map(
+              (chatMessage) => (
                 <div
                   key={chatMessage.id}
                   className={`support-message ${
-                    chatMessage.sender === "user"
+                    chatMessage.sender ===
+                    "user"
                       ? "support-message-user"
                       : "support-message-ai"
                   }`}
                 >
                   <div className="support-message-label">
-                    {chatMessage.sender === "user"
+                    {chatMessage.sender ===
+                    "user"
                       ? "Tú"
-                      : chatMessage.sender === "admin"
+                      : chatMessage.sender ===
+                        "admin"
                       ? "Administrador"
                       : "Soporte IA"}
                   </div>
@@ -1166,175 +1125,136 @@ export default function SupportPage() {
                     {chatMessage.text}
                   </div>
                 </div>
-              ))}
+              )
+            )}
 
-              {loading && (
-                <div className="support-message support-message-ai">
-                  <div className="support-message-label">
-                    Soporte IA
-                  </div>
-
-                  <div className="support-message-bubble support-typing">
-                    Escribiendo...
-                  </div>
+            {loading && (
+              <div className="support-message support-message-ai">
+                <div className="support-message-label">
+                  Soporte IA
                 </div>
-              )}
 
-              <div ref={chatEndRef} />
-            </div>
-
-            <div className="support-chat-bottom">
-              {ticketCreated ? (
-                <div className="support-ticket-created">
-                  <div className="support-ticket-created-icon">
-                    ✅
-                  </div>
-
-                  <strong>
-                    Consulta enviada al administrador
-                  </strong>
-
-                  <span>
-                    El administrador revisará tu caso y
-                    responderá en esta conversación.
-                  </span>
+                <div className="support-message-bubble support-typing">
+                  Escribiendo...
                 </div>
-              ) : (
-                <>
-                  {showAdminButton && (
-                    <button
-                      type="button"
-                      className="support-admin-button"
-                      onClick={
-                        handleCallAdministrator
-                      }
-                      disabled={ticketLoading}
-                    >
-                      {ticketLoading
-                        ? "ENVIANDO..."
-                        : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
-                    </button>
-                  )}
+              </div>
+            )}
 
-                  <div className="support-chat-input-row">
-                    <textarea
-                      value={chatInput}
-                      onChange={(event) =>
-                        setChatInput(event.target.value)
-                      }
-                      placeholder="Escribe tu mensaje..."
-                      rows={1}
-                      disabled={loading}
-                      onKeyDown={(event) => {
-                        if (
-                          event.key === "Enter" &&
-                          !event.shiftKey
-                        ) {
-                          event.preventDefault();
+            {error && (
+              <div className="support-error">
+                {error}
+              </div>
+            )}
 
-                          if (
-                            chatInput.trim() &&
-                            !loading
-                          ) {
-                            handleSendChat();
-                          }
-                        }
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      className="support-send-button"
-                      onClick={handleSendChat}
-                      disabled={
-                        loading ||
-                        !chatInput.trim()
-                      }
-                    >
-                      ➤
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            <div ref={chatEndRef} />
           </div>
-        )}
 
-        {supportView === "closed" && (
-          <>
-            <div className="support-page">
-              <div className="support-header">
-                <div>
-                  <h1>Soporte</h1>
-
-                  <p>
-                    ¿Necesitas ayuda con tu compra?
-                  </p>
-                </div>
-              </div>
-
-              <div className="support-main-card">
-                <div className="support-main-icon">
-                  🎧
+          <div className="support-chat-bottom">
+            {currentTicketStatus ===
+            "COMPLETED" ? (
+              <div className="support-ticket-created">
+                <div className="support-ticket-created-icon">
+                  ✅
                 </div>
 
-                <h2>
-                  ¿En qué podemos ayudarte?
-                </h2>
+                <strong>
+                  Consulta finalizada
+                </strong>
 
-                <p>
-                  Nuestro asistente puede ayudarte a
-                  resolver tus dudas y problemas.
-                </p>
-
-                <button
-                  type="button"
-                  className="support-main-button"
-                  onClick={() => {
-                    setCategory(
-                      SUPPORT_CATEGORIES[0]
-                    );
-                    setSubject("");
-                    setMessage("");
-                    setError("");
-                    setSupportView("form");
-                  }}
-                >
-                  CREAR NUEVA CONSULTA
-                </button>
-
-                <button
-                  type="button"
-                  className="support-history-button"
-                  onClick={() => {
-                    loadTickets();
-                    setSupportView("tickets");
-                  }}
-                >
-                  📋 MIS CONSULTAS
-                </button>
+                <span>
+                  Esta consulta ha sido marcada
+                  como completada.
+                </span>
               </div>
-            </div>
+            ) : ticketCreated ? (
+              <div className="support-ticket-created">
+                <div className="support-ticket-created-icon">
+                  ✅
+                </div>
 
-            <button
-              type="button"
-              className="support-floating-button"
-              onClick={() => {
-                setCategory(
-                  SUPPORT_CATEGORIES[0]
-                );
-                setSubject("");
-                setMessage("");
-                setError("");
-                setSupportView("form");
-              }}
-              aria-label="Crear consulta de soporte"
-            >
-              📩
-            </button>
-          </>
-        )}
-      </main>
-    </>
+                <strong>
+                  Consulta enviada al
+                  administrador
+                </strong>
+
+                <span>
+                  El administrador revisará tu
+                  caso y responderá en esta
+                  conversación.
+                </span>
+              </div>
+            ) : (
+              <>
+                {showAdminButton && (
+                  <button
+                    type="button"
+                    className="support-admin-button"
+                    onClick={
+                      handleCallAdministrator
+                    }
+                    disabled={ticketLoading}
+                  >
+                    {ticketLoading
+                      ? "ENVIANDO..."
+                      : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
+                  </button>
+                )}
+
+                <form
+                  className="support-chat-input-row"
+                  onSubmit={
+                    handleSendChat
+                  }
+                >
+                  <textarea
+                    value={chatInput}
+                    onChange={(event) =>
+                      setChatInput(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Escribe tu mensaje..."
+                    rows={1}
+                    disabled={
+                      loading ||
+                      ticketLoading
+                    }
+                    onKeyDown={(event) => {
+                      if (
+                        event.key ===
+                          "Enter" &&
+                        !event.shiftKey
+                      ) {
+                        event.preventDefault();
+
+                        if (
+                          chatInput.trim() &&
+                          !loading &&
+                          !ticketLoading
+                        ) {
+                          handleSendChat();
+                        }
+                      }
+                    }}
+                  />
+
+                  <button
+                    type="submit"
+                    className="support-send-button"
+                    disabled={
+                      loading ||
+                      ticketLoading ||
+                      !chatInput.trim()
+                    }
+                  >
+                    ➤
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </main>
   );
-}
+                        }
