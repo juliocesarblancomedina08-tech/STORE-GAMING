@@ -1,63 +1,281 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 
-import {useRouter} from "next/navigation";
+export default function SupportPage() {
+  const router = useRouter();
 
+  return (
+    <main className="service-page support-page">
 
-export default function SupportPage(){
+      {/* ======================================================
+          HEADER
+          ====================================================== */}
 
-const router=useRouter();
+      <header className="service-header support-header">
 
+        <button
+          type="button"
+          className="back-button"
+          onClick={() => router.push("/home")}
+          aria-label="Volver"
+        >
+          ←
+        </button>
 
-return(
+        <div className="support-header-title">
 
-<main className="service-page">
+          <small>
+            STORE GAMING
+          </small>
 
+          <h1>
+            SOPORTE
+          </h1>
 
-<header className="service-header">
+        </div>
 
+        <div className="support-header-icon">
+          🎧
+        </div>
 
-<button
-className="back-button"
-onClick={()=>router.push("/home")}
->
-←
-</button>
+      </header>
 
+      {/* ======================================================
+          CONTENIDO
+          ====================================================== */}
 
-<h1>
-🎧 SOPORTE
-</h1>
+      <section className="support-content">
 
+        {/* ====================================================
+            TARJETA PRINCIPAL
+            ==================================================== */}
 
-</header>
+        <section className="support-main-card">
 
+          <div className="support-card-glow" />
 
+          <div className="support-main-top">
 
-<section className="support-card">
+            <div className="support-headset">
+              🎧
+            </div>
 
+            <div className="support-online">
 
-<h2>
-¿NECESITAS AYUDA?
-</h2>
+              <span />
 
+              SOPORTE ACTIVO
 
-<p>
-Nuestro equipo está disponible para ayudarte con tus pedidos.
-</p>
+            </div>
 
+          </div>
 
-<button>
-CONTACTAR SOPORTE
-</button>
+          <div className="support-main-text">
 
+            <small>
+              STORE GAMING
+            </small>
 
-</section>
+            <h2>
+              ¿NECESITAS
+              <span> AYUDA?</span>
+            </h2>
 
+            <p>
+              Nuestro equipo está disponible
+              para ayudarte con tus pedidos,
+              recargas y cualquier problema
+              relacionado con tu cuenta.
+            </p>
 
+          </div>
 
-</main>
+          <button
+            type="button"
+            className="support-contact-button"
+            onClick={() => {
+              window.open(
+                "https://t.me/",
+                "_blank"
+              );
+            }}
+          >
+            <span>
+              🎧
+            </span>
 
-)
+            <strong>
+              CONTACTAR SOPORTE
+            </strong>
 
-}
+            <span>
+              →
+            </span>
+          </button>
+
+        </section>
+
+        {/* ====================================================
+            AYUDA RÁPIDA
+            ==================================================== */}
+
+        <section className="support-section">
+
+          <div className="support-section-title">
+
+            <div>
+              <span>
+                ?
+              </span>
+
+              <strong>
+                ¿EN QUÉ PODEMOS AYUDARTE?
+              </strong>
+            </div>
+
+          </div>
+
+          {/* PEDIDOS */}
+
+          <button
+            type="button"
+            className="support-option-card"
+            onClick={() =>
+              router.push("/orders")
+            }
+          >
+
+            <div className="support-option-icon">
+              📦
+            </div>
+
+            <div className="support-option-info">
+
+              <strong>
+                PROBLEMA CON UN PEDIDO
+              </strong>
+
+              <span>
+                Consulta tus pedidos y su estado.
+              </span>
+
+            </div>
+
+            <div className="support-option-arrow">
+              →
+            </div>
+
+          </button>
+
+          {/* BALANCE */}
+
+          <button
+            type="button"
+            className="support-option-card"
+            onClick={() =>
+              router.push("/balance")
+            }
+          >
+
+            <div className="support-option-icon">
+              💰
+            </div>
+
+            <div className="support-option-info">
+
+              <strong>
+                BALANCE Y DEPÓSITOS
+              </strong>
+
+              <span>
+                Consulta tu billetera y movimientos.
+              </span>
+
+            </div>
+
+            <div className="support-option-arrow">
+              →
+            </div>
+
+          </button>
+
+          {/* RECARGAS */}
+
+          <button
+            type="button"
+            className="support-option-card"
+            onClick={() =>
+              router.push("/home")
+            }
+          >
+
+            <div className="support-option-icon">
+              🎮
+            </div>
+
+            <div className="support-option-info">
+
+              <strong>
+                PROBLEMA CON UNA RECARGA
+              </strong>
+
+              <span>
+                Ayuda relacionada con tus compras.
+              </span>
+
+            </div>
+
+            <div className="support-option-arrow">
+              →
+            </div>
+
+          </button>
+
+        </section>
+
+        {/* ====================================================
+            INFORMACIÓN
+            ==================================================== */}
+
+        <section className="support-info-card">
+
+          <div className="support-info-icon">
+            🔒
+          </div>
+
+          <div>
+
+            <strong>
+              SOPORTE SEGURO
+            </strong>
+
+            <p>
+              Nunca compartas tu contraseña ni
+              códigos de verificación con ninguna
+              persona.
+            </p>
+
+          </div>
+
+        </section>
+
+        {/* ====================================================
+            REGRESAR
+            ==================================================== */}
+
+        <button
+          type="button"
+          className="support-return-button"
+          onClick={() =>
+            router.push("/home")
+          }
+        >
+          ← VOLVER A LA TIENDA
+        </button>
+
+      </section>
+
+    </main>
+  );
+      }
