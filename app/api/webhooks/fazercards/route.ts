@@ -79,19 +79,6 @@ function verifySignature(
  * =====================================================
  * EXTRAER ORDER ID
  * =====================================================
- *
- * Evento actual:
- *
- * {
- *   "event": "order.status_changed",
- *   "data": {
- *     "order_id": "ord-1001",
- *     "status": "completed"
- *   }
- * }
- *
- * También dejamos compatibilidad con otras
- * estructuras que pudiera enviar FazerCards.
  */
 
 function extractSupplierOrderId(
@@ -175,6 +162,36 @@ function extractEvent(
 
 /*
  * =====================================================
+ * NORMALIZAR ESTADO INTERNO
+ * =====================================================
+ */
+
+function getInternalPendingStatus(
+  supplierStatus: string
+): string {
+  const normalized =
+    supplierStatus
+      .trim()
+      .toLowerCase();
+
+  if (
+    normalized ===
+      "processing" ||
+    normalized ===
+      "in_progress" ||
+    normalized ===
+      "in-progress" ||
+    normalized ===
+      "created"
+  ) {
+    return "SUPPLIER_PENDING";
+  }
+
+  return "PENDING";
+}
+
+/*
+ * =====================================================
  * WEBHOOK
  * =====================================================
  */
@@ -187,9 +204,6 @@ export async function POST(
      * =================================================
      * 1. LEER CUERPO RAW
      * =================================================
-     *
-     * No usamos request.json()
-     * antes de verificar la firma.
      */
 
     const rawBody =
@@ -199,12 +213,6 @@ export async function POST(
      * =================================================
      * 2. OBTENER FIRMA
      * =================================================
-     *
-     * Header principal:
-     * X-Webhook-Signature
-     *
-     * También aceptamos:
-     * X-FazerCards-Signature
      */
 
     const signature =
@@ -306,27 +314,30 @@ export async function POST(
         payload
       );
 
-      /*
-       * El webhook fue recibido correctamente,
-       * pero no tenemos una orden interna que
-       * podamos relacionar.
-       *
-       * Respondemos 200 para evitar reintentos
-       * innecesarios de un evento que no podemos
-       * procesar.
-       */
-
       return NextResponse.json({
         ok: true,
         action: "IGNORED",
-        reason: "ORDER_ID_NOT_FOUND",
+        reason:
+          "ORDER_ID_NOT_FOUND",
       });
     }
 
     /*
      * =================================================
-     * 7. BUSCAR ORDEN INTERNA
+     * 7. BUSCAR LA ORDEN INTERNA
      * =================================================
+     *
+     * MUY IMPORTANTE:
+     *
+     * Nunca buscamos por player_id,
+     * offer_id o precio.
+     *
+     * Buscamos por:
+     *
+     * supplier_order_id
+     *
+     * Así el cambio de estado siempre afecta
+     * a la misma compra.
      */
 
     const {
@@ -374,7 +385,8 @@ export async function POST(
       return NextResponse.json({
         ok: true,
         action: "IGNORED",
-        reason: "ORDER_NOT_FOUND",
+        reason:
+          "ORDER_NOT_FOUND",
         supplierOrderId,
       });
     }
@@ -384,8 +396,9 @@ export async function POST(
      * 9. GUARDAR RESPUESTA DEL WEBHOOK
      * =================================================
      *
-     * No cambiamos todavía el estado interno.
-     * Primero guardamos la información recibida.
+     * Esto actualiza la orden existente.
+     *
+     * NO CREA UNA NUEVA FILA.
      */
 
     const {
@@ -393,8 +406,10 @@ export async function POST(
     } = await supabaseAdmin
       .from("topup_orders")
       .update({
-        supplier_response: payload,
-        updated_at: new Date().toISOString(),
+        supplier_response:
+          payload,
+        updated_at:
+          new Date().toISOString(),
       })
       .eq(
         "id",
@@ -417,26 +432,29 @@ export async function POST(
 
     /*
      * =================================================
-     * 10. EVENTO ACTUAL DE FAZERCARDS
+     * 10. DETERMINAR EVENTO SOPORTADO
      * =================================================
-     *
-     * El evento oficial actual es:
-     *
-     * order.status_changed
-     *
-     * Pero también aceptamos eventos antiguos
-     * para mantener compatibilidad.
      */
 
     const supportedEvent =
       event ===
         "order.status_changed" ||
       event ===
+        "order.created" ||
+      event ===
+        "order.processing" ||
+      event ===
         "order.completed" ||
       event ===
         "order.failed" ||
       event ===
         "order.refunded";
+
+    /*
+     * =================================================
+     * 11. EVENTO NO SOPORTADO
+     * =================================================
+     */
 
     if (!supportedEvent) {
       console.log(
@@ -463,20 +481,29 @@ export async function POST(
 
     /*
      * =================================================
-     * 11. DETERMINAR ESTADO FINAL
+     * 12. DETERMINAR ESTADO FINAL
      * =================================================
      */
 
-    let finalStatus = status;
+    let finalStatus =
+      status;
 
     /*
-     * Compatibilidad con eventos antiguos
-     * que pueden no traer data.status.
+     * Compatibilidad con eventos
+     * que no manden data.status.
      */
 
     if (
       event ===
-        "order.completed"
+      "order.processing"
+    ) {
+      finalStatus =
+        "processing";
+    }
+
+    if (
+      event ===
+      "order.completed"
     ) {
       finalStatus =
         "completed";
@@ -484,7 +511,7 @@ export async function POST(
 
     if (
       event ===
-        "order.failed"
+      "order.failed"
     ) {
       finalStatus =
         "failed";
@@ -492,7 +519,7 @@ export async function POST(
 
     if (
       event ===
-        "order.refunded"
+      "order.refunded"
     ) {
       finalStatus =
         "refunded";
@@ -500,7 +527,7 @@ export async function POST(
 
     /*
      * =================================================
-     * 12. COMPLETED
+     * 13. COMPLETED
      * =================================================
      */
 
@@ -515,11 +542,10 @@ export async function POST(
         "successful"
     ) {
       /*
-       * Si ya estaba completada,
-       * no volvemos a modificar saldo.
+       * La función SQL trabaja sobre la orden
+       * que tiene este supplier_order_id.
        *
-       * complete_topup_order()
-       * también protege el estado.
+       * No se crea otra orden.
        */
 
       const {
@@ -548,7 +574,7 @@ export async function POST(
       }
 
       console.log(
-        "TOPUP COMPLETADO:",
+        "TOPUP COMPLETADO - MISMA ORDEN:",
         {
           internalOrderId:
             internalOrder.id,
@@ -560,7 +586,8 @@ export async function POST(
 
       return NextResponse.json({
         ok: true,
-        action: "COMPLETED",
+        action:
+          "UPDATED",
         orderId:
           internalOrder.id,
         supplierOrderId,
@@ -571,19 +598,8 @@ export async function POST(
 
     /*
      * =================================================
-     * 13. FAILED / REFUNDED
+     * 14. FAILED / REFUNDED / CANCELLED
      * =================================================
-     *
-     * En cualquiera de estos estados:
-     *
-     * 1. Se marca la orden como FAILED.
-     * 2. fail_topup_order()
-     *    llama a refund_topup_balance().
-     * 3. El saldo retail_price se devuelve.
-     * 4. La orden termina REFUNDED.
-     *
-     * Las funciones SQL ya protegen contra
-     * reembolsos duplicados.
      */
 
     if (
@@ -624,7 +640,7 @@ export async function POST(
       }
 
       console.log(
-        "TOPUP FALLIDO / SALDO DEVUELTO:",
+        "TOPUP FALLIDO / SALDO DEVUELTO - MISMA ORDEN:",
         {
           internalOrderId:
             internalOrder.id,
@@ -638,7 +654,8 @@ export async function POST(
 
       return NextResponse.json({
         ok: true,
-        action: "REFUNDED",
+        action:
+          "UPDATED",
         orderId:
           internalOrder.id,
         supplierOrderId,
@@ -649,38 +666,81 @@ export async function POST(
 
     /*
      * =================================================
-     * 14. ESTADOS INTERMEDIOS
+     * 15. ESTADOS INTERMEDIOS
      * =================================================
-     *
-     * Ejemplos:
      *
      * processing
      * pending
      * queued
      * created
+     * in_progress
      *
-     * No devolvemos saldo.
+     * AQUÍ ESTÁ EL CAMBIO PRINCIPAL.
+     *
+     * En lugar de ignorar el evento,
+     * actualizamos la MISMA fila.
+     *
+     * NO hacemos INSERT.
      */
 
+    const internalStatus =
+      getInternalPendingStatus(
+        finalStatus
+      );
+
+    const {
+      error:
+        intermediateUpdateError,
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .update({
+        status:
+          internalStatus,
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        internalOrder.id
+      );
+
+    if (
+      intermediateUpdateError
+    ) {
+      console.error(
+        "ERROR ACTUALIZANDO ESTADO INTERMEDIO:",
+        intermediateUpdateError
+      );
+
+      return new NextResponse(
+        "Database error",
+        {
+          status: 500,
+        }
+      );
+    }
+
     console.log(
-      "FAZERCARDS WEBHOOK - ESTADO INTERMEDIO:",
+      "TOPUP ACTUALIZADO - MISMA ORDEN:",
       {
-        event,
-        status: finalStatus,
-        supplierOrderId,
         internalOrderId:
           internalOrder.id,
+        supplierOrderId,
+        supplierStatus:
+          finalStatus,
+        internalStatus,
       }
     );
 
     return NextResponse.json({
       ok: true,
-      action: "IGNORED",
-      event,
-      status: finalStatus,
+      action:
+        "UPDATED",
       orderId:
         internalOrder.id,
       supplierOrderId,
+      status:
+        internalStatus,
     });
   } catch (error) {
     console.error(
