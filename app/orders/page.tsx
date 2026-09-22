@@ -34,6 +34,7 @@ type Order = {
   email?: string;
   username?: string;
   game: string;
+  categoryId?: string;
   product: string;
   displayProduct?: string;
   price: number;
@@ -44,6 +45,7 @@ type Order = {
   createdAt: string;
   supplierOrderId?: string;
   currency?: string;
+  image: string;
 };
 
 type Filter =
@@ -52,12 +54,102 @@ type Filter =
   | "COMPLETADAS"
   | "CANCELADAS";
 
+/*
+ * ============================================================
+ * IMÁGENES DE LOS JUEGOS
+ * ============================================================
+ *
+ * Se utilizan las mismas imágenes del catálogo.
+ */
+
+const GAME_IMAGES: Record<string, string> = {
+  free_fire_latam: "/images/free-fire-latam.jpg",
+  mobile_legends_united_states:
+    "/images/mobile-legends.jpg",
+  delta_force: "/images/delta-force.jpg",
+  eafc_mobile_id: "/images/fc-mobile.jpg",
+  call_of_duty_mobile: "/images/call-of-duty.jpg",
+  telegram_stars: "/images/telegram-stars.jpg",
+};
+
+const DEFAULT_GAME_IMAGE =
+  "/images/battle-royale-bg.jpg";
+
+function getGameImage(
+  categoryId: string,
+  game: string
+) {
+  const directImage =
+    GAME_IMAGES[categoryId];
+
+  if (directImage) {
+    return directImage;
+  }
+
+  const normalized =
+    game.toLowerCase();
+
+  if (
+    normalized.includes("free") &&
+    normalized.includes("fire")
+  ) {
+    return "/images/free-fire-latam.jpg";
+  }
+
+  if (
+    normalized.includes("mobile legends")
+  ) {
+    return "/images/mobile-legends.jpg";
+  }
+
+  if (
+    normalized.includes("delta")
+  ) {
+    return "/images/delta-force.jpg";
+  }
+
+  if (
+    normalized.includes("ea") ||
+    normalized.includes("fc mobile")
+  ) {
+    return "/images/fc-mobile.jpg";
+  }
+
+  if (
+    normalized.includes("call") ||
+    normalized.includes("cod")
+  ) {
+    return "/images/call-of-duty.jpg";
+  }
+
+  if (
+    normalized.includes("telegram")
+  ) {
+    return "/images/telegram-stars.jpg";
+  }
+
+  return DEFAULT_GAME_IMAGE;
+}
+
 export default function OrdersPage() {
   const router = useRouter();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [filter, setFilter] = useState<Filter>("TODAS");
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] =
+    useState<Order[]>([]);
+
+  const [filter, setFilter] =
+    useState<Filter>("TODAS");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  /*
+   * Esta variable ahora sirve para entrar
+   * a una pantalla exclusiva de la orden.
+   *
+   * Ya NO se muestra el detalle debajo
+   * del historial.
+   */
   const [selectedOrder, setSelectedOrder] =
     useState<Order | null>(null);
 
@@ -77,7 +169,10 @@ export default function OrdersPage() {
           error: sessionError,
         } = await supabase.auth.getSession();
 
-        if (sessionError || !session?.user) {
+        if (
+          sessionError ||
+          !session?.user
+        ) {
           if (mounted) {
             setLoading(false);
             router.replace("/login");
@@ -86,39 +181,47 @@ export default function OrdersPage() {
           return;
         }
 
-        const userId = session.user.id;
+        const userId =
+          session.user.id;
 
-        const { data, error } = await supabase
-          .from("topup_orders")
-          .select(
-            `
-              id,
-              user_id,
-              username,
-              email,
-              game,
-              category_id,
-              offer_id,
-              offer_name,
-              player_id,
-              retail_price,
-              supplier_price,
-              currency,
-              status,
-              supplier_order_id,
-              supplier_fields,
-              supplier_response,
-              refunded_at,
-              completed_at,
-              failed_at,
-              created_at,
-              updated_at
-            `
-          )
-          .eq("user_id", userId)
-          .order("created_at", {
-            ascending: false,
-          });
+        const { data, error } =
+          await supabase
+            .from("topup_orders")
+            .select(
+              `
+                id,
+                user_id,
+                username,
+                email,
+                game,
+                category_id,
+                offer_id,
+                offer_name,
+                player_id,
+                retail_price,
+                supplier_price,
+                currency,
+                status,
+                supplier_order_id,
+                supplier_fields,
+                supplier_response,
+                refunded_at,
+                completed_at,
+                failed_at,
+                created_at,
+                updated_at
+              `
+            )
+            .eq(
+              "user_id",
+              userId
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false,
+              }
+            );
 
         if (error) {
           console.error(
@@ -134,34 +237,102 @@ export default function OrdersPage() {
           return;
         }
 
-        const rows = (data || []) as TopupOrderRow[];
+        const rows =
+          (data ||
+            []) as TopupOrderRow[];
 
-        const mappedOrders: Order[] = rows.map(
-          (row) => ({
-            id: row.id,
-            user_id: row.user_id,
-            email: row.email || undefined,
-            username: row.username || undefined,
-            game: row.game,
-            product: row.offer_name,
-            displayProduct: row.offer_name,
-            price:
-              Number(row.retail_price) || 0,
-            total:
-              Number(row.retail_price) || 0,
-            playerId: row.player_id,
-            status: row.status,
-            createdAt: row.created_at,
-            supplierOrderId:
-              row.supplier_order_id ||
-              undefined,
-            currency:
-              row.currency || "USD",
-          })
-        );
+        const mappedOrders: Order[] =
+          rows.map((row) => {
+            const fields =
+              row.supplier_fields ||
+              {};
+
+            /*
+             * Mobile Legends utiliza server_id.
+             * Dejamos también compatibilidad
+             * con posibles nombres anteriores.
+             */
+            const serverIdValue =
+              fields.server_id ??
+              fields.id_servidor ??
+              fields.serverId;
+
+            return {
+              id: row.id,
+
+              user_id:
+                row.user_id,
+
+              email:
+                row.email ||
+                undefined,
+
+              username:
+                row.username ||
+                undefined,
+
+              game:
+                row.game,
+
+              categoryId:
+                row.category_id,
+
+              product:
+                row.offer_name,
+
+              displayProduct:
+                row.offer_name,
+
+              price:
+                Number(
+                  row.retail_price
+                ) || 0,
+
+              total:
+                Number(
+                  row.retail_price
+                ) || 0,
+
+              playerId:
+                row.player_id,
+
+              serverId:
+                serverIdValue !==
+                  undefined &&
+                serverIdValue !==
+                  null
+                  ? String(
+                      serverIdValue
+                    )
+                  : undefined,
+
+              status:
+                row.status,
+
+              createdAt:
+                row.created_at,
+
+              supplierOrderId:
+                row.supplier_order_id ||
+                undefined,
+
+              currency:
+                row.currency ||
+                "USD",
+
+              image:
+                getGameImage(
+                  row.category_id,
+                  row.game
+                ),
+            };
+          });
 
         if (mounted) {
-          setOrders(mappedOrders);
+          setOrders(
+            mappedOrders
+          );
+
           setLoading(false);
         }
       } catch (error) {
@@ -186,68 +357,107 @@ export default function OrdersPage() {
 
   /*
    * ============================================================
-   * ESTADOS
+   * ESTADOS DE LAS ÓRDENES
    * ============================================================
    */
 
-  function isCompleted(status: string) {
-    const normalized = status.toUpperCase();
+  function isCompleted(
+    status: string
+  ) {
+    const normalized =
+      status.toUpperCase();
 
     return (
-      normalized === "COMPLETED" ||
-      normalized === "COMPLETADA" ||
-      normalized === "CONFIRMADO" ||
-      normalized === "CONFIRMADA" ||
-      normalized === "SUCCESS" ||
-      normalized === "SUCCESSFUL"
+      normalized ===
+        "COMPLETED" ||
+      normalized ===
+        "COMPLETADA" ||
+      normalized ===
+        "CONFIRMADO" ||
+      normalized ===
+        "CONFIRMADA" ||
+      normalized ===
+        "SUCCESS" ||
+      normalized ===
+        "SUCCESSFUL"
     );
   }
 
-  function isCancelled(status: string) {
-    const normalized = status.toUpperCase();
+  function isCancelled(
+    status: string
+  ) {
+    const normalized =
+      status.toUpperCase();
 
     return (
-      normalized === "CANCELLED" ||
-      normalized === "CANCELED" ||
-      normalized === "CANCELADA" ||
-      normalized === "FAILED" ||
-      normalized === "REFUNDED"
+      normalized ===
+        "CANCELLED" ||
+      normalized ===
+        "CANCELED" ||
+      normalized ===
+        "CANCELADA" ||
+      normalized ===
+        "FAILED" ||
+      normalized ===
+        "REFUNDED"
     );
   }
 
-  function isPending(status: string) {
-    const normalized = status.toUpperCase();
+  function isPending(
+    status: string
+  ) {
+    const normalized =
+      status.toUpperCase();
 
     return (
-      normalized === "RESERVED" ||
-      normalized === "SUPPLIER_PENDING" ||
-      normalized === "REFUND_PENDING" ||
-      normalized === "PENDING" ||
-      normalized === "PROCESSING" ||
-      normalized === "PENDIENTE"
+      normalized ===
+        "RESERVED" ||
+      normalized ===
+        "SUPPLIER_PENDING" ||
+      normalized ===
+        "REFUND_PENDING" ||
+      normalized ===
+        "PENDING" ||
+      normalized ===
+        "PROCESSING" ||
+      normalized ===
+        "PENDIENTE"
     );
   }
 
-  function getStatusClass(status: string) {
-    if (isCompleted(status)) {
+  function getStatusClass(
+    status: string
+  ) {
+    if (
+      isCompleted(status)
+    ) {
       return "status-completed";
     }
 
-    if (isCancelled(status)) {
+    if (
+      isCancelled(status)
+    ) {
       return "status-cancelled";
     }
 
     return "status-pending";
   }
 
-  function getStatusText(status: string) {
-    if (isCompleted(status)) {
+  function getStatusText(
+    status: string
+  ) {
+    if (
+      isCompleted(status)
+    ) {
       return "COMPLETADA";
     }
 
-    if (isCancelled(status)) {
+    if (
+      isCancelled(status)
+    ) {
       if (
-        status.toUpperCase() === "REFUNDED"
+        status.toUpperCase() ===
+        "REFUNDED"
       ) {
         return "REEMBOLSADA";
       }
@@ -272,64 +482,19 @@ export default function OrdersPage() {
     return "PENDIENTE";
   }
 
-  function getGameIcon(game: string) {
-    const normalized = game.toLowerCase();
+  /*
+   * ============================================================
+   * FECHA
+   * ============================================================
+   */
 
-    if (
-      normalized.includes("free") &&
-      normalized.includes("fire")
-    ) {
-      return "🔥";
-    }
-
-    if (normalized.includes("pubg")) {
-      return "🔫";
-    }
-
-    if (
-      normalized.includes("call") ||
-      normalized.includes("cod")
-    ) {
-      return "🎯";
-    }
-
-    if (
-      normalized.includes(
-        "mobile legends"
-      )
-    ) {
-      return "⚔️";
-    }
-
-    if (normalized.includes("fortnite")) {
-      return "🪂";
-    }
-
-    if (
-      normalized.includes("telegram")
-    ) {
-      return "⭐";
-    }
-
-    if (
-      normalized.includes("ea") ||
-      normalized.includes("fc mobile")
-    ) {
-      return "⚽";
-    }
-
-    if (
-      normalized.includes("delta")
-    ) {
-      return "🎯";
-    }
-
-    return "🎮";
-  }
-
-  function formatDate(date: string) {
+  function formatDate(
+    date: string
+  ) {
     try {
-      return new Date(date).toLocaleString(
+      return new Date(
+        date
+      ).toLocaleString(
         "es-ES",
         {
           day: "2-digit",
@@ -350,31 +515,56 @@ export default function OrdersPage() {
    * ============================================================
    */
 
-  const filteredOrders = useMemo(() => {
-    if (filter === "TODAS") {
+  const filteredOrders =
+    useMemo(() => {
+      if (
+        filter ===
+        "TODAS"
+      ) {
+        return orders;
+      }
+
+      if (
+        filter ===
+        "PENDIENTES"
+      ) {
+        return orders.filter(
+          (order) =>
+            isPending(
+              order.status
+            )
+        );
+      }
+
+      if (
+        filter ===
+        "COMPLETADAS"
+      ) {
+        return orders.filter(
+          (order) =>
+            isCompleted(
+              order.status
+            )
+        );
+      }
+
+      if (
+        filter ===
+        "CANCELADAS"
+      ) {
+        return orders.filter(
+          (order) =>
+            isCancelled(
+              order.status
+            )
+        );
+      }
+
       return orders;
-    }
-
-    if (filter === "PENDIENTES") {
-      return orders.filter((order) =>
-        isPending(order.status)
-      );
-    }
-
-    if (filter === "COMPLETADAS") {
-      return orders.filter((order) =>
-        isCompleted(order.status)
-      );
-    }
-
-    if (filter === "CANCELADAS") {
-      return orders.filter((order) =>
-        isCancelled(order.status)
-      );
-    }
-
-    return orders;
-  }, [orders, filter]);
+    }, [
+      orders,
+      filter,
+    ]);
 
   /*
    * ============================================================
@@ -382,44 +572,92 @@ export default function OrdersPage() {
    * ============================================================
    */
 
-  const totalOrders = orders.length;
+  const totalOrders =
+    orders.length;
 
-  const totalAmount = orders.reduce(
-    (sum, order) =>
-      sum +
-      (Number(order.total) ||
-        Number(order.price) ||
-        0),
-    0
-  );
+  const totalAmount =
+    orders.reduce(
+      (
+        sum,
+        order
+      ) =>
+        sum +
+        (Number(
+          order.total
+        ) ||
+          Number(
+            order.price
+          ) ||
+          0),
+      0
+    );
 
-  const completedOrders = orders.filter(
-    (order) =>
-      isCompleted(order.status)
-  ).length;
+  const completedOrders =
+    orders.filter(
+      (order) =>
+        isCompleted(
+          order.status
+        )
+    ).length;
 
-  const pendingOrders = orders.filter(
-    (order) =>
-      isPending(order.status)
-  ).length;
+  const pendingOrders =
+    orders.filter(
+      (order) =>
+        isPending(
+          order.status
+        )
+    ).length;
 
-  const cancelledOrders = orders.filter(
-    (order) =>
-      isCancelled(order.status)
-  ).length;
+  const cancelledOrders =
+    orders.filter(
+      (order) =>
+        isCancelled(
+          order.status
+        )
+    ).length;
 
   /*
    * ============================================================
-   * ABRIR DETALLES
+   * ABRIR ORDEN
+   * ============================================================
+   *
+   * Al tocar una orden:
+   *
+   * HISTORIAL
+   *      ↓
+   * DETALLES DE LA COMPRA
+   *
+   * El historial deja de renderizarse.
+   */
+
+  function openOrder(
+    order: Order
+  ) {
+    setSelectedOrder(
+      order
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  /*
+   * ============================================================
+   * REGRESAR AL HISTORIAL
    * ============================================================
    */
 
-  function openOrder(order: Order) {
-    setSelectedOrder(order);
-  }
-
   function closeOrder() {
-    setSelectedOrder(null);
+    setSelectedOrder(
+      null
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   /*
@@ -432,6 +670,7 @@ export default function OrdersPage() {
     return (
       <main className="orders-page">
         <div className="orders-loading">
+
           <div className="orders-loading-spinner">
             ⏳
           </div>
@@ -443,6 +682,7 @@ export default function OrdersPage() {
           <span>
             Un momento por favor
           </span>
+
         </div>
       </main>
     );
@@ -450,7 +690,314 @@ export default function OrdersPage() {
 
   /*
    * ============================================================
-   * PÁGINA
+   * VISTA EXCLUSIVA DE LA ORDEN
+   * ============================================================
+   *
+   * IMPORTANTE:
+   * Aquí ya NO aparece el historial.
+   *
+   * Solo se muestra la compra seleccionada.
+   */
+
+  if (
+    selectedOrder
+  ) {
+    return (
+      <main
+        className="
+          orders-page
+          order-detail-page
+        "
+      >
+
+        <section
+          className="
+            order-detail-screen
+          "
+        >
+
+          {/* ==================================================
+              ENCABEZADO DE LA COMPRA
+              ================================================== */}
+
+          <header
+            className="
+              order-detail-screen-header
+            "
+          >
+
+            <button
+              type="button"
+              className="
+                order-detail-back
+              "
+              onClick={
+                closeOrder
+              }
+              aria-label="
+                Regresar al historial
+              "
+            >
+              ←
+            </button>
+
+            <div
+              className="
+                order-detail-game-image
+              "
+            >
+              <img
+                src={
+                  selectedOrder.image
+                }
+                alt={
+                  selectedOrder.game
+                }
+                onError={(
+                  event
+                ) => {
+                  const image =
+                    event.currentTarget;
+
+                  if (
+                    image.src.endsWith(
+                      DEFAULT_GAME_IMAGE
+                    )
+                  ) {
+                    return;
+                  }
+
+                  image.src =
+                    DEFAULT_GAME_IMAGE;
+                }}
+              />
+            </div>
+
+            <div
+              className="
+                order-detail-heading
+              "
+            >
+
+              <strong>
+                DETALLES DE LA COMPRA
+              </strong>
+
+              <span>
+                ORDEN #
+                {
+                  selectedOrder.id
+                }
+              </span>
+
+            </div>
+
+          </header>
+
+          {/* ==================================================
+              ESTADO
+              ================================================== */}
+
+          <div
+            className="
+              order-detail-hero
+            "
+          >
+
+            <div
+              className="
+                order-detail-status
+              "
+            >
+
+              <span
+                className={getStatusClass(
+                  selectedOrder.status
+                )}
+              >
+                {
+                  getStatusText(
+                    selectedOrder.status
+                  )
+                }
+              </span>
+
+            </div>
+
+                        {/* ==================================================
+                INFORMACIÓN DE LA COMPRA
+                ================================================== */}
+
+            <div
+              className="
+                order-detail-content
+              "
+            >
+
+              <div
+                className="
+                  order-detail-row
+                "
+              >
+                <span>
+                  🎮 Juego
+                </span>
+
+                <strong>
+                  {selectedOrder.game}
+                </strong>
+              </div>
+
+              <div
+                className="
+                  order-detail-row
+                "
+              >
+                <span>
+                  📦 Producto
+                </span>
+
+                <strong>
+                  {selectedOrder.displayProduct ||
+                    selectedOrder.product}
+                </strong>
+              </div>
+
+              <div
+                className="
+                  order-detail-row
+                "
+              >
+                <span>
+                  🆔 ID del jugador
+                </span>
+
+                <strong>
+                  {selectedOrder.playerId}
+                </strong>
+              </div>
+
+              {selectedOrder.serverId && (
+                <div
+                  className="
+                    order-detail-row
+                  "
+                >
+                  <span>
+                    🌐 ID del servidor
+                  </span>
+
+                  <strong>
+                    {selectedOrder.serverId}
+                  </strong>
+                </div>
+              )}
+
+              <div
+                className="
+                  order-detail-row
+                "
+              >
+                <span>
+                  💵 Precio
+                </span>
+
+                <strong>
+                  ${selectedOrder.price.toFixed(2)}
+                </strong>
+              </div>
+
+              <div
+                className="
+                  order-detail-row
+                "
+              >
+                <span>
+                  💳 Moneda
+                </span>
+
+                <strong>
+                  {selectedOrder.currency || "USD"}
+                </strong>
+              </div>
+
+              <div
+                className="
+                  order-detail-row
+                "
+              >
+                <span>
+                  📅 Fecha
+                </span>
+
+                <strong>
+                  {formatDate(
+                    selectedOrder.createdAt
+                  )}
+                </strong>
+              </div>
+
+              <div
+                className="
+                  order-detail-row
+                "
+              >
+                <span>
+                  🔢 Número de orden
+                </span>
+
+                <strong
+                  className="
+                    order-id-value
+                  "
+                >
+                  {selectedOrder.id}
+                </strong>
+              </div>
+
+              {selectedOrder.supplierOrderId && (
+                <div
+                  className="
+                    order-detail-row
+                  "
+                >
+                  <span>
+                    ⚙️ Referencia
+                  </span>
+
+                  <strong>
+                    {selectedOrder.supplierOrderId}
+                  </strong>
+                </div>
+              )}
+
+            </div>
+
+          </div>
+
+          {/* ==================================================
+              BOTÓN REGRESAR
+              ================================================== */}
+
+          <button
+            type="button"
+            className="
+              order-detail-return
+            "
+            onClick={closeOrder}
+          >
+            ← REGRESAR A MIS ÓRDENES
+          </button>
+
+        </section>
+
+      </main>
+    );
+  }
+
+  /*
+   * ============================================================
+   * HISTORIAL NORMAL
    * ============================================================
    */
 
@@ -461,26 +1008,44 @@ export default function OrdersPage() {
           ENCABEZADO
           ====================================================== */}
 
-      <header className="orders-header">
+      <header
+        className="
+          orders-header
+        "
+      >
 
         <button
           type="button"
-          className="orders-back-button"
-          onClick={() => router.back()}
+          className="
+            orders-back-button
+          "
+          onClick={() =>
+            router.back()
+          }
           aria-label="Volver"
         >
           ←
         </button>
 
-        <div className="orders-header-title">
-          <span>🛒</span>
+        <div
+          className="
+            orders-header-title
+          "
+        >
+          <span>
+            🛒
+          </span>
 
           <strong>
             MIS ÓRDENES
           </strong>
         </div>
 
-        <div className="orders-header-space" />
+        <div
+          className="
+            orders-header-space
+          "
+        />
 
       </header>
 
@@ -488,29 +1053,52 @@ export default function OrdersPage() {
           HERO
           ====================================================== */}
 
-      <section className="orders-hero">
+      <section
+        className="
+          orders-hero
+        "
+      >
 
-        <div className="orders-hero-glow" />
+        <div
+          className="
+            orders-hero-glow
+          "
+        />
 
-        <div className="orders-hero-content">
+        <div
+          className="
+            orders-hero-content
+          "
+        >
 
-          <span className="orders-hero-label">
+          <span
+            className="
+              orders-hero-label
+            "
+          >
             STORE GAMING
           </span>
 
           <h1>
             HISTORIAL
-            <strong>DE ÓRDENES</strong>
+            <strong>
+              DE ÓRDENES
+            </strong>
           </h1>
 
           <p>
-            Consulta tus compras, productos
-            y el estado de cada pedido.
+            Consulta tus compras,
+            productos y el estado
+            de cada pedido.
           </p>
 
         </div>
 
-        <div className="orders-total-box">
+        <div
+          className="
+            orders-total-box
+          "
+        >
 
           <span>
             PEDIDOS
@@ -532,11 +1120,22 @@ export default function OrdersPage() {
           ESTADÍSTICAS
           ====================================================== */}
 
-      <section className="orders-stats">
+      <section
+        className="
+          orders-stats
+        "
+      >
 
-        <div className="orders-stat-card">
-
-          <span className="orders-stat-icon">
+        <div
+          className="
+            orders-stat-card
+          "
+        >
+          <span
+            className="
+              orders-stat-icon
+            "
+          >
             📦
           </span>
 
@@ -547,12 +1146,18 @@ export default function OrdersPage() {
           <small>
             PEDIDOS
           </small>
-
         </div>
 
-        <div className="orders-stat-card">
-
-          <span className="orders-stat-icon">
+        <div
+          className="
+            orders-stat-card
+          "
+        >
+          <span
+            className="
+              orders-stat-icon
+            "
+          >
             💵
           </span>
 
@@ -563,12 +1168,18 @@ export default function OrdersPage() {
           <small>
             TOTAL
           </small>
-
         </div>
 
-        <div className="orders-stat-card">
-
-          <span className="orders-stat-icon">
+        <div
+          className="
+            orders-stat-card
+          "
+        >
+          <span
+            className="
+              orders-stat-icon
+            "
+          >
             ✅
           </span>
 
@@ -579,12 +1190,18 @@ export default function OrdersPage() {
           <small>
             COMPLETADOS
           </small>
-
         </div>
 
-        <div className="orders-stat-card">
-
-          <span className="orders-stat-icon">
+        <div
+          className="
+            orders-stat-card
+          "
+        >
+          <span
+            className="
+              orders-stat-icon
+            "
+          >
             ❌
           </span>
 
@@ -595,12 +1212,18 @@ export default function OrdersPage() {
           <small>
             CANCELADOS
           </small>
-
         </div>
 
-        <div className="orders-stat-card">
-
-          <span className="orders-stat-icon">
+        <div
+          className="
+            orders-stat-card
+          "
+        >
+          <span
+            className="
+              orders-stat-icon
+            "
+          >
             ⏳
           </span>
 
@@ -611,7 +1234,6 @@ export default function OrdersPage() {
           <small>
             PENDIENTES
           </small>
-
         </div>
 
       </section>
@@ -620,7 +1242,11 @@ export default function OrdersPage() {
           FILTROS
           ====================================================== */}
 
-      <section className="orders-filters">
+      <section
+        className="
+          orders-filters
+        "
+      >
 
         <button
           type="button"
@@ -684,12 +1310,22 @@ export default function OrdersPage() {
           HISTORIAL
           ====================================================== */}
 
-      <section className="orders-history">
+      <section
+        className="
+          orders-history
+        "
+      >
 
-        <div className="orders-section-title">
+        <div
+          className="
+            orders-section-title
+          "
+        >
 
           <div>
-            <span>📋</span>
+            <span>
+              📋
+            </span>
 
             <strong>
               HISTORIAL
@@ -707,9 +1343,17 @@ export default function OrdersPage() {
 
         {filteredOrders.length === 0 ? (
 
-          <div className="orders-empty">
+          <div
+            className="
+              orders-empty
+            "
+          >
 
-            <div className="orders-empty-icon">
+            <div
+              className="
+                orders-empty-icon
+              "
+            >
               📭
             </div>
 
@@ -718,8 +1362,8 @@ export default function OrdersPage() {
             </strong>
 
             <p>
-              No encontramos órdenes en
-              esta categoría.
+              No encontramos órdenes
+              en esta categoría.
             </p>
 
             {filter !== "TODAS" && (
@@ -737,7 +1381,11 @@ export default function OrdersPage() {
 
         ) : (
 
-          <div className="orders-list">
+          <div
+            className="
+              orders-list
+            "
+          >
 
             {filteredOrders.map(
               (order) => (
@@ -745,21 +1393,58 @@ export default function OrdersPage() {
                 <button
                   key={order.id}
                   type="button"
-                  className="order-card"
+                  className="
+                    order-card
+                  "
                   onClick={() =>
                     openOrder(order)
                   }
                 >
 
-                  <div className="order-card-left">
+                  {/* ==========================================
+                      IMAGEN DEL JUEGO
+                      ========================================== */}
 
-                    <div className="order-game-icon">
-                      {getGameIcon(
-                        order.game
-                      )}
+                  <div
+                    className="
+                      order-card-left
+                    "
+                  >
+
+                    <div
+                      className="
+                        order-game-icon
+                      "
+                    >
+
+                      <img
+                        src={order.image}
+                        alt={order.game}
+                        loading="lazy"
+                        onError={(event) => {
+                          const image =
+                            event.currentTarget;
+
+                          if (
+                            image.src.endsWith(
+                              DEFAULT_GAME_IMAGE
+                            )
+                          ) {
+                            return;
+                          }
+
+                          image.src =
+                            DEFAULT_GAME_IMAGE;
+                        }}
+                      />
+
                     </div>
 
-                    <div className="order-card-info">
+                    <div
+                      className="
+                        order-card-info
+                      "
+                    >
 
                       <strong>
                         {order.displayProduct ||
@@ -784,13 +1469,18 @@ export default function OrdersPage() {
 
                   </div>
 
-                  <div className="order-card-right">
+                  {/* ==========================================
+                      PRECIO Y ESTADO
+                      ========================================== */}
+
+                  <div
+                    className="
+                      order-card-right
+                    "
+                  >
 
                     <strong>
-                      $
-                      {order.price.toFixed(
-                        2
-                      )}
+                      ${order.price.toFixed(2)}
                     </strong>
 
                     <span
@@ -803,7 +1493,11 @@ export default function OrdersPage() {
                       )}
                     </span>
 
-                    <span className="order-card-arrow">
+                    <span
+                      className="
+                        order-card-arrow
+                      "
+                    >
                       ›
                     </span>
 
@@ -824,7 +1518,11 @@ export default function OrdersPage() {
           SEGURIDAD
           ====================================================== */}
 
-      <section className="orders-security">
+      <section
+        className="
+          orders-security
+        "
+      >
 
         <div>
 
@@ -839,8 +1537,9 @@ export default function OrdersPage() {
             </strong>
 
             <p>
-              Guarda el número de orden para
-              consultar cualquier compra.
+              Guarda el número de orden
+              para consultar cualquier
+              compra.
             </p>
 
           </div>
@@ -853,7 +1552,11 @@ export default function OrdersPage() {
           PIE DE PÁGINA
           ====================================================== */}
 
-      <footer className="orders-footer">
+      <footer
+        className="
+          orders-footer
+        "
+      >
 
         <strong>
           🛒TIENDA DE JUEGOS🎮
@@ -866,162 +1569,6 @@ export default function OrdersPage() {
 
       </footer>
 
-            {/* ======================================================
-          MODAL / DETALLES DE LA ORDEN
-          ====================================================== */}
-
-      {selectedOrder && (
-        <div
-          className="order-detail-overlay"
-          onClick={closeOrder}
-        >
-          <div
-            className="order-detail-modal"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
-          >
-            <div className="order-detail-header">
-              <div>
-                <span>
-                  {getGameIcon(
-                    selectedOrder.game
-                  )}
-                </span>
-
-                <div>
-                  <strong>
-                    DETALLES DE LA ORDEN
-                  </strong>
-
-                  <small>
-                    #{selectedOrder.id}
-                  </small>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={closeOrder}
-                aria-label="Cerrar"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="order-detail-status">
-              <span
-                className={getStatusClass(
-                  selectedOrder.status
-                )}
-              >
-                {getStatusText(
-                  selectedOrder.status
-                )}
-              </span>
-            </div>
-
-            <div className="order-detail-content">
-
-              <div className="order-detail-row">
-                <span>
-                  🎮 Juego
-                </span>
-
-                <strong>
-                  {selectedOrder.game}
-                </strong>
-              </div>
-
-              <div className="order-detail-row">
-                <span>
-                  📦 Producto
-                </span>
-
-                <strong>
-                  {selectedOrder.displayProduct ||
-                    selectedOrder.product}
-                </strong>
-              </div>
-
-              <div className="order-detail-row">
-                <span>
-                  🆔 ID del jugador
-                </span>
-
-                <strong>
-                  {selectedOrder.playerId}
-                </strong>
-              </div>
-
-              <div className="order-detail-row">
-                <span>
-                  💵 Precio
-                </span>
-
-                <strong>
-                  $
-                  {selectedOrder.price.toFixed(2)}
-                </strong>
-              </div>
-
-              <div className="order-detail-row">
-                <span>
-                  💳 Moneda
-                </span>
-
-                <strong>
-                  {selectedOrder.currency || "USD"}
-                </strong>
-              </div>
-
-              <div className="order-detail-row">
-                <span>
-                  📅 Fecha
-                </span>
-
-                <strong>
-                  {formatDate(
-                    selectedOrder.createdAt
-                  )}
-                </strong>
-              </div>
-
-              <div className="order-detail-row">
-                <span>
-                  🔢 Número de orden
-                </span>
-
-                <strong className="order-id-value">
-                  {selectedOrder.id}
-                </strong>
-              </div>
-
-              {selectedOrder.supplierOrderId && (
-                <div className="order-detail-row">
-                  <span>
-                    ⚙️ Referencia
-                  </span>
-
-                  <strong>
-                    {selectedOrder.supplierOrderId}
-                  </strong>
-                </div>
-              )}
-
-            </div>
-
-            <button
-              type="button"
-              className="order-detail-close-button"
-              onClick={closeOrder}
-            >
-              CERRAR
-            </button>
-          </div>
-        </div>
-      )}
-
     </main>
   );
-}
+                      }
