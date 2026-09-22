@@ -1,112 +1,163 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
+type SupportMessage = {
+  id?: number;
+  sender?: "ai" | "user";
+  text?: string;
 };
+
+const OPENAI_API_URL =
+  "https://api.openai.com/v1/responses";
 
 const SUPPORT_INSTRUCTIONS = `
 Eres el asistente oficial de soporte de 🛒STORE GAMING🎮.
 
-Tu función es ayudar a los clientes de STORE GAMING de forma clara,
-amable y breve.
+Tu función es ayudar a los clientes con problemas relacionados con la tienda, pedidos, recargas, pagos, productos, códigos, cuentas y funcionamiento general del sitio.
 
-IMPORTANTE:
+REGLAS IMPORTANTES:
 
-- No inventes precios, ofertas, pedidos, estados de pagos ni información
-  que no tengas disponible.
-- No inventes datos de cuentas de clientes.
-- No inventes números de pedidos.
-- No prometas reembolsos ni cambios que no estén confirmados.
-- Si el cliente pregunta por un pedido concreto y no tienes acceso a los
-  datos de ese pedido, explícale que necesitas que el administrador revise
-  el caso.
-- Si el problema puede resolverse explicando cómo funciona STORE GAMING,
-  intenta resolverlo directamente.
-- Si el cliente tiene un problema con una compra, pago, depósito, saldo,
-  pedido, recarga o cualquier situación que requiera revisar información
-  privada de su cuenta, no inventes una solución.
-- Si después de explicar la situación el cliente necesita intervención
-  humana, debes indicar que puede solicitar al administrador.
-- Si el cliente expresa que la respuesta no le sirve, que no resolvió su
-  problema, que quiere hablar con una persona, administrador o soporte
-  humano, considera que necesita atención del administrador.
+1. Responde siempre en español.
+2. Sé claro, amable y directo.
+3. No inventes información.
+4. No inventes precios, números de pedido, estados de pedidos, saldos, pagos, direcciones, códigos ni datos de cuentas.
+5. Si el usuario pregunta por un pedido específico pero no proporciona información suficiente, pídele los datos necesarios.
+6. Si el problema requiere revisar información interna de STORE GAMING a la que no tienes acceso, explica que no puedes comprobarlo directamente.
+7. Si el problema no puede solucionarse desde el asistente, indica que puede solicitar atención del administrador.
+8. No afirmes que realizaste una acción si realmente no puedes realizarla.
+9. No digas que tienes acceso a Supabase, Telegram, FazerCards, pedidos internos o cuentas de usuarios.
+10. Para problemas como pagos no acreditados, pedidos atascados, productos no recibidos, errores de cuenta o cualquier situación que requiera revisión manual, puedes recomendar contactar al administrador.
+11. Mantén las respuestas relativamente cortas y fáciles de leer desde un teléfono.
+12. No uses respuestas genéricas si puedes dar pasos concretos.
 
-Temas que puedes explicar:
-
-- Cómo realizar una recarga.
-- Cómo seleccionar un juego.
-- Cómo seleccionar una oferta.
-- Cómo introducir el ID del jugador.
-- Cómo consultar pedidos.
-- Cómo funciona el saldo.
-- Cómo realizar depósitos.
-- Información general sobre soporte.
-- Problemas generales de navegación dentro de STORE GAMING.
-
-Cuando no puedas resolver un problema con seguridad, dilo claramente.
-
-Nunca digas que eres un empleado humano.
-Identifícate como el asistente IA de STORE GAMING.
-
-Responde siempre en español.
-
-Tus respuestas deben ser fáciles de entender desde un teléfono.
-Evita respuestas excesivamente largas.
-
-Al final de tu respuesta, si consideras que el cliente necesita
-intervención humana, incluye una línea exactamente así:
-
-[LLAMAR_AL_ADMINISTRADOR]
-
-Si no necesita intervención humana, NO incluyas esa línea.
+Cuando el problema necesite intervención humana, termina indicando claramente que el usuario puede solicitar atención del administrador.
 `;
 
-function cleanMessages(value: unknown): ChatMessage[] {
-  if (!Array.isArray(value)) {
+function extractResponseText(data: any): string {
+  // 1. La Responses API puede proporcionar directamente output_text.
+  if (
+    typeof data?.output_text === "string" &&
+    data.output_text.trim()
+  ) {
+    return data.output_text.trim();
+  }
+
+  // 2. Buscar texto dentro de output[].content[].
+  if (Array.isArray(data?.output)) {
+    const parts: string[] = [];
+
+    for (const outputItem of data.output) {
+      if (!Array.isArray(outputItem?.content)) {
+        continue;
+      }
+
+      for (const contentItem of outputItem.content) {
+        if (
+          typeof contentItem?.text === "string" &&
+          contentItem.text.trim()
+        ) {
+          parts.push(contentItem.text.trim());
+        }
+      }
+    }
+
+    if (parts.length > 0) {
+      return parts.join("\n\n").trim();
+    }
+  }
+
+  // 3. Búsqueda adicional por si la estructura cambia.
+  function findText(value: any): string[] {
+    if (typeof value === "string") {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      const results: string[] = [];
+
+      for (const item of value) {
+        results.push(...findText(item));
+      }
+
+      return results;
+    }
+
+    if (value && typeof value === "object") {
+      const results: string[] = [];
+
+      for (const [key, child] of Object.entries(value)) {
+        if (
+          key === "text" &&
+          typeof child === "string" &&
+          child.trim()
+        ) {
+          results.push(child.trim());
+          continue;
+        }
+
+        results.push(...findText(child));
+      }
+
+      return results;
+    }
+
     return [];
   }
 
-  return value
-    .filter((message): message is ChatMessage => {
-      if (!message || typeof message !== "object") {
-        return false;
-      }
+  const fallbackParts = findText(data);
 
-      const item = message as Record<string, unknown>;
+  if (fallbackParts.length > 0) {
+    return fallbackParts.join("\n\n").trim();
+  }
 
-      return (
-        (item.role === "user" || item.role === "assistant") &&
-        typeof item.content === "string"
-      );
-    })
-    .map((message) => ({
-      role: message.role,
-      content: message.content.trim(),
-    }))
-    .filter((message) => message.content.length > 0)
-    .slice(-30);
+  return "";
 }
 
-function removeAdminMarker(text: string) {
-  return text
-    .replace(/\[LLAMAR_AL_ADMINISTRADOR\]/gi, "")
-    .trim();
+function detectNeedsAdmin(answer: string): boolean {
+  const normalized = answer
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const adminPhrases = [
+    "administrador",
+    "atencion humana",
+    "atención humana",
+    "soporte humano",
+    "contactar al administrador",
+    "contacta al administrador",
+    "comunicate con el administrador",
+    "comunícate con el administrador",
+    "solicitar atencion",
+    "solicitar atención",
+    "intervencion humana",
+    "intervención humana",
+    "revisar manualmente",
+    "revision manual",
+    "revisión manual",
+  ];
+
+  return adminPhrases.some((phrase) =>
+    normalized.includes(
+      phrase
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+    )
+  );
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    if (!OPENAI_API_KEY) {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
       console.error(
-        "FALTA OPENAI_API_KEY EN LAS VARIABLES DE ENTORNO."
+        "OPENAI_API_KEY no está configurada."
       );
 
       return NextResponse.json(
         {
           error:
-            "El sistema de soporte no está configurado correctamente.",
+            "El servicio de soporte no está configurado correctamente.",
         },
         {
           status: 500,
@@ -116,12 +167,28 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const messages = cleanMessages(body?.messages);
+    const category =
+      typeof body?.category === "string" &&
+      body.category.trim()
+        ? body.category.trim()
+        : "Otro/pregunta";
+
+    const subject =
+      typeof body?.subject === "string" &&
+      body.subject.trim()
+        ? body.subject.trim()
+        : "Solicitud de soporte";
+
+    const messages: SupportMessage[] =
+      Array.isArray(body?.messages)
+        ? body.messages
+        : [];
 
     if (messages.length === 0) {
       return NextResponse.json(
         {
-          error: "No se recibió ningún mensaje.",
+          error:
+            "No se recibió ningún mensaje.",
         },
         {
           status: 400,
@@ -129,88 +196,161 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(
-      "https://api.openai.com/v1/responses",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-5.6-luna",
+    /*
+     * Convertimos la conversación a un texto claro.
+     *
+     * Esto evita depender de una estructura específica
+     * de mensajes de la Responses API.
+     */
+    const conversation = messages
+      .filter(
+        (message) =>
+          typeof message?.text === "string" &&
+          message.text.trim()
+      )
+      .map((message) => {
+        const sender =
+          message.sender === "ai"
+            ? "ASISTENTE"
+            : "CLIENTE";
 
-          instructions: SUPPORT_INSTRUCTIONS,
+        return `${sender}:\n${message.text?.trim()}`;
+      })
+      .join("\n\n");
 
-          input: messages.map((message) => ({
-            role: message.role,
-            content: [
-              {
-                type: "input_text",
-                text: message.content,
-              },
-            ],
-          })),
-
-          max_output_tokens: 500,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("ERROR OPENAI:", data);
-
+    if (!conversation.trim()) {
       return NextResponse.json(
         {
           error:
-            "No se pudo obtener una respuesta del asistente.",
+            "No se recibió ningún mensaje válido.",
         },
         {
-          status: 500,
+          status: 400,
         }
       );
     }
 
-    const rawAnswer =
-      typeof data?.output_text === "string"
-        ? data.output_text.trim()
-        : "";
+    const input = `
+CATEGORÍA:
+${category}
 
-    if (!rawAnswer) {
+SUJETO:
+${subject}
+
+CONVERSACIÓN:
+${conversation}
+
+Responde al último mensaje del cliente teniendo en cuenta toda la conversación anterior.
+`;
+
+    console.log(
+      "ENVIANDO SOLICITUD A OPENAI SUPPORT..."
+    );
+
+    const openAIResponse = await fetch(
+      OPENAI_API_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-5.6-luna",
+          instructions: SUPPORT_INSTRUCTIONS,
+          input,
+        }),
+      }
+    );
+
+    const rawResponse =
+      await openAIResponse.text();
+
+    let data: any = null;
+
+    try {
+      data = JSON.parse(rawResponse);
+    } catch {
+      data = null;
+    }
+
+    if (!openAIResponse.ok) {
+      console.error(
+        "ERROR RESPUESTA OPENAI:",
+        rawResponse
+      );
+
+      const openAIError =
+        data?.error?.message ||
+        data?.error?.code ||
+        rawResponse ||
+        "OpenAI no pudo procesar la solicitud.";
+
+      return NextResponse.json(
+        {
+          error: `Error del servicio de soporte: ${openAIError}`,
+        },
+        {
+          status: 502,
+        }
+      );
+    }
+
+    const answer = extractResponseText(data);
+
+    /*
+     * Este es el punto importante de la corrección.
+     *
+     * Si OpenAI respondió correctamente pero no encontramos
+     * el texto, devolvemos información útil para poder detectar
+     * la estructura recibida en los logs de Vercel.
+     */
+    if (!answer) {
+      console.error(
+        "OPENAI RESPONDIÓ SIN TEXTO:",
+        JSON.stringify(data)
+      );
+
       return NextResponse.json(
         {
           error:
-            "El asistente no devolvió una respuesta.",
+            "El asistente recibió la solicitud pero no devolvió ningún mensaje.",
         },
         {
-          status: 500,
+          status: 502,
         }
       );
     }
 
     const needsAdmin =
-      /\[LLAMAR_AL_ADMINISTRADOR\]/i.test(rawAnswer);
+      detectNeedsAdmin(answer);
 
-    const answer = removeAdminMarker(rawAnswer);
+    console.log(
+      "RESPUESTA OPENAI SUPPORT RECIBIDA."
+    );
 
     return NextResponse.json({
+      success: true,
       answer,
       needsAdmin,
       showAdminButton: needsAdmin,
     });
   } catch (error) {
-    console.error("ERROR API SUPPORT CHAT:", error);
+    console.error(
+      "ERROR API SUPPORT CHAT:",
+      error
+    );
 
     return NextResponse.json(
       {
         error:
-          "Ocurrió un error al procesar la consulta de soporte.",
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error al conectar con el asistente de soporte.",
       },
       {
         status: 500,
       }
     );
   }
-}
+          }
