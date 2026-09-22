@@ -26,6 +26,9 @@ type StoreOrder = {
   date?: string;
 };
 
+const ADMIN_EMAIL =
+  "juliocesarblancomedina08@gmail.com";
+
 const services: Service[] = [
   {
     name: "RECARGAS TOP UP",
@@ -70,6 +73,7 @@ export default function HomePage() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [ordersCreated, setOrdersCreated] = useState(0);
   const [deposited, setDeposited] = useState(0);
@@ -91,12 +95,22 @@ export default function HomePage() {
         return;
       }
 
-      const email = session.user.email || "usuario";
-      const name = email.split("@")[0] || "usuario";
+      const email =
+        session.user.email || "usuario";
+
+      const name =
+        email.split("@")[0] || "usuario";
 
       setUsername(name);
 
-      await loadStatistics(session.user.id);
+      setIsAdmin(
+        email.trim().toLowerCase() ===
+          ADMIN_EMAIL.toLowerCase()
+      );
+
+      await loadStatistics(
+        session.user.id
+      );
 
       if (mounted) {
         setLoading(false);
@@ -114,12 +128,22 @@ export default function HomePage() {
           return;
         }
 
-        const email = session.user.email || "usuario";
-        const name = email.split("@")[0] || "usuario";
+        const email =
+          session.user.email || "usuario";
+
+        const name =
+          email.split("@")[0] || "usuario";
 
         setUsername(name);
 
-        await loadStatistics(session.user.id);
+        setIsAdmin(
+          email.trim().toLowerCase() ===
+            ADMIN_EMAIL.toLowerCase()
+        );
+
+        await loadStatistics(
+          session.user.id
+        );
       }
     );
 
@@ -135,7 +159,9 @@ export default function HomePage() {
    * =========================
    */
 
-  async function loadStatistics(userId: string) {
+  async function loadStatistics(
+    userId: string
+  ) {
     /*
      * =========================
      * ÓRDENES
@@ -562,6 +588,42 @@ export default function HomePage() {
 
               </button>
 
+              {/* =========================
+                  PANEL DEL ADMINISTRADOR
+              ========================== */}
+
+              {isAdmin && (
+                <>
+                  <div className="side-menu-section-title">
+
+                    <span />
+
+                    ADMINISTRACIÓN
+
+                    <span />
+
+                  </div>
+
+                  <button
+                    type="button"
+                    className="side-menu-item"
+                    onClick={() =>
+                      goTo("/admin")
+                    }
+                  >
+
+                    <span className="menu-icon">
+                      👑
+                    </span>
+
+                    <span>
+                      ADM PANEL
+                    </span>
+
+                  </button>
+                </>
+              )}
+
             </nav>
 
             <div className="side-menu-bottom">
@@ -922,4 +984,4 @@ export default function HomePage() {
 
     </main>
   );
-    }
+  }
