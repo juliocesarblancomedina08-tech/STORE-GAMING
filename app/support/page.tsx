@@ -1,281 +1,421 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type Message = {
+  id: number;
+  sender: "ai" | "user";
+  text: string;
+};
 
 export default function SupportPage() {
   const router = useRouter();
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      sender: "ai",
+      text:
+        "Hola 👋 Soy el asistente de soporte de 🛒STORE GAMING🎮. ¿En qué puedo ayudarte?",
+    },
+  ]);
+
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showAdminButton, setShowAdminButton] = useState(false);
+  const [creatingTicket, setCreatingTicket] = useState(false);
+  const [ticketCreated, setTicketCreated] = useState(false);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages, loading]);
+
+  function addMessage(sender: "ai" | "user", text: string) {
+    setMessages((current) => [
+      ...current,
+      {
+        id: Date.now() + Math.random(),
+        sender,
+        text,
+      },
+    ]);
+  }
+
+  async function sendMessage() {
+    const text = input.trim();
+
+    if (!text || loading || ticketCreated) {
+      return;
+    }
+
+    setInput("");
+
+    addMessage("user", text);
+    setLoading(true);
+
+    try {
+      /*
+       * Esta API la crearemos en el siguiente paso:
+       *
+       * /api/support/chat
+       *
+       * Recibirá toda la conversación y devolverá
+       * la respuesta de la IA.
+       */
+      const response = await fetch("/api/support/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [
+            ...messages.map((message) => ({
+              role: message.sender === "ai" ? "assistant" : "user",
+              content: message.text,
+            })),
+            {
+              role: "user",
+              content: text,
+            },
+          ],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || "No se pudo obtener una respuesta."
+        );
+      }
+
+      const answer =
+        typeof data?.answer === "string"
+          ? data.answer
+          : typeof data?.message === "string"
+          ? data.message
+          : "No pude procesar tu consulta en este momento.";
+
+      addMessage("ai", answer);
+
+      /*
+       * La API podrá indicar cuando la IA no pudo resolver
+       * correctamente el problema.
+       */
+      if (
+        data?.needsAdmin === true ||
+        data?.showAdminButton === true
+      ) {
+        setShowAdminButton(true);
+      }
+    } catch (error) {
+      console.error("ERROR SOPORTE:", error);
+
+      addMessage(
+        "ai",
+        "No pude resolver tu consulta en este momento. Si necesitas ayuda con tu problema, puedes solicitar atención del administrador."
+      );
+
+      setShowAdminButton(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function callAdministrator() {
+    if (creatingTicket || ticketCreated) {
+      return;
+    }
+
+    setCreatingTicket(true);
+
+    try {
+      /*
+       * Esta API será creada después:
+       *
+       * /api/support/ticket
+       *
+       * Guardará el ticket en Supabase y enviará
+       * la notificación al administrador.
+       */
+      const response = await fetch("/api/support/ticket", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || "No se pudo crear la solicitud."
+        );
+      }
+
+      setTicketCreated(true);
+
+      addMessage(
+        "ai",
+        "✅ Tu solicitud fue enviada al administrador. Hemos registrado esta conversación para que pueda revisar tu problema y ayudarte."
+      );
+    } catch (error) {
+      console.error("ERROR CREANDO TICKET:", error);
+
+      addMessage(
+        "ai",
+        "❌ No se pudo enviar la solicitud al administrador. Inténtalo nuevamente en unos segundos."
+      );
+    } finally {
+      setCreatingTicket(false);
+    }
+  }
+
+  function handleKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>
+  ) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
+    }
+  }
 
   return (
-    <main className="service-page support-page">
+    <main className="support-page">
+      <div className="support-background" />
 
-      {/* ======================================================
-          HEADER
-          ====================================================== */}
-
-      <header className="service-header support-header">
-
+      <header className="support-header">
         <button
           type="button"
-          className="back-button"
+          className="support-back-button"
           onClick={() => router.push("/home")}
-          aria-label="Volver"
+          aria-label="Regresar"
         >
           ←
         </button>
 
         <div className="support-header-title">
-
-          <small>
-            STORE GAMING
-          </small>
-
-          <h1>
-            SOPORTE
-          </h1>
-
-        </div>
-
-        <div className="support-header-icon">
-          🎧
-        </div>
-
-      </header>
-
-      {/* ======================================================
-          CONTENIDO
-          ====================================================== */}
-
-      <section className="support-content">
-
-        {/* ====================================================
-            TARJETA PRINCIPAL
-            ==================================================== */}
-
-        <section className="support-main-card">
-
-          <div className="support-card-glow" />
-
-          <div className="support-main-top">
-
-            <div className="support-headset">
-              🎧
-            </div>
-
-            <div className="support-online">
-
-              <span />
-
-              SOPORTE ACTIVO
-
-            </div>
-
-          </div>
-
-          <div className="support-main-text">
-
-            <small>
-              STORE GAMING
-            </small>
-
-            <h2>
-              ¿NECESITAS
-              <span> AYUDA?</span>
-            </h2>
-
-            <p>
-              Nuestro equipo está disponible
-              para ayudarte con tus pedidos,
-              recargas y cualquier problema
-              relacionado con tu cuenta.
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            className="support-contact-button"
-            onClick={() => {
-              window.open(
-                "https://t.me/",
-                "_blank"
-              );
-            }}
-          >
-            <span>
-              🎧
-            </span>
-
-            <strong>
-              CONTACTAR SOPORTE
-            </strong>
-
-            <span>
-              →
-            </span>
-          </button>
-
-        </section>
-
-        {/* ====================================================
-            AYUDA RÁPIDA
-            ==================================================== */}
-
-        <section className="support-section">
-
-          <div className="support-section-title">
-
-            <div>
-              <span>
-                ?
-              </span>
-
-              <strong>
-                ¿EN QUÉ PODEMOS AYUDARTE?
-              </strong>
-            </div>
-
-          </div>
-
-          {/* PEDIDOS */}
-
-          <button
-            type="button"
-            className="support-option-card"
-            onClick={() =>
-              router.push("/orders")
-            }
-          >
-
-            <div className="support-option-icon">
-              📦
-            </div>
-
-            <div className="support-option-info">
-
-              <strong>
-                PROBLEMA CON UN PEDIDO
-              </strong>
-
-              <span>
-                Consulta tus pedidos y su estado.
-              </span>
-
-            </div>
-
-            <div className="support-option-arrow">
-              →
-            </div>
-
-          </button>
-
-          {/* BALANCE */}
-
-          <button
-            type="button"
-            className="support-option-card"
-            onClick={() =>
-              router.push("/balance")
-            }
-          >
-
-            <div className="support-option-icon">
-              💰
-            </div>
-
-            <div className="support-option-info">
-
-              <strong>
-                BALANCE Y DEPÓSITOS
-              </strong>
-
-              <span>
-                Consulta tu billetera y movimientos.
-              </span>
-
-            </div>
-
-            <div className="support-option-arrow">
-              →
-            </div>
-
-          </button>
-
-          {/* RECARGAS */}
-
-          <button
-            type="button"
-            className="support-option-card"
-            onClick={() =>
-              router.push("/home")
-            }
-          >
-
-            <div className="support-option-icon">
-              🎮
-            </div>
-
-            <div className="support-option-info">
-
-              <strong>
-                PROBLEMA CON UNA RECARGA
-              </strong>
-
-              <span>
-                Ayuda relacionada con tus compras.
-              </span>
-
-            </div>
-
-            <div className="support-option-arrow">
-              →
-            </div>
-
-          </button>
-
-        </section>
-
-        {/* ====================================================
-            INFORMACIÓN
-            ==================================================== */}
-
-        <section className="support-info-card">
-
-          <div className="support-info-icon">
-            🔒
-          </div>
+          <div className="support-header-icon">🤖</div>
 
           <div>
+            <h1>ASISTENTE DE SOPORTE</h1>
+            <span>
+              <span className="support-online-dot" />
+              EN LÍNEA
+            </span>
+          </div>
+        </div>
+      </header>
 
-            <strong>
-              SOPORTE SEGURO
-            </strong>
+      <section className="support-chat-wrapper">
+        <div className="support-chat-card">
+          <div className="support-chat-top">
+            <div className="support-ai-avatar">🤖</div>
 
-            <p>
-              Nunca compartas tu contraseña ni
-              códigos de verificación con ninguna
-              persona.
-            </p>
+            <div className="support-ai-info">
+              <strong>STORE GAMING</strong>
+              <span>Asistente de soporte IA</span>
+            </div>
 
+            <div className="support-status">
+              <span />
+              ONLINE
+            </div>
           </div>
 
-        </section>
+          <div className="support-messages">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={
+                  message.sender === "ai"
+                    ? "support-message support-message-ai"
+                    : "support-message support-message-user"
+                }
+              >
+                {message.sender === "ai" && (
+                  <div className="support-message-avatar">🤖</div>
+                )}
 
-        {/* ====================================================
-            REGRESAR
-            ==================================================== */}
+                <div className="support-message-content">
+                  <div className="support-message-name">
+                    {message.sender === "ai"
+                      ? "STORE GAMING IA"
+                      : "TÚ"}
+                  </div>
 
-        <button
-          type="button"
-          className="support-return-button"
-          onClick={() =>
-            router.push("/home")
-          }
-        >
-          ← VOLVER A LA TIENDA
-        </button>
+                  <div className="support-message-bubble">
+                    {message.text}
+                  </div>
+                </div>
+              </div>
+            ))}
 
+            {loading && (
+              <div className="support-message support-message-ai">
+                <div className="support-message-avatar">🤖</div>
+
+                <div className="support-message-content">
+                  <div className="support-message-name">
+                    STORE GAMING IA
+                  </div>
+
+                  <div className="support-message-bubble support-typing">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {showAdminButton && !ticketCreated && (
+            <div className="support-admin-section">
+              <div className="support-admin-warning">
+                <span className="support-admin-warning-icon">
+                  👨‍💻
+                </span>
+
+                <div>
+                  <strong>¿Necesitas más ayuda?</strong>
+
+                  <p>
+                    Si la respuesta de la IA no resolvió tu
+                    problema, puedes solicitar atención del
+                    administrador.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="support-admin-button"
+                onClick={callAdministrator}
+                disabled={creatingTicket}
+              >
+                {creatingTicket ? (
+                  <>
+                    <span className="support-button-spinner" />
+                    ENVIANDO SOLICITUD...
+                  </>
+                ) : (
+                  <>
+                    👨‍💻 LLAMAR AL ADMINISTRADOR
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {ticketCreated && (
+            <div className="support-ticket-created">
+              <div className="support-ticket-check">✓</div>
+
+              <div>
+                <strong>SOLICITUD ENVIADA</strong>
+
+                <p>
+                  El administrador ha recibido tu solicitud de
+                  soporte.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="support-input-area">
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Escribe tu pregunta..."
+              rows={1}
+              disabled={loading || ticketCreated}
+            />
+
+            <button
+              type="button"
+              className="support-send-button"
+              onClick={sendMessage}
+              disabled={
+                !input.trim() ||
+                loading ||
+                ticketCreated
+              }
+              aria-label="Enviar mensaje"
+            >
+              ➤
+            </button>
+          </div>
+
+          <div className="support-input-hint">
+            Presiona ENTER para enviar
+          </div>
+        </div>
+
+        <div className="support-help-card">
+          <div className="support-help-title">
+            <span>💡</span>
+            <strong>¿QUÉ PUEDES PREGUNTAR?</strong>
+          </div>
+
+          <div className="support-help-options">
+            <button
+              type="button"
+              onClick={() => {
+                setInput("¿Dónde puedo ver mis pedidos?");
+              }}
+            >
+              📦 Mis pedidos
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setInput("¿Cómo puedo depositar saldo?");
+              }}
+            >
+              💰 Depósitos
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setInput("¿Cómo funciona una recarga?");
+              }}
+            >
+              🎮 Recargas
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setInput("Tengo un problema con mi compra");
+              }}
+            >
+              🛒 Problema con una compra
+            </button>
+          </div>
+        </div>
       </section>
 
+      <div className="support-footer">
+        <button
+          type="button"
+          onClick={() => router.push("/home")}
+        >
+          ← REGRESAR A STORE GAMING
+        </button>
+      </div>
     </main>
   );
-      }
+                    }
