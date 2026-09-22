@@ -3,13 +3,32 @@ import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
 type SupportMessage = {
   id?: number;
-  sender?: "ai" | "user";
+  sender?: "ai" | "user" | "admin";
   text?: string;
 };
+
+type SupportStatus =
+  | "PENDING"
+  | "IN_PROGRESS"
+  | "COMPLETED";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    /*
+     * =====================================================
+     * DATOS GENERALES
+     * =====================================================
+     */
+
+    const ticketId =
+      typeof body?.ticketId === "number"
+        ? body.ticketId
+        : typeof body?.ticketId === "string" &&
+          body.ticketId.trim()
+        ? Number(body.ticketId)
+        : null;
 
     const messages: SupportMessage[] =
       Array.isArray(body?.messages)
@@ -40,14 +59,6 @@ export async function POST(request: Request) {
         ? body.subject.trim()
         : "Solicitud de soporte";
 
-    /*
-     * Información del usuario.
-     *
-     * Por ahora recibimos estos datos desde el cliente.
-     * En el siguiente paso conectaremos el soporte
-     * directamente con la sesión de Supabase para
-     * obtenerlos automáticamente.
-     */
     const userId =
       typeof body?.userId === "string" &&
       body.userId.trim()
@@ -66,12 +77,84 @@ export async function POST(request: Request) {
         ? body.email.trim()
         : null;
 
-    const userMessages = messages.filter(
-      (message) =>
-        message?.sender === "user" &&
-        typeof message?.text === "string" &&
-        message.text.trim()
-    );
+    /*
+     * =====================================================
+     * ESTADO
+     * =====================================================
+     */
+
+    const requestedStatus =
+      typeof body?.status === "string"
+        ? body.status.trim().toUpperCase()
+        : null;
+
+    let status: SupportStatus = "PENDING";
+
+    if (
+      requestedStatus === "PENDING" ||
+      requestedStatus === "IN_PROGRESS" ||
+      requestedStatus === "COMPLETED"
+    ) {
+      status = requestedStatus;
+    }
+
+    /*
+     * =====================================================
+     * CONVERSACIÓN NORMALIZADA
+     * =====================================================
+     */
+
+    const conversation = messages
+      .filter(
+        (message) =>
+          message &&
+          typeof message.text === "string"
+      )
+      .map((message, index) => ({
+        id:
+          typeof message.id === "number"
+            ? message.id
+            : Date.now() + index,
+
+        sender:
+          message.sender === "admin"
+            ? "admin"
+            : message.sender === "ai"
+            ? "ai"
+            : "user",
+
+        text: message.text?.trim() || "",
+      }))
+      .filter(
+        (message) =>
+          message.text.length > 0
+      );
+
+    if (conversation.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "La conversación de soporte está vacía.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * =====================================================
+     * ÚLTIMO MENSAJE DEL CLIENTE
+     * =====================================================
+     */
+
+    const userMessages =
+      conversation.filter(
+        (message) =>
+          message.sender === "user" &&
+          typeof message.text === "string" &&
+          message.text.trim()
+      );
 
     const lastUserMessage =
       userMessages[
@@ -79,22 +162,180 @@ export async function POST(request: Request) {
       ]?.text?.trim() ||
       "El cliente solicitó atención del administrador.";
 
-    const conversation = messages.map(
-      (message) => ({
-        sender:
-          message.sender === "ai"
-            ? "ai"
-            : "user",
-        text:
-          typeof message.text === "string"
-            ? message.text
-            : "",
-      })
-    );
+    /*
+     * =====================================================
+     * ACTUALIZAR TICKET EXISTENTE
+     * =====================================================
+     *
+     * Cuando existe ticketId NO creamos otro ticket.
+     *
+     * Esto se utiliza para:
+     *
+     * - Respuestas del administrador.
+     * - Cambiar estado.
+     * - Continuar una conversación existente.
+     */
+
+    if (
+      ticketId !== null &&
+      Number.isFinite(ticketId)
+    ) {
+      /*
+       * Primero comprobamos que el ticket exista.
+       */
+      const {
+        data: existingTicket,
+        error: existingTicketError,
+      } = await supabaseAdmin
+        .from("support_tickets")
+        .select(
+          "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
+        )
+        .eq("id", ticketId)
+        .single();
+
+      if (
+        existingTicketError ||
+        !existingTicket
+      ) {
+        console.error(
+          "ERROR BUSCANDO TICKET:",
+          existingTicketError
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "El ticket de soporte no existe.",
+          },
+          {
+            status: 404,
+          }
+        );
+      }
+
+      /*
+       * Si el administrador está enviando
+       * una respuesta y no especificó estado,
+       * el ticket pasa automáticamente
+       * a EN PROCESO.
+       */
+      const sender =
+        body?.sender === "admin"
+          ? "admin"
+          : body?.sender === "ai"
+          ? "ai"
+          : "user";
+
+      let finalStatus: SupportStatus =
+        status;
+
+      if (
+        sender === "admin" &&
+        !requestedStatus
+      ) {
+        finalStatus = "IN_PROGRESS";
+      }
+
+      /*
+       * Si el ticket ya estaba completado y
+       * el administrador manda otra respuesta,
+       * permitimos que vuelva a EN PROCESO.
+       */
+      if (
+        sender === "admin" &&
+        finalStatus === "PENDING" &&
+        existingTicket.status ===
+          "COMPLETED"
+      ) {
+        finalStatus = "IN_PROGRESS";
+      }
+
+      /*
+       * Actualizamos EL MISMO registro.
+       */
+      const {
+        data: updatedTicket,
+        error: updateError,
+      } = await supabaseAdmin
+        .from("support_tickets")
+        .update({
+          user_id:
+            userId ||
+            existingTicket.user_id,
+
+          username:
+            username ||
+            existingTicket.username,
+
+          email:
+            email ||
+            existingTicket.email,
+
+          category:
+            category ||
+            existingTicket.category,
+
+          subject:
+            subject ||
+            existingTicket.subject,
+
+          /*
+           * Conservamos el mensaje original
+           * del ticket.
+           */
+          message:
+            existingTicket.message ||
+            lastUserMessage,
+
+          conversation,
+
+          status: finalStatus,
+
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", ticketId)
+        .select(
+          "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
+        )
+        .single();
+
+      if (updateError) {
+        console.error(
+          "ERROR ACTUALIZANDO TICKET:",
+          updateError
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "No se pudo actualizar el ticket de soporte.",
+            details:
+              updateError.message,
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        ticketId: updatedTicket.id,
+        status: updatedTicket.status,
+        updated_at:
+          updatedTicket.updated_at,
+        ticket: updatedTicket,
+      });
+    }
 
     /*
-     * Crear el ticket.
+     * =====================================================
+     * CREAR TICKET NUEVO
+     * =====================================================
      */
+
     const {
       data: ticket,
       error: ticketError,
@@ -111,7 +352,7 @@ export async function POST(request: Request) {
         status: "PENDING",
       })
       .select(
-        "id, user_id, username, email, category, subject, status, created_at, updated_at"
+        "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
       )
       .single();
 
@@ -125,7 +366,8 @@ export async function POST(request: Request) {
         {
           error:
             "No se pudo crear la solicitud de soporte.",
-          details: ticketError.message,
+          details:
+            ticketError.message,
         },
         {
           status: 500,
@@ -134,8 +376,16 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Notificación al administrador por Telegram.
+     * =====================================================
+     * NOTIFICACIÓN TELEGRAM
+     * =====================================================
+     *
+     * Solo se envía al crear un ticket nuevo.
+     *
+     * Las respuestas del administrador NO
+     * generan nuevas notificaciones de ticket.
      */
+
     const telegramBotToken =
       process.env.TELEGRAM_BOT_TOKEN;
 
@@ -158,12 +408,15 @@ export async function POST(request: Request) {
         username
           ? `👤 Usuario: ${username}`
           : "👤 Usuario: No identificado",
+
         email
           ? `📧 Email: ${email}`
           : "",
+
         userId
           ? `🆔 Usuario ID: ${userId}`
           : "",
+
         "",
         "💬 Mensaje del cliente:",
         lastUserMessage,
@@ -179,13 +432,16 @@ export async function POST(request: Request) {
             `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
             {
               method: "POST",
+
               headers: {
                 "Content-Type":
                   "application/json",
               },
+
               body: JSON.stringify({
                 chat_id:
                   telegramAdminChatId,
+
                 text: notification,
               }),
             }
@@ -212,10 +468,18 @@ export async function POST(request: Request) {
       );
     }
 
+    /*
+     * =====================================================
+     * RESPUESTA
+     * =====================================================
+     */
+
     return NextResponse.json({
       success: true,
       ticketId: ticket.id,
       status: ticket.status,
+      updated_at:
+        ticket.updated_at,
       message:
         "Tu solicitud fue enviada al administrador.",
     });
@@ -228,11 +492,11 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Ocurrió un error al crear la solicitud de soporte.",
+          "Ocurrió un error al procesar la solicitud de soporte.",
       },
       {
         status: 500,
       }
     );
   }
-        }
+  }
