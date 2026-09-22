@@ -1,13 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type SupportCategory = {
-  id: string;
-  label: string;
-  icon: string;
-};
+type SupportView = "closed" | "form" | "chat";
 
 type ChatMessage = {
   id: number;
@@ -15,315 +11,187 @@ type ChatMessage = {
   text: string;
 };
 
-const SUPPORT_CATEGORIES: SupportCategory[] = [
-  {
-    id: "deposit",
-    label: "Depósito/pago no acreditado",
-    icon: "💳",
-  },
-  {
-    id: "order_delayed",
-    label: "Pedido atascado / tarda demasiado",
-    icon: "◷",
-  },
-  {
-    id: "product_missing",
-    label: "Artículo/código no recibido o incompleto",
-    icon: "🛍",
-  },
-  {
-    id: "code_not_working",
-    label: "El código/llave/tarjeta no funciona o está en uso",
-    icon: "▣",
-  },
-  {
-    id: "subscription",
-    label: "Suscripción y planes",
-    icon: "▤",
-  },
-  {
-    id: "api",
-    label: "API e integración",
-    icon: "ϟ",
-  },
-  {
-    id: "product_availability",
-    label: "Disponibilidad/solicitud del producto",
-    icon: "🎁",
-  },
-  {
-    id: "other",
-    label: "Otro/pregunta",
-    icon: "♧",
-  },
+const SUPPORT_CATEGORIES = [
+  "Depósito/pago no acreditado",
+  "Pedido atascado / tarda demasiado",
+  "Artículo/código no recibido o incompleto",
+  "El código/llave/tarjeta no funciona o está en uso",
+  "Suscripción y planes",
+  "API e integración",
+  "Disponibilidad/solicitud del producto",
+  "Otro/pregunta",
 ];
 
 export default function SupportPage() {
   const router = useRouter();
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [supportView, setSupportView] =
+    useState<SupportView>("closed");
 
-  const [supportView, setSupportView] = useState<
-    "closed" | "form" | "chat"
-  >("closed");
-
-  const [categoryOpen, setCategoryOpen] = useState(false);
-
-  const [selectedCategory, setSelectedCategory] =
-    useState<SupportCategory | null>(null);
+  const [category, setCategory] = useState(
+    SUPPORT_CATEGORIES[0]
+  );
 
   const [subject, setSubject] = useState("");
-
   const [message, setMessage] = useState("");
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] =
+    useState<ChatMessage[]>([]);
+
+  const [chatInput, setChatInput] = useState("");
 
   const [loading, setLoading] = useState(false);
-
-  const [showAdminButton, setShowAdminButton] =
+  const [ticketLoading, setTicketLoading] =
     useState(false);
 
-  const [creatingTicket, setCreatingTicket] =
+  const [showAdminButton, setShowAdminButton] =
     useState(false);
 
   const [ticketCreated, setTicketCreated] =
     useState(false);
 
-  useEffect(() => {
-    if (supportView === "chat") {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: "smooth",
-      });
-    }
-  }, [messages, loading, supportView]);
+  const [error, setError] = useState("");
 
-  function openSupportForm() {
-    setSupportView("form");
-    setCategoryOpen(false);
-    setSelectedCategory(null);
-    setSubject("");
-    setMessage("");
-    setMessages([]);
-    setShowAdminButton(false);
-    setTicketCreated(false);
-  }
-
-  function closeSupport() {
-    if (loading || creatingTicket) {
-      return;
-    }
-
-    setSupportView("closed");
-    setCategoryOpen(false);
-  }
-
-  function selectCategory(category: SupportCategory) {
-    setSelectedCategory(category);
-    setCategoryOpen(false);
-  }
-
-  function addChatMessage(
-    sender: "ai" | "user",
-    text: string
+  async function sendToSupportAI(
+    messages: ChatMessage[]
   ) {
-    setMessages((current) => [
-      ...current,
-      {
-        id: Date.now() + Math.random(),
-        sender,
-        text,
-      },
-    ]);
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch(
+        "/api/support/chat",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            category,
+            subject,
+            messages,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "No se pudo conectar con soporte."
+        );
+      }
+
+      const aiText =
+        typeof data?.answer === "string"
+          ? data.answer
+          : "No pude procesar tu solicitud.";
+
+      const aiMessage: ChatMessage = {
+        id: Date.now() + 1,
+        sender: "ai",
+        text: aiText,
+      };
+
+      setChatMessages((previous) => [
+        ...previous,
+        aiMessage,
+      ]);
+
+      if (
+        data?.needsAdmin === true ||
+        data?.showAdminButton === true
+      ) {
+        setShowAdminButton(true);
+      }
+    } catch (err) {
+      console.error(
+        "ERROR SOPORTE IA:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error al conectar con soporte."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function sendInitialSupportRequest() {
-    if (
-      !selectedCategory ||
-      !subject.trim() ||
-      !message.trim() ||
-      loading
-    ) {
+  async function handleCreateConversation(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (!subject.trim()) {
+      setError("Escribe un sujeto.");
       return;
     }
 
-    const currentSubject = subject.trim();
-    const currentMessage = message.trim();
-    const currentCategory = selectedCategory;
+    if (!message.trim()) {
+      setError("Escribe tu mensaje.");
+      return;
+    }
 
-    setSupportView("chat");
+    setError("");
 
-    const userMessage =
-      `📌 ${currentSubject}\n\n${currentMessage}`;
-
-    const initialChatMessage: ChatMessage = {
+    const firstMessage: ChatMessage = {
       id: Date.now(),
       sender: "user",
-      text: userMessage,
+      text: [
+        `Categoría: ${category}`,
+        `Sujeto: ${subject.trim()}`,
+        "",
+        message.trim(),
+      ].join("\n"),
     };
 
-    setMessages([initialChatMessage]);
-    setMessage("");
-    setLoading(true);
+    setChatMessages([firstMessage]);
+    setSupportView("chat");
 
-    try {
-      const aiContext =
-        `Categoría de soporte: ${currentCategory.label}\n` +
-        `Sujeto: ${currentSubject}\n` +
-        `Mensaje del cliente: ${currentMessage}`;
-
-      const response = await fetch("/api/support/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "user",
-              content: aiContext,
-            },
-          ],
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "No se pudo obtener una respuesta."
-        );
-      }
-
-      const answer =
-        typeof data?.answer === "string"
-          ? data.answer
-          : typeof data?.message === "string"
-          ? data.message
-          : "No pude procesar tu consulta.";
-
-      addChatMessage("ai", answer);
-
-      if (
-        data?.needsAdmin === true ||
-        data?.showAdminButton === true
-      ) {
-        setShowAdminButton(true);
-      }
-    } catch (error) {
-      console.error(
-        "ERROR INICIANDO SOPORTE:",
-        error
-      );
-
-      addChatMessage(
-        "ai",
-        "No pude procesar tu consulta en este momento. Si necesitas ayuda con este problema, puedes solicitar atención del administrador."
-      );
-
-      setShowAdminButton(true);
-    } finally {
-      setLoading(false);
-    }
+    await sendToSupportAI([firstMessage]);
   }
 
-  async function sendChatMessage() {
-    const text = message.trim();
+  async function handleSendChat(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
 
-    if (!text || loading || ticketCreated) {
+    const text = chatInput.trim();
+
+    if (!text || loading) {
       return;
     }
 
-    setMessage("");
+    const userMessage: ChatMessage = {
+      id: Date.now(),
+      sender: "user",
+      text,
+    };
 
     const updatedMessages = [
-      ...messages,
-      {
-        id: Date.now(),
-        sender: "user" as const,
-        text,
-      },
+      ...chatMessages,
+      userMessage,
     ];
 
-    setMessages(updatedMessages);
-    setLoading(true);
+    setChatMessages(updatedMessages);
+    setChatInput("");
 
-    try {
-      const response = await fetch("/api/support/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: updatedMessages.map((item) => ({
-            role:
-              item.sender === "ai"
-                ? "assistant"
-                : "user",
-            content: item.text,
-          })),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "No se pudo obtener una respuesta."
-        );
-      }
-
-      const answer =
-        typeof data?.answer === "string"
-          ? data.answer
-          : "No pude procesar tu consulta.";
-
-      addChatMessage("ai", answer);
-
-      if (
-        data?.needsAdmin === true ||
-        data?.showAdminButton === true
-      ) {
-        setShowAdminButton(true);
-      }
-    } catch (error) {
-      console.error(
-        "ERROR EN CHAT DE SOPORTE:",
-        error
-      );
-
-      addChatMessage(
-        "ai",
-        "No pude responder en este momento. Puedes solicitar atención del administrador."
-      );
-
-      setShowAdminButton(true);
-    } finally {
-      setLoading(false);
-    }
+    await sendToSupportAI(updatedMessages);
   }
 
-  function handleChatKeyDown(
-    event: React.KeyboardEvent<HTMLTextAreaElement>
-  ) {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey
-    ) {
-      event.preventDefault();
-      sendChatMessage();
-    }
-  }
-
-  async function callAdministrator() {
-    if (creatingTicket || ticketCreated) {
+  async function handleCallAdministrator() {
+    if (ticketLoading || ticketCreated) {
       return;
     }
 
-    setCreatingTicket(true);
-
     try {
+      setTicketLoading(true);
+      setError("");
+
       const response = await fetch(
         "/api/support/ticket",
         {
@@ -332,15 +200,9 @@ export default function SupportPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            category:
-              selectedCategory?.label ||
-              "Otro/pregunta",
-
-            subject:
-              subject.trim() ||
-              "Solicitud de soporte",
-
-            messages,
+            category,
+            subject,
+            messages: chatMessages,
           }),
         }
       );
@@ -355,397 +217,391 @@ export default function SupportPage() {
       }
 
       setTicketCreated(true);
-
-      addChatMessage(
-        "ai",
-        "✅ Tu solicitud fue enviada al administrador. Hemos registrado esta conversación para que pueda revisar tu problema y ayudarte."
-      );
-    } catch (error) {
+    } catch (err) {
       console.error(
         "ERROR CREANDO TICKET:",
-        error
+        err
       );
 
-      addChatMessage(
-        "ai",
-        "❌ No se pudo enviar la solicitud al administrador. Inténtalo nuevamente."
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la solicitud."
       );
     } finally {
-      setCreatingTicket(false);
+      setTicketLoading(false);
     }
   }
 
-  /*
-   * =====================================================
-   * PÁGINA PRINCIPAL DE SOPORTE
-   * =====================================================
-   */
+  function closeSupport() {
+    if (loading || ticketLoading) {
+      return;
+    }
 
-  if (supportView === "closed") {
-    return (
-      <main className="support-page">
-        <button
-          type="button"
-          className="support-page-back-button"
-          onClick={() => router.push("/home")}
-          aria-label="Regresar"
-        >
-          ←
-        </button>
+    setSupportView("closed");
+    setError("");
+  }
 
-        <section className="support-landing">
-          <div className="support-landing-card">
-            <div className="support-landing-icon">
-              🎧
-            </div>
+  function openSupportForm() {
+    setError("");
+    setSupportView("form");
+  }
 
-            <h1>SOPORTE</h1>
+  function goBackToForm() {
+    if (loading || ticketLoading) {
+      return;
+    }
 
-            <p>
-              ¿Necesitas ayuda con STORE GAMING?
-            </p>
+    setSupportView("form");
+    setChatMessages([]);
+    setShowAdminButton(false);
+    setTicketCreated(false);
+    setError("");
+  }
 
-            <p className="support-landing-small">
-              Pulsa el botón 📩 para crear una
-              consulta.
-            </p>
+  return (
+    <main className="support-page">
+      <div className="support-page-background" />
+
+      <section className="support-content">
+        <div className="support-header">
+          <button
+            type="button"
+            className="support-back-button"
+            onClick={() => router.back()}
+          >
+            ←
+          </button>
+
+          <div className="support-header-title">
+            <span>🛠️</span>
+            <h1>Soporte</h1>
           </div>
-        </section>
+        </div>
 
+        <div className="support-main-card">
+          <div className="support-main-icon">
+            🎧
+          </div>
+
+          <h2>
+            ¿Necesitas ayuda?
+          </h2>
+
+          <p>
+            Nuestro asistente puede ayudarte con
+            tus dudas sobre STORE GAMING.
+          </p>
+
+          <button
+            type="button"
+            className="support-main-button"
+            onClick={openSupportForm}
+          >
+            📩 Crear nueva consulta
+          </button>
+        </div>
+      </section>
+
+      {supportView === "closed" && (
         <button
           type="button"
           className="support-floating-button"
           onClick={openSupportForm}
-          aria-label="Abrir soporte"
+          aria-label="Crear nueva consulta"
         >
-          <span>✉</span>
+          📩
         </button>
-      </main>
-    );
-  }
+      )}
 
-  /*
-   * =====================================================
-   * FORMULARIO PARA CREAR LA CONSULTA
-   * =====================================================
-   */
+      {supportView === "form" && (
+        <div className="support-sheet-overlay">
+          <div className="support-sheet">
+            <div className="support-sheet-handle" />
 
-  if (supportView === "form") {
-    return (
-      <main className="support-page">
-        <div
-          className="support-overlay"
-          onClick={() => {
-            if (!categoryOpen) {
-              closeSupport();
-            }
-          }}
-        />
+            <div className="support-sheet-header">
+              <div>
+                <span className="support-sheet-icon">
+                  📩
+                </span>
 
-        <section
-          className="support-bottom-sheet"
-          onClick={(event) =>
-            event.stopPropagation()
-          }
-        >
-          <div className="support-sheet-handle" />
+                <div>
+                  <h2>
+                    Crear nueva consulta
+                  </h2>
 
-          <div className="support-sheet-header">
+                  <p>
+                    Cuéntanos cuál es tu problema.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="support-close-button"
+                onClick={closeSupport}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              className="support-form"
+              onSubmit={handleCreateConversation}
+            >
+              <label
+                className="support-field"
+              >
+                <span>
+                  Categoría
+                </span>
+
+                <select
+                  value={category}
+                  onChange={(event) =>
+                    setCategory(event.target.value)
+                  }
+                >
+                  {SUPPORT_CATEGORIES.map(
+                    (item) => (
+                      <option
+                        key={item}
+                        value={item}
+                      >
+                        {item}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <label
+                className="support-field"
+              >
+                <span>
+                  Sujeto
+                </span>
+
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(event) =>
+                    setSubject(event.target.value)
+                  }
+                  placeholder="Escribe el asunto"
+                  maxLength={120}
+                />
+              </label>
+
+              <label
+                className="support-field"
+              >
+                <span>
+                  Mensaje
+                </span>
+
+                <textarea
+                  value={message}
+                  onChange={(event) =>
+                    setMessage(event.target.value)
+                  }
+                  placeholder="Describe tu problema..."
+                  rows={6}
+                />
+              </label>
+
+              {error && (
+                <div className="support-error">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="support-submit-button"
+              >
+                Enviar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {supportView === "chat" && (
+        <div className="support-chat-container">
+          <div className="support-chat-header">
+            <button
+              type="button"
+              className="support-chat-back"
+              onClick={goBackToForm}
+              disabled={
+                loading || ticketLoading
+              }
+            >
+              ←
+            </button>
+
             <div>
-              <h2>Crear nueva consulta</h2>
+              <h2>
+                Soporte STORE GAMING
+              </h2>
 
               <p>
-                Describe tu problema y te
-                ayudaremos.
+                Asistente de soporte
               </p>
             </div>
 
             <button
               type="button"
-              className="support-sheet-close"
+              className="support-chat-close"
               onClick={closeSupport}
-            >
-              ×
-            </button>
-          </div>
-
-          <div className="support-form">
-            <label>
-              Problema <span>*</span>
-            </label>
-
-            <button
-              type="button"
-              className="support-category-selector"
-              onClick={() =>
-                setCategoryOpen(
-                  (current) => !current
-                )
-              }
-            >
-              <span>
-                {selectedCategory ? (
-                  <>
-                    <b className="support-category-icon">
-                      {selectedCategory.icon}
-                    </b>
-
-                    {selectedCategory.label}
-                  </>
-                ) : (
-                  <>
-                    <span className="support-headset-icon">
-                      ♧
-                    </span>
-
-                    Seleccione un problema
-                  </>
-                )}
-              </span>
-
-              <span>
-                {categoryOpen ? "⌃" : "⌄"}
-              </span>
-            </button>
-
-            {categoryOpen && (
-              <div className="support-category-list">
-                {SUPPORT_CATEGORIES.map(
-                  (category) => (
-                    <button
-                      type="button"
-                      key={category.id}
-                      onClick={() =>
-                        selectCategory(
-                          category
-                        )
-                      }
-                    >
-                      <span className="support-category-list-icon">
-                        {category.icon}
-                      </span>
-
-                      <span>
-                        {category.label}
-                      </span>
-                    </button>
-                  )
-                )}
-              </div>
-            )}
-
-            <label>
-              Sujeto <span>*</span>
-            </label>
-
-            <div className="support-subject-wrapper">
-              <input
-                type="text"
-                value={subject}
-                maxLength={100}
-                onChange={(event) =>
-                  setSubject(
-                    event.target.value
-                  )
-                }
-                placeholder="Breve descripción del problema"
-              />
-
-              <small>
-                {subject.length} / 100
-              </small>
-            </div>
-
-            <label>
-              Mensaje <span>*</span>
-            </label>
-
-            <div className="support-message-wrapper">
-              <textarea
-                value={message}
-                maxLength={2000}
-                onChange={(event) =>
-                  setMessage(
-                    event.target.value
-                  )
-                }
-                placeholder="Describe tu problema en detalle..."
-                rows={6}
-              />
-
-              <small>
-                {message.length} / 2000
-              </small>
-            </div>
-
-            <button
-              type="button"
-              className="support-submit-button"
-              onClick={
-                sendInitialSupportRequest
-              }
               disabled={
-                !selectedCategory ||
-                !subject.trim() ||
-                !message.trim() ||
-                loading
+                loading || ticketLoading
               }
             >
-              <span>➤</span>
-              Enviar
+              ✕
             </button>
           </div>
-        </section>
-      </main>
-    );
-  }
 
-  /*
-   * =====================================================
-   * CHAT CON LA IA
-   * =====================================================
-   */
-
-  return (
-    <main className="support-page">
-      <section className="support-chat-window">
-        <div className="support-chat-header">
-          <div className="support-chat-header-left">
-            <div className="support-ai-avatar">
-              🤖
-            </div>
+          <div className="support-chat-info">
+            <span>📂</span>
 
             <div>
               <strong>
-                STORE GAMING
+                {category}
               </strong>
 
-              <span>
-                <i />
-                Asistente de soporte
-              </span>
+              <small>
+                {subject}
+              </small>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={closeSupport}
-            className="support-chat-close"
-            disabled={
-              loading || creatingTicket
-            }
-          >
-            ×
-          </button>
-        </div>
+          <div className="support-chat-messages">
+            {chatMessages.map((chatMessage) => (
+              <div
+                key={chatMessage.id}
+                className={
+                  chatMessage.sender === "user"
+                    ? "support-message support-message-user"
+                    : "support-message support-message-ai"
+                }
+              >
+                <div className="support-message-label">
+                  {chatMessage.sender === "user"
+                    ? "Tú"
+                    : "🤖 Soporte"}
+                </div>
 
-        <div className="support-chat-messages">
-          {messages.map((item) => (
-            <div
-              key={item.id}
-              className={
-                item.sender === "user"
-                  ? "support-chat-row support-chat-row-user"
-                  : "support-chat-row support-chat-row-ai"
-              }
-            >
-              {item.sender === "ai" && (
-                <div className="support-chat-avatar">
-                  🤖
+                <div className="support-message-text">
+                  {chatMessage.text}
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div className="support-message support-message-ai">
+                <div className="support-message-label">
+                  🤖 Soporte
+                </div>
+
+                <div className="support-typing">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="support-error support-chat-error">
+                {error}
+              </div>
+            )}
+
+            {showAdminButton &&
+              !ticketCreated && (
+                <div className="support-admin-box">
+                  <div className="support-admin-icon">
+                    👨‍💻
+                  </div>
+
+                  <div className="support-admin-content">
+                    <strong>
+                      ¿Necesitas atención humana?
+                    </strong>
+
+                    <p>
+                      Si el asistente no pudo
+                      solucionar tu problema,
+                      puedes enviar la conversación
+                      al administrador.
+                    </p>
+
+                    <button
+                      type="button"
+                      className="support-admin-button"
+                      onClick={
+                        handleCallAdministrator
+                      }
+                      disabled={ticketLoading}
+                    >
+                      {ticketLoading
+                        ? "Enviando..."
+                        : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
+                    </button>
+                  </div>
                 </div>
               )}
 
-              <div
-                className={
-                  item.sender === "user"
-                    ? "support-chat-bubble support-chat-bubble-user"
-                    : "support-chat-bubble support-chat-bubble-ai"
-                }
-              >
-                {item.text}
+            {ticketCreated && (
+              <div className="support-ticket-success">
+                <div className="support-success-icon">
+                  ✓
+                </div>
+
+                <strong>
+                  Solicitud enviada
+                </strong>
+
+                <p>
+                  Tu consulta fue enviada al
+                  administrador. Te responderemos
+                  lo antes posible.
+                </p>
               </div>
-            </div>
-          ))}
-
-          {loading && (
-            <div className="support-chat-row support-chat-row-ai">
-              <div className="support-chat-avatar">
-                🤖
-              </div>
-
-              <div className="support-chat-bubble support-chat-bubble-ai support-typing">
-                <span />
-                <span />
-                <span />
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {showAdminButton &&
-          !ticketCreated && (
-            <div className="support-admin-area">
-              <button
-                type="button"
-                onClick={
-                  callAdministrator
-                }
-                disabled={creatingTicket}
-                className="support-admin-button"
-              >
-                {creatingTicket ? (
-                  "ENVIANDO..."
-                ) : (
-                  <>
-                    👨‍💻 LLAMAR AL
-                    ADMINISTRADOR
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-        {ticketCreated && (
-          <div className="support-ticket-success">
-            ✓ Solicitud enviada al
-            administrador
+            )}
           </div>
-        )}
 
-        <div className="support-chat-input-area">
-          <textarea
-            value={message}
-            onChange={(event) =>
-              setMessage(
-                event.target.value
-              )
-            }
-            onKeyDown={
-              handleChatKeyDown
-            }
-            placeholder="Escribe un mensaje..."
-            rows={1}
-            disabled={
-              loading || ticketCreated
-            }
-          />
+          {!ticketCreated && (
+            <form
+              className="support-chat-input-area"
+              onSubmit={handleSendChat}
+            >
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(event) =>
+                  setChatInput(event.target.value)
+                }
+                placeholder="Escribe tu mensaje..."
+                disabled={loading}
+              />
 
-          <button
-            type="button"
-            onClick={sendChatMessage}
-            disabled={
-              !message.trim() ||
-              loading ||
-              ticketCreated
-            }
-            aria-label="Enviar"
-          >
-            ➤
-          </button>
+              <button
+                type="submit"
+                disabled={
+                  loading ||
+                  !chatInput.trim()
+                }
+                aria-label="Enviar mensaje"
+              >
+                ➤
+              </button>
+            </form>
+          )}
         </div>
-      </section>
+      )}
     </main>
   );
-}
+      }
