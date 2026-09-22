@@ -3,38 +3,129 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Message = {
+type SupportCategory = {
+  id: string;
+  label: string;
+  icon: string;
+};
+
+type ChatMessage = {
   id: number;
   sender: "ai" | "user";
   text: string;
 };
 
+const SUPPORT_CATEGORIES: SupportCategory[] = [
+  {
+    id: "deposit",
+    label: "Depósito/pago no acreditado",
+    icon: "💳",
+  },
+  {
+    id: "order_delayed",
+    label: "Pedido atascado / tarda demasiado",
+    icon: "◷",
+  },
+  {
+    id: "product_missing",
+    label: "Artículo/código no recibido o incompleto",
+    icon: "🛍",
+  },
+  {
+    id: "code_not_working",
+    label: "El código/llave/tarjeta no funciona o está en uso",
+    icon: "▣",
+  },
+  {
+    id: "subscription",
+    label: "Suscripción y planes",
+    icon: "▤",
+  },
+  {
+    id: "api",
+    label: "API e integración",
+    icon: "ϟ",
+  },
+  {
+    id: "product_availability",
+    label: "Disponibilidad/solicitud del producto",
+    icon: "🎁",
+  },
+  {
+    id: "other",
+    label: "Otro/pregunta",
+    icon: "♧",
+  },
+];
+
 export default function SupportPage() {
   const router = useRouter();
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      sender: "ai",
-      text:
-        "Hola 👋 Soy el asistente de soporte de 🛒STORE GAMING🎮. ¿En qué puedo ayudarte?",
-    },
-  ]);
+  const [supportView, setSupportView] = useState<
+    "closed" | "form" | "chat"
+  >("closed");
 
-  const [input, setInput] = useState("");
+  const [categoryOpen, setCategoryOpen] = useState(false);
+
+  const [selectedCategory, setSelectedCategory] =
+    useState<SupportCategory | null>(null);
+
+  const [subject, setSubject] = useState("");
+
+  const [message, setMessage] = useState("");
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
   const [loading, setLoading] = useState(false);
-  const [showAdminButton, setShowAdminButton] = useState(false);
-  const [creatingTicket, setCreatingTicket] = useState(false);
-  const [ticketCreated, setTicketCreated] = useState(false);
+
+  const [showAdminButton, setShowAdminButton] =
+    useState(false);
+
+  const [creatingTicket, setCreatingTicket] =
+    useState(false);
+
+  const [ticketCreated, setTicketCreated] =
+    useState(false);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }, [messages, loading]);
+    if (supportView === "chat") {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+      });
+    }
+  }, [messages, loading, supportView]);
 
-  function addMessage(sender: "ai" | "user", text: string) {
+  function openSupportForm() {
+    setSupportView("form");
+    setCategoryOpen(false);
+    setSelectedCategory(null);
+    setSubject("");
+    setMessage("");
+    setMessages([]);
+    setShowAdminButton(false);
+    setTicketCreated(false);
+  }
+
+  function closeSupport() {
+    if (loading || creatingTicket) {
+      return;
+    }
+
+    setSupportView("closed");
+    setCategoryOpen(false);
+  }
+
+  function selectCategory(category: SupportCategory) {
+    setSelectedCategory(category);
+    setCategoryOpen(false);
+  }
+
+  function addChatMessage(
+    sender: "ai" | "user",
+    text: string
+  ) {
     setMessages((current) => [
       ...current,
       {
@@ -45,27 +136,41 @@ export default function SupportPage() {
     ]);
   }
 
-  async function sendMessage() {
-    const text = input.trim();
-
-    if (!text || loading || ticketCreated) {
+  async function sendInitialSupportRequest() {
+    if (
+      !selectedCategory ||
+      !subject.trim() ||
+      !message.trim() ||
+      loading
+    ) {
       return;
     }
 
-    setInput("");
+    const currentSubject = subject.trim();
+    const currentMessage = message.trim();
+    const currentCategory = selectedCategory;
 
-    addMessage("user", text);
+    setSupportView("chat");
+
+    const userMessage =
+      `📌 ${currentSubject}\n\n${currentMessage}`;
+
+    const initialChatMessage: ChatMessage = {
+      id: Date.now(),
+      sender: "user",
+      text: userMessage,
+    };
+
+    setMessages([initialChatMessage]);
+    setMessage("");
     setLoading(true);
 
     try {
-      /*
-       * Esta API la crearemos en el siguiente paso:
-       *
-       * /api/support/chat
-       *
-       * Recibirá toda la conversación y devolverá
-       * la respuesta de la IA.
-       */
+      const aiContext =
+        `Categoría de soporte: ${currentCategory.label}\n` +
+        `Sujeto: ${currentSubject}\n` +
+        `Mensaje del cliente: ${currentMessage}`;
+
       const response = await fetch("/api/support/chat", {
         method: "POST",
         headers: {
@@ -73,13 +178,9 @@ export default function SupportPage() {
         },
         body: JSON.stringify({
           messages: [
-            ...messages.map((message) => ({
-              role: message.sender === "ai" ? "assistant" : "user",
-              content: message.text,
-            })),
             {
               role: "user",
-              content: text,
+              content: aiContext,
             },
           ],
         }),
@@ -89,7 +190,8 @@ export default function SupportPage() {
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "No se pudo obtener una respuesta."
+          data?.error ||
+            "No se pudo obtener una respuesta."
         );
       }
 
@@ -98,14 +200,10 @@ export default function SupportPage() {
           ? data.answer
           : typeof data?.message === "string"
           ? data.message
-          : "No pude procesar tu consulta en este momento.";
+          : "No pude procesar tu consulta.";
 
-      addMessage("ai", answer);
+      addChatMessage("ai", answer);
 
-      /*
-       * La API podrá indicar cuando la IA no pudo resolver
-       * correctamente el problema.
-       */
       if (
         data?.needsAdmin === true ||
         data?.showAdminButton === true
@@ -113,16 +211,108 @@ export default function SupportPage() {
         setShowAdminButton(true);
       }
     } catch (error) {
-      console.error("ERROR SOPORTE:", error);
+      console.error(
+        "ERROR INICIANDO SOPORTE:",
+        error
+      );
 
-      addMessage(
+      addChatMessage(
         "ai",
-        "No pude resolver tu consulta en este momento. Si necesitas ayuda con tu problema, puedes solicitar atención del administrador."
+        "No pude procesar tu consulta en este momento. Si necesitas ayuda con este problema, puedes solicitar atención del administrador."
       );
 
       setShowAdminButton(true);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function sendChatMessage() {
+    const text = message.trim();
+
+    if (!text || loading || ticketCreated) {
+      return;
+    }
+
+    setMessage("");
+
+    const updatedMessages = [
+      ...messages,
+      {
+        id: Date.now(),
+        sender: "user" as const,
+        text,
+      },
+    ];
+
+    setMessages(updatedMessages);
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/support/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: updatedMessages.map((item) => ({
+            role:
+              item.sender === "ai"
+                ? "assistant"
+                : "user",
+            content: item.text,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "No se pudo obtener una respuesta."
+        );
+      }
+
+      const answer =
+        typeof data?.answer === "string"
+          ? data.answer
+          : "No pude procesar tu consulta.";
+
+      addChatMessage("ai", answer);
+
+      if (
+        data?.needsAdmin === true ||
+        data?.showAdminButton === true
+      ) {
+        setShowAdminButton(true);
+      }
+    } catch (error) {
+      console.error(
+        "ERROR EN CHAT DE SOPORTE:",
+        error
+      );
+
+      addChatMessage(
+        "ai",
+        "No pude responder en este momento. Puedes solicitar atención del administrador."
+      );
+
+      setShowAdminButton(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleChatKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>
+  ) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+      sendChatMessage();
     }
   }
 
@@ -134,288 +324,428 @@ export default function SupportPage() {
     setCreatingTicket(true);
 
     try {
-      /*
-       * Esta API será creada después:
-       *
-       * /api/support/ticket
-       *
-       * Guardará el ticket en Supabase y enviará
-       * la notificación al administrador.
-       */
-      const response = await fetch("/api/support/ticket", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages,
-        }),
-      });
+      const response = await fetch(
+        "/api/support/ticket",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            category:
+              selectedCategory?.label ||
+              "Otro/pregunta",
+
+            subject:
+              subject.trim() ||
+              "Solicitud de soporte",
+
+            messages,
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data?.error || "No se pudo crear la solicitud."
+          data?.error ||
+            "No se pudo crear la solicitud."
         );
       }
 
       setTicketCreated(true);
 
-      addMessage(
+      addChatMessage(
         "ai",
         "✅ Tu solicitud fue enviada al administrador. Hemos registrado esta conversación para que pueda revisar tu problema y ayudarte."
       );
     } catch (error) {
-      console.error("ERROR CREANDO TICKET:", error);
+      console.error(
+        "ERROR CREANDO TICKET:",
+        error
+      );
 
-      addMessage(
+      addChatMessage(
         "ai",
-        "❌ No se pudo enviar la solicitud al administrador. Inténtalo nuevamente en unos segundos."
+        "❌ No se pudo enviar la solicitud al administrador. Inténtalo nuevamente."
       );
     } finally {
       setCreatingTicket(false);
     }
   }
 
-  function handleKeyDown(
-    event: React.KeyboardEvent<HTMLTextAreaElement>
-  ) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      sendMessage();
-    }
-  }
+  /*
+   * =====================================================
+   * PÁGINA PRINCIPAL DE SOPORTE
+   * =====================================================
+   */
 
-  return (
-    <main className="support-page">
-      <div className="support-background" />
-
-      <header className="support-header">
+  if (supportView === "closed") {
+    return (
+      <main className="support-page">
         <button
           type="button"
-          className="support-back-button"
+          className="support-page-back-button"
           onClick={() => router.push("/home")}
           aria-label="Regresar"
         >
           ←
         </button>
 
-        <div className="support-header-title">
-          <div className="support-header-icon">🤖</div>
-
-          <div>
-            <h1>ASISTENTE DE SOPORTE</h1>
-            <span>
-              <span className="support-online-dot" />
-              EN LÍNEA
-            </span>
-          </div>
-        </div>
-      </header>
-
-      <section className="support-chat-wrapper">
-        <div className="support-chat-card">
-          <div className="support-chat-top">
-            <div className="support-ai-avatar">🤖</div>
-
-            <div className="support-ai-info">
-              <strong>STORE GAMING</strong>
-              <span>Asistente de soporte IA</span>
+        <section className="support-landing">
+          <div className="support-landing-card">
+            <div className="support-landing-icon">
+              🎧
             </div>
 
-            <div className="support-status">
-              <span />
-              ONLINE
+            <h1>SOPORTE</h1>
+
+            <p>
+              ¿Necesitas ayuda con STORE GAMING?
+            </p>
+
+            <p className="support-landing-small">
+              Pulsa el botón 📩 para crear una
+              consulta.
+            </p>
+          </div>
+        </section>
+
+        <button
+          type="button"
+          className="support-floating-button"
+          onClick={openSupportForm}
+          aria-label="Abrir soporte"
+        >
+          <span>✉</span>
+        </button>
+      </main>
+    );
+  }
+
+  /*
+   * =====================================================
+   * FORMULARIO PARA CREAR LA CONSULTA
+   * =====================================================
+   */
+
+  if (supportView === "form") {
+    return (
+      <main className="support-page">
+        <div
+          className="support-overlay"
+          onClick={() => {
+            if (!categoryOpen) {
+              closeSupport();
+            }
+          }}
+        />
+
+        <section
+          className="support-bottom-sheet"
+          onClick={(event) =>
+            event.stopPropagation()
+          }
+        >
+          <div className="support-sheet-handle" />
+
+          <div className="support-sheet-header">
+            <div>
+              <h2>Crear nueva consulta</h2>
+
+              <p>
+                Describe tu problema y te
+                ayudaremos.
+              </p>
             </div>
+
+            <button
+              type="button"
+              className="support-sheet-close"
+              onClick={closeSupport}
+            >
+              ×
+            </button>
           </div>
 
-          <div className="support-messages">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={
-                  message.sender === "ai"
-                    ? "support-message support-message-ai"
-                    : "support-message support-message-user"
-                }
-              >
-                {message.sender === "ai" && (
-                  <div className="support-message-avatar">🤖</div>
-                )}
+          <div className="support-form">
+            <label>
+              Problema <span>*</span>
+            </label>
 
-                <div className="support-message-content">
-                  <div className="support-message-name">
-                    {message.sender === "ai"
-                      ? "STORE GAMING IA"
-                      : "TÚ"}
-                  </div>
-
-                  <div className="support-message-bubble">
-                    {message.text}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {loading && (
-              <div className="support-message support-message-ai">
-                <div className="support-message-avatar">🤖</div>
-
-                <div className="support-message-content">
-                  <div className="support-message-name">
-                    STORE GAMING IA
-                  </div>
-
-                  <div className="support-message-bubble support-typing">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {showAdminButton && !ticketCreated && (
-            <div className="support-admin-section">
-              <div className="support-admin-warning">
-                <span className="support-admin-warning-icon">
-                  👨‍💻
-                </span>
-
-                <div>
-                  <strong>¿Necesitas más ayuda?</strong>
-
-                  <p>
-                    Si la respuesta de la IA no resolvió tu
-                    problema, puedes solicitar atención del
-                    administrador.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="support-admin-button"
-                onClick={callAdministrator}
-                disabled={creatingTicket}
-              >
-                {creatingTicket ? (
+            <button
+              type="button"
+              className="support-category-selector"
+              onClick={() =>
+                setCategoryOpen(
+                  (current) => !current
+                )
+              }
+            >
+              <span>
+                {selectedCategory ? (
                   <>
-                    <span className="support-button-spinner" />
-                    ENVIANDO SOLICITUD...
+                    <b className="support-category-icon">
+                      {selectedCategory.icon}
+                    </b>
+
+                    {selectedCategory.label}
                   </>
                 ) : (
                   <>
-                    👨‍💻 LLAMAR AL ADMINISTRADOR
+                    <span className="support-headset-icon">
+                      ♧
+                    </span>
+
+                    Seleccione un problema
+                  </>
+                )}
+              </span>
+
+              <span>
+                {categoryOpen ? "⌃" : "⌄"}
+              </span>
+            </button>
+
+            {categoryOpen && (
+              <div className="support-category-list">
+                {SUPPORT_CATEGORIES.map(
+                  (category) => (
+                    <button
+                      type="button"
+                      key={category.id}
+                      onClick={() =>
+                        selectCategory(
+                          category
+                        )
+                      }
+                    >
+                      <span className="support-category-list-icon">
+                        {category.icon}
+                      </span>
+
+                      <span>
+                        {category.label}
+                      </span>
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+
+            <label>
+              Sujeto <span>*</span>
+            </label>
+
+            <div className="support-subject-wrapper">
+              <input
+                type="text"
+                value={subject}
+                maxLength={100}
+                onChange={(event) =>
+                  setSubject(
+                    event.target.value
+                  )
+                }
+                placeholder="Breve descripción del problema"
+              />
+
+              <small>
+                {subject.length} / 100
+              </small>
+            </div>
+
+            <label>
+              Mensaje <span>*</span>
+            </label>
+
+            <div className="support-message-wrapper">
+              <textarea
+                value={message}
+                maxLength={2000}
+                onChange={(event) =>
+                  setMessage(
+                    event.target.value
+                  )
+                }
+                placeholder="Describe tu problema en detalle..."
+                rows={6}
+              />
+
+              <small>
+                {message.length} / 2000
+              </small>
+            </div>
+
+            <button
+              type="button"
+              className="support-submit-button"
+              onClick={
+                sendInitialSupportRequest
+              }
+              disabled={
+                !selectedCategory ||
+                !subject.trim() ||
+                !message.trim() ||
+                loading
+              }
+            >
+              <span>➤</span>
+              Enviar
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  /*
+   * =====================================================
+   * CHAT CON LA IA
+   * =====================================================
+   */
+
+  return (
+    <main className="support-page">
+      <section className="support-chat-window">
+        <div className="support-chat-header">
+          <div className="support-chat-header-left">
+            <div className="support-ai-avatar">
+              🤖
+            </div>
+
+            <div>
+              <strong>
+                STORE GAMING
+              </strong>
+
+              <span>
+                <i />
+                Asistente de soporte
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={closeSupport}
+            className="support-chat-close"
+            disabled={
+              loading || creatingTicket
+            }
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="support-chat-messages">
+          {messages.map((item) => (
+            <div
+              key={item.id}
+              className={
+                item.sender === "user"
+                  ? "support-chat-row support-chat-row-user"
+                  : "support-chat-row support-chat-row-ai"
+              }
+            >
+              {item.sender === "ai" && (
+                <div className="support-chat-avatar">
+                  🤖
+                </div>
+              )}
+
+              <div
+                className={
+                  item.sender === "user"
+                    ? "support-chat-bubble support-chat-bubble-user"
+                    : "support-chat-bubble support-chat-bubble-ai"
+                }
+              >
+                {item.text}
+              </div>
+            </div>
+          ))}
+
+          {loading && (
+            <div className="support-chat-row support-chat-row-ai">
+              <div className="support-chat-avatar">
+                🤖
+              </div>
+
+              <div className="support-chat-bubble support-chat-bubble-ai support-typing">
+                <span />
+                <span />
+                <span />
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {showAdminButton &&
+          !ticketCreated && (
+            <div className="support-admin-area">
+              <button
+                type="button"
+                onClick={
+                  callAdministrator
+                }
+                disabled={creatingTicket}
+                className="support-admin-button"
+              >
+                {creatingTicket ? (
+                  "ENVIANDO..."
+                ) : (
+                  <>
+                    👨‍💻 LLAMAR AL
+                    ADMINISTRADOR
                   </>
                 )}
               </button>
             </div>
           )}
 
-          {ticketCreated && (
-            <div className="support-ticket-created">
-              <div className="support-ticket-check">✓</div>
-
-              <div>
-                <strong>SOLICITUD ENVIADA</strong>
-
-                <p>
-                  El administrador ha recibido tu solicitud de
-                  soporte.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="support-input-area">
-            <textarea
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Escribe tu pregunta..."
-              rows={1}
-              disabled={loading || ticketCreated}
-            />
-
-            <button
-              type="button"
-              className="support-send-button"
-              onClick={sendMessage}
-              disabled={
-                !input.trim() ||
-                loading ||
-                ticketCreated
-              }
-              aria-label="Enviar mensaje"
-            >
-              ➤
-            </button>
+        {ticketCreated && (
+          <div className="support-ticket-success">
+            ✓ Solicitud enviada al
+            administrador
           </div>
+        )}
 
-          <div className="support-input-hint">
-            Presiona ENTER para enviar
-          </div>
-        </div>
+        <div className="support-chat-input-area">
+          <textarea
+            value={message}
+            onChange={(event) =>
+              setMessage(
+                event.target.value
+              )
+            }
+            onKeyDown={
+              handleChatKeyDown
+            }
+            placeholder="Escribe un mensaje..."
+            rows={1}
+            disabled={
+              loading || ticketCreated
+            }
+          />
 
-        <div className="support-help-card">
-          <div className="support-help-title">
-            <span>💡</span>
-            <strong>¿QUÉ PUEDES PREGUNTAR?</strong>
-          </div>
-
-          <div className="support-help-options">
-            <button
-              type="button"
-              onClick={() => {
-                setInput("¿Dónde puedo ver mis pedidos?");
-              }}
-            >
-              📦 Mis pedidos
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setInput("¿Cómo puedo depositar saldo?");
-              }}
-            >
-              💰 Depósitos
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setInput("¿Cómo funciona una recarga?");
-              }}
-            >
-              🎮 Recargas
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setInput("Tengo un problema con mi compra");
-              }}
-            >
-              🛒 Problema con una compra
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={sendChatMessage}
+            disabled={
+              !message.trim() ||
+              loading ||
+              ticketCreated
+            }
+            aria-label="Enviar"
+          >
+            ➤
+          </button>
         </div>
       </section>
-
-      <div className="support-footer">
-        <button
-          type="button"
-          onClick={() => router.push("/home")}
-        >
-          ← REGRESAR A STORE GAMING
-        </button>
-      </div>
     </main>
   );
-                    }
+}
