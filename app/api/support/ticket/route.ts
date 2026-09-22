@@ -11,11 +11,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const messages: SupportMessage[] = Array.isArray(
-      body?.messages
-    )
-      ? body.messages
-      : [];
+    const messages: SupportMessage[] =
+      Array.isArray(body?.messages)
+        ? body.messages
+        : [];
 
     if (messages.length === 0) {
       return NextResponse.json(
@@ -41,6 +40,32 @@ export async function POST(request: Request) {
         ? body.subject.trim()
         : "Solicitud de soporte";
 
+    /*
+     * Información del usuario.
+     *
+     * Por ahora recibimos estos datos desde el cliente.
+     * En el siguiente paso conectaremos el soporte
+     * directamente con la sesión de Supabase para
+     * obtenerlos automáticamente.
+     */
+    const userId =
+      typeof body?.userId === "string" &&
+      body.userId.trim()
+        ? body.userId.trim()
+        : null;
+
+    const username =
+      typeof body?.username === "string" &&
+      body.username.trim()
+        ? body.username.trim()
+        : null;
+
+    const email =
+      typeof body?.email === "string" &&
+      body.email.trim()
+        ? body.email.trim()
+        : null;
+
     const userMessages = messages.filter(
       (message) =>
         message?.sender === "user" &&
@@ -49,28 +74,46 @@ export async function POST(request: Request) {
     );
 
     const lastUserMessage =
-      userMessages[userMessages.length - 1]?.text?.trim() ||
+      userMessages[
+        userMessages.length - 1
+      ]?.text?.trim() ||
       "El cliente solicitó atención del administrador.";
 
-    const conversation = messages.map((message) => ({
-      sender: message.sender || "user",
-      text: message.text || "",
-    }));
+    const conversation = messages.map(
+      (message) => ({
+        sender:
+          message.sender === "ai"
+            ? "ai"
+            : "user",
+        text:
+          typeof message.text === "string"
+            ? message.text
+            : "",
+      })
+    );
 
     /*
-     * Crear ticket de soporte.
+     * Crear el ticket.
      */
-    const { data: ticket, error: ticketError } =
-      await supabaseAdmin
-        .from("support_tickets")
-        .insert({
-          subject,
-          message: lastUserMessage,
-          conversation,
-          status: "PENDING",
-        })
-        .select("id, created_at")
-        .single();
+    const {
+      data: ticket,
+      error: ticketError,
+    } = await supabaseAdmin
+      .from("support_tickets")
+      .insert({
+        user_id: userId,
+        username,
+        email,
+        category,
+        subject,
+        message: lastUserMessage,
+        conversation,
+        status: "PENDING",
+      })
+      .select(
+        "id, user_id, username, email, category, subject, status, created_at, updated_at"
+      )
+      .single();
 
     if (ticketError) {
       console.error(
@@ -91,9 +134,7 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Notificación al administrador.
-     *
-     * Estas variables solamente se utilizan en el servidor.
+     * Notificación al administrador por Telegram.
      */
     const telegramBotToken =
       process.env.TELEGRAM_BOT_TOKEN;
@@ -101,37 +142,54 @@ export async function POST(request: Request) {
     const telegramAdminChatId =
       process.env.TELEGRAM_ADMIN_CHAT_ID;
 
-    if (telegramBotToken && telegramAdminChatId) {
+    if (
+      telegramBotToken &&
+      telegramAdminChatId
+    ) {
       const notification = [
-        "🆘 NUEVO PEDIDO DE SOPORTE",
+        "🆘 NUEVO TICKET DE SOPORTE",
         "",
         `🎫 Ticket: #${ticket.id}`,
         "📌 Estado: PENDIENTE",
         "",
         `📂 Categoría: ${category}`,
-        "",
         `📝 Sujeto: ${subject}`,
+        "",
+        username
+          ? `👤 Usuario: ${username}`
+          : "👤 Usuario: No identificado",
+        email
+          ? `📧 Email: ${email}`
+          : "",
+        userId
+          ? `🆔 Usuario ID: ${userId}`
+          : "",
         "",
         "💬 Mensaje del cliente:",
         lastUserMessage,
         "",
-        "👉 Revisar solicitud de soporte.",
-      ].join("\n");
+        "👉 Revisar ticket en STORE GAMING.",
+      ]
+        .filter(Boolean)
+        .join("\n");
 
       try {
-        const telegramResponse = await fetch(
-          `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              chat_id: telegramAdminChatId,
-              text: notification,
-            }),
-          }
-        );
+        const telegramResponse =
+          await fetch(
+            `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                chat_id:
+                  telegramAdminChatId,
+                text: notification,
+              }),
+            }
+          );
 
         if (!telegramResponse.ok) {
           const telegramError =
@@ -157,6 +215,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       ticketId: ticket.id,
+      status: ticket.status,
       message:
         "Tu solicitud fue enviada al administrador.",
     });
@@ -176,4 +235,4 @@ export async function POST(request: Request) {
       }
     );
   }
-}
+        }
