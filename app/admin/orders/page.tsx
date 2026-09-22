@@ -64,6 +64,10 @@ type ApiResponse = {
 const ADMIN_EMAIL =
   "juliocesarblancomedina08@gmail.com";
 
+/* =========================================================
+   IMÁGENES DE LOS JUEGOS
+   ========================================================= */
+
 const GAME_IMAGES: Record<
   string,
   string
@@ -89,6 +93,10 @@ const GAME_IMAGES: Record<
 
 const DEFAULT_GAME_IMAGE =
   "/images/battle-royale-bg.jpg";
+
+/* =========================================================
+   OBTENER IMAGEN DEL JUEGO
+   ========================================================= */
 
 function getGameImage(
   categoryId: string,
@@ -148,6 +156,10 @@ function getGameImage(
   return DEFAULT_GAME_IMAGE;
 }
 
+/* =========================================================
+   PÁGINA
+   ========================================================= */
+
 export default function AdminOrdersPage() {
   const router = useRouter();
 
@@ -165,8 +177,10 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] =
     useState<Order[]>([]);
 
-  const [selectedOrder, setSelectedOrder] =
-    useState<Order | null>(null);
+  const [
+    selectedOrder,
+    setSelectedOrder,
+  ] = useState<Order | null>(null);
 
   const [filter, setFilter] =
     useState<Filter>("TODAS");
@@ -176,6 +190,10 @@ export default function AdminOrdersPage() {
 
   const [error, setError] =
     useState("");
+
+  /* =========================================================
+     VERIFICAR ADMIN
+     ========================================================= */
 
   useEffect(() => {
     let mounted = true;
@@ -237,6 +255,10 @@ export default function AdminOrdersPage() {
       mounted = false;
     };
   }, [router]);
+
+  /* =========================================================
+     CARGAR ÓRDENES
+     ========================================================= */
 
   async function loadOrders(
     accessToken?: string
@@ -308,9 +330,17 @@ export default function AdminOrdersPage() {
     }
   }
 
+  /* =========================================================
+     NAVEGACIÓN
+     ========================================================= */
+
   function goBack() {
     router.push("/admin");
   }
+
+  /* =========================================================
+     FORMATO DE FECHA
+     ========================================================= */
 
   function formatDate(
     value: string | null
@@ -334,6 +364,10 @@ export default function AdminOrdersPage() {
     }
   }
 
+  /* =========================================================
+     FORMATO DE DINERO
+     ========================================================= */
+
   function formatMoney(
     value: number | string
   ) {
@@ -341,6 +375,10 @@ export default function AdminOrdersPage() {
       Number(value) || 0
     ).toFixed(2);
   }
+
+  /* =========================================================
+     ESTADOS
+     ========================================================= */
 
   function isCompleted(
     status: string
@@ -455,6 +493,10 @@ export default function AdminOrdersPage() {
     return "status-pending";
   }
 
+  /* =========================================================
+     SERVIDOR
+     ========================================================= */
+
   function getServerId(
     order: Order
   ) {
@@ -478,6 +520,10 @@ export default function AdminOrdersPage() {
     return String(value);
   }
 
+  /* =========================================================
+     BÚSQUEDA
+     ========================================================= */
+
   function getSearchText(
     order: Order
   ) {
@@ -497,6 +543,10 @@ export default function AdminOrdersPage() {
       .join(" ")
       .toLowerCase();
   }
+
+  /* =========================================================
+     FILTROS
+     ========================================================= */
 
   const filteredOrders =
     useMemo(() => {
@@ -558,6 +608,10 @@ export default function AdminOrdersPage() {
       search,
     ]);
 
+  /* =========================================================
+     CONTADORES
+     ========================================================= */
+
   const totalOrders =
     orders.length;
 
@@ -586,6 +640,10 @@ export default function AdminOrdersPage() {
       isCancelled(order.status)
     ).length;
 
+  /* =========================================================
+     LOADING
+     ========================================================= */
+
   if (loading) {
     return (
       <main className="admin-page">
@@ -610,13 +668,12 @@ export default function AdminOrdersPage() {
     return null;
   }
 
-  /*
-   * =========================================================
-   * DETALLE DE ORDEN
-   * =========================================================
-   */
+  /* =========================================================
+     DETALLE DE ORDEN
+     ========================================================= */
 
   if (selectedOrder) {
+
     const serverId =
       getServerId(
         selectedOrder
@@ -639,6 +696,7 @@ export default function AdminOrdersPage() {
             onClick={() =>
               setSelectedOrder(null)
             }
+            aria-label="Volver"
           >
             ←
           </button>
@@ -677,10 +735,7 @@ export default function AdminOrdersPage() {
                 selectedOrder.game
               }
               onError={(event) => {
-                const image =
-                  event.currentTarget;
-
-                image.src =
+                event.currentTarget.src =
                   DEFAULT_GAME_IMAGE;
               }}
             />
@@ -863,8 +918,6 @@ export default function AdminOrdersPage() {
 
               <strong>
                 {selectedOrder.currency}
-                            <strong>
-                {selectedOrder.currency}
               </strong>
 
             </div>
@@ -986,7 +1039,7 @@ export default function AdminOrdersPage() {
             </div>
 
             <pre>
-              {JSON.stringify(
+                            {JSON.stringify(
                 selectedOrder.supplier_response ||
                   {},
                 null,
@@ -1012,6 +1065,10 @@ export default function AdminOrdersPage() {
     );
   }
 
+  /* =========================================================
+     LISTADO DE ÓRDENES
+     ========================================================= */
+
   return (
     <main className="admin-page">
 
@@ -1021,6 +1078,7 @@ export default function AdminOrdersPage() {
           type="button"
           className="admin-back-button"
           onClick={goBack}
+          aria-label="Volver"
         >
           ←
         </button>
@@ -1062,7 +1120,10 @@ export default function AdminOrdersPage() {
       <section className="admin-order-summary">
 
         <div>
-          <span>📦</span>
+
+          <span>
+            📦
+          </span>
 
           <strong>
             {totalOrders}
@@ -1071,10 +1132,14 @@ export default function AdminOrdersPage() {
           <small>
             ÓRDENES
           </small>
+
         </div>
 
         <div>
-          <span>💵</span>
+
+          <span>
+            💵
+          </span>
 
           <strong>
             ${totalAmount.toFixed(2)}
@@ -1083,10 +1148,14 @@ export default function AdminOrdersPage() {
           <small>
             VENTAS
           </small>
+
         </div>
 
         <div>
-          <span>⏳</span>
+
+          <span>
+            ⏳
+          </span>
 
           <strong>
             {pendingOrders}
@@ -1095,10 +1164,14 @@ export default function AdminOrdersPage() {
           <small>
             PENDIENTES
           </small>
+
         </div>
 
         <div>
-          <span>✅</span>
+
+          <span>
+            ✅
+          </span>
 
           <strong>
             {completedOrders}
@@ -1107,10 +1180,14 @@ export default function AdminOrdersPage() {
           <small>
             COMPLETADAS
           </small>
+
         </div>
 
         <div>
-          <span>❌</span>
+
+          <span>
+            ❌
+          </span>
 
           <strong>
             {cancelledOrders}
@@ -1119,6 +1196,7 @@ export default function AdminOrdersPage() {
           <small>
             CANCELADAS
           </small>
+
         </div>
 
       </section>
@@ -1169,6 +1247,7 @@ export default function AdminOrdersPage() {
             "CANCELADAS",
           ] as Filter[]
         ).map((item) => (
+
           <button
             key={item}
             type="button"
@@ -1183,11 +1262,13 @@ export default function AdminOrdersPage() {
           >
             {item}
           </button>
+
         ))}
 
       </section>
 
       {error && (
+
         <section className="admin-error-card">
 
           <strong>
@@ -1208,11 +1289,13 @@ export default function AdminOrdersPage() {
           </button>
 
         </section>
+
       )}
 
       <section className="admin-orders-list">
 
         {loadingOrders && (
+
           <div className="admin-loading-card">
 
             <div>
@@ -1224,11 +1307,13 @@ export default function AdminOrdersPage() {
             </span>
 
           </div>
+
         )}
 
         {!loadingOrders &&
           !error &&
           filteredOrders.length === 0 && (
+
             <div className="admin-empty-card">
 
               <div>
@@ -1245,11 +1330,13 @@ export default function AdminOrdersPage() {
               </span>
 
             </div>
-          )}
+
+        )}
 
         {!loadingOrders &&
           filteredOrders.map(
             (order) => (
+
               <button
                 key={order.id}
                 type="button"
@@ -1270,9 +1357,7 @@ export default function AdminOrdersPage() {
                     )}
                     alt={order.game}
                     loading="lazy"
-                    onError={(
-                      event
-                    ) => {
+                    onError={(event) => {
                       event.currentTarget.src =
                         DEFAULT_GAME_IMAGE;
                     }}
@@ -1302,8 +1387,7 @@ export default function AdminOrdersPage() {
                   </small>
 
                   <small>
-                    #
-                    {order.id}
+                    #{order.id}
                   </small>
 
                 </div>
@@ -1334,6 +1418,7 @@ export default function AdminOrdersPage() {
                 </div>
 
               </button>
+
             )
           )}
 
@@ -1379,4 +1464,5 @@ export default function AdminOrdersPage() {
 
     </main>
   );
-              }
+}
+    
