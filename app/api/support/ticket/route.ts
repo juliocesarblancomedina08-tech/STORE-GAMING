@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
 type SupportMessage = {
   id?: number;
@@ -11,14 +11,17 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const messages: SupportMessage[] = Array.isArray(body?.messages)
+    const messages: SupportMessage[] = Array.isArray(
+      body?.messages
+    )
       ? body.messages
       : [];
 
     if (messages.length === 0) {
       return NextResponse.json(
         {
-          error: "La conversación de soporte está vacía.",
+          error:
+            "La conversación de soporte está vacía.",
         },
         {
           status: 400,
@@ -26,9 +29,18 @@ export async function POST(request: Request) {
       );
     }
 
-    /*
-     * Buscamos el último mensaje enviado por el cliente.
-     */
+    const category =
+      typeof body?.category === "string" &&
+      body.category.trim()
+        ? body.category.trim()
+        : "Otro/pregunta";
+
+    const subject =
+      typeof body?.subject === "string" &&
+      body.subject.trim()
+        ? body.subject.trim()
+        : "Solicitud de soporte";
+
     const userMessages = messages.filter(
       (message) =>
         message?.sender === "user" &&
@@ -40,22 +52,19 @@ export async function POST(request: Request) {
       userMessages[userMessages.length - 1]?.text?.trim() ||
       "El cliente solicitó atención del administrador.";
 
-    /*
-     * Guardamos la conversación completa como JSON.
-     */
     const conversation = messages.map((message) => ({
       sender: message.sender || "user",
       text: message.text || "",
     }));
 
     /*
-     * Creamos el ticket en Supabase.
+     * Crear ticket de soporte.
      */
     const { data: ticket, error: ticketError } =
       await supabaseAdmin
         .from("support_tickets")
         .insert({
-          subject: lastUserMessage.slice(0, 120),
+          subject,
           message: lastUserMessage,
           conversation,
           status: "PENDING",
@@ -73,6 +82,7 @@ export async function POST(request: Request) {
         {
           error:
             "No se pudo crear la solicitud de soporte.",
+          details: ticketError.message,
         },
         {
           status: 500,
@@ -81,10 +91,9 @@ export async function POST(request: Request) {
     }
 
     /*
-     * Notificación al administrador mediante Telegram.
+     * Notificación al administrador.
      *
-     * Las credenciales permanecen únicamente en las
-     * variables de entorno del servidor.
+     * Estas variables solamente se utilizan en el servidor.
      */
     const telegramBotToken =
       process.env.TELEGRAM_BOT_TOKEN;
@@ -93,18 +102,21 @@ export async function POST(request: Request) {
       process.env.TELEGRAM_ADMIN_CHAT_ID;
 
     if (telegramBotToken && telegramAdminChatId) {
-      const notification =
-        [
-          "🆘 NUEVO PEDIDO DE SOPORTE",
-          "",
-          `🎫 Ticket: #${ticket.id}`,
-          "📌 Estado: PENDIENTE",
-          "",
-          "💬 Consulta del cliente:",
-          lastUserMessage,
-          "",
-          "👉 Revisar solicitud de soporte.",
-        ].join("\n");
+      const notification = [
+        "🆘 NUEVO PEDIDO DE SOPORTE",
+        "",
+        `🎫 Ticket: #${ticket.id}`,
+        "📌 Estado: PENDIENTE",
+        "",
+        `📂 Categoría: ${category}`,
+        "",
+        `📝 Sujeto: ${subject}`,
+        "",
+        "💬 Mensaje del cliente:",
+        lastUserMessage,
+        "",
+        "👉 Revisar solicitud de soporte.",
+      ].join("\n");
 
       try {
         const telegramResponse = await fetch(
@@ -164,4 +176,4 @@ export async function POST(request: Request) {
       }
     );
   }
-      }
+}
