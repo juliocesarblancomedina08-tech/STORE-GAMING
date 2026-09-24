@@ -1,30 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
 
-type DepositRecord = {
+type OrderRecord = {
   id: string;
   user_id: string;
   username: string | null;
   email: string | null;
-  amount: number;
+  game: string | null;
+  category_id: string | null;
+  offer_id: string | null;
+  offer_name: string | null;
+  player_id: string | null;
+  retail_price: number | null;
+  supplier_price: number | null;
   currency: string | null;
-  payment_method: string | null;
-  network: string | null;
-  wallet_address: string | null;
-  tx_hash: string | null;
   status: string | null;
+  idempotency_key: string | null;
+  supplier_fields: unknown;
+  supplier_order_id: string | null;
+  supplier_response: unknown;
+  refunded_at: string | null;
+  completed_at: string | null;
+  failed_at: string | null;
   created_at: string | null;
-  confirmed_at: string | null;
-  expires_at: string | null;
-  credited_at: string | null;
+  updated_at: string | null;
 };
 
 export async function GET(request: NextRequest) {
   try {
-    // =========================================================
-    // 1. COMPROBAR SESIÓN
-    // =========================================================
-
     const authorization =
       request.headers.get("authorization") || "";
 
@@ -52,10 +55,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // =========================================================
-    // 2. OBTENER USUARIO AUTENTICADO
-    // =========================================================
-
+    /*
+     * IMPORTANTE:
+     * El usuario se obtiene directamente del token.
+     * Nunca confiamos en un user_id enviado por el cliente.
+     */
     const {
       data: { user },
       error: userError,
@@ -65,7 +69,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "La sesión no es válida o ha expirado.",
+          error:
+            "La sesión no es válida o ha expirado.",
         },
         { status: 401 }
       );
@@ -73,53 +78,54 @@ export async function GET(request: NextRequest) {
 
     const userId = user.id;
 
-    // =========================================================
-    // 3. PARÁMETROS OPCIONALES
-    // =========================================================
-
     const { searchParams } = new URL(request.url);
 
-    const depositId =
-      searchParams.get("deposit_id")?.trim() || "";
+    const orderId =
+      searchParams.get("order_id")?.trim() || "";
 
+    /*
+     * Permitimos consultar historial amplio.
+     * Por defecto se revisan los últimos 100 pedidos.
+     */
     const limitParam =
-      searchParams.get("limit")?.trim() || "10";
+      searchParams.get("limit")?.trim() || "100";
 
     let limit = Number.parseInt(limitParam, 10);
 
     if (!Number.isFinite(limit) || limit <= 0) {
-      limit = 10;
+      limit = 100;
     }
 
-    if (limit > 20) {
-      limit = 20;
+    if (limit > 500) {
+      limit = 500;
     }
-
-    // =========================================================
-    // 4. BUSCAR DEPÓSITOS
-    //
-    // SIEMPRE se filtra por el usuario autenticado.
-    // =========================================================
 
     let query = supabaseAdmin
-      .from("deposits")
+      .from("topup_orders")
       .select(
         [
           "id",
           "user_id",
           "username",
           "email",
-          "amount",
+          "game",
+          "category_id",
+          "offer_id",
+          "offer_name",
+          "player_id",
+          "retail_price",
+          "supplier_price",
           "currency",
-          "payment_method",
-          "network",
-          "wallet_address",
-          "tx_hash",
           "status",
+          "idempotency_key",
+          "supplier_fields",
+          "supplier_order_id",
+          "supplier_response",
+          "refunded_at",
+          "completed_at",
+          "failed_at",
           "created_at",
-          "confirmed_at",
-          "expires_at",
-          "credited_at",
+          "updated_at",
         ].join(", ")
       )
       .eq("user_id", userId)
@@ -128,122 +134,149 @@ export async function GET(request: NextRequest) {
       })
       .limit(limit);
 
-    // =========================================================
-    // 5. DEPÓSITO ESPECÍFICO
-    // =========================================================
-
-    if (depositId) {
-      query = query.eq("id", depositId);
+    /*
+     * Si el cliente/IA proporciona un número de pedido,
+     * buscamos específicamente ese pedido.
+     */
+    if (orderId) {
+      query = query.eq("id", orderId);
     }
 
     const {
-      data: deposits,
-      error: depositsError,
+      data: orders,
+      error: ordersError,
     } = await query;
 
-    if (depositsError) {
+    if (ordersError) {
       console.error(
-        "Error buscando depósitos:",
-        depositsError
+        "Error buscando pedidos de soporte:",
+        ordersError
       );
 
       return NextResponse.json(
         {
           success: false,
-          error: "No fue posible consultar los depósitos.",
+          error:
+            "No fue posible consultar los pedidos.",
         },
         { status: 500 }
       );
     }
 
-    // =========================================================
-    // 6. TIPAR LOS REGISTROS
-    // =========================================================
+    const orderRecords =
+      (orders ?? []) as unknown as OrderRecord[];
 
-    const depositRecords =
-      (deposits ?? []) as unknown as DepositRecord[];
-
-    // =========================================================
-    // 7. PREPARAR INFORMACIÓN PARA LA IA
-    // =========================================================
-
-    const formattedDeposits = depositRecords.map(
-      (deposit) => {
-        /*
-         * IMPORTANTE:
-         * credited_at es la referencia principal para saber
-         * si el saldo fue acreditado.
-         *
-         * No dependemos únicamente de confirmed_at porque
-         * existe en la base de datos un caso real donde:
-         *
-         * status = CONFIRMED
-         * confirmed_at = NULL
-         * credited_at = fecha
-         */
-
-        const credited =
-          deposit.credited_at !== null;
-
-        const confirmed =
-          deposit.confirmed_at !== null;
+    const formattedOrders = orderRecords.map(
+      (order) => {
+        const status =
+          order.status?.toUpperCase() || "";
 
         let situation =
-          "DEPÓSITO SIN ACREDITAR";
+          "PEDIDO EN PROCESO";
 
-        if (credited) {
-          situation = "DEPÓSITO ACREDITADO";
-        } else if (
-          deposit.status === "EXPIRED"
+        if (
+          status === "COMPLETED" ||
+          order.completed_at
         ) {
-          situation = "DEPÓSITO EXPIRADO";
+          situation = "PEDIDO COMPLETADO";
         } else if (
-          deposit.status === "CONFIRMED"
+          status === "CANCELLED" ||
+          status === "CANCELED"
         ) {
-          situation =
-            "CONFIRMADO PERO NO APARECE COMO ACREDITADO";
+          situation = "PEDIDO CANCELADO";
+        } else if (
+          status === "FAILED" ||
+          order.failed_at
+        ) {
+          situation = "PEDIDO FALLIDO";
+        } else if (
+          status === "REFUNDED" ||
+          order.refunded_at
+        ) {
+          situation = "PEDIDO REEMBOLSADO";
+        } else if (
+          status === "PENDING"
+        ) {
+          situation = "PEDIDO PENDIENTE";
+        } else if (
+          status === "PROCESSING"
+        ) {
+          situation = "PEDIDO EN PROCESO";
         }
 
         return {
-          id: deposit.id,
-          amount: deposit.amount,
-          currency: deposit.currency,
-          payment_method:
-            deposit.payment_method,
-          network: deposit.network,
-          tx_hash: deposit.tx_hash,
-          status: deposit.status,
-          created_at: deposit.created_at,
-          confirmed_at: deposit.confirmed_at,
-          expires_at: deposit.expires_at,
-          credited_at: deposit.credited_at,
-
-          confirmed,
-          credited,
+          id: order.id,
+          game: order.game,
+          category_id: order.category_id,
+          offer_id: order.offer_id,
+          offer_name: order.offer_name,
+          player_id: order.player_id,
+          retail_price: order.retail_price,
+          supplier_price: order.supplier_price,
+          currency: order.currency,
+          status: order.status,
+          supplier_order_id:
+            order.supplier_order_id,
+          supplier_fields:
+            order.supplier_fields,
+          refunded_at: order.refunded_at,
+          completed_at: order.completed_at,
+          failed_at: order.failed_at,
+          created_at: order.created_at,
+          updated_at: order.updated_at,
           situation,
         };
       }
     );
 
-    // =========================================================
-    // 8. RESUMEN
-    // =========================================================
+    const total =
+      formattedOrders.length;
 
-    const total = formattedDeposits.length;
-
-    const creditedCount =
-      formattedDeposits.filter(
-        (deposit) => deposit.credited
+    const pending =
+      formattedOrders.filter(
+        (order) =>
+          order.status?.toUpperCase() ===
+            "PENDING" ||
+          order.status?.toUpperCase() ===
+            "PROCESSING"
       ).length;
 
-    const notCreditedCount =
-      formattedDeposits.filter(
-        (deposit) => !deposit.credited
+    const completed =
+      formattedOrders.filter(
+        (order) =>
+          order.status?.toUpperCase() ===
+            "COMPLETED" ||
+          order.completed_at !== null
       ).length;
 
-    // =========================================================
-    // 9. RESPUESTA
-    // =========================================================
+    const cancelled =
+      formattedOrders.filter(
+        (order) => {
+          const status =
+            order.status?.toUpperCase();
+
+          return (
+            status === "CANCELLED" ||
+            status === "CANCELED"
+          );
+        }
+      ).length;
+
+    const failed =
+      formattedOrders.filter(
+        (order) =>
+          order.status?.toUpperCase() ===
+            "FAILED" ||
+          order.failed_at !== null
+      ).length;
+
+    const refunded =
+      formattedOrders.filter(
+        (order) =>
+          order.status?.toUpperCase() ===
+            "REFUNDED" ||
+          order.refunded_at !== null
+      ).length;
 
     return NextResponse.json({
       success: true,
@@ -255,15 +288,22 @@ export async function GET(request: NextRequest) {
 
       summary: {
         total,
-        credited: creditedCount,
-        not_credited: notCreditedCount,
+        pending,
+        completed,
+        cancelled,
+        failed,
+        refunded,
       },
 
-      deposits: formattedDeposits,
+      /*
+       * Aquí están incluidos también los pedidos
+       * creados ANTES de existir la IA.
+       */
+      orders: formattedOrders,
     });
   } catch (error) {
     console.error(
-      "Error inesperado en herramienta de depósitos:",
+      "Error inesperado en herramienta de pedidos:",
       error
     );
 
@@ -271,9 +311,9 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error:
-          "Ocurrió un error al consultar los depósitos.",
+          "Ocurrió un error al consultar los pedidos.",
       },
       { status: 500 }
     );
   }
-          }
+      }
