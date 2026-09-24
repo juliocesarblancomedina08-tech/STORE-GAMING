@@ -30,22 +30,60 @@ export async function POST(request: Request) {
         ? Number(body.ticketId)
         : null;
 
-    const messages: SupportMessage[] =
+    /*
+     * =====================================================
+     * MENSAJES RECIBIDOS
+     * =====================================================
+     *
+     * Normalmente la página envía "messages".
+     *
+     * Para la creación inicial del ticket también
+     * aceptamos "message", "initialMessage" o "text".
+     *
+     * Esto evita que la primera consulta sea rechazada
+     * simplemente porque todavía no existe una conversación.
+     */
+
+    let messages: SupportMessage[] =
       Array.isArray(body?.messages)
         ? body.messages
         : [];
 
-    if (messages.length === 0) {
-      return NextResponse.json(
+    const fallbackMessage =
+      typeof body?.message === "string" &&
+      body.message.trim()
+        ? body.message.trim()
+        : typeof body?.initialMessage === "string" &&
+          body.initialMessage.trim()
+        ? body.initialMessage.trim()
+        : typeof body?.text === "string" &&
+          body.text.trim()
+        ? body.text.trim()
+        : "";
+
+    /*
+     * Si no llegaron mensajes pero sí llegó el
+     * mensaje inicial del cliente, lo convertimos
+     * automáticamente en el primer mensaje.
+     */
+    if (
+      messages.length === 0 &&
+      fallbackMessage
+    ) {
+      messages = [
         {
-          error:
-            "La conversación de soporte está vacía.",
+          id: Date.now(),
+          sender: "user",
+          text: fallbackMessage,
         },
-        {
-          status: 400,
-        }
-      );
+      ];
     }
+
+    /*
+     * =====================================================
+     * DATOS DEL TICKET
+     * =====================================================
+     */
 
     const category =
       typeof body?.category === "string" &&
@@ -123,18 +161,28 @@ export async function POST(request: Request) {
             ? "ai"
             : "user",
 
-        text: message.text?.trim() || "",
+        text:
+          message.text?.trim() || "",
       }))
       .filter(
         (message) =>
           message.text.length > 0
       );
 
+    /*
+     * =====================================================
+     * VALIDACIÓN DE CONVERSACIÓN
+     * =====================================================
+     *
+     * Aquí solamente rechazamos si realmente no
+     * existe ningún mensaje de texto.
+     */
+
     if (conversation.length === 0) {
       return NextResponse.json(
         {
           error:
-            "La conversación de soporte está vacía.",
+            "Debes escribir un mensaje para crear la consulta.",
         },
         {
           status: 400,
@@ -183,6 +231,7 @@ export async function POST(request: Request) {
       /*
        * Primero comprobamos que el ticket exista.
        */
+
       const {
         data: existingTicket,
         error: existingTicketError,
@@ -220,6 +269,7 @@ export async function POST(request: Request) {
        * el ticket pasa automáticamente
        * a EN PROCESO.
        */
+
       const sender =
         body?.sender === "admin"
           ? "admin"
@@ -242,6 +292,7 @@ export async function POST(request: Request) {
        * el administrador manda otra respuesta,
        * permitimos que vuelva a EN PROCESO.
        */
+
       if (
         sender === "admin" &&
         finalStatus === "PENDING" &&
@@ -254,6 +305,7 @@ export async function POST(request: Request) {
       /*
        * Actualizamos EL MISMO registro.
        */
+
       const {
         data: updatedTicket,
         error: updateError,
@@ -284,6 +336,7 @@ export async function POST(request: Request) {
            * Conservamos el mensaje original
            * del ticket.
            */
+
           message:
             existingTicket.message ||
             lastUserMessage,
@@ -482,6 +535,7 @@ export async function POST(request: Request) {
         ticket.updated_at,
       message:
         "Tu solicitud fue enviada al administrador.",
+      ticket,
     });
   } catch (error) {
     console.error(
@@ -499,4 +553,4 @@ export async function POST(request: Request) {
       }
     );
   }
-  }
+            }
