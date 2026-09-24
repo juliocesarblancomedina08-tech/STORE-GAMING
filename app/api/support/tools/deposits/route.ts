@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
 
+type DepositRecord = {
+  id: string;
+  user_id: string;
+  username: string | null;
+  email: string | null;
+  amount: number;
+  currency: string | null;
+  payment_method: string | null;
+  network: string | null;
+  wallet_address: string | null;
+  tx_hash: string | null;
+  status: string | null;
+  created_at: string | null;
+  confirmed_at: string | null;
+  expires_at: string | null;
+  credited_at: string | null;
+};
+
 export async function GET(request: NextRequest) {
   try {
     // =========================================================
@@ -80,11 +98,7 @@ export async function GET(request: NextRequest) {
     // =========================================================
     // 4. BUSCAR DEPÓSITOS
     //
-    // IMPORTANTE:
-    // SIEMPRE filtramos por user_id de la sesión.
-    //
-    // Aunque alguien intente enviar otro user_id por URL,
-    // NO se utilizará.
+    // SIEMPRE se filtra por el usuario autenticado.
     // =========================================================
 
     let query = supabaseAdmin
@@ -115,7 +129,7 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     // =========================================================
-    // 5. SI SE SOLICITA UN DEPÓSITO ESPECÍFICO
+    // 5. DEPÓSITO ESPECÍFICO
     // =========================================================
 
     if (depositId) {
@@ -143,11 +157,31 @@ export async function GET(request: NextRequest) {
     }
 
     // =========================================================
-    // 6. PREPARAR INFORMACIÓN PARA LA IA
+    // 6. TIPAR LOS REGISTROS
     // =========================================================
 
-    const formattedDeposits = (deposits || []).map(
+    const depositRecords =
+      (deposits ?? []) as unknown as DepositRecord[];
+
+    // =========================================================
+    // 7. PREPARAR INFORMACIÓN PARA LA IA
+    // =========================================================
+
+    const formattedDeposits = depositRecords.map(
       (deposit) => {
+        /*
+         * IMPORTANTE:
+         * credited_at es la referencia principal para saber
+         * si el saldo fue acreditado.
+         *
+         * No dependemos únicamente de confirmed_at porque
+         * existe en la base de datos un caso real donde:
+         *
+         * status = CONFIRMED
+         * confirmed_at = NULL
+         * credited_at = fecha
+         */
+
         const credited =
           deposit.credited_at !== null;
 
@@ -184,7 +218,6 @@ export async function GET(request: NextRequest) {
           expires_at: deposit.expires_at,
           credited_at: deposit.credited_at,
 
-          // Información interpretada para el asistente
           confirmed,
           credited,
           situation,
@@ -193,7 +226,7 @@ export async function GET(request: NextRequest) {
     );
 
     // =========================================================
-    // 7. RESUMEN
+    // 8. RESUMEN
     // =========================================================
 
     const total = formattedDeposits.length;
@@ -209,7 +242,7 @@ export async function GET(request: NextRequest) {
       ).length;
 
     // =========================================================
-    // 8. RESPUESTA
+    // 9. RESPUESTA
     // =========================================================
 
     return NextResponse.json({
@@ -243,4 +276,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-        }
+          }
