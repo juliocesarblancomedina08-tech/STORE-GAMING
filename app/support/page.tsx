@@ -129,13 +129,31 @@ export default function SupportPage() {
     loadUser();
   }, []);
 
+  /*
+   * =====================================================
+   * BAJAR AUTOMÁTICAMENTE AL ÚLTIMO MENSAJE
+   * =====================================================
+   */
+
   useEffect(() => {
     if (supportView === "chat") {
-      chatEndRef.current?.scrollIntoView({
-        behavior: "smooth",
-      });
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({
+          behavior: "smooth",
+        });
+      }, 50);
     }
-  }, [chatMessages, loading]);
+  }, [
+    chatMessages,
+    loading,
+    supportView,
+  ]);
+
+  /*
+   * =====================================================
+   * CARGAR USUARIO
+   * =====================================================
+   */
 
   async function loadUser() {
     try {
@@ -366,10 +384,6 @@ export default function SupportPage() {
         setShowAdminButton(true);
       }
 
-      /*
-       * Guardamos la respuesta de la IA
-       * usando el ID correcto del ticket.
-       */
       await saveTicket(
         finalMessages,
         ticketIdOverride ?? currentTicketId
@@ -443,6 +457,7 @@ export default function SupportPage() {
       /*
        * Primero creamos el ticket.
        */
+
       const ticketData = await saveTicket(
         [firstMessage],
         null
@@ -454,17 +469,17 @@ export default function SupportPage() {
           : null;
 
       if (newTicketId) {
-        setCurrentTicketId(newTicketId);
+        setCurrentTicketId(
+          newTicketId
+        );
       }
 
       setTicketLoading(false);
 
       /*
        * Después enviamos la consulta a la IA.
-       *
-       * Se pasa directamente el ID recién creado
-       * para evitar usar un estado antiguo.
        */
+
       await sendToSupportAI(
         [firstMessage],
         newTicketId
@@ -527,6 +542,7 @@ export default function SupportPage() {
       /*
        * Guardamos primero el mensaje del usuario.
        */
+
       await saveTicket(
         updatedMessages,
         currentTicketId
@@ -535,6 +551,7 @@ export default function SupportPage() {
       /*
        * Luego pedimos respuesta a la IA.
        */
+
       await sendToSupportAI(
         updatedMessages,
         currentTicketId
@@ -602,7 +619,9 @@ export default function SupportPage() {
 
   async function openTickets() {
     setError("");
+
     await loadTickets();
+
     setSupportView("tickets");
   }
 
@@ -629,6 +648,7 @@ export default function SupportPage() {
        * El ticket ya existe.
        * Actualizamos su conversación.
        */
+
       const data = await saveTicket(
         chatMessages,
         currentTicketId
@@ -686,7 +706,9 @@ export default function SupportPage() {
 
   function openSupportForm() {
     setError("");
-    setCategory(SUPPORT_CATEGORIES[0]);
+    setCategory(
+      SUPPORT_CATEGORIES[0]
+    );
     setSubject("");
     setMessage("");
     setChatMessages([]);
@@ -714,6 +736,7 @@ export default function SupportPage() {
 
     setError("");
     setSupportView("tickets");
+
     loadTickets();
   }
 
@@ -725,12 +748,19 @@ export default function SupportPage() {
 
   return (
     <main className="support-page">
+
       <div className="support-page-background" />
+
+      {/* =================================================
+          VISTA PRINCIPAL
+         ================================================= */}
 
       {supportView === "closed" && (
         <>
           <section className="support-content">
+
             <div className="support-header">
+
               <button
                 type="button"
                 className="support-back-button"
@@ -740,19 +770,29 @@ export default function SupportPage() {
               </button>
 
               <div className="support-header-title">
-                <span>🛠️</span>
+
+                <span>
+                  🛠️
+                </span>
 
                 <div>
-                  <h1>Soporte</h1>
+
+                  <h1>
+                    Soporte
+                  </h1>
 
                   <p>
                     ¿Necesitas ayuda con tu compra?
                   </p>
+
                 </div>
+
               </div>
+
             </div>
 
             <div className="support-main-card">
+
               <div className="support-main-icon">
                 🎧
               </div>
@@ -781,7 +821,9 @@ export default function SupportPage() {
               >
                 📋 MIS CONSULTAS
               </button>
+
             </div>
+
           </section>
 
           <button
@@ -795,18 +837,27 @@ export default function SupportPage() {
         </>
       )}
 
+      {/* =================================================
+          FORMULARIO NUEVA CONSULTA
+         ================================================= */}
+
       {supportView === "form" && (
         <div className="support-sheet-overlay">
+
           <div className="support-sheet">
+
             <div className="support-sheet-handle" />
 
             <div className="support-sheet-header">
+
               <div>
+
                 <span className="support-sheet-icon">
                   📩
                 </span>
 
                 <div>
+
                   <h2>
                     Crear nueva consulta
                   </h2>
@@ -814,7 +865,9 @@ export default function SupportPage() {
                   <p>
                     Cuéntanos cuál es tu problema.
                   </p>
+
                 </div>
+
               </div>
 
               <button
@@ -824,6 +877,7 @@ export default function SupportPage() {
               >
                 ✕
               </button>
+
             </div>
 
             <form
@@ -832,7 +886,9 @@ export default function SupportPage() {
                 handleCreateConversation
               }
             >
+
               <div className="support-field">
+
                 <label htmlFor="support-category">
                   Categoría
                 </label>
@@ -857,9 +913,11 @@ export default function SupportPage() {
                     )
                   )}
                 </select>
+
               </div>
 
               <div className="support-field">
+
                 <label htmlFor="support-subject">
                   Sujeto
                 </label>
@@ -876,9 +934,11 @@ export default function SupportPage() {
                   placeholder="¿Cuál es el problema?"
                   maxLength={120}
                 />
+
               </div>
 
               <div className="support-field">
+
                 <label htmlFor="support-message">
                   Mensaje
                 </label>
@@ -895,6 +955,7 @@ export default function SupportPage() {
                   rows={5}
                   maxLength={2000}
                 />
+
               </div>
 
               {error && (
@@ -927,15 +988,25 @@ export default function SupportPage() {
               >
                 CANCELAR
               </button>
+
             </form>
+
           </div>
+
         </div>
       )}
 
-            {supportView === "tickets" && (
+      {/* =================================================
+          LISTA DE CONSULTAS
+         ================================================= */}
+
+      {supportView === "tickets" && (
         <div className="support-overlay">
+
           <div className="support-sheet support-tickets-sheet">
+
             <div className="support-sheet-header">
+
               <button
                 type="button"
                 className="support-back-button"
@@ -947,6 +1018,7 @@ export default function SupportPage() {
               </button>
 
               <div>
+
                 <h2>
                   Mis consultas
                 </h2>
@@ -955,6 +1027,7 @@ export default function SupportPage() {
                   Revisa tus conversaciones de
                   soporte.
                 </p>
+
               </div>
 
               <button
@@ -964,6 +1037,7 @@ export default function SupportPage() {
               >
                 ✕
               </button>
+
             </div>
 
             {error && (
@@ -973,11 +1047,15 @@ export default function SupportPage() {
             )}
 
             {ticketsLoading ? (
+
               <div className="support-loading">
                 Cargando consultas...
               </div>
+
             ) : tickets.length === 0 ? (
+
               <div className="support-empty">
+
                 <div className="support-empty-icon">
                   💬
                 </div>
@@ -991,10 +1069,15 @@ export default function SupportPage() {
                   una nueva consulta desde el
                   botón 📩.
                 </p>
+
               </div>
+
             ) : (
+
               <div className="support-ticket-list">
+
                 {tickets.map((ticket) => (
+
                   <button
                     key={ticket.id}
                     type="button"
@@ -1003,7 +1086,9 @@ export default function SupportPage() {
                       openExistingTicket(ticket)
                     }
                   >
+
                     <div className="support-ticket-card-top">
+
                       <span className="support-ticket-id">
                         #{ticket.id}
                       </span>
@@ -1027,6 +1112,7 @@ export default function SupportPage() {
                           ? "EN PROCESO"
                           : "PENDIENTE"}
                       </span>
+
                     </div>
 
                     <div className="support-ticket-category">
@@ -1045,9 +1131,13 @@ export default function SupportPage() {
                         "es-ES"
                       )}
                     </div>
+
                   </button>
+
                 ))}
+
               </div>
+
             )}
 
             <button
@@ -1065,13 +1155,21 @@ export default function SupportPage() {
             >
               CERRAR
             </button>
+
           </div>
+
         </div>
       )}
 
+      {/* =================================================
+          CHAT DE SOPORTE
+         ================================================= */}
+
       {supportView === "chat" && (
         <div className="support-chat-page">
+
           <div className="support-chat-header">
+
             <button
               type="button"
               className="support-back-button"
@@ -1081,11 +1179,13 @@ export default function SupportPage() {
             </button>
 
             <div className="support-chat-title">
+
               <div className="support-chat-icon">
                 🤖
               </div>
 
               <div>
+
                 <h2>
                   Soporte STORE GAMING
                 </h2>
@@ -1095,41 +1195,52 @@ export default function SupportPage() {
                     ? `Consulta #${currentTicketId}`
                     : "Asistente de soporte"}
                 </p>
+
               </div>
+
             </div>
+
           </div>
 
           <div className="support-chat-messages">
+
             {chatMessages.map(
               (chatMessage) => (
+
                 <div
                   key={chatMessage.id}
                   className={`support-message ${
-                    chatMessage.sender ===
-                    "user"
+                    chatMessage.sender === "user"
                       ? "support-message-user"
+                      : chatMessage.sender === "admin"
+                      ? "support-message-admin"
                       : "support-message-ai"
                   }`}
                 >
+
                   <div className="support-message-label">
-                    {chatMessage.sender ===
-                    "user"
+
+                    {chatMessage.sender === "user"
                       ? "Tú"
-                      : chatMessage.sender ===
-                        "admin"
+                      : chatMessage.sender === "admin"
                       ? "Administrador"
                       : "Soporte IA"}
+
                   </div>
 
                   <div className="support-message-bubble">
                     {chatMessage.text}
                   </div>
+
                 </div>
+
               )
             )}
 
             {loading && (
+
               <div className="support-message support-message-ai">
+
                 <div className="support-message-label">
                   Soporte IA
                 </div>
@@ -1137,7 +1248,9 @@ export default function SupportPage() {
                 <div className="support-message-bubble support-typing">
                   Escribiendo...
                 </div>
+
               </div>
+
             )}
 
             {error && (
@@ -1147,12 +1260,16 @@ export default function SupportPage() {
             )}
 
             <div ref={chatEndRef} />
+
           </div>
 
-          <div className="support-chat-bottom">
+          <div className="support-chat-input-area">
+
             {currentTicketStatus ===
             "COMPLETED" ? (
+
               <div className="support-ticket-created">
+
                 <div className="support-ticket-created-icon">
                   ✅
                 </div>
@@ -1165,16 +1282,19 @@ export default function SupportPage() {
                   Esta consulta ha sido marcada
                   como completada.
                 </span>
+
               </div>
+
             ) : ticketCreated ? (
+
               <div className="support-ticket-created">
+
                 <div className="support-ticket-created-icon">
                   ✅
                 </div>
 
                 <strong>
-                  Consulta enviada al
-                  administrador
+                  Consulta enviada al administrador
                 </strong>
 
                 <span>
@@ -1182,10 +1302,15 @@ export default function SupportPage() {
                   caso y responderá en esta
                   conversación.
                 </span>
+
               </div>
+
             ) : (
+
               <>
+
                 {showAdminButton && (
+
                   <button
                     type="button"
                     className="support-admin-button"
@@ -1198,15 +1323,16 @@ export default function SupportPage() {
                       ? "ENVIANDO..."
                       : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
                   </button>
+
                 )}
 
                 <form
                   className="support-chat-input-row"
-                  onSubmit={
-                    handleSendChat
-                  }
+                  onSubmit={handleSendChat}
                 >
-                  <textarea
+
+                  <input
+                    type="text"
                     value={chatInput}
                     onChange={(event) =>
                       setChatInput(
@@ -1214,28 +1340,11 @@ export default function SupportPage() {
                       )
                     }
                     placeholder="Escribe tu mensaje..."
-                    rows={1}
                     disabled={
                       loading ||
                       ticketLoading
                     }
-                    onKeyDown={(event) => {
-                      if (
-                        event.key ===
-                          "Enter" &&
-                        !event.shiftKey
-                      ) {
-                        event.preventDefault();
-
-                        if (
-                          chatInput.trim() &&
-                          !loading &&
-                          !ticketLoading
-                        ) {
-                          handleSendChat();
-                        }
-                      }
-                    }}
+                    autoComplete="off"
                   />
 
                   <button
@@ -1246,15 +1355,22 @@ export default function SupportPage() {
                       ticketLoading ||
                       !chatInput.trim()
                     }
+                    aria-label="Enviar mensaje"
                   >
                     ➤
                   </button>
+
                 </form>
+
               </>
+
             )}
+
           </div>
+
         </div>
       )}
+
     </main>
   );
-                        }
+}
