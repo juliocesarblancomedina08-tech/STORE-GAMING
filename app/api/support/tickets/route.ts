@@ -4,18 +4,51 @@ import { supabaseAdmin } from "../../../../lib/supabase-admin";
 const ADMIN_EMAIL =
   "juliocesarblancomedina08@gmail.com";
 
+/*
+ * =====================================================
+ * OBTENER TOKEN
+ * =====================================================
+ */
+
+function getBearerToken(request: Request) {
+  const authorization =
+    request.headers.get("authorization");
+
+  if (
+    !authorization ||
+    !authorization
+      .toLowerCase()
+      .startsWith("bearer ")
+  ) {
+    return null;
+  }
+
+  const token =
+    authorization
+      .replace(/^Bearer\s+/i, "")
+      .trim();
+
+  return token || null;
+}
+
+/*
+ * =====================================================
+ * GET
+ * =====================================================
+ */
+
 export async function GET(request: Request) {
   try {
     /*
      * =====================================================
-     * VERIFICAR SESIÓN
+     * OBTENER TOKEN
      * =====================================================
      */
 
-    const authorization =
-      request.headers.get("authorization");
+    const token =
+      getBearerToken(request);
 
-    if (!authorization) {
+    if (!token) {
       return NextResponse.json(
         {
           error:
@@ -27,28 +60,12 @@ export async function GET(request: Request) {
       );
     }
 
-    const token =
-      authorization.replace(
-        /^Bearer\s+/i,
-        ""
-      ).trim();
-
-    if (!token) {
-      return NextResponse.json(
-        {
-          error:
-            "Token de acceso no válido.",
-        },
-        {
-          status: 401,
-        }
-      );
-    }
-
     /*
-     * Obtener el usuario real mediante
-     * Supabase Admin.
+     * =====================================================
+     * VERIFICAR USUARIO REAL
+     * =====================================================
      */
+
     const {
       data: {
         user,
@@ -80,27 +97,94 @@ export async function GET(request: Request) {
       );
     }
 
+    const authenticatedUserId =
+      user.id;
+
+    const authenticatedEmail =
+      user.email
+        .trim()
+        .toLowerCase();
+
     /*
      * =====================================================
-     * VERIFICAR ADMINISTRADOR
+     * VERIFICAR SI ES ADMIN
      * =====================================================
      */
 
-    if (
-      user.email
-        .trim()
-        .toLowerCase() !==
-      ADMIN_EMAIL.toLowerCase()
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "No tienes permisos de administrador.",
-        },
-        {
-          status: 403,
-        }
-      );
+    const isAdmin =
+      authenticatedEmail ===
+      ADMIN_EMAIL.toLowerCase();
+
+    /*
+     * =====================================================
+     * OBTENER user_id SOLICITADO
+     * =====================================================
+     */
+
+    const { searchParams } =
+      new URL(request.url);
+
+    const requestedUserId =
+      searchParams.get(
+        "user_id"
+      )?.trim() || null;
+
+    /*
+     * =====================================================
+     * SEGURIDAD
+     * =====================================================
+     *
+     * ADMIN:
+     * Puede consultar todos los tickets
+     * o filtrar por un usuario.
+     *
+     * USUARIO NORMAL:
+     * Solo puede consultar sus propios
+     * tickets.
+     */
+
+    let finalUserId:
+      string | null = null;
+
+    if (isAdmin) {
+      /*
+       * Si el administrador especifica
+       * user_id, filtramos por ese usuario.
+       *
+       * Si no lo especifica, mostramos
+       * todos los tickets.
+       */
+      finalUserId =
+        requestedUserId;
+    } else {
+      /*
+       * Usuario normal.
+       *
+       * Si intenta consultar otro
+       * user_id, se rechaza.
+       */
+      if (
+        requestedUserId &&
+        requestedUserId !==
+          authenticatedUserId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "No tienes permiso para consultar estas conversaciones.",
+          },
+          {
+            status: 403,
+          }
+        );
+      }
+
+      /*
+       * Siempre usamos el ID real
+       * de la sesión.
+       */
+      finalUserId =
+        authenticatedUserId;
     }
 
     /*
@@ -108,12 +192,6 @@ export async function GET(request: Request) {
      * OBTENER TICKETS
      * =====================================================
      */
-
-    const { searchParams } =
-      new URL(request.url);
-
-    const userId =
-      searchParams.get("user_id");
 
     let query = supabaseAdmin
       .from("support_tickets")
@@ -128,19 +206,14 @@ export async function GET(request: Request) {
       );
 
     /*
-     * Si se solicita un usuario específico,
-     * devolvemos solamente sus tickets.
-     *
-     * Esto mantiene funcionando también
-     * la página normal de soporte.
+     * Aplicar filtro de usuario
+     * cuando corresponda.
      */
-    if (
-      userId &&
-      userId.trim()
-    ) {
+
+    if (finalUserId) {
       query = query.eq(
         "user_id",
-        userId.trim()
+        finalUserId
       );
     }
 
@@ -228,6 +301,8 @@ export async function GET(request: Request) {
       {
         success: true,
 
+        isAdmin,
+
         tickets:
           normalizedTickets,
 
@@ -254,4 +329,4 @@ export async function GET(request: Request) {
       }
     );
   }
-  }
+}
