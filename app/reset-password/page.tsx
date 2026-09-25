@@ -1,94 +1,26 @@
 "use client";
 
-import {
-  FormEvent,
-  useEffect,
-  useState,
-} from "react";
-
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-
 import { supabase } from "../../lib/supabase";
-
-type ResetStep =
-  | "email"
-  | "code"
-  | "password";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
 
-  const [step, setStep] =
-    useState<ResetStep>("email");
+  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [email, setEmail] =
-    useState("");
+  const [step, setStep] = useState<"email" | "code" | "password">(
+    "email"
+  );
 
-  const [code, setCode] =
-    useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [password, setPassword] =
-    useState("");
-
-  const [
-    confirmPassword,
-    setConfirmPassword,
-  ] = useState("");
-
-  const [error, setError] =
-    useState("");
-
-  const [success, setSuccess] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [resending, setResending] =
-    useState(false);
-
-  const [checking, setChecking] =
-    useState(true);
-
-  /*
-  |--------------------------------------------------------------------------
-  | COMPROBAR SESIÓN
-  |--------------------------------------------------------------------------
-  */
-
-  useEffect(() => {
-    async function checkSession() {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        /*
-         * Si ya existe una sesión de recuperación,
-         * podemos permitir directamente el cambio
-         * de contraseña.
-         */
-        if (session) {
-          setStep("password");
-        }
-      } catch (error) {
-        console.error(
-          "RESET PASSWORD SESSION ERROR:",
-          error
-        );
-      } finally {
-        setChecking(false);
-      }
-    }
-
-    checkSession();
-  }, []);
-
-  /*
-  |--------------------------------------------------------------------------
-  | ENVIAR CÓDIGO
-  |--------------------------------------------------------------------------
-  */
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
 
   async function handleSendCode(
     event: FormEvent<HTMLFormElement>
@@ -98,44 +30,22 @@ export default function ResetPasswordPage() {
     setError("");
     setSuccess("");
 
-    const cleanEmail =
-      email.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail) {
-      setError(
-        "Introduzca su correo electrónico."
-      );
+      setError("Introduce tu correo electrónico.");
       return;
     }
 
-    if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        cleanEmail
-      )
-    ) {
-      setError(
-        "Introduzca un correo electrónico válido."
-      );
+    if (!cleanEmail.includes("@")) {
+      setError("Introduce un correo electrónico válido.");
       return;
     }
 
     setLoading(true);
 
     try {
-      /*
-       * Supabase enviará el correo de
-       * recuperación.
-       *
-       * IMPORTANTE:
-       * La plantilla "Reset password"
-       * debe utilizar {{ .Token }}.
-       *
-       * No utilizamos el enlace para el usuario.
-       * El usuario recibirá un código numérico.
-       */
-      const {
-        error: resetError,
-      } =
+      const { error: resetError } =
         await supabase.auth.resetPasswordForEmail(
           cleanEmail,
           {
@@ -145,69 +55,24 @@ export default function ResetPasswordPage() {
         );
 
       if (resetError) {
-        console.error(
-          "SEND RESET CODE ERROR:",
-          resetError
-        );
-
-        setError(
-          resetError.message ||
-            "No se pudo enviar el código. Inténtelo nuevamente."
-        );
-
+        setError(resetError.message);
         setLoading(false);
         return;
       }
 
-      setEmail(cleanEmail);
-
-      setCode("");
+      setSuccess(
+        `Hemos enviado un código de recuperación a ${cleanEmail}.`
+      );
 
       setStep("code");
-
-      setSuccess(
-        "Código enviado. Revise su correo electrónico."
-      );
-    } catch (error: any) {
-      console.error(
-        "SEND RESET CODE ERROR:",
-        error
-      );
-
+    } catch {
       setError(
-        error?.message ||
-          "No se pudo enviar el código. Inténtelo nuevamente."
+        "No se pudo enviar el código. Inténtalo nuevamente."
       );
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | CAMBIO DEL CÓDIGO
-  |--------------------------------------------------------------------------
-  */
-
-  function handleCodeChange(
-    value: string
-  ) {
-    const clean =
-      value
-        .replace(/\D/g, "")
-        .slice(0, 6);
-
-    setCode(clean);
-
-    setError("");
-    setSuccess("");
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | VERIFICAR CÓDIGO
-  |--------------------------------------------------------------------------
-  */
 
   async function handleVerifyCode(
     event: FormEvent<HTMLFormElement>
@@ -217,26 +82,21 @@ export default function ResetPasswordPage() {
     setError("");
     setSuccess("");
 
-    const cleanCode =
-      code.trim();
+    const cleanCode = code.trim();
 
-    if (cleanCode.length !== 6) {
-      setError(
-        "Introduzca el código numérico de 6 dígitos."
-      );
+    if (!cleanCode) {
+      setError("Introduce el código de verificación.");
       return;
     }
 
     if (!/^\d{6}$/.test(cleanCode)) {
-      setError(
-        "El código debe contener solamente números."
-      );
+      setError("El código debe tener 6 dígitos.");
       return;
     }
 
-    if (!email) {
+    if (!email.trim()) {
       setError(
-        "No se encontró el correo electrónico."
+        "Introduce nuevamente el correo utilizado para recuperar la cuenta."
       );
       return;
     }
@@ -244,155 +104,46 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      /*
-       * Verificamos el código de recuperación.
-       */
       const {
         data,
         error: verifyError,
-      } =
-        await supabase.auth.verifyOtp({
-          email:
-            email.trim().toLowerCase(),
-
-          token:
-            cleanCode,
-
-          type: "recovery",
-        });
+      } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: cleanCode,
+        type: "recovery",
+      });
 
       if (verifyError) {
-        console.error(
-          "VERIFY RESET CODE ERROR:",
-          verifyError
-        );
-
         setError(
-          "El código no es válido o ha expirado. Solicite un nuevo código."
+          "El código no es válido o ha expirado. Comprueba el código e inténtalo nuevamente."
         );
 
         setLoading(false);
         return;
       }
 
-      /*
-       * La verificación correcta debe
-       * proporcionar una sesión de recuperación.
-       */
-      if (!data?.session) {
-        const {
-          data: sessionData,
-        } =
-          await supabase.auth.getSession();
-
-        if (!sessionData.session) {
-          setError(
-            "No se pudo confirmar la recuperación. Solicite un nuevo código."
-          );
-
-          setLoading(false);
-          return;
-        }
-      }
-
-      setCode("");
-
-      setPassword("");
-
-      setConfirmPassword("");
-
-      setStep("password");
-
-      setSuccess(
-        "Código confirmado correctamente. Ahora cree su nueva contraseña."
-      );
-    } catch (error: any) {
-      console.error(
-        "VERIFY RESET CODE ERROR:",
-        error
-      );
-
-      setError(
-        "El código no es válido o ha expirado."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | REENVIAR CÓDIGO
-  |--------------------------------------------------------------------------
-  */
-
-  async function handleResendCode() {
-    setError("");
-    setSuccess("");
-
-    const cleanEmail =
-      email.trim().toLowerCase();
-
-    if (!cleanEmail) {
-      setError(
-        "No se encontró el correo electrónico."
-      );
-      return;
-    }
-
-    setResending(true);
-
-    try {
-      const {
-        error: resendError,
-      } =
-        await supabase.auth.resetPasswordForEmail(
-          cleanEmail,
-          {
-            redirectTo:
-              `${window.location.origin}/reset-password`,
-          }
-        );
-
-      if (resendError) {
-        console.error(
-          "RESEND RESET CODE ERROR:",
-          resendError
-        );
-
+      if (!data.session) {
         setError(
-          resendError.message ||
-            "No se pudo reenviar el código."
+          "No se pudo iniciar la recuperación de la cuenta. Inténtalo nuevamente."
         );
 
+        setLoading(false);
         return;
       }
 
-      setCode("");
-
       setSuccess(
-        "Se ha enviado un nuevo código a su correo."
-      );
-    } catch (error: any) {
-      console.error(
-        "RESEND RESET CODE ERROR:",
-        error
+        "Código verificado correctamente. Ahora puedes establecer una nueva contraseña."
       );
 
+      setStep("password");
+    } catch {
       setError(
-        error?.message ||
-          "No se pudo reenviar el código."
+        "No se pudo verificar el código. Inténtalo nuevamente."
       );
-    } finally {
-      setResending(false);
     }
-  }
 
-  /*
-  |--------------------------------------------------------------------------
-  | CAMBIAR CONTRASEÑA
-  |--------------------------------------------------------------------------
-  */
+    setLoading(false);
+  }
 
   async function handleUpdatePassword(
     event: FormEvent<HTMLFormElement>
@@ -402,6 +153,11 @@ export default function ResetPasswordPage() {
     setError("");
     setSuccess("");
 
+    if (!password || !confirmPassword) {
+      setError("Completa todos los campos.");
+      return;
+    }
+
     if (password.length < 6) {
       setError(
         "La contraseña debe tener al menos 6 caracteres."
@@ -409,435 +165,581 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (
-      password !== confirmPassword
-    ) {
-      setError(
-        "Las contraseñas no coinciden."
-      );
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
     setLoading(true);
 
     try {
-      /*
-       * Comprobar que la verificación
-       * dejó una sesión activa.
-       */
-      const {
-        data: { session },
-      } =
-        await supabase.auth.getSession();
-
-      if (!session) {
-        setError(
-          "La verificación ha expirado. Solicite un nuevo código."
-        );
-
-        setStep("email");
-
-        setLoading(false);
-        return;
-      }
-
-      /*
-       * Actualizar contraseña.
-       */
-      const {
-        error: updateError,
-      } =
+      const { error: updateError } =
         await supabase.auth.updateUser({
           password,
         });
 
       if (updateError) {
-        console.error(
-          "UPDATE PASSWORD ERROR:",
-          updateError
-        );
-
-        setError(
-          updateError.message ||
-            "No se pudo actualizar la contraseña. Inténtelo nuevamente."
-        );
-
+        setError(updateError.message);
         setLoading(false);
         return;
       }
 
       setSuccess(
-        "¡Contraseña actualizada correctamente! 🎉"
+        "Contraseña actualizada correctamente. Ahora puedes iniciar sesión."
       );
 
       setPassword("");
-
       setConfirmPassword("");
 
       setTimeout(() => {
-        router.replace("/login");
-      }, 2000);
-    } catch (error: any) {
-      console.error(
-        "UPDATE PASSWORD ERROR:",
-        error
-      );
-
+        router.push("/login");
+      }, 1200);
+    } catch {
       setError(
-        error?.message ||
-          "No se pudo actualizar la contraseña."
+        "No se pudo actualizar la contraseña. Inténtalo nuevamente."
       );
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | PANTALLA DE COMPROBACIÓN
-  |--------------------------------------------------------------------------
-  */
+  async function handleResendCode() {
+    const cleanEmail = email.trim().toLowerCase();
 
-  if (checking) {
-    return (
-      <main className="auth-page">
-        <div className="auth-background" />
+    if (!cleanEmail) {
+      setError(
+        "Introduce el correo utilizado para recuperar la cuenta."
+      );
+      return;
+    }
 
-        <section className="auth-card">
-          <div className="auth-logo">
-            🛒🎮
-          </div>
+    setError("");
+    setSuccess("");
+    setResending(true);
 
-          <p className="auth-small">
-            SEGURIDAD DE CUENTA
-          </p>
+    try {
+      const { error: resendError } =
+        await supabase.auth.resetPasswordForEmail(
+          cleanEmail,
+          {
+            redirectTo:
+              `${window.location.origin}/reset-password`,
+          }
+        );
 
-          <h1 className="auth-title">
-            COMPROBANDO
-            <span> CUENTA</span>
-          </h1>
+      if (resendError) {
+        setError(
+          "No se pudo reenviar el código. Espera unos segundos e inténtalo nuevamente."
+        );
 
-          <p className="auth-description">
-            Espere un momento...
-          </p>
-        </section>
-      </main>
-    );
+        setResending(false);
+        return;
+      }
+
+      setCode("");
+
+      setSuccess(
+        "Hemos enviado un nuevo código de recuperación a tu correo electrónico."
+      );
+    } catch {
+      setError(
+        "No se pudo reenviar el código. Inténtalo nuevamente."
+      );
+    }
+
+    setResending(false);
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | PASO 1 — CORREO
-  |--------------------------------------------------------------------------
-  */
+  function goBack() {
+    if (step === "password") {
+      setStep("code");
+      setError("");
+      setSuccess("");
+      return;
+    }
 
-  if (step === "email") {
-    return (
-      <main className="auth-page">
-        <div className="auth-background" />
+    if (step === "code") {
+      setStep("email");
+      setCode("");
+      setError("");
+      setSuccess("");
+      return;
+    }
 
-        <section className="auth-card">
-          <div className="auth-logo">
-            🛒🎮
-          </div>
-
-          <p className="auth-small">
-            SEGURIDAD DE CUENTA
-          </p>
-
-          <h1 className="auth-title">
-            RECUPERAR
-            <span> CONTRASEÑA</span>
-          </h1>
-
-          <p className="auth-description">
-            Introduzca el correo electrónico
-            asociado a su cuenta de STORE
-            GAMING. Le enviaremos un código
-            numérico para confirmar el cambio.
-          </p>
-
-          <form
-            onSubmit={handleSendCode}
-            className="auth-form"
-          >
-            <label>
-              CORREO ELECTRÓNICO
-
-              <div className="input-wrapper">
-                <span>📧</span>
-
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) =>
-                    setEmail(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Ingrese su correo"
-                  autoComplete="email"
-                  disabled={loading}
-                />
-              </div>
-            </label>
-
-            {error && (
-              <div className="auth-error">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="auth-success">
-                {success}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="auth-submit"
-              disabled={loading}
-            >
-              {loading
-                ? "ENVIANDO CÓDIGO..."
-                : "ENVIAR CÓDIGO"}
-            </button>
-          </form>
-
-          <button
-            type="button"
-            className="auth-register-button"
-            onClick={() =>
-              router.push("/login")
-            }
-            disabled={loading}
-          >
-            VOLVER AL LOGIN
-          </button>
-        </section>
-      </main>
-    );
+    router.push("/login");
   }
-
-  /*
-    |--------------------------------------------------------------------------
-  | PASO 2 — CÓDIGO
-  |--------------------------------------------------------------------------
-  */
-
-  if (step === "code") {
-    return (
-      <main className="auth-page">
-        <div className="auth-card">
-          <div className="auth-logo">
-            🛒
-          </div>
-
-          <h1 className="auth-title">VERIFICAR CÓDIGO</h1>
-
-          <p className="auth-subtitle">
-            Introduce el código de 6 dígitos que enviamos a:
-          </p>
-
-          <p
-            style={{
-              textAlign: "center",
-              fontWeight: 700,
-              marginBottom: "20px",
-              wordBreak: "break-word",
-            }}
-          >
-            {email}
-          </p>
-
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            placeholder="000000"
-            value={code}
-            onChange={(e) =>
-              setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-            }
-            className="auth-input"
-          />
-
-          <button
-            type="button"
-            className="auth-button"
-            onClick={handleVerifyCode}
-            disabled={loading || code.length !== 6}
-          >
-            {loading ? "VERIFICANDO..." : "VERIFICAR CÓDIGO"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleResendCode}
-            disabled={loading}
-            className="auth-link-button"
-          >
-            {loading ? "ENVIANDO..." : "REENVIAR CÓDIGO"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setStep("email");
-              setCode("");
-              setError("");
-            }}
-            className="auth-link-button"
-          >
-            ← CAMBIAR CORREO
-          </button>
-
-          {error && (
-            <p
-              style={{
-                color: "#e50914",
-                textAlign: "center",
-                marginTop: "15px",
-                fontWeight: 600,
-              }}
-            >
-              {error}
-            </p>
-          )}
-        </div>
-      </main>
-    );
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | PASO 3 — NUEVA CONTRASEÑA
-  |--------------------------------------------------------------------------
-  */
-
-  if (step === "password") {
-    return (
-      <main className="auth-page">
-        <div className="auth-card">
-          <div className="auth-logo">
-            🛒
-          </div>
-
-          <h1 className="auth-title">NUEVA CONTRASEÑA</h1>
-
-          <p className="auth-subtitle">
-            Introduce tu nueva contraseña para recuperar el acceso a tu cuenta.
-          </p>
-
-          <input
-            type="password"
-            placeholder="Nueva contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="auth-input"
-            autoComplete="new-password"
-          />
-
-          <input
-            type="password"
-            placeholder="Repetir contraseña"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="auth-input"
-            autoComplete="new-password"
-          />
-
-          <button
-            type="button"
-            className="auth-button"
-            onClick={handleUpdatePassword}
-            disabled={
-              loading ||
-              password.length === 0 ||
-              confirmPassword.length === 0
-            }
-          >
-            {loading ? "ACTUALIZANDO..." : "CAMBIAR CONTRASEÑA"}
-          </button>
-
-          {error && (
-            <p
-              style={{
-                color: "#e50914",
-                textAlign: "center",
-                marginTop: "15px",
-                fontWeight: 600,
-              }}
-            >
-              {error}
-            </p>
-          )}
-        </div>
-      </main>
-    );
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | PASO 1 — CORREO
-  |--------------------------------------------------------------------------
-  */
 
   return (
-    <main className="auth-page">
-      <div className="auth-card">
-        <div className="auth-logo">
-          🛒
+    <main className="auth-page reset-password-page">
+
+      <div className="auth-background" />
+
+      <section className="auth-card reset-password-card">
+
+        <button
+          type="button"
+          className="back-button auth-back-button"
+          onClick={goBack}
+        >
+          <span className="back-arrow">
+            ←
+          </span>
+
+          <span>
+            ATRÁS
+          </span>
+        </button>
+
+        <div className="register-logo">
+
+          <div className="register-logo-cart">
+            🛒
+          </div>
+
+          <div className="register-logo-text">
+
+            <span>
+              STORE
+            </span>
+
+            <strong>
+              GAMING
+            </strong>
+
+          </div>
+
         </div>
 
-        <h1 className="auth-title">RECUPERAR CONTRASEÑA</h1>
+        {step === "email" && (
+          <>
 
-        <p className="auth-subtitle">
-          Introduce el correo electrónico de tu cuenta y te enviaremos un
-          código de recuperación de 6 dígitos.
-        </p>
+            <div className="register-heading">
 
-        <input
-          type="email"
-          placeholder="Correo electrónico"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="auth-input"
-          autoComplete="email"
-        />
+              <p className="auth-small">
+                RECUPERACIÓN DE CUENTA
+              </p>
 
-        <button
-          type="button"
-          className="auth-button"
-          onClick={handleSendCode}
-          disabled={loading || !email.trim()}
-        >
-          {loading ? "ENVIANDO..." : "ENVIAR CÓDIGO"}
-        </button>
+              <h1 className="auth-title">
+                RESTABLECER{" "}
+                <span>
+                  CONTRASEÑA
+                </span>
+              </h1>
 
-        <button
-          type="button"
-          onClick={() => router.push("/login")}
-          className="auth-link-button"
-        >
-          ← VOLVER AL LOGIN
-        </button>
+              <div className="register-title-line" />
 
-        {error && (
-          <p
-            style={{
-              color: "#e50914",
-              textAlign: "center",
-              marginTop: "15px",
-              fontWeight: 600,
-            }}
-          >
-            {error}
-          </p>
+              <p className="auth-description">
+                Introduce tu correo electrónico y te enviaremos
+                un código para recuperar tu cuenta.
+              </p>
+
+            </div>
+
+            <form
+              onSubmit={handleSendCode}
+              className="auth-form register-form"
+            >
+
+              <div className="register-field">
+
+                <label htmlFor="reset-email">
+                  CORREO ELECTRÓNICO
+                </label>
+
+                <div className="input-wrapper register-input-wrapper">
+
+                  <span className="input-icon">
+                    ✉
+                  </span>
+
+                  <input
+                    id="reset-email"
+                    type="email"
+                    value={email}
+                    onChange={(event) =>
+                      setEmail(event.target.value)
+                    }
+                    placeholder="tucorreo@gmail.com"
+                    autoComplete="email"
+                    inputMode="email"
+                  />
+
+                </div>
+
+              </div>
+
+              {error && (
+                <div className="auth-error register-message">
+
+                  <span>
+                    ⚠
+                  </span>
+
+                  <p>
+                    {error}
+                  </p>
+
+                </div>
+              )}
+
+              {success && (
+                <div className="auth-success register-message">
+
+                  <span>
+                    ✓
+                  </span>
+
+                  <p>
+                    {success}
+                  </p>
+
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="auth-submit register-submit"
+                disabled={loading}
+              >
+                <span>
+                  {loading
+                    ? "ENVIANDO..."
+                    : "ENVIAR CÓDIGO"}
+                </span>
+
+                {!loading && (
+                  <b>
+                    →
+                  </b>
+                )}
+
+              </button>
+
+            </form>
+
+          </>
         )}
-      </div>
+
+        {step === "code" && (
+          <>
+
+            <div className="register-heading">
+
+              <p className="auth-small">
+                VERIFICACIÓN
+              </p>
+
+              <h1 className="auth-title">
+                CÓDIGO DE{" "}
+                <span>
+                  RECUPERACIÓN
+                </span>
+              </h1>
+
+              <div className="register-title-line" />
+
+              <p className="auth-description">
+                Hemos enviado un código de 6 dígitos a:
+              </p>
+
+              <p
+                style={{
+                  marginTop: "8px",
+                  color: "#ffffff",
+                  fontWeight: 800,
+                  fontSize: "14px",
+                  wordBreak: "break-word",
+                }}
+              >
+                {email}
+              </p>
+
+            </div>
+
+            <form
+              onSubmit={handleVerifyCode}
+              className="auth-form register-form"
+            >
+
+              <div className="register-field">
+
+                <label htmlFor="reset-code">
+                  CÓDIGO DE VERIFICACIÓN
+                </label>
+
+                <div className="input-wrapper register-input-wrapper">
+
+                  <span className="input-icon">
+                    #
+                  </span>
+
+                  <input
+                    id="reset-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={code}
+                    onChange={(event) => {
+                      const value =
+                        event.target.value.replace(
+                          /\D/g,
+                          ""
+                        );
+
+                      setCode(
+                        value.slice(0, 6)
+                      );
+                    }}
+                    placeholder="000000"
+                  />
+
+                </div>
+
+              </div>
+
+              {error && (
+                <div className="auth-error register-message">
+
+                  <span>
+                    ⚠
+                  </span>
+
+                  <p>
+                    {error}
+                  </p>
+
+                </div>
+              )}
+
+              {success && (
+                <div className="auth-success register-message">
+
+                  <span>
+                    ✓
+                  </span>
+
+                  <p>
+                    {success}
+                  </p>
+
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="auth-submit register-submit"
+                disabled={
+                  loading ||
+                  code.length !== 6
+                }
+              >
+                <span>
+                  {loading
+                    ? "VERIFICANDO..."
+                    : "VERIFICAR CÓDIGO"}
+                </span>
+
+                {!loading && (
+                  <b>
+                    ✓
+                  </b>
+                )}
+
+              </button>
+
+            </form>
+
+            <div
+              style={{
+                marginTop: "18px",
+                textAlign: "center",
+              }}
+            >
+
+              <p
+                style={{
+                  margin: 0,
+                  color: "#777",
+                  fontSize: "12px",
+                }}
+              >
+                ¿No recibiste el código?
+              </p>
+
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={resending}
+                style={{
+                  marginTop: "8px",
+                  background: "transparent",
+                  border: "none",
+                  color: "#e50914",
+                  fontWeight: 900,
+                  fontSize: "12px",
+                  cursor: resending
+                    ? "default"
+                    : "pointer",
+                  opacity: resending
+                    ? 0.6
+                    : 1,
+                }}
+              >
+                {resending
+                  ? "ENVIANDO..."
+                  : "REENVIAR CÓDIGO"}
+              </button>
+
+            </div>
+
+          </>
+        )}
+
+        {step === "password" && (
+          <>
+
+            <div className="register-heading">
+
+              <p className="auth-small">
+                CUENTA VERIFICADA
+              </p>
+
+              <h1 className="auth-title">
+                NUEVA{" "}
+                <span>
+                  CONTRASEÑA
+                </span>
+              </h1>
+
+              <div className="register-title-line" />
+
+              <p className="auth-description">
+                Introduce tu nueva contraseña para completar
+                la recuperación de tu cuenta.
+              </p>
+
+            </div>
+
+            <form
+              onSubmit={handleUpdatePassword}
+              className="auth-form register-form"
+            >
+
+              <div className="register-field">
+
+                <label htmlFor="new-password">
+                  NUEVA CONTRASEÑA
+                </label>
+
+                <div className="input-wrapper register-input-wrapper">
+
+                  <span className="input-icon">
+                    🔒
+                  </span>
+
+                  <input
+                    id="new-password"
+                    type="password"
+                    value={password}
+                    onChange={(event) =>
+                      setPassword(event.target.value)
+                    }
+                    placeholder="Mínimo 6 caracteres"
+                    autoComplete="new-password"
+                  />
+
+                </div>
+
+              </div>
+
+              <div className="register-field">
+
+                <label htmlFor="confirm-new-password">
+                  VERIFICAR CONTRASEÑA
+                </label>
+
+                <div className="input-wrapper register-input-wrapper">
+
+                  <span className="input-icon">
+                    ✓
+                  </span>
+
+                  <input
+                    id="confirm-new-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) =>
+                      setConfirmPassword(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Repite tu contraseña"
+                    autoComplete="new-password"
+                  />
+
+                </div>
+
+              </div>
+
+              {error && (
+                <div className="auth-error register-message">
+
+                  <span>
+                    ⚠
+                  </span>
+
+                  <p>
+                    {error}
+                  </p>
+
+                </div>
+              )}
+
+              {success && (
+                <div className="auth-success register-message">
+
+                  <span>
+                    ✓
+                  </span>
+
+                  <p>
+                    {success}
+                  </p>
+
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="auth-submit register-submit"
+                disabled={loading}
+              >
+                <span>
+                  {loading
+                    ? "ACTUALIZANDO..."
+                    : "CAMBIAR CONTRASEÑA"}
+                </span>
+
+                {!loading && (
+                  <b>
+                    ✓
+                  </b>
+                )}
+
+              </button>
+
+            </form>
+
+          </>
+        )}
+
+        <div className="register-footer">
+          STORE GAMING • RECUPERACIÓN DE CUENTA
+        </div>
+
+      </section>
+
     </main>
   );
-}
+              }
