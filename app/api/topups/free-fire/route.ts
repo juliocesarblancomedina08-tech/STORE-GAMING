@@ -4,101 +4,117 @@ import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 export const dynamic = "force-dynamic";
 
 const FAZER_API_BASE = "https://api.fzr.cards/api/v2";
-const CATEGORY_ID = "codm_activision_us";
+const CATEGORY_ID = "free_fire_latam";
 
-type Offer = {
-  id: string;
-  supplierOfferId: string;
-  name: string;
-  displayName: string;
-  price: number;
-  supplierPrice: number;
-  icon: string;
-};
+const OFFERS = [
+  {
+    id: "ff-110",
+    supplierOfferId: "110_diamonds",
+    name: "110 Diamonds",
+    price: 0.78,
+    supplierPrice: 0.6871,
+  },
+  {
+    id: "ff-341",
+    supplierOfferId: "341_diamonds",
+    name: "341 Diamonds",
+    price: 2.2094,
+    supplierPrice: 2.0594,
+  },
+  {
+    id: "ff-572",
+    supplierOfferId: "572_diamonds",
+    name: "572 Diamonds",
+    price: 3.6429,
+    supplierPrice: 3.4929,
+  },
+  {
+    id: "ff-1166",
+    supplierOfferId: "1166_diamonds",
+    name: "1166 Diamonds",
+    price: 6.631,
+    supplierPrice: 6.481,
+  },
+  {
+    id: "ff-2398",
+    supplierOfferId: "2398_diamonds",
+    name: "2398 Diamonds",
+    price: 13.011,
+    supplierPrice: 12.861,
+  },
+  {
+    id: "ff-6160",
+    supplierOfferId: "6160_diamantes",
+    name: "6160 Diamonds",
+    price: 32.8881,
+    supplierPrice: 32.7381,
+  },
+  {
+    id: "ff-210",
+    supplierOfferId: "210_diamantes",
+    name: "210 Diamonds",
+    price: 2.0945,
+    supplierPrice: 1.9445,
+  },
+  {
+    id: "ff-530",
+    supplierOfferId: "530_diamantes",
+    name: "530 Diamonds",
+    price: 5.0162,
+    supplierPrice: 4.8662,
+  },
+  {
+    id: "ff-1080",
+    supplierOfferId: "1080_diamantes",
+    name: "1080 Diamonds",
+    price: 9.8724,
+    supplierPrice: 9.7224,
+  },
+  {
+    id: "ff-2200",
+    supplierOfferId: "2200_diamantes",
+    name: "2200 Diamonds",
+    price: 19.5948,
+    supplierPrice: 19.4448,
+  },
+  {
+    id: "ff-weekly-lite",
+    supplierOfferId: "weekly_lite",
+    name: "Semanal Lite",
+    price: 0.6538,
+    supplierPrice: 0.5038,
+  },
+  {
+    id: "ff-weekly-membership",
+    supplierOfferId: "membresía_semanal",
+    name: "Membresía semanal",
+    price: 2.3282,
+    supplierPrice: 2.1782,
+  },
+  {
+    id: "ff-elite-pass",
+    supplierOfferId: "booyah_pass",
+    name: "Booyah Pass",
+    price: 4.0138,
+    supplierPrice: 3.8638,
+  },
+  {
+    id: "ff-monthly-membership",
+    supplierOfferId: "membresía_mensual",
+    name: "Membresía mensual",
+    price: 10.632,
+    supplierPrice: 10.482,
+  },
+  {
+    id: "ff-100",
+    supplierOfferId: "100_diamantes",
+    name: "100 Diamonds",
+    price: 1.1273,
+    supplierPrice: 0.9773,
+  },
+] as const;
 
-const OFFERS: Offer[] = [
-  {
-    id: "cod-88",
-    supplierOfferId: "88_cp",
-    name: "80 + 8 CP",
-    displayName: "88 CP",
-    price: 1.15,
-    supplierPrice: 0.9974,
-    icon: "🪙",
-  },
-  {
-    id: "cod-460",
-    supplierOfferId: "460_cp",
-    name: "400 + 60 CP",
-    displayName: "460 CP",
-    price: 5.18,
-    supplierPrice: 5.0274,
-    icon: "🪙",
-  },
-  {
-    id: "cod-960",
-    supplierOfferId: "960_cp",
-    name: "800 + 160 CP",
-    displayName: "960 CP",
-    price: 10.21,
-    supplierPrice: 10.0649,
-    icon: "🪙",
-  },
-  {
-    id: "cod-2600",
-    supplierOfferId: "2600_cp",
-    name: "2000 + 600 CP",
-    displayName: "2600 CP",
-    price: 25.33,
-    supplierPrice: 25.1774,
-    icon: "🪙",
-  },
-  {
-    id: "cod-5400",
-    supplierOfferId: "5400_cp",
-    name: "4000 + 1400 CP",
-    displayName: "5400 CP",
-    price: 50.51,
-    supplierPrice: 50.3649,
-    icon: "🪙",
-  },
-  {
-    id: "cod-11600",
-    supplierOfferId: "11600_cp",
-    name: "8000 + 3600 CP",
-    displayName: "11600 CP",
-    price: 100.89,
-    supplierPrice: 100.7399,
-    icon: "🪙",
-  },
-  {
-    id: "cod-23200",
-    supplierOfferId: "23200_cp",
-    name: "16000 + 7200 CP",
-    displayName: "23200 CP",
-    price: 201.64,
-    supplierPrice: 201.4899,
-    icon: "🪙",
-  },
-  {
-    id: "cod-34800",
-    supplierOfferId: "34800_cp",
-    name: "24000 + 10800 CP",
-    displayName: "34800 CP",
-    price: 302.39,
-    supplierPrice: 302.2399,
-    icon: "🪙",
-  },
-  {
-    id: "cod-58000",
-    supplierOfferId: "58000_cp",
-    name: "40000 + 18000 CP",
-    displayName: "58000 CP",
-    price: 503.89,
-    supplierPrice: 503.7399,
-    icon: "🪙",
-  },
-];
+type Offer = (typeof OFFERS)[number];
 
 function getOffer(offerId: string): Offer | null {
   return (
@@ -108,22 +124,30 @@ function getOffer(offerId: string): Offer | null {
   );
 }
 
-function normalizeUserId(value: unknown): string {
-  return String(value ?? "")
-    .trim()
-    .replace(/\s+/g, "");
+function normalizePlayerId(
+  value: unknown
+): string {
+  return String(value ?? "").replace(
+    /\D/g,
+    ""
+  );
 }
 
 function createIdempotencyKey(): string {
-  return `cod-${crypto.randomUUID()}`;
+  return `ff-${crypto.randomUUID()}`;
 }
 
-/*
-|--------------------------------------------------------------------------
-| DIAGNÓSTICO DE FAZERCARDS
-|--------------------------------------------------------------------------
-*/
-
+/**
+ * Diagnóstico de FazerCards.
+ *
+ * Si POST /topups/order devuelve 403,
+ * consultamos /me y /balance para saber si:
+ *
+ * la API key es válida
+ * la cuenta está activa
+ * existe saldo
+ * el plan está activo
+ */
 async function getFazerDiagnostics(
   apiKey: string
 ) {
@@ -181,8 +205,7 @@ async function getFazerDiagnostics(
     balanceStatus = response.status;
 
     try {
-      balanceData =
-        await response.json();
+      balanceData = await response.json();
     } catch {
       balanceData = null;
     }
@@ -201,18 +224,10 @@ async function getFazerDiagnostics(
   };
 }
 
-/*
-|--------------------------------------------------------------------------
-| POST
-|--------------------------------------------------------------------------
-*/
-
 export async function POST(
   request: NextRequest
 ) {
-  let createdOrderId: string | null =
-    null;
-
+  let createdOrderId: string | null = null;
   let balanceReserved = false;
 
   try {
@@ -277,30 +292,17 @@ export async function POST(
     // 2. DATOS DEL PEDIDO
     // =========================================================
 
-    let body: any;
-
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "El cuerpo de la solicitud no es válido.",
-        },
-        { status: 400 }
-      );
-    }
+    const body =
+      await request.json();
 
     const offerId =
       String(
         body?.offerId ?? ""
       ).trim();
 
-    const userId =
-      normalizeUserId(
-        body?.playerId ??
-          body?.userId
+    const playerId =
+      normalizePlayerId(
+        body?.playerId
       );
 
     const requestedIdempotencyKey =
@@ -313,10 +315,6 @@ export async function POST(
       requestedIdempotencyKey ||
       createIdempotencyKey();
 
-    // =========================================================
-    // 3. VALIDACIONES
-    // =========================================================
-
     if (!offerId) {
       return NextResponse.json(
         {
@@ -328,47 +326,34 @@ export async function POST(
       );
     }
 
-    if (!userId) {
+    if (!playerId) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "Debe introducir el ID de usuario de Activision.",
+            "Debe introducir el ID del jugador.",
         },
         { status: 400 }
       );
     }
 
-    /*
-     * Call of Duty Mobile Activision utiliza
-     * el campo user_id.
-     *
-     * Permitimos:
-     * - letras
-     * - números
-     * - guion
-     * - guion bajo
-     *
-     * Igual que en el API anterior de COD.
-     */
-
     if (
-      !/^[A-Za-z0-9_-]{4,32}$/.test(
-        userId
+      !/^\d{4,20}$/.test(
+        playerId
       )
     ) {
       return NextResponse.json(
         {
           ok: false,
           error:
-            "El ID de usuario de Activision no tiene un formato válido.",
+            "El ID del jugador no es válido.",
         },
         { status: 400 }
       );
     }
 
     // =========================================================
-    // 4. OFERTA CONTROLADA POR EL SERVIDOR
+    // 3. OFERTA CONTROLADA POR EL SERVIDOR
     // =========================================================
 
     const offer =
@@ -394,7 +379,7 @@ export async function POST(
       );
 
     // =========================================================
-    // 5. PEDIDO DUPLICADO
+    // 4. PEDIDO DUPLICADO
     // =========================================================
 
     const {
@@ -449,14 +434,15 @@ export async function POST(
     }
 
     // =========================================================
-    // 6. CREAR ORDEN LOCAL
+    // 5. CREAR ORDEN LOCAL
     // =========================================================
 
     const orderPayload = {
-      user_id: user.id,
+      user_id:
+        user.id,
 
       game:
-        "Call of Duty Mobile - Activision (EE. UU.)",
+        "Free Fire LATAM",
 
       category_id:
         CATEGORY_ID,
@@ -465,10 +451,10 @@ export async function POST(
         offer.id,
 
       offer_name:
-        offer.displayName,
+        offer.name,
 
       player_id:
-        userId,
+        playerId,
 
       retail_price:
         retailPrice,
@@ -486,8 +472,8 @@ export async function POST(
         idempotencyKey,
 
       supplier_fields: {
-        user_id:
-          userId,
+        player_id:
+          playerId,
       },
     };
 
@@ -530,7 +516,7 @@ export async function POST(
       createdOrder.id;
 
     // =========================================================
-    // 7. RESERVAR SALDO
+    // 6. RESERVAR SALDO
     // =========================================================
 
     const {
@@ -584,7 +570,7 @@ export async function POST(
     balanceReserved = true;
 
     // =========================================================
-    // 8. API KEY
+    // 7. API KEY
     // =========================================================
 
     const fazerApiKey =
@@ -617,7 +603,7 @@ export async function POST(
     }
 
     // =========================================================
-    // 9. PEDIDO A FAZERCARDS
+    // 8. PEDIDO A FAZERCARDS
     // =========================================================
 
     const supplierPayload = {
@@ -628,13 +614,13 @@ export async function POST(
         offer.supplierOfferId,
 
       fields: {
-        user_id:
-          userId,
+        player_id:
+          playerId,
       },
     };
 
     console.log(
-      "Enviando pedido de Call of Duty a FazerCards:",
+      "Enviando pedido a FazerCards:",
       {
         category_id:
           CATEGORY_ID,
@@ -643,8 +629,8 @@ export async function POST(
           offer.supplierOfferId,
 
         fields: {
-          user_id:
-            userId,
+          player_id:
+            playerId,
         },
       }
     );
@@ -723,7 +709,6 @@ export async function POST(
           pending: true,
           orderId:
             createdOrderId,
-
           message:
             "El pedido fue recibido y está pendiente de confirmación.",
         },
@@ -731,8 +716,8 @@ export async function POST(
       );
     }
 
-    // =========================================================
-    // 10. LEER RESPUESTA
+        // =========================================================
+    // 9. LEER RESPUESTA
     // =========================================================
 
     let supplierData: any =
@@ -746,18 +731,18 @@ export async function POST(
     }
 
     // =========================================================
-    // 11. ERROR 403
+    // 10. ERROR 403 DE FAZERCARDS
     // =========================================================
 
     if (
-      supplierResponse.status ===
-      403
+      supplierResponse.status === 403
     ) {
       console.error(
         "FazerCards rechazó el pedido: 403",
         supplierData
       );
 
+      // Diagnóstico automático.
       const diagnostics =
         await getFazerDiagnostics(
           fazerApiKey
@@ -855,7 +840,7 @@ export async function POST(
     }
 
     // =========================================================
-    // 12. OTROS ERRORES DE FAZERCARDS
+    // 11. OTROS ERRORES DE FAZERCARDS
     // =========================================================
 
     if (
@@ -927,7 +912,7 @@ export async function POST(
     }
 
     // =========================================================
-    // 13. OBTENER DATOS DEL PEDIDO
+    // 12. OBTENER DATOS DEL PEDIDO
     // =========================================================
 
     const supplierOrderId =
@@ -954,7 +939,7 @@ export async function POST(
       ).toLowerCase();
 
     // =========================================================
-    // 14. SIN ID DEL PROVEEDOR
+    // 13. SIN ID DEL PROVEEDOR
     // =========================================================
 
     if (!supplierOrderId) {
@@ -1002,7 +987,7 @@ export async function POST(
     }
 
     // =========================================================
-    // 15. COMPLETADO
+    // 14. COMPLETADO
     // =========================================================
 
     const completedStatuses = [
@@ -1071,7 +1056,7 @@ export async function POST(
 
       if (completeError) {
         console.error(
-          "Error completando saldo:",
+          "Error completando orden:",
           completeError
         );
       }
@@ -1095,12 +1080,12 @@ export async function POST(
           "COMPLETED",
 
         message:
-          "Orden de Call of Duty Mobile completada correctamente.",
+          "Orden completada correctamente.",
       });
     }
 
     // =========================================================
-    // 16. PENDIENTE
+    // 15. PENDIENTE
     // =========================================================
 
     const pendingStatuses = [
@@ -1169,7 +1154,7 @@ export async function POST(
     }
 
     // =========================================================
-    // 17. FALLIDO
+    // 16. FALLIDO
     // =========================================================
 
     const failedStatuses = [
@@ -1253,7 +1238,7 @@ export async function POST(
     }
 
     // =========================================================
-    // 18. ESTADO DESCONOCIDO
+    // 17. ESTADO DESCONOCIDO
     // =========================================================
 
     await supabaseAdmin
@@ -1307,7 +1292,7 @@ export async function POST(
     );
   } catch (error: any) {
     console.error(
-      "Error general en /api/topups/call-of-duty:",
+      "Error general en /api/topups/free-fire:",
       error
     );
 
@@ -1344,4 +1329,4 @@ export async function POST(
       { status: 500 }
     );
   }
-}
+      }
