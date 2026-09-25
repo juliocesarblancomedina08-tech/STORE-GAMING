@@ -29,8 +29,7 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
 
-    const cleanEmail =
-      email.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
 
     if (
       !cleanEmail ||
@@ -92,7 +91,7 @@ export default function RegisterPage() {
        * Supabase devuelve el usuario pero no una sesión.
        *
        * Mostramos la pantalla para introducir
-       * el código de 8 dígitos enviado al correo.
+       * el código de 6 dígitos enviado al correo.
        */
       if (
         data.user &&
@@ -109,7 +108,7 @@ export default function RegisterPage() {
         );
 
         setSuccess(
-          `Hemos enviado un código de verificación de 8 dígitos a ${cleanEmail}.`
+          `Hemos enviado un código de verificación de 6 dígitos a ${cleanEmail}.`
         );
 
         setPassword("");
@@ -159,11 +158,11 @@ export default function RegisterPage() {
     }
 
     /*
-     * EL CÓDIGO ES DE 8 DÍGITOS
+     * EL CÓDIGO ES DE 6 DÍGITOS
      */
-    if (!/^\d{8}$/.test(cleanCode)) {
+    if (!/^\d{6}$/.test(cleanCode)) {
       setError(
-        "El código debe tener 8 dígitos."
+        "El código debe tener 6 dígitos."
       );
       return;
     }
@@ -279,7 +278,7 @@ export default function RegisterPage() {
       setVerificationCode("");
 
       setSuccess(
-        "Hemos enviado un nuevo código de 8 dígitos a tu correo electrónico."
+        "Hemos enviado un nuevo código de 6 dígitos a tu correo electrónico."
       );
     } catch {
       setError(
@@ -373,7 +372,7 @@ export default function RegisterPage() {
               <div className="register-title-line" />
 
               <p className="auth-description">
-                Hemos enviado un código de 8 dígitos a:
+                Hemos enviado un código de 6 dígitos a:
               </p>
 
               <p
@@ -425,7 +424,7 @@ export default function RegisterPage() {
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={8}
+                    maxLength={6}
                     value={
                       verificationCode
                     }
@@ -442,7 +441,7 @@ export default function RegisterPage() {
                         value
                       );
                     }}
-                    placeholder="00000000"
+                    placeholder="000000"
                   />
 
                 </div>
@@ -489,7 +488,7 @@ export default function RegisterPage() {
                 disabled={
                   loading ||
                   verificationCode.length !==
-                    8
+                    6
                 }
               >
                 <span>
@@ -825,6 +824,7 @@ export default function RegisterPage() {
             </div>
 
           </>
+
         )}
 
         {/* PIE */}
