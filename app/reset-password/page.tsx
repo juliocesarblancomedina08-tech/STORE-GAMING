@@ -61,13 +61,17 @@ export default function ResetPasswordPage() {
       }
 
       /*
-       * Guardamos el correo y avanzamos inmediatamente
-       * a la pantalla para introducir el código.
+       * IMPORTANTE:
+       * El código fue enviado correctamente.
+       * Pasamos inmediatamente a la pantalla
+       * donde el usuario debe introducirlo.
        */
       setEmail(cleanEmail);
       setCode("");
-      setStep("code");
+      setError("");
+      setSuccess("");
 
+      setStep("code");
     } catch {
       setError(
         "No se pudo enviar el código. Inténtalo nuevamente."
@@ -86,23 +90,21 @@ export default function ResetPasswordPage() {
     setSuccess("");
 
     const cleanCode = code.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanCode) {
       setError("Introduce el código de verificación.");
       return;
     }
 
-    /*
-     * EL CÓDIGO ES DE 8 DÍGITOS
-     */
-    if (!/^\d{8}$/.test(cleanCode)) {
-      setError("El código debe tener 8 dígitos.");
+    if (!/^\d{6}$/.test(cleanCode)) {
+      setError("El código debe tener 6 dígitos.");
       return;
     }
 
-    if (!email.trim()) {
+    if (!cleanEmail) {
       setError(
-        "Introduce nuevamente el correo utilizado para recuperar la cuenta."
+        "No se encontró el correo utilizado para recuperar la cuenta."
       );
       return;
     }
@@ -114,7 +116,7 @@ export default function ResetPasswordPage() {
         data,
         error: verifyError,
       } = await supabase.auth.verifyOtp({
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         token: cleanCode,
         type: "recovery",
       });
@@ -128,24 +130,28 @@ export default function ResetPasswordPage() {
         return;
       }
 
+      /*
+       * Después de verificar el código,
+       * Supabase debe entregar una sesión de recuperación.
+       */
       if (!data.session) {
         setError(
-          "No se pudo iniciar la recuperación de la cuenta. Inténtalo nuevamente."
+          "El código fue verificado, pero no se pudo iniciar la recuperación. Inténtalo nuevamente."
         );
 
         setLoading(false);
         return;
       }
 
-      /*
-       * El código fue correcto.
-       * Ahora pasamos a la pantalla para crear
-       * la nueva contraseña.
-       */
-      setCode("");
+      setError("");
       setSuccess("");
-      setStep("password");
 
+      /*
+       * PASAMOS AUTOMÁTICAMENTE A NUEVA CONTRASEÑA
+       */
+      setPassword("");
+      setConfirmPassword("");
+      setStep("password");
     } catch {
       setError(
         "No se pudo verificar el código. Inténtalo nuevamente."
@@ -195,27 +201,40 @@ export default function ResetPasswordPage() {
       }
 
       /*
-       * CONTRASEÑA ACTUALIZADA CORRECTAMENTE
+       * CONTRASEÑA ACTUALIZADA
        */
-      setPassword("");
-      setConfirmPassword("");
-
+      setError("");
       setSuccess(
         "La contraseña fue actualizada con éxito."
       );
 
+      setPassword("");
+      setConfirmPassword("");
+
       /*
-       * La verificación del código de recuperación
-       * ya creó una sesión válida.
+       * La sesión de recuperación ya está activa.
+       * No necesitamos pedir nuevamente el correo
+       * ni la contraseña.
        *
-       * Después de mostrar el mensaje,
-       * entramos automáticamente al inicio.
+       * Damos un pequeño tiempo para que el usuario
+       * pueda ver el mensaje de éxito.
        */
       setTimeout(async () => {
-        await supabase.auth.getSession();
-        router.replace("/");
-      }, 1800);
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
 
+          if (session) {
+            router.push("/");
+            router.refresh();
+          } else {
+            router.push("/login");
+          }
+        } catch {
+          router.push("/login");
+        }
+      }, 1500);
     } catch {
       setError(
         "No se pudo actualizar la contraseña. Inténtalo nuevamente."
@@ -261,9 +280,8 @@ export default function ResetPasswordPage() {
       setCode("");
 
       setSuccess(
-        "Hemos enviado un nuevo código de recuperación de 8 dígitos a tu correo electrónico."
+        "Hemos enviado un nuevo código de recuperación a tu correo electrónico."
       );
-
     } catch {
       setError(
         "No se pudo reenviar el código. Inténtalo nuevamente."
@@ -333,6 +351,10 @@ export default function ResetPasswordPage() {
 
         </div>
 
+        {/* =========================
+            PASO 1 — CORREO
+        ========================= */}
+
         {step === "email" && (
           <>
 
@@ -353,7 +375,7 @@ export default function ResetPasswordPage() {
 
               <p className="auth-description">
                 Introduce tu correo electrónico y te enviaremos
-                un código de 8 dígitos para recuperar tu cuenta.
+                un código para recuperar tu cuenta.
               </p>
 
             </div>
@@ -443,6 +465,10 @@ export default function ResetPasswordPage() {
           </>
         )}
 
+        {/* =========================
+            PASO 2 — CÓDIGO
+        ========================= */}
+
         {step === "code" && (
           <>
 
@@ -462,7 +488,7 @@ export default function ResetPasswordPage() {
               <div className="register-title-line" />
 
               <p className="auth-description">
-                Hemos enviado un código de 8 dígitos a:
+                Hemos enviado un código de 6 dígitos a:
               </p>
 
               <p
@@ -501,7 +527,7 @@ export default function ResetPasswordPage() {
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={8}
+                    maxLength={6}
                     value={code}
                     onChange={(event) => {
                       const value =
@@ -511,10 +537,10 @@ export default function ResetPasswordPage() {
                         );
 
                       setCode(
-                        value.slice(0, 8)
+                        value.slice(0, 6)
                       );
                     }}
-                    placeholder="00000000"
+                    placeholder="000000"
                   />
 
                 </div>
@@ -554,7 +580,7 @@ export default function ResetPasswordPage() {
                 className="auth-submit register-submit"
                 disabled={
                   loading ||
-                  code.length !== 8
+                  code.length !== 6
                 }
               >
                 <span>
@@ -619,6 +645,10 @@ export default function ResetPasswordPage() {
           </>
         )}
 
+        {/* =========================
+            PASO 3 — NUEVA CONTRASEÑA
+        ========================= */}
+
         {step === "password" && (
           <>
 
@@ -679,7 +709,7 @@ export default function ResetPasswordPage() {
               <div className="register-field">
 
                 <label htmlFor="confirm-new-password">
-                  VERIFICAR CONTRASEÑA
+                  REPETIR CONTRASEÑA
                 </label>
 
                 <div className="input-wrapper register-input-wrapper">
@@ -741,7 +771,7 @@ export default function ResetPasswordPage() {
                 <span>
                   {loading
                     ? "ACTUALIZANDO..."
-                    : "CAMBIAR CONTRASEÑA"}
+                    : "CONFIRMAR"}
                 </span>
 
                 {!loading && (
@@ -765,4 +795,4 @@ export default function ResetPasswordPage() {
 
     </main>
   );
-            }
+}
