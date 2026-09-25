@@ -31,21 +31,13 @@ export default function RegisterPage() {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    if (
-      !cleanEmail ||
-      !password ||
-      !confirmPassword
-    ) {
-      setError(
-        "Completa todos los campos."
-      );
+    if (!cleanEmail || !password || !confirmPassword) {
+      setError("Completa todos los campos.");
       return;
     }
 
     if (!cleanEmail.includes("@")) {
-      setError(
-        "Introduce un correo electrónico válido."
-      );
+      setError("Introduce un correo electrónico válido.");
       return;
     }
 
@@ -56,13 +48,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (
-      password !==
-      confirmPassword
-    ) {
-      setError(
-        "Las contraseñas no coinciden."
-      );
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -72,43 +59,24 @@ export default function RegisterPage() {
       const {
         data,
         error: signUpError,
-      } =
-        await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
-        });
+      } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+      });
 
       if (signUpError) {
-        setError(
-          signUpError.message
-        );
+        setError(signUpError.message);
         setLoading(false);
         return;
       }
 
-      /*
-       * Cuando la confirmación de correo está activada,
-       * Supabase devuelve el usuario pero no una sesión.
-       *
-       * Mostramos la pantalla para introducir
-       * el código de 8 dígitos enviado al correo.
-       */
-      if (
-        data.user &&
-        !data.session
-      ) {
-        setVerificationEmail(
-          cleanEmail
-        );
-
+      if (data.user && !data.session) {
+        setVerificationEmail(cleanEmail);
         setVerificationCode("");
-
-        setShowVerification(
-          true
-        );
+        setShowVerification(true);
 
         setSuccess(
-          `Hemos enviado un código de verificación de 8 dígitos a ${cleanEmail}.`
+          `Hemos enviado un código de verificación de 6 dígitos a ${cleanEmail}.`
         );
 
         setPassword("");
@@ -118,10 +86,6 @@ export default function RegisterPage() {
         return;
       }
 
-      /*
-       * Si la confirmación de correo está desactivada,
-       * Supabase puede crear directamente la sesión.
-       */
       if (data.session) {
         router.push("/home");
         return;
@@ -147,23 +111,15 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
 
-    const cleanCode =
-      verificationCode.trim();
+    const cleanCode = verificationCode.trim();
 
     if (!cleanCode) {
-      setError(
-        "Introduce el código de verificación."
-      );
+      setError("Introduce el código de verificación.");
       return;
     }
 
-    /*
-     * EL CÓDIGO ES DE 8 DÍGITOS
-     */
-    if (!/^\d{8}$/.test(cleanCode)) {
-      setError(
-        "El código debe tener 8 dígitos."
-      );
+    if (!/^\d{6}$/.test(cleanCode)) {
+      setError("El código debe tener 6 dígitos.");
       return;
     }
 
@@ -177,23 +133,14 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      /*
-       * Verificación del código OTP
-       * enviado por correo.
-       */
       const {
         data,
         error: verifyError,
-      } =
-        await supabase.auth.verifyOtp({
-          email:
-            verificationEmail,
-
-          token:
-            cleanCode,
-
-          type: "email",
-        });
+      } = await supabase.auth.verifyOtp({
+        email: verificationEmail,
+        token: cleanCode,
+        type: "email",
+      });
 
       if (verifyError) {
         setError(
@@ -204,10 +151,6 @@ export default function RegisterPage() {
         return;
       }
 
-      /*
-       * Si Supabase devuelve una sesión,
-       * el correo fue verificado correctamente.
-       */
       if (data.session) {
         setSuccess(
           "Correo verificado correctamente. ¡Bienvenido a STORE GAMING!"
@@ -220,10 +163,6 @@ export default function RegisterPage() {
         return;
       }
 
-      /*
-       * Si no devuelve sesión inmediatamente,
-       * enviamos al usuario al inicio de sesión.
-       */
       setSuccess(
         "Correo verificado correctamente. Ahora puedes iniciar sesión."
       );
@@ -253,18 +192,12 @@ export default function RegisterPage() {
     setResending(true);
 
     try {
-      /*
-       * Reenvía el correo de confirmación
-       * del registro.
-       */
       const {
         error: resendError,
-      } =
-        await supabase.auth.resend({
-          type: "signup",
-          email:
-            verificationEmail,
-        });
+      } = await supabase.auth.resend({
+        type: "signup",
+        email: verificationEmail,
+      });
 
       if (resendError) {
         setError(
@@ -278,7 +211,7 @@ export default function RegisterPage() {
       setVerificationCode("");
 
       setSuccess(
-        "Hemos enviado un nuevo código de 8 dígitos a tu correo electrónico."
+        "Hemos enviado un nuevo código de 6 dígitos a tu correo electrónico."
       );
     } catch {
       setError(
@@ -290,24 +223,17 @@ export default function RegisterPage() {
   }
 
   function backToRegister() {
-    setShowVerification(
-      false
-    );
-
+    setShowVerification(false);
     setVerificationCode("");
-
     setError("");
     setSuccess("");
   }
 
   return (
     <main className="auth-page register-page">
-
       <div className="auth-background" />
 
       <section className="auth-card register-card">
-
-        {/* BOTÓN ATRÁS */}
 
         <button
           type="button"
@@ -326,8 +252,6 @@ export default function RegisterPage() {
             ATRÁS
           </span>
         </button>
-
-        {/* LOGO */}
 
         <div className="register-logo">
 
@@ -349,10 +273,6 @@ export default function RegisterPage() {
 
         </div>
 
-        {/* =====================================================
-            VERIFICACIÓN DEL CORREO
-           ===================================================== */}
-
         {showVerification ? (
           <>
 
@@ -372,25 +292,16 @@ export default function RegisterPage() {
               <div className="register-title-line" />
 
               <p className="auth-description">
-                Hemos enviado un código de 8 dígitos a:
+                Hemos enviado un código de 6 dígitos a:
               </p>
 
               <p
                 style={{
-                  marginTop:
-                    "8px",
-
-                  color:
-                    "#ffffff",
-
-                  fontWeight:
-                    800,
-
-                  fontSize:
-                    "14px",
-
-                  wordBreak:
-                    "break-word",
+                  marginTop: "8px",
+                  color: "#ffffff",
+                  fontWeight: 800,
+                  fontSize: "14px",
+                  wordBreak: "break-word",
                 }}
               >
                 {verificationEmail}
@@ -399,13 +310,9 @@ export default function RegisterPage() {
             </div>
 
             <form
-              onSubmit={
-                handleVerifyCode
-              }
+              onSubmit={handleVerifyCode}
               className="auth-form register-form"
             >
-
-              {/* CÓDIGO DE VERIFICACIÓN */}
 
               <div className="register-field">
 
@@ -424,13 +331,9 @@ export default function RegisterPage() {
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={8}
-                    value={
-                      verificationCode
-                    }
-                    onChange={(
-                      event
-                    ) => {
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(event) => {
                       const value =
                         event.target.value.replace(
                           /\D/g,
@@ -438,20 +341,15 @@ export default function RegisterPage() {
                         );
 
                       setVerificationCode(
-                        value.slice(
-                          0,
-                          8
-                        )
+                        value.slice(0, 6)
                       );
                     }}
-                    placeholder="00000000"
+                    placeholder="000000"
                   />
 
                 </div>
 
               </div>
-
-              {/* ERROR */}
 
               {error && (
                 <div className="auth-error register-message">
@@ -467,8 +365,6 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* ÉXITO */}
-
               {success && (
                 <div className="auth-success register-message">
 
@@ -483,15 +379,12 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* VERIFICAR CORREO */}
-
               <button
                 type="submit"
                 className="auth-submit register-submit"
                 disabled={
                   loading ||
-                  verificationCode.length !==
-                    8
+                  verificationCode.length !== 6
                 }
               >
                 <span>
@@ -510,28 +403,18 @@ export default function RegisterPage() {
 
             </form>
 
-            {/* REENVIAR CÓDIGO */}
-
             <div
               style={{
-                marginTop:
-                  "18px",
-
-                textAlign:
-                  "center",
+                marginTop: "18px",
+                textAlign: "center",
               }}
             >
 
               <p
                 style={{
-                  margin:
-                    0,
-
-                  color:
-                    "#777",
-
-                  fontSize:
-                    "12px",
+                  margin: 0,
+                  color: "#777",
+                  fontSize: "12px",
                 }}
               >
                 ¿No recibiste el código?
@@ -539,40 +422,21 @@ export default function RegisterPage() {
 
               <button
                 type="button"
-                onClick={
-                  handleResendCode
-                }
-                disabled={
-                  resending
-                }
+                onClick={handleResendCode}
+                disabled={resending}
                 style={{
-                  marginTop:
-                    "8px",
-
-                  background:
-                    "transparent",
-
-                  border:
-                    "none",
-
-                  color:
-                    "#e50914",
-
-                  fontWeight:
-                    900,
-
-                  fontSize:
-                    "12px",
-
-                  cursor:
-                    resending
-                      ? "default"
-                      : "pointer",
-
-                  opacity:
-                    resending
-                      ? 0.6
-                      : 1,
+                  marginTop: "8px",
+                  background: "transparent",
+                  border: "none",
+                  color: "#e50914",
+                  fontWeight: 900,
+                  fontSize: "12px",
+                  cursor: resending
+                    ? "default"
+                    : "pointer",
+                  opacity: resending
+                    ? 0.6
+                    : 1,
                 }}
               >
                 {resending
@@ -585,13 +449,7 @@ export default function RegisterPage() {
           </>
         ) : (
 
-          /* ===================================================
-             REGISTRO
-             =================================================== */
-
           <>
-
-            {/* ENCABEZADO */}
 
             <div className="register-heading">
 
@@ -615,16 +473,10 @@ export default function RegisterPage() {
 
             </div>
 
-            {/* FORMULARIO */}
-
             <form
-              onSubmit={
-                handleRegister
-              }
+              onSubmit={handleRegister}
               className="auth-form register-form"
             >
-
-              {/* CORREO */}
 
               <div className="register-field">
 
@@ -642,9 +494,7 @@ export default function RegisterPage() {
                     id="register-email"
                     type="email"
                     value={email}
-                    onChange={(
-                      event
-                    ) =>
+                    onChange={(event) =>
                       setEmail(
                         event.target.value
                       )
@@ -657,8 +507,6 @@ export default function RegisterPage() {
                 </div>
 
               </div>
-
-              {/* CONTRASEÑA */}
 
               <div className="register-field">
 
@@ -676,9 +524,7 @@ export default function RegisterPage() {
                     id="register-password"
                     type="password"
                     value={password}
-                    onChange={(
-                      event
-                    ) =>
+                    onChange={(event) =>
                       setPassword(
                         event.target.value
                       )
@@ -690,8 +536,6 @@ export default function RegisterPage() {
                 </div>
 
               </div>
-
-              {/* CONFIRMAR CONTRASEÑA */}
 
               <div className="register-field">
 
@@ -708,12 +552,8 @@ export default function RegisterPage() {
                   <input
                     id="register-confirm-password"
                     type="password"
-                    value={
-                      confirmPassword
-                    }
-                    onChange={(
-                      event
-                    ) =>
+                    value={confirmPassword}
+                    onChange={(event) =>
                       setConfirmPassword(
                         event.target.value
                       )
@@ -725,8 +565,6 @@ export default function RegisterPage() {
                 </div>
 
               </div>
-
-              {/* ERROR */}
 
               {error && (
                 <div className="auth-error register-message">
@@ -742,8 +580,6 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* ÉXITO */}
-
               {success && (
                 <div className="auth-success register-message">
 
@@ -758,14 +594,10 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* CREAR CUENTA */}
-
               <button
                 type="submit"
                 className="auth-submit register-submit"
-                disabled={
-                  loading
-                }
+                disabled={loading}
               >
                 <span>
                   {loading
@@ -783,8 +615,6 @@ export default function RegisterPage() {
 
             </form>
 
-            {/* DIVISOR */}
-
             <div className="auth-divider register-divider">
 
               <span />
@@ -797,8 +627,6 @@ export default function RegisterPage() {
 
             </div>
 
-            {/* INICIAR SESIÓN */}
-
             <div className="register-login-area">
 
               <p className="auth-register-text">
@@ -809,9 +637,7 @@ export default function RegisterPage() {
                 type="button"
                 className="auth-register-button register-login-button"
                 onClick={() =>
-                  router.push(
-                    "/login"
-                  )
+                  router.push("/login")
                 }
               >
                 <span>
@@ -829,8 +655,6 @@ export default function RegisterPage() {
           </>
 
         )}
-
-        {/* PIE */}
 
         <div className="register-footer">
           STORE GAMING • RECARGAS GAMING
