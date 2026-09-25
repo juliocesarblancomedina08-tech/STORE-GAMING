@@ -60,11 +60,14 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      setSuccess(
-        `Hemos enviado un código de recuperación a ${cleanEmail}.`
-      );
-
+      /*
+       * Guardamos el correo y avanzamos inmediatamente
+       * a la pantalla para introducir el código.
+       */
+      setEmail(cleanEmail);
+      setCode("");
       setStep("code");
+
     } catch {
       setError(
         "No se pudo enviar el código. Inténtalo nuevamente."
@@ -89,8 +92,11 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (!/^\d{6}$/.test(cleanCode)) {
-      setError("El código debe tener 6 dígitos.");
+    /*
+     * EL CÓDIGO ES DE 8 DÍGITOS
+     */
+    if (!/^\d{8}$/.test(cleanCode)) {
+      setError("El código debe tener 8 dígitos.");
       return;
     }
 
@@ -131,11 +137,15 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      setSuccess(
-        "Código verificado correctamente. Ahora puedes establecer una nueva contraseña."
-      );
-
+      /*
+       * El código fue correcto.
+       * Ahora pasamos a la pantalla para crear
+       * la nueva contraseña.
+       */
+      setCode("");
+      setSuccess("");
       setStep("password");
+
     } catch {
       setError(
         "No se pudo verificar el código. Inténtalo nuevamente."
@@ -184,16 +194,28 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      setSuccess(
-        "Contraseña actualizada correctamente. Ahora puedes iniciar sesión."
-      );
-
+      /*
+       * CONTRASEÑA ACTUALIZADA CORRECTAMENTE
+       */
       setPassword("");
       setConfirmPassword("");
 
-      setTimeout(() => {
-        router.push("/login");
-      }, 1200);
+      setSuccess(
+        "La contraseña fue actualizada con éxito."
+      );
+
+      /*
+       * La verificación del código de recuperación
+       * ya creó una sesión válida.
+       *
+       * Después de mostrar el mensaje,
+       * entramos automáticamente al inicio.
+       */
+      setTimeout(async () => {
+        await supabase.auth.getSession();
+        router.replace("/");
+      }, 1800);
+
     } catch {
       setError(
         "No se pudo actualizar la contraseña. Inténtalo nuevamente."
@@ -239,8 +261,9 @@ export default function ResetPasswordPage() {
       setCode("");
 
       setSuccess(
-        "Hemos enviado un nuevo código de recuperación a tu correo electrónico."
+        "Hemos enviado un nuevo código de recuperación de 8 dígitos a tu correo electrónico."
       );
+
     } catch {
       setError(
         "No se pudo reenviar el código. Inténtalo nuevamente."
@@ -330,7 +353,7 @@ export default function ResetPasswordPage() {
 
               <p className="auth-description">
                 Introduce tu correo electrónico y te enviaremos
-                un código para recuperar tu cuenta.
+                un código de 8 dígitos para recuperar tu cuenta.
               </p>
 
             </div>
@@ -439,7 +462,7 @@ export default function ResetPasswordPage() {
               <div className="register-title-line" />
 
               <p className="auth-description">
-                Hemos enviado un código de 6 dígitos a:
+                Hemos enviado un código de 8 dígitos a:
               </p>
 
               <p
@@ -478,7 +501,7 @@ export default function ResetPasswordPage() {
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={6}
+                    maxLength={8}
                     value={code}
                     onChange={(event) => {
                       const value =
@@ -488,10 +511,10 @@ export default function ResetPasswordPage() {
                         );
 
                       setCode(
-                        value.slice(0, 6)
+                        value.slice(0, 8)
                       );
                     }}
-                    placeholder="000000"
+                    placeholder="00000000"
                   />
 
                 </div>
@@ -531,7 +554,7 @@ export default function ResetPasswordPage() {
                 className="auth-submit register-submit"
                 disabled={
                   loading ||
-                  code.length !== 6
+                  code.length !== 8
                 }
               >
                 <span>
@@ -742,4 +765,4 @@ export default function ResetPasswordPage() {
 
     </main>
   );
-              }
+            }
