@@ -231,6 +231,7 @@ export default function RegisterPage() {
 
   return (
     <main className="auth-page register-page">
+
       <div className="auth-background" />
 
       <section className="auth-card register-card">
