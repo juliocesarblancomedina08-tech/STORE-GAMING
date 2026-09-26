@@ -18,12 +18,6 @@ type Offer = {
   supplierPrice: number;
 };
 
-/*
- * ============================================================
- * OFERTAS REALES DE FAZERCARDS — DELTA FORCE
- * ============================================================
- */
-
 const OFFERS: Offer[] = [
   {
     id: "18_delta_coins",
@@ -132,9 +126,13 @@ function jsonError(
   );
 }
 
-function getBearerToken(request: NextRequest) {
+function getBearerToken(
+  request: NextRequest
+) {
   const authorization =
-    request.headers.get("authorization") || "";
+    request.headers.get(
+      "authorization"
+    ) || "";
 
   if (
     !authorization
@@ -144,38 +142,59 @@ function getBearerToken(request: NextRequest) {
     return null;
   }
 
-  return authorization.slice(7).trim() || null;
+  return (
+    authorization
+      .slice(7)
+      .trim() || null
+  );
 }
 
-function normalizeIdempotencyKey(value: unknown) {
-  if (typeof value !== "string") {
+function normalizeIdempotencyKey(
+  value: unknown
+) {
+  if (
+    typeof value !==
+    "string"
+  ) {
     return null;
   }
 
-  const clean = value.trim();
+  const clean =
+    value.trim();
 
   if (!clean) {
     return null;
   }
 
-  return clean.slice(0, 255);
+  return clean.slice(
+    0,
+    255
+  );
 }
 
-function getSupplierOrderId(data: any): string | null {
+function getSupplierOrderId(
+  data: any
+): string | null {
   return (
     data?.order?.id ??
     data?.data?.order?.id ??
     data?.id ??
     data?.order_id ??
+    data?.orderId ??
+    data?.data?.order_id ??
+    data?.data?.orderId ??
     null
   );
 }
 
-function getSupplierStatus(data: any): string | null {
+function getSupplierStatus(
+  data: any
+): string | null {
   return (
     data?.order?.status ??
     data?.data?.order?.status ??
     data?.status ??
+    data?.data?.status ??
     null
   );
 }
@@ -192,11 +211,20 @@ function isSuccessfulSupplierStatus(
     "complete",
     "success",
     "successful",
-  ].includes(status.toLowerCase());
+    "delivered",
+    "done",
+  ].includes(
+    status.toLowerCase()
+  );
 }
 
-function isSupplierRejection(data: any) {
-  const status = getSupplierStatus(data);
+function isSupplierRejection(
+  data: any
+) {
+  const status =
+    getSupplierStatus(
+      data
+    );
 
   if (
     status &&
@@ -207,12 +235,18 @@ function isSupplierRejection(data: any) {
       "cancelled",
       "canceled",
       "declined",
-    ].includes(status.toLowerCase())
+      "refunded",
+      "error",
+    ].includes(
+      status.toLowerCase()
+    )
   ) {
     return true;
   }
 
-  if (data?.ok === false) {
+  if (
+    data?.ok === false
+  ) {
     return true;
   }
 
@@ -222,7 +256,10 @@ function isSupplierRejection(data: any) {
 export async function POST(
   request: NextRequest
 ) {
-  let internalOrderId: string | null = null;
+  let internalOrderId:
+    | string
+    | null = null;
+
   let reserved = false;
 
   try {
@@ -233,7 +270,9 @@ export async function POST(
      */
 
     const accessToken =
-      getBearerToken(request);
+      getBearerToken(
+        request
+      );
 
     if (!accessToken) {
       return jsonError(
@@ -260,7 +299,8 @@ export async function POST(
       );
     }
 
-    const user = userData.user;
+    const user =
+      userData.user;
 
     /*
      * ============================================================
@@ -272,22 +312,27 @@ export async function POST(
       await request.json();
 
     const offerId =
-      typeof body?.offerId === "string"
+      typeof body?.offerId ===
+      "string"
         ? body.offerId.trim()
         : "";
 
     const offerName =
-      typeof body?.offerName === "string"
+      typeof body?.offerName ===
+      "string"
         ? body.offerName.trim()
         : "";
 
     const playerId =
-      typeof body?.playerId === "string"
+      typeof body?.playerId ===
+      "string"
         ? body.playerId.trim()
         : "";
 
     const requestedRetailPrice =
-      Number(body?.retailPrice);
+      Number(
+        body?.retailPrice
+      );
 
     const idempotencyKey =
       normalizeIdempotencyKey(
@@ -313,13 +358,19 @@ export async function POST(
       );
     }
 
-    if (!/^[0-9]+$/.test(playerId)) {
+    if (
+      !/^[0-9]+$/.test(
+        playerId
+      )
+    ) {
       return jsonError(
         "El Player ID solo puede contener números."
       );
     }
 
-    if (playerId.length < 4) {
+    if (
+      playerId.length < 4
+    ) {
       return jsonError(
         "El Player ID parece demasiado corto."
       );
@@ -334,7 +385,8 @@ export async function POST(
     const offer =
       OFFERS.find(
         (item) =>
-          item.id === offerId
+          item.id ===
+          offerId
       );
 
     if (!offer) {
@@ -344,14 +396,14 @@ export async function POST(
     }
 
     const retailPrice =
-      Number(offer.retailPrice);
+      Number(
+        offer.retailPrice
+      );
 
     const supplierPrice =
-      Number(offer.supplierPrice);
-
-    /*
-     * El precio del servidor es el válido.
-     */
+      Number(
+        offer.supplierPrice
+      );
 
     if (
       Number.isFinite(
@@ -379,7 +431,9 @@ export async function POST(
       error: existingOrderError,
     } =
       await supabaseAdmin
-        .from("topup_orders")
+        .from(
+          "topup_orders"
+        )
         .select(
           [
             "id",
@@ -398,21 +452,13 @@ export async function POST(
         )
         .maybeSingle();
 
-    /*
-     * FIX:
-     * Supabase puede inferir incorrectamente el tipo
-     * de existingOrderData. Definimos explícitamente
-     * la estructura esperada.
-     *
-     * Se utiliza unknown antes de la conversión para
-     * evitar el error GenericStringError de TypeScript.
-     */
-
     const existingOrderData =
       existingOrderRaw as unknown as
         | {
             id: string;
-            status: string | null;
+            status:
+              | string
+              | null;
             supplier_order_id:
               | string
               | null;
@@ -434,7 +480,9 @@ export async function POST(
           }
         | null;
 
-    if (existingOrderError) {
+    if (
+      existingOrderError
+    ) {
       console.error(
         "ERROR BUSCANDO IDEMPOTENCIA:",
         existingOrderError
@@ -446,11 +494,14 @@ export async function POST(
       );
     }
 
-    if (existingOrderData) {
+    if (
+      existingOrderData
+    ) {
       return NextResponse.json({
         ok: true,
 
-        alreadyCreated: true,
+        alreadyCreated:
+          true,
 
         orderNumber:
           existingOrderData.id,
@@ -499,7 +550,9 @@ export async function POST(
         )
         .maybeSingle();
 
-    if (profileError) {
+    if (
+      profileError
+    ) {
       console.error(
         "ERROR OBTENIENDO PERFIL:",
         profileError
@@ -529,9 +582,12 @@ export async function POST(
       error: insertOrderError,
     } =
       await supabaseAdmin
-        .from("topup_orders")
+        .from(
+          "topup_orders"
+        )
         .insert({
-          user_id: user.id,
+          user_id:
+            user.id,
 
           username:
             user.user_metadata
@@ -580,7 +636,9 @@ export async function POST(
               playerId,
           },
         })
-        .select("id")
+        .select(
+          "id"
+        )
         .single();
 
     if (
@@ -621,14 +679,18 @@ export async function POST(
         }
       );
 
-    if (reserveError) {
+    if (
+      reserveError
+    ) {
       console.error(
         "ERROR RESERVANDO SALDO:",
         reserveError
       );
 
       await supabaseAdmin
-        .from("topup_orders")
+        .from(
+          "topup_orders"
+        )
         .update({
           status:
             "FAILED",
@@ -712,7 +774,7 @@ export async function POST(
               "Content-Type":
                 "application/json",
 
-              "Accept":
+              Accept:
                 "application/json",
 
               "X-API-Key":
@@ -724,10 +786,10 @@ export async function POST(
               "User-Agent":
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
 
-              "Referer":
+              Referer:
                 "https://reseller.fazercards.com/",
 
-              "Origin":
+              Origin:
                 "https://reseller.fazercards.com/",
             },
 
@@ -756,7 +818,9 @@ export async function POST(
       );
 
       await supabaseAdmin
-        .from("topup_orders")
+        .from(
+          "topup_orders"
+        )
         .update({
           status:
             "SUPPLIER_PENDING",
@@ -817,7 +881,8 @@ export async function POST(
     const responseText =
       await supplierResponse.text();
 
-    let supplierData: any = null;
+    let supplierData: any =
+      null;
 
     try {
       supplierData =
@@ -876,9 +941,13 @@ export async function POST(
           }
         );
 
-      if (refundError) {
+      if (
+        refundError
+      ) {
         await supabaseAdmin
-          .from("topup_orders")
+          .from(
+            "topup_orders"
+          )
           .update({
             status:
               "REFUND_PENDING",
@@ -934,9 +1003,13 @@ export async function POST(
      * ============================================================
      */
 
-    if (!supplierOrderId) {
+    if (
+      !supplierOrderId
+    ) {
       await supabaseAdmin
-        .from("topup_orders")
+        .from(
+          "topup_orders"
+        )
         .update({
           status:
             "SUPPLIER_PENDING",
@@ -1016,7 +1089,9 @@ export async function POST(
       error: updateError,
     } =
       await supabaseAdmin
-        .from("topup_orders")
+        .from(
+          "topup_orders"
+        )
         .update({
           supplier_order_id:
             supplierOrderId,
@@ -1035,7 +1110,9 @@ export async function POST(
           internalOrderId
         );
 
-    if (updateError) {
+    if (
+      updateError
+    ) {
       console.error(
         "ERROR ACTUALIZANDO ORDEN:",
         updateError
@@ -1084,12 +1161,6 @@ export async function POST(
         supplierData,
     });
 
-    /*
-     * ============================================================
-     * FIN DEL POST
-     * ============================================================
-     */
-
   } catch (error) {
     console.error(
       "ERROR GENERAL DELTA FORCE:",
@@ -1102,9 +1173,13 @@ export async function POST(
      * FazerCards podría haber recibido la solicitud.
      */
 
-    if (internalOrderId) {
+    if (
+      internalOrderId
+    ) {
       await supabaseAdmin
-        .from("topup_orders")
+        .from(
+          "topup_orders"
+        )
         .update({
           status:
             reserved
