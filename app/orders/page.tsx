@@ -59,26 +59,155 @@ type Filter =
  * IMÁGENES DE LOS JUEGOS
  * ============================================================
  *
- * Se utilizan las mismas imágenes del catálogo.
+ * Estas rutas corresponden a las imágenes que están dentro de:
+ *
+ * public/images/
+ *
+ * IMPORTANTE:
+ * Battle Royale NO se utiliza como imagen de ningún juego.
+ * Solamente queda como imagen de respaldo si aparece una
+ * categoría desconocida.
  */
 
 const GAME_IMAGES: Record<string, string> = {
-  free_fire_latam: "/images/free-fire-latam.jpg",
+  /*
+   * BLOOD STRIKE
+   */
+  blood_strike:
+    "/images/blood-strike.jpg",
+
+  /*
+   * FREE FIRE
+   */
+  free_fire_latam:
+    "/images/free-fire-latam.jpg",
+
+  free_fire:
+    "/images/free-fire-latam.jpg",
+
+  /*
+   * MOBILE LEGENDS
+   */
   mobile_legends_united_states:
     "/images/mobile-legends.jpg",
-  delta_force: "/images/delta-force.jpg",
-  eafc_mobile_id: "/images/fc-mobile.jpg",
-  call_of_duty_mobile: "/images/call-of-duty.jpg",
-  telegram_stars: "/images/telegram-stars.jpg",
+
+  mobile_legends:
+    "/images/mobile-legends.jpg",
+
+  /*
+   * DELTA FORCE
+   */
+  delta_force:
+    "/images/delta-force.jpg",
+
+  /*
+   * EA FC MOBILE
+   */
+  eafc_mobile_id:
+    "/images/fc-mobile.jpg",
+
+  fc_mobile:
+    "/images/fc-mobile.jpg",
+
+  /*
+   * CALL OF DUTY MOBILE
+   *
+   * El nombre real del archivo en GitHub es:
+   * call-of-duty-mobile.jpg
+   */
+  codm_activision_us:
+    "/images/call-of-duty-mobile.jpg",
+
+  call_of_duty_mobile:
+    "/images/call-of-duty-mobile.jpg",
+
+  call_of_duty:
+    "/images/call-of-duty-mobile.jpg",
+
+  cod_mobile:
+    "/images/call-of-duty-mobile.jpg",
+
+  /*
+   * HONOR OF KINGS
+   */
+  honor_of_kings:
+    "/images/honor-of-kings.jpg",
+
+  honor_of_kings_global:
+    "/images/honor-of-kings.jpg",
+
+  /*
+   * LEAGUE OF LEGENDS
+   */
+  league_of_legends:
+    "/images/league-of-legends.jpg",
+
+  lol:
+    "/images/league-of-legends.jpg",
+
+  /*
+   * MODERN WARSHIPS
+   */
+  modern_warships:
+    "/images/modern-warships.jpg",
+
+  /*
+   * SAUSAGE MAN
+   */
+  sausage_man:
+    "/images/sausage-man.jpg",
+
+  /*
+   * ARENA BREAKOUT
+   */
+  arena_breakout:
+    "/images/arena-breakout.jpg",
+
+  arena_breakout_global:
+    "/images/arena-breakout.jpg",
+
+  /*
+   * TELEGRAM STARS
+   *
+   * Se mantiene porque ya estaba configurado en el proyecto.
+   * Si esta imagen existe en public/images, se utilizará.
+   */
+  telegram_stars:
+    "/images/telegram-stars.jpg",
 };
 
+/*
+ * Imagen de respaldo.
+ *
+ * Battle Royale queda únicamente como respaldo para una
+ * categoría que todavía no esté registrada.
+ *
+ * NO se utiliza para Blood Strike ni para los juegos
+ * registrados arriba.
+ */
 const DEFAULT_GAME_IMAGE =
   "/images/battle-royale-bg.jpg";
+
+/*
+ * ============================================================
+ * OBTENER IMAGEN DEL JUEGO
+ * ============================================================
+ */
 
 function getGameImage(
   categoryId: string,
   game: string
-) {
+): string {
+  /*
+   * Primero buscamos directamente por category_id.
+   *
+   * Ejemplo:
+   *
+   * blood_strike
+   * ↓
+   * /images/blood-strike.jpg
+   */
+
   const directImage =
     GAME_IMAGES[categoryId];
 
@@ -86,8 +215,39 @@ function getGameImage(
     return directImage;
   }
 
+  /*
+   * Si no encontramos el category_id,
+   * intentamos identificar el juego por su nombre.
+   */
+
   const normalized =
-    game.toLowerCase();
+    game
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        ""
+      );
+
+  /*
+   * ==========================================================
+   * BLOOD STRIKE
+   * ==========================================================
+   */
+
+  if (
+    normalized.includes(
+      "blood strike"
+    )
+  ) {
+    return "/images/blood-strike.jpg";
+  }
+
+  /*
+   * ==========================================================
+   * FREE FIRE
+   * ==========================================================
+   */
 
   if (
     normalized.includes("free") &&
@@ -96,37 +256,170 @@ function getGameImage(
     return "/images/free-fire-latam.jpg";
   }
 
+  /*
+   * ==========================================================
+   * MOBILE LEGENDS
+   * ==========================================================
+   */
+
   if (
-    normalized.includes("mobile legends")
+    normalized.includes(
+      "mobile legends"
+    )
   ) {
     return "/images/mobile-legends.jpg";
   }
 
+  /*
+   * ==========================================================
+   * DELTA FORCE
+   * ==========================================================
+   */
+
   if (
-    normalized.includes("delta")
+    normalized.includes(
+      "delta force"
+    )
   ) {
     return "/images/delta-force.jpg";
   }
 
+  /*
+   * ==========================================================
+   * EA FC MOBILE
+   * ==========================================================
+   */
+
   if (
-    normalized.includes("ea") ||
-    normalized.includes("fc mobile")
+    normalized.includes(
+      "fc mobile"
+    ) ||
+    normalized.includes(
+      "eafc mobile"
+    ) ||
+    normalized.includes(
+      "ea fc"
+    )
   ) {
     return "/images/fc-mobile.jpg";
   }
 
-  if (
-    normalized.includes("call") ||
-    normalized.includes("cod")
-  ) {
-    return "/images/call-of-duty.jpg";
-  }
+  /*
+   * ==========================================================
+   * CALL OF DUTY MOBILE
+   * ==========================================================
+   */
 
   if (
-    normalized.includes("telegram")
+    normalized.includes(
+      "call of duty"
+    ) ||
+    normalized.includes(
+      "cod mobile"
+    ) ||
+    normalized.includes(
+      "codm"
+    )
+  ) {
+    return "/images/call-of-duty-mobile.jpg";
+  }
+
+  /*
+   * ==========================================================
+   * HONOR OF KINGS
+   * ==========================================================
+   */
+
+  if (
+    normalized.includes(
+      "honor of kings"
+    )
+  ) {
+    return "/images/honor-of-kings.jpg";
+  }
+
+  /*
+   * ==========================================================
+   * LEAGUE OF LEGENDS
+   * ==========================================================
+   */
+
+  if (
+    normalized.includes(
+      "league of legends"
+    ) ||
+    normalized === "lol"
+  ) {
+    return "/images/league-of-legends.jpg";
+  }
+
+  /*
+   * ==========================================================
+   * MODERN WARSHIPS
+   * ==========================================================
+   */
+
+  if (
+    normalized.includes(
+      "modern warships"
+    )
+  ) {
+    return "/images/modern-warships.jpg";
+  }
+
+  /*
+   * ==========================================================
+   * SAUSAGE MAN
+   * ==========================================================
+   */
+
+  if (
+    normalized.includes(
+      "sausage man"
+    )
+  ) {
+    return "/images/sausage-man.jpg";
+  }
+
+  /*
+   * ==========================================================
+   * ARENA BREAKOUT
+   * ==========================================================
+   */
+
+  if (
+    normalized.includes(
+      "arena breakout"
+    )
+  ) {
+    return "/images/arena-breakout.jpg";
+  }
+
+  /*
+   * ==========================================================
+   * TELEGRAM
+   * ==========================================================
+   */
+
+  if (
+    normalized.includes(
+      "telegram"
+    ) ||
+    normalized.includes(
+      "stars"
+    )
   ) {
     return "/images/telegram-stars.jpg";
   }
+
+  /*
+   * ==========================================================
+   * RESPALDO
+   * ==========================================================
+   *
+   * Solamente se llega aquí si aparece un juego nuevo
+   * que todavía no hemos registrado.
+   */
 
   return DEFAULT_GAME_IMAGE;
 }
@@ -144,11 +437,8 @@ export default function OrdersPage() {
     useState(true);
 
   /*
-   * Esta variable ahora sirve para entrar
+   * Esta variable sirve para entrar
    * a una pantalla exclusiva de la orden.
-   *
-   * Ya NO se muestra el detalle debajo
-   * del historial.
    */
   const [selectedOrder, setSelectedOrder] =
     useState<Order | null>(null);
@@ -249,13 +539,28 @@ export default function OrdersPage() {
 
             /*
              * Mobile Legends utiliza server_id.
-             * Dejamos también compatibilidad
-             * con posibles nombres anteriores.
+             *
+             * Dejamos compatibilidad con:
+             * server_id
+             * id_servidor
+             * serverId
              */
+
             const serverIdValue =
               fields.server_id ??
               fields.id_servidor ??
               fields.serverId;
+
+            /*
+             * OBTENEMOS LA IMAGEN REAL
+             * DEL JUEGO.
+             */
+
+            const gameImage =
+              getGameImage(
+                row.category_id,
+                row.game
+              );
 
             return {
               id: row.id,
@@ -320,11 +625,12 @@ export default function OrdersPage() {
                 row.currency ||
                 "USD",
 
+              /*
+               * AQUÍ SE GUARDA LA FOTO
+               * ESPECÍFICA DEL JUEGO.
+               */
               image:
-                getGameImage(
-                  row.category_id,
-                  row.game
-                ),
+                gameImage,
             };
           });
 
@@ -620,14 +926,6 @@ export default function OrdersPage() {
    * ============================================================
    * ABRIR ORDEN
    * ============================================================
-   *
-   * Al tocar una orden:
-   *
-   * HISTORIAL
-   *      ↓
-   * DETALLES DE LA COMPRA
-   *
-   * El historial deja de renderizarse.
    */
 
   function openOrder(
@@ -692,11 +990,6 @@ export default function OrdersPage() {
    * ============================================================
    * VISTA EXCLUSIVA DE LA ORDEN
    * ============================================================
-   *
-   * IMPORTANTE:
-   * Aquí ya NO aparece el historial.
-   *
-   * Solo se muestra la compra seleccionada.
    */
 
   if (
@@ -824,7 +1117,7 @@ export default function OrdersPage() {
 
             </div>
 
-                        {/* ==================================================
+            {/* ==================================================
                 INFORMACIÓN DE LA COMPRA
                 ================================================== */}
 
@@ -1571,4 +1864,4 @@ export default function OrdersPage() {
 
     </main>
   );
-                      }
+                        }
