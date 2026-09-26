@@ -32,8 +32,7 @@ export default function BloodStrikePage() {
   const [orderStatus, setOrderStatus] =
     useState("");
 
-  const [processing, setProcessing] =
-    useState(false);
+  const [processing, setProcessing] = useState(false);
 
   function selectOffer(offer: BloodStrikeOffer) {
     setSelectedOffer(offer);
@@ -74,10 +73,7 @@ export default function BloodStrikePage() {
         error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (
-        sessionError ||
-        !session?.user
-      ) {
+      if (sessionError || !session?.user) {
         setError(
           "Su sesión ha expirado. Inicie sesión nuevamente."
         );
@@ -92,30 +88,29 @@ export default function BloodStrikePage() {
        * ============================================================
        */
 
-      const cleanPlayerId =
-        playerId.trim();
+      const cleanPlayerId = playerId
+        .trim()
+        .replace(/\s+/g, "");
 
       if (!cleanPlayerId) {
-        setError(
-          "Ponga el ID de su cuenta."
-        );
+        setError("Ponga el ID de su cuenta.");
         return;
       }
 
       if (
-        !/^[0-9]+$/.test(
+        !/^[A-Za-z0-9_-]+$/.test(
           cleanPlayerId
         )
       ) {
         setError(
-          "El ID debe contener solamente números."
+          "El ID solamente puede contener letras, números, guion o guion bajo."
         );
         return;
       }
 
       if (
         cleanPlayerId.length < 4 ||
-        cleanPlayerId.length > 20
+        cleanPlayerId.length > 32
       ) {
         setError(
           "El ID parece no tener un formato válido."
@@ -138,31 +133,30 @@ export default function BloodStrikePage() {
        * ============================================================
        */
 
-      const response =
-        await fetch(
-          "/api/topups/blood-strike",
-          {
-            method: "POST",
+      const response = await fetch(
+        "/api/topups/blood-strike",
+        {
+          method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json",
+          headers: {
+            "Content-Type":
+              "application/json",
 
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
+            Authorization:
+              `Bearer ${session.access_token}`,
+          },
 
-            body: JSON.stringify({
-              offerId:
-                selectedOffer.id,
+          body: JSON.stringify({
+            offerId:
+              selectedOffer.id,
 
-              playerId:
-                cleanPlayerId,
+            playerId:
+              cleanPlayerId,
 
-              idempotencyKey,
-            }),
-          }
-        );
+            idempotencyKey,
+          }),
+        }
+      );
 
       const result =
         await response.json();
@@ -194,6 +188,7 @@ export default function BloodStrikePage() {
       setOrderNumber(
         result.order?.order_number ||
           result.orderNumber ||
+          result.order?.id ||
           result.id ||
           ""
       );
@@ -207,7 +202,7 @@ export default function BloodStrikePage() {
       setOrderStatus(
         result.order?.status ||
           result.status ||
-          "PENDING"
+          "SUPPLIER_PENDING"
       );
 
       /*
@@ -258,8 +253,9 @@ export default function BloodStrikePage() {
       return;
     }
 
-    const cleanId =
-      playerId.trim();
+    const cleanId = playerId
+      .trim()
+      .replace(/\s+/g, "");
 
     if (!cleanId) {
       setError(
@@ -269,19 +265,19 @@ export default function BloodStrikePage() {
     }
 
     if (
-      !/^[0-9]+$/.test(
+      !/^[A-Za-z0-9_-]+$/.test(
         cleanId
       )
     ) {
       setError(
-        "El ID debe contener solamente números."
+        "El ID solamente puede contener letras, números, guion o guion bajo."
       );
       return;
     }
 
     if (
       cleanId.length < 4 ||
-      cleanId.length > 20
+      cleanId.length > 32
     ) {
       setError(
         "El ID parece no tener un formato válido."
@@ -458,7 +454,13 @@ export default function BloodStrikePage() {
                       <div className="diamond-icon">
                         {offer.displayName
                           .toLowerCase()
-                          .includes("pass")
+                          .includes("pass") ||
+                        offer.displayName
+                          .toLowerCase()
+                          .includes("chest") ||
+                        offer.displayName
+                          .toLowerCase()
+                          .includes("bag")
                           ? "🎟️"
                           : "🪙"}
                       </div>
@@ -562,7 +564,13 @@ export default function BloodStrikePage() {
             <div className="selected-order-icon">
               {selectedOffer.displayName
                 .toLowerCase()
-                .includes("pass")
+                .includes("pass") ||
+              selectedOffer.displayName
+                .toLowerCase()
+                .includes("chest") ||
+              selectedOffer.displayName
+                .toLowerCase()
+                .includes("bag")
                 ? "🎟️"
                 : "🪙"}
             </div>
@@ -646,19 +654,18 @@ export default function BloodStrikePage() {
               <input
                 id="blood-strike-player-id"
                 type="text"
-                inputMode="numeric"
                 value={playerId}
                 onChange={(event) =>
                   setPlayerId(
                     event.target.value.replace(
-                      /[^0-9]/g,
+                      /[^A-Za-z0-9_-]/g,
                       ""
                     )
                   )
                 }
                 placeholder="Introduzca su Player ID"
                 autoComplete="off"
-                maxLength={20}
+                maxLength={32}
                 disabled={processing}
               />
 
@@ -896,4 +903,4 @@ export default function BloodStrikePage() {
 
     </main>
   );
-        }
+      }
