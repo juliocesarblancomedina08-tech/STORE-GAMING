@@ -162,7 +162,7 @@ function extractEvent(
 
 /*
  * =====================================================
- * NORMALIZAR ESTADO INTERNO
+ * ESTADO INTERNO PENDIENTE
  * =====================================================
  */
 
@@ -175,14 +175,11 @@ function getInternalPendingStatus(
       .toLowerCase();
 
   if (
-    normalized ===
-      "processing" ||
-    normalized ===
-      "in_progress" ||
-    normalized ===
-      "in-progress" ||
-    normalized ===
-      "created"
+    normalized === "processing" ||
+    normalized === "in_progress" ||
+    normalized === "in-progress" ||
+    normalized === "queued" ||
+    normalized === "created"
   ) {
     return "SUPPLIER_PENDING";
   }
@@ -200,9 +197,10 @@ export async function POST(
   request: NextRequest
 ) {
   try {
+
     /*
      * =================================================
-     * 1. LEER CUERPO RAW
+     * 1. LEER BODY RAW
      * =================================================
      */
 
@@ -288,7 +286,7 @@ export async function POST(
         payload
       );
 
-    const status =
+    let status =
       extractSupplierStatus(
         payload
       );
@@ -324,20 +322,8 @@ export async function POST(
 
     /*
      * =================================================
-     * 7. BUSCAR LA ORDEN INTERNA
+     * 7. BUSCAR ORDEN INTERNA
      * =================================================
-     *
-     * MUY IMPORTANTE:
-     *
-     * Nunca buscamos por player_id,
-     * offer_id o precio.
-     *
-     * Buscamos por:
-     *
-     * supplier_order_id
-     *
-     * Así el cambio de estado siempre afecta
-     * a la misma compra.
      */
 
     const {
@@ -393,12 +379,8 @@ export async function POST(
 
     /*
      * =================================================
-     * 9. GUARDAR RESPUESTA DEL WEBHOOK
+     * 9. GUARDAR WEBHOOK RECIBIDO
      * =================================================
-     *
-     * Esto actualiza la orden existente.
-     *
-     * NO CREA UNA NUEVA FILA.
      */
 
     const {
@@ -432,23 +414,17 @@ export async function POST(
 
     /*
      * =================================================
-     * 10. DETERMINAR EVENTO SOPORTADO
+     * 10. EVENTOS SOPORTADOS
      * =================================================
      */
 
     const supportedEvent =
-      event ===
-        "order.status_changed" ||
-      event ===
-        "order.created" ||
-      event ===
-        "order.processing" ||
-      event ===
-        "order.completed" ||
-      event ===
-        "order.failed" ||
-      event ===
-        "order.refunded";
+      event === "order.status_changed" ||
+      event === "order.created" ||
+      event === "order.processing" ||
+      event === "order.completed" ||
+      event === "order.failed" ||
+      event === "order.refunded";
 
     /*
      * =================================================
@@ -463,8 +439,6 @@ export async function POST(
           event,
           status,
           supplierOrderId,
-          internalOrderId:
-            internalOrder.id,
         }
       );
 
@@ -481,31 +455,31 @@ export async function POST(
 
     /*
      * =================================================
-     * 12. DETERMINAR ESTADO FINAL
+     * 12. NORMALIZAR EVENTOS
      * =================================================
-     */
-
-    let finalStatus =
-      status;
-
-    /*
-     * Compatibilidad con eventos
-     * que no manden data.status.
      */
 
     if (
       event ===
       "order.processing"
     ) {
-      finalStatus =
+      status =
         "processing";
+    }
+
+    if (
+      event ===
+      "order.created"
+    ) {
+      status =
+        "created";
     }
 
     if (
       event ===
       "order.completed"
     ) {
-      finalStatus =
+      status =
         "completed";
     }
 
@@ -513,7 +487,7 @@ export async function POST(
       event ===
       "order.failed"
     ) {
-      finalStatus =
+      status =
         "failed";
     }
 
@@ -521,35 +495,114 @@ export async function POST(
       event ===
       "order.refunded"
     ) {
-      finalStatus =
+      status =
         "refunded";
     }
 
     /*
      * =================================================
-     * 13. COMPLETED
+     * 13. PROTEGER ESTADOS FINALES
+     * =================================================
+     *
+     * Una orden COMPLETED o REFUNDED queda cerrada.
+     *
+     * Un webhook atrasado no puede cambiarla.
+     */
+
+    const currentStatus =
+      String(
+        internalOrder.status ||
+        ""
+      )
+        .trim()
+        .toUpperCase();
+
+    const isCompleted =
+      currentStatus ===
+      "COMPLETED";
+
+    const isRefunded =
+      currentStatus ===
+      "REFUNDED";
+
+    /*
+     * Si ya fue COMPLETED:
+     *
+     * No permitimos FAILED,
+     * REFUNDED ni estados intermedios.
+     */
+
+    if (isCompleted) {
+      console.log(
+        "WEBHOOK IGNORADO - ORDEN YA COMPLETADA:",
+        {
+          internalOrderId:
+            internalOrder.id,
+          supplierOrderId,
+          receivedStatus:
+            status,
+        }
+      );
+
+      return NextResponse.json({
+        ok: true,
+        action:
+          "ALREADY_COMPLETED",
+        orderId:
+          internalOrder.id,
+        supplierOrderId,
+        status:
+          "COMPLETED",
+      });
+    }
+
+    /*
+     * Si ya fue REFUNDED:
+     *
+     * No permitimos COMPLETED
+     * ni nuevos estados intermedios.
+     */
+
+    if (isRefunded) {
+      console.log(
+        "WEBHOOK IGNORADO - ORDEN YA REEMBOLSADA:",
+        {
+          internalOrderId:
+            internalOrder.id,
+          supplierOrderId,
+          receivedStatus:
+            status,
+        }
+      );
+
+      return NextResponse.json({
+        ok: true,
+        action:
+          "ALREADY_REFUNDED",
+        orderId:
+          internalOrder.id,
+        supplierOrderId,
+        status:
+          "REFUNDED",
+      });
+    }
+
+    /*
+     * =================================================
+     * 14. COMPLETED
      * =================================================
      */
 
     if (
-      finalStatus ===
-        "completed" ||
-      finalStatus ===
-        "complete" ||
-      finalStatus ===
-        "success" ||
-      finalStatus ===
-        "successful"
+      status === "completed" ||
+      status === "complete" ||
+      status === "success" ||
+      status === "successful" ||
+      status === "delivered" ||
+      status === "done"
     ) {
-      /*
-       * La función SQL trabaja sobre la orden
-       * que tiene este supplier_order_id.
-       *
-       * No se crea otra orden.
-       */
 
       const {
-        data: completeResult,
         error: completeError,
       } = await supabaseAdmin.rpc(
         "complete_topup_order",
@@ -574,13 +627,11 @@ export async function POST(
       }
 
       console.log(
-        "TOPUP COMPLETADO - MISMA ORDEN:",
+        "TOPUP COMPLETADO:",
         {
           internalOrderId:
             internalOrder.id,
           supplierOrderId,
-          result:
-            completeResult,
         }
       );
 
@@ -598,22 +649,20 @@ export async function POST(
 
     /*
      * =================================================
-     * 14. FAILED / REFUNDED / CANCELLED
+     * 15. FAILED / REFUNDED / CANCELLED
      * =================================================
      */
 
     if (
-      finalStatus ===
-        "failed" ||
-      finalStatus ===
-        "failure" ||
-      finalStatus ===
-        "refunded" ||
-      finalStatus ===
-        "cancelled" ||
-      finalStatus ===
-        "canceled"
+      status === "failed" ||
+      status === "failure" ||
+      status === "refunded" ||
+      status === "cancelled" ||
+      status === "canceled" ||
+      status === "rejected" ||
+      status === "error"
     ) {
+
       const {
         data: failResult,
         error: failError,
@@ -640,13 +689,13 @@ export async function POST(
       }
 
       console.log(
-        "TOPUP FALLIDO / SALDO DEVUELTO - MISMA ORDEN:",
+        "TOPUP FALLIDO / SALDO DEVUELTO:",
         {
           internalOrderId:
             internalOrder.id,
           supplierOrderId,
           supplierStatus:
-            finalStatus,
+            status,
           result:
             failResult,
         }
@@ -666,26 +715,13 @@ export async function POST(
 
     /*
      * =================================================
-     * 15. ESTADOS INTERMEDIOS
+     * 16. ESTADOS INTERMEDIOS
      * =================================================
-     *
-     * processing
-     * pending
-     * queued
-     * created
-     * in_progress
-     *
-     * AQUÍ ESTÁ EL CAMBIO PRINCIPAL.
-     *
-     * En lugar de ignorar el evento,
-     * actualizamos la MISMA fila.
-     *
-     * NO hacemos INSERT.
      */
 
     const internalStatus =
       getInternalPendingStatus(
-        finalStatus
+        status
       );
 
     const {
@@ -727,7 +763,7 @@ export async function POST(
           internalOrder.id,
         supplierOrderId,
         supplierStatus:
-          finalStatus,
+          status,
         internalStatus,
       }
     );
@@ -742,7 +778,9 @@ export async function POST(
       status:
         internalStatus,
     });
+
   } catch (error) {
+
     console.error(
       "FAZERCARDS WEBHOOK ERROR:",
       error
@@ -755,4 +793,4 @@ export async function POST(
       }
     );
   }
-    }
+      }
