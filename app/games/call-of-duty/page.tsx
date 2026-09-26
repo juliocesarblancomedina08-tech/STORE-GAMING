@@ -3,99 +3,19 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
+import {
+  CALL_OF_DUTY,
+  type CallOfDutyOffer,
+} from "../../../lib/games/call-of-duty";
 
-const CATEGORY_ID = "codm_activision_us";
+const CATEGORY_ID =
+  CALL_OF_DUTY.categoryId;
 
 const gameNote =
-  "Región: Estados Unidos. Recarga de Call of Duty: Mobile (Activision). " +
-  "Ingrese su ID de usuario de Activision antes de realizar el pedido. " +
-  "Asegúrese de que su cuenta de Activision esté registrada en la región de Estados Unidos; " +
-  "esta es la versión occidental (Activision), no la de Garena. " +
-  "El producto seleccionado se entrega directamente a su cuenta después de realizar el pedido.";
+  CALL_OF_DUTY.note;
 
-type CallOfDutyOffer = {
-  id: string;
-  name: string;
-  display: string;
-  price: number;
-  supplierPrice: number;
-  icon: string;
-};
-
-const offers: CallOfDutyOffer[] = [
-  {
-    id: "cod-88",
-    name: "80 + 8 CP",
-    display: "88 CP",
-    price: 1.15,
-    supplierPrice: 0.9974,
-    icon: "🪙",
-  },
-  {
-    id: "cod-460",
-    name: "400 + 60 CP",
-    display: "460 CP",
-    price: 5.18,
-    supplierPrice: 5.0274,
-    icon: "🪙",
-  },
-  {
-    id: "cod-960",
-    name: "800 + 160 CP",
-    display: "960 CP",
-    price: 10.21,
-    supplierPrice: 10.0649,
-    icon: "🪙",
-  },
-  {
-    id: "cod-2600",
-    name: "2000 + 600 CP",
-    display: "2600 CP",
-    price: 25.33,
-    supplierPrice: 25.1774,
-    icon: "🪙",
-  },
-  {
-    id: "cod-5400",
-    name: "4000 + 1400 CP",
-    display: "5400 CP",
-    price: 50.51,
-    supplierPrice: 50.3649,
-    icon: "🪙",
-  },
-  {
-    id: "cod-11600",
-    name: "8000 + 3600 CP",
-    display: "11600 CP",
-    price: 100.89,
-    supplierPrice: 100.7399,
-    icon: "🪙",
-  },
-  {
-    id: "cod-23200",
-    name: "16000 + 7200 CP",
-    display: "23200 CP",
-    price: 201.64,
-    supplierPrice: 201.4899,
-    icon: "🪙",
-  },
-  {
-    id: "cod-34800",
-    name: "24000 + 10800 CP",
-    display: "34800 CP",
-    price: 302.39,
-    supplierPrice: 302.2399,
-    icon: "🪙",
-  },
-  {
-    id: "cod-58000",
-    name: "40000 + 18000 CP",
-    display: "58000 CP",
-    price: 503.89,
-    supplierPrice: 503.7399,
-    icon: "🪙",
-  },
-];
+const offers =
+  CALL_OF_DUTY.offers;
 
 export default function CallOfDutyPage() {
   const router = useRouter();
@@ -131,7 +51,8 @@ export default function CallOfDutyPage() {
     async function checkSession() {
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } =
+        await supabase.auth.getSession();
 
       if (!session) {
         router.replace("/");
@@ -145,15 +66,22 @@ export default function CallOfDutyPage() {
     offer: CallOfDutyOffer
   ) {
     setSelectedOffer(offer);
+
     setError("");
+
     setOrderCreated(false);
+
     setOrderNumber("");
+
     setSupplierOrderId("");
+
     setOrderStatus("");
 
     setTimeout(() => {
       document
-        .getElementById("order-section")
+        .getElementById(
+          "order-section"
+        )
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -164,17 +92,13 @@ export default function CallOfDutyPage() {
   function handleUserIdChange(
     value: string
   ) {
-    /*
-     * El ID de Activision puede contener
-     * letras, números, guion y guion bajo.
-     *
-     * No lo convertimos únicamente a números.
-     */
-    const clean = value
-      .replace(/\s+/g, "")
-      .slice(0, 32);
+    const clean =
+      value
+        .replace(/\s+/g, "")
+        .slice(0, 32);
 
     setUserId(clean);
+
     setError("");
   }
 
@@ -187,6 +111,7 @@ export default function CallOfDutyPage() {
       setError(
         "Seleccione una oferta antes de continuar."
       );
+
       return;
     }
 
@@ -197,13 +122,17 @@ export default function CallOfDutyPage() {
       setError(
         "Introduzca su ID de usuario de Activision."
       );
+
       return;
     }
 
-    if (cleanUserId.length < 4) {
+    if (
+      cleanUserId.length < 4
+    ) {
       setError(
         "El ID de usuario debe tener al menos 4 caracteres."
       );
+
       return;
     }
 
@@ -215,19 +144,25 @@ export default function CallOfDutyPage() {
       setError(
         "El ID de usuario de Activision no tiene un formato válido."
       );
+
       return;
     }
 
     setProcessing(true);
+
     setError("");
 
     try {
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } =
+        await supabase.auth.getSession();
 
-      if (!session?.access_token) {
+      if (
+        !session?.access_token
+      ) {
         router.replace("/");
+
         return;
       }
 
@@ -277,7 +212,8 @@ export default function CallOfDutyPage() {
       }
 
       setOrderNumber(
-        result?.order?.order_number ||
+        result?.order
+          ?.order_number ||
           result?.order_number ||
           result?.orderId ||
           `COD-${Date.now()}`
@@ -294,7 +230,7 @@ export default function CallOfDutyPage() {
       setOrderStatus(
         result?.order?.status ||
           result?.status ||
-          "PENDIENTE"
+          "SUPPLIER_PENDING"
       );
 
       setOrderCreated(true);
@@ -325,15 +261,22 @@ export default function CallOfDutyPage() {
         <button
           type="button"
           className="game-back-button"
-          onClick={() => router.back()}
+          onClick={() =>
+            router.back()
+          }
           aria-label="Volver"
         >
           ←
         </button>
 
         <div className="game-header-title">
-          <span>CALL OF DUTY</span>
-          <strong>MOBILE</strong>
+          <span>
+            CALL OF DUTY
+          </span>
+
+          <strong>
+            MOBILE
+          </strong>
         </div>
 
         <button
@@ -352,11 +295,17 @@ export default function CallOfDutyPage() {
         <div className="free-fire-main-overlay" />
 
         <div className="free-fire-main-text">
-          <small>TOP UP</small>
+          <small>
+            TOP UP
+          </small>
 
-          <h1>CALL OF DUTY</h1>
+          <h1>
+            CALL OF DUTY
+          </h1>
 
-          <strong>MOBILE</strong>
+          <strong>
+            MOBILE
+          </strong>
 
           <p>
             ACTIVISION · EE. UU.
@@ -422,7 +371,7 @@ export default function CallOfDutyPage() {
 
                     <div className="offer-info">
                       <strong>
-                        {offer.display}
+                        {offer.displayName}
                       </strong>
 
                       <span>
@@ -439,7 +388,9 @@ export default function CallOfDutyPage() {
                       $
                     </strong>
 
-                    <span>→</span>
+                    <span>
+                      →
+                    </span>
                   </div>
                 </button>
               )
@@ -458,7 +409,9 @@ export default function CallOfDutyPage() {
             INFORMACIÓN DEL SERVICIO
           </strong>
 
-          <p>{gameNote}</p>
+          <p>
+            {gameNote}
+          </p>
         </div>
       </section>
 
@@ -469,7 +422,9 @@ export default function CallOfDutyPage() {
             className="order-section"
           >
             <div className="section-title">
-              <span>01</span>
+              <span>
+                01
+              </span>
 
               <div>
                 <small>
@@ -493,7 +448,9 @@ export default function CallOfDutyPage() {
                 </span>
 
                 <strong>
-                  {selectedOffer.display}
+                  {
+                    selectedOffer.displayName
+                  }
                 </strong>
               </div>
 
@@ -516,19 +473,22 @@ export default function CallOfDutyPage() {
                 </strong>
 
                 <p>
-                  Verifique que su cuenta
-                  de Activision pertenece a
-                  la región de Estados
-                  Unidos. Esta oferta no
-                  corresponde a Call of Duty
-                  Mobile Garena.
+                  Verifique que su
+                  cuenta de Activision
+                  pertenece a la región
+                  de Estados Unidos.
+                  Esta oferta no
+                  corresponde a Call of
+                  Duty Mobile Garena.
                 </p>
               </div>
             </div>
 
             <form
               className="order-form"
-              onSubmit={handleSubmit}
+              onSubmit={
+                handleSubmit
+              }
             >
               <label className="player-id-label">
                 ID DE USUARIO
@@ -537,12 +497,14 @@ export default function CallOfDutyPage() {
               <p className="player-id-description">
                 Introduzca el ID de
                 usuario de Activision
-                donde desea recibir los
-                CP.
+                donde desea recibir
+                los CP.
               </p>
 
               <div className="player-id-input-wrapper">
-                <span>🆔</span>
+                <span>
+                  🆔
+                </span>
 
                 <input
                   type="text"
@@ -552,7 +514,11 @@ export default function CallOfDutyPage() {
                       event.target.value
                     )
                   }
-                  placeholder="Introduzca su ID"
+                  placeholder={
+                    CALL_OF_DUTY
+                      .playerField
+                      .placeholder
+                  }
                   autoComplete="off"
                   maxLength={32}
                 />
@@ -588,7 +554,9 @@ export default function CallOfDutyPage() {
                     : "FINALIZAR COMPRA"}
                 </span>
 
-                <b>→</b>
+                <b>
+                  →
+                </b>
               </button>
             </form>
           </section>
@@ -657,14 +625,18 @@ export default function CallOfDutyPage() {
           >
             REVISAR ORDEN
 
-            <span>→</span>
+            <span>
+              →
+            </span>
           </button>
         </section>
       )}
 
       <section className="service-info">
         <div className="service-info-item">
-          <span>01</span>
+          <span>
+            01
+          </span>
 
           <div>
             <strong>
@@ -678,7 +650,9 @@ export default function CallOfDutyPage() {
         </div>
 
         <div className="service-info-item">
-          <span>02</span>
+          <span>
+            02
+          </span>
 
           <div>
             <strong>
@@ -692,7 +666,9 @@ export default function CallOfDutyPage() {
         </div>
 
         <div className="service-info-item">
-          <span>03</span>
+          <span>
+            03
+          </span>
 
           <div>
             <strong>
@@ -718,4 +694,4 @@ export default function CallOfDutyPage() {
       </footer>
     </main>
   );
-        }
+      }
