@@ -7,8 +7,9 @@ import { supabase } from "../../lib/supabase";
 export default function ResetPasswordPage() {
   const router = useRouter();
 
-  const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -64,17 +65,21 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      // Guardamos el correo limpio
+      /*
+       * IMPORTANTE:
+       * El correo fue enviado correctamente.
+       *
+       * Pasamos inmediatamente al siguiente paso.
+       */
       setEmail(cleanEmail);
-
-      // IMPORTANTE:
-      // Después de enviar correctamente el código,
-      // cambiamos inmediatamente a la pantalla del código.
-      setStep("code");
+      setCode("");
+      setError("");
 
       setSuccess(
-        `Hemos enviado un código de 6 dígitos a ${cleanEmail}.`
+        "Código enviado correctamente."
       );
+
+      setStep("code");
     } catch {
       setError(
         "No se pudo enviar el código. Inténtalo nuevamente."
@@ -138,23 +143,29 @@ export default function ResetPasswordPage() {
         return;
       }
 
+      /*
+       * Supabase debe devolver una sesión después
+       * de verificar correctamente el código.
+       */
       if (!data.session) {
         setError(
-          "El código fue procesado, pero no se pudo iniciar la sesión de recuperación."
+          "El código fue verificado, pero no se pudo crear la sesión de recuperación. Inténtalo nuevamente."
         );
 
         setLoading(false);
         return;
       }
 
-      // El código es correcto.
-      // Pasamos automáticamente al formulario
-      // para crear la nueva contraseña.
-      setStep("password");
+      setCode("");
 
       setSuccess(
-        "Código verificado correctamente. Ahora crea tu nueva contraseña."
+        "Código verificado correctamente."
       );
+
+      /*
+       * Pasamos automáticamente a crear la nueva contraseña.
+       */
+      setStep("password");
     } catch {
       setError(
         "No se pudo verificar el código. Inténtalo nuevamente."
@@ -208,50 +219,20 @@ export default function ResetPasswordPage() {
       }
 
       /*
-       * Después de updateUser(), Supabase mantiene la sesión
-       * de recuperación iniciada.
+       * La contraseña fue actualizada.
        *
-       * Hacemos una comprobación para asegurarnos de que
-       * la sesión continúa activa.
+       * La sesión de Supabase continúa activa porque
+       * el código de recuperación ya creó la sesión.
        */
-      const {
-        data: sessionData,
-      } = await supabase.auth.getSession();
-
-      if (!sessionData.session) {
-        /*
-         * Si por alguna razón la sesión de recuperación
-         * no quedó activa, iniciamos sesión con el nuevo
-         * correo y contraseña.
-         */
-        const { error: loginError } =
-          await supabase.auth.signInWithPassword({
-            email: email.trim().toLowerCase(),
-            password,
-          });
-
-        if (loginError) {
-          setError(
-            "La contraseña fue actualizada, pero no se pudo iniciar la sesión automáticamente."
-          );
-
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Limpiamos los campos.
       setPassword("");
       setConfirmPassword("");
 
-      // Mensaje final.
       setSuccess(
         "✓ La contraseña fue actualizada con éxito."
       );
 
       /*
-       * Dejamos visible el mensaje un momento y luego
-       * llevamos al usuario al inicio.
+       * Entrar automáticamente al inicio.
        */
       setTimeout(() => {
         router.replace("/");
@@ -305,7 +286,7 @@ export default function ResetPasswordPage() {
       setCode("");
 
       setSuccess(
-        "Hemos enviado un nuevo código de 6 dígitos a tu correo electrónico."
+        "Hemos enviado un nuevo código de 6 dígitos a tu correo."
       );
     } catch {
       setError(
@@ -339,10 +320,6 @@ export default function ResetPasswordPage() {
     router.push("/login");
   }
 
-  // =========================================================
-  // PÁGINA
-  // =========================================================
-
   return (
     <main className="auth-page reset-password-page">
 
@@ -350,7 +327,9 @@ export default function ResetPasswordPage() {
 
       <section className="auth-card reset-password-card">
 
+        {/* ================================================= */}
         {/* BOTÓN ATRÁS */}
+        {/* ================================================= */}
 
         <button
           type="button"
@@ -366,7 +345,9 @@ export default function ResetPasswordPage() {
           </span>
         </button>
 
+        {/* ================================================= */}
         {/* LOGO */}
+        {/* ================================================= */}
 
         <div className="register-logo">
 
@@ -388,9 +369,9 @@ export default function ResetPasswordPage() {
 
         </div>
 
-        {/* =====================================================
-            PASO 1 — CORREO
-           ===================================================== */}
+        {/* ================================================= */}
+        {/* PASO 1 — CORREO */}
+        {/* ================================================= */}
 
         {step === "email" && (
           <>
@@ -402,7 +383,7 @@ export default function ResetPasswordPage() {
               </p>
 
               <h1 className="auth-title">
-                OLVIDÉ MI{" "}
+                RESTABLECER{" "}
                 <span>
                   CONTRASEÑA
                 </span>
@@ -411,8 +392,8 @@ export default function ResetPasswordPage() {
               <div className="register-title-line" />
 
               <p className="auth-description">
-                Introduce el correo de tu cuenta y te enviaremos
-                un código de verificación.
+                Introduce tu correo electrónico y te enviaremos
+                un código de 6 dígitos para recuperar tu cuenta.
               </p>
 
             </div>
@@ -503,9 +484,9 @@ export default function ResetPasswordPage() {
           </>
         )}
 
-        {/* =====================================================
-            PASO 2 — CÓDIGO
-           ===================================================== */}
+        {/* ================================================= */}
+        {/* PASO 2 — CÓDIGO */}
+        {/* ================================================= */}
 
         {step === "code" && (
           <>
@@ -623,7 +604,6 @@ export default function ResetPasswordPage() {
                   code.length !== 6
                 }
               >
-
                 <span>
                   {loading
                     ? "VERIFICANDO..."
@@ -686,10 +666,6 @@ export default function ResetPasswordPage() {
           </>
         )}
 
-        {/* =====================================================
-            PASO 3 — NUEVA CONTRASEÑA
-           ===================================================== */}
-
         {step === "password" && (
           <>
 
@@ -709,8 +685,8 @@ export default function ResetPasswordPage() {
               <div className="register-title-line" />
 
               <p className="auth-description">
-                Introduce tu nueva contraseña y repítela para
-                completar la recuperación de tu cuenta.
+                Introduce tu nueva contraseña y repítela
+                para completar la recuperación de tu cuenta.
               </p>
 
             </div>
@@ -737,9 +713,7 @@ export default function ResetPasswordPage() {
                     type="password"
                     value={password}
                     onChange={(event) =>
-                      setPassword(
-                        event.target.value
-                      )
+                      setPassword(event.target.value)
                     }
                     placeholder="Mínimo 6 caracteres"
                     autoComplete="new-password"
@@ -811,11 +785,10 @@ export default function ResetPasswordPage() {
                 className="auth-submit register-submit"
                 disabled={loading}
               >
-
                 <span>
                   {loading
                     ? "ACTUALIZANDO..."
-                    : "CONFIRMAR"}
+                    : "CONFIRMAR CONTRASEÑA"}
                 </span>
 
                 {!loading && (
@@ -831,8 +804,6 @@ export default function ResetPasswordPage() {
           </>
         )}
 
-        {/* FOOTER */}
-
         <div className="register-footer">
           STORE GAMING • RECUPERACIÓN DE CUENTA
         </div>
@@ -841,4 +812,5 @@ export default function ResetPasswordPage() {
 
     </main>
   );
-  }
+}
+                type
