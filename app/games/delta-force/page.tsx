@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
 type SupplierOffer = {
   offer_id: string;
@@ -17,6 +18,11 @@ type DeltaOffer = {
   price: number;
   icon: string;
 };
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const gameNote =
   "Región: Global. La moneda se entrega directamente a su cuenta después de realizar el pedido.";
@@ -40,9 +46,6 @@ export default function DeltaForcePage() {
   const [playerId, setPlayerId] =
     useState("");
 
-  const [quantity, setQuantity] =
-    useState(1);
-
   const [error, setError] =
     useState("");
 
@@ -54,6 +57,9 @@ export default function DeltaForcePage() {
 
   const [orderNumber, setOrderNumber] =
     useState("");
+
+  const [creatingOrder, setCreatingOrder] =
+    useState(false);
 
   /*
    * ============================================================
@@ -135,12 +141,15 @@ export default function DeltaForcePage() {
                   id: String(
                     offer.offer_id
                   ),
+
                   supplierOfferId:
                     String(
                       offer.offer_id
                     ),
+
                   name:
                     name.toUpperCase(),
+
                   display: isPass
                     ? name.toUpperCase()
                     : name
@@ -149,7 +158,9 @@ export default function DeltaForcePage() {
                           "🪙"
                         )
                         .toUpperCase(),
+
                   price,
+
                   icon: isPass
                     ? "🎟️"
                     : "🪙",
@@ -218,7 +229,6 @@ export default function DeltaForcePage() {
   ) {
     setSelectedOffer(offer);
     setPlayerId("");
-    setQuantity(1);
     setError("");
     setShowConfirmation(false);
     setOrderCreated(false);
@@ -234,28 +244,6 @@ export default function DeltaForcePage() {
           block: "start",
         });
     }, 100);
-  }
-
-  /*
-   * ============================================================
-   * CANTIDAD
-   * ============================================================
-   */
-
-  function decreaseQuantity() {
-    setQuantity((current) =>
-      Math.max(
-        1,
-        current - 1
-      )
-    );
-  }
-
-  function increaseQuantity() {
-    setQuantity(
-      (current) =>
-        current + 1
-    );
   }
 
   /*
@@ -288,6 +276,13 @@ export default function DeltaForcePage() {
       return;
     }
 
+    if (!/^[0-9]+$/.test(cleanId)) {
+      setError(
+        "El ID solo puede contener números."
+      );
+      return;
+    }
+
     if (cleanId.length < 4) {
       setError(
         "El ID parece demasiado corto."
@@ -311,107 +306,245 @@ export default function DeltaForcePage() {
 
   /*
    * ============================================================
-   * CREAR PEDIDO LOCAL
-   *
-   * IMPORTANTE:
-   * Todavía NO hacemos una compra real en FazerCards.
-   * Esto conserva temporalmente el comportamiento anterior.
+   * CREAR PEDIDO REAL
    * ============================================================
    */
 
-  function createOrder() {
-    if (!selectedOffer) {
+  async function createOrder() {
+    if (
+      !selectedOffer ||
+      creatingOrder
+    ) {
       return;
     }
 
-    const generatedNumber =
-      `DF-${Date.now()
-        .toString()
-        .slice(-8)}`;
+    setError("");
+    setCreatingOrder(true);
 
-    const total =
-      selectedOffer.price *
-      quantity;
+    try {
+      const {
+        data: sessionData,
+        error: sessionError,
+      } =
+        await supabase.auth.getSession();
 
-    const order = {
-      id: generatedNumber,
-      game: "DELTA FORCE",
-      product:
-        selectedOffer.name,
-      displayProduct:
-        selectedOffer.display,
-      price: total,
-      unitPrice:
-        selectedOffer.price,
-      quantity,
-      playerId:
-        playerId.trim(),
-      status: "Pendiente",
-      supplier: "FazerCards",
-      supplierOfferId:
-        selectedOffer.supplierOfferId,
-      createdAt:
-        new Date().toISOString(),
-    };
+      if (
+        sessionError ||
+        !sessionData.session
+      ) {
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
+        router.push("/login");
+        return;
+      }
 
-    const existingOrders =
-      localStorage.getItem(
-        "storeGamingOrders"
+      const cleanPlayerId =
+        playerId.trim();
+
+      const idempotencyKey =
+        crypto.randomUUID();
+
+      const response =
+        await fetch(
+          "/api/topups/delta-force",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Accept:
+                "application/json",
+
+              Authorization:
+                `Bearer ${sessionData.session.access_token}`,
+            },
+
+            body:
+              JSON.stringify({
+                offerId:
+                  selectedOffer.supplierOfferId,
+
+                offerName:
+                  selectedOffer.name,
+
+                playerId:
+                  cleanPlayerId,
+
+                retailPrice:
+                  selectedOffer.price,
+
+                idempotencyKey,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok &&
+        !data?.ok
+      ) {
+        throw new Error(
+          data?.error ||
+            "No se pudo crear la orden."
+        );
+      }
+
+      if (!data?.orderNumber) {
+        throw new Error(
+          "La orden fue procesada pero no se recibió el número de orden."
+        );
+      }
+
+      setOrderNumber(
+        String(
+          data.orderNumber
+        )
       );
 
-    let orders: any[] = [];
+      setOrderCreated(true);
+      setShowConfirmation(false);
 
-    if (existingOrders) {
+      /*
+       * Guardamos únicamente una referencia local
+       * para compatibilidad con pantallas antiguas.
+       *
+       * La orden real está en topup_orders.
+       */
+
+      const localOrder = {
+        id:
+          data.orderNumber,
+
+        game:
+          "DELTA FORCE",
+
+        product:
+          selectedOffer.name,
+
+        displayProduct:
+          selectedOffer.display,
+
+        price:
+          selectedOffer.price,
+
+        unitPrice:
+          selectedOffer.price,
+
+        quantity:
+          1,
+
+        playerId:
+          cleanPlayerId,
+
+        status:
+          data.status ===
+          "COMPLETED"
+            ? "Completada"
+            : "Pendiente",
+
+        supplier:
+          "FazerCards",
+
+        supplierOfferId:
+          selectedOffer.supplierOfferId,
+
+        supplierOrderId:
+          data.supplierOrderId ??
+          null,
+
+        createdAt:
+          new Date().toISOString(),
+      };
+
       try {
-        const parsed =
-          JSON.parse(
-            existingOrders
+        const existingOrders =
+          localStorage.getItem(
+            "storeGamingOrders"
           );
 
-        if (
-          Array.isArray(
-            parsed
-          )
-        ) {
-          orders = parsed;
+        let orders: any[] = [];
+
+        if (existingOrders) {
+          const parsed =
+            JSON.parse(
+              existingOrders
+            );
+
+          if (
+            Array.isArray(
+              parsed
+            )
+          ) {
+            orders = parsed;
+          }
         }
-      } catch {
-        orders = [];
+
+        const alreadyExists =
+          orders.some(
+            (item) =>
+              String(
+                item?.id
+              ) ===
+              String(
+                localOrder.id
+              )
+          );
+
+        if (!alreadyExists) {
+          orders.unshift(
+            localOrder
+          );
+        }
+
+        localStorage.setItem(
+          "storeGamingOrders",
+          JSON.stringify(
+            orders
+          )
+        );
+
+        localStorage.setItem(
+          "storeGamingLastOrder",
+          JSON.stringify(
+            localOrder
+          )
+        );
+      } catch (storageError) {
+        console.warn(
+          "No se pudo actualizar el almacenamiento local:",
+          storageError
+        );
       }
+
+      setTimeout(() => {
+        document
+          .getElementById(
+            "success-section"
+          )
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      }, 100);
+    } catch (err) {
+      console.error(
+        "Error creando pedido Delta Force:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error creando la orden."
+      );
+    } finally {
+      setCreatingOrder(false);
     }
-
-    orders.unshift(order);
-
-    localStorage.setItem(
-      "storeGamingOrders",
-      JSON.stringify(
-        orders
-      )
-    );
-
-    localStorage.setItem(
-      "storeGamingLastOrder",
-      JSON.stringify(
-        order
-      )
-    );
-
-    setOrderNumber(
-      generatedNumber
-    );
-
-    setOrderCreated(true);
-
-    setTimeout(() => {
-      document
-        .getElementById(
-          "success-section"
-        )
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
   }
 
   /*
@@ -432,10 +565,10 @@ export default function DeltaForcePage() {
    * ============================================================
    */
 
-  const total = selectedOffer
-    ? selectedOffer.price *
-      quantity
-    : 0;
+  const total =
+    selectedOffer
+      ? selectedOffer.price
+      : 0;
 
   return (
     <main className="game-service-page">
@@ -579,10 +712,6 @@ export default function DeltaForcePage() {
           </div>
 
 
-          {/* =========================
-              CARGANDO
-          ========================== */}
-
           {loadingOffers && (
 
             <div className="game-note">
@@ -609,10 +738,6 @@ export default function DeltaForcePage() {
           )}
 
 
-          {/* =========================
-              ERROR
-          ========================== */}
-
           {!loadingOffers &&
             offersError && (
 
@@ -638,10 +763,6 @@ export default function DeltaForcePage() {
 
             )}
 
-
-          {/* =========================
-              LISTA REAL
-          ========================== */}
 
           {!loadingOffers &&
             !offersError &&
@@ -721,10 +842,6 @@ export default function DeltaForcePage() {
 
             )}
 
-
-          {/* =========================
-              NOTA
-          ========================== */}
 
           {!loadingOffers &&
             !offersError &&
@@ -819,10 +936,6 @@ export default function DeltaForcePage() {
           </div>
 
 
-          {/* =========================
-              NOTA
-          ========================== */}
-
           <div className="game-note game-note-order">
 
             <div className="game-note-icon">
@@ -844,48 +957,7 @@ export default function DeltaForcePage() {
           </div>
 
 
-          {/* =========================
-              CANTIDAD
-          ========================== */}
-
-          <div className="quantity-section">
-
-            <span>
-              CANTIDAD
-            </span>
-
-            <div className="quantity-control">
-
-              <button
-                type="button"
-                onClick={
-                  decreaseQuantity
-                }
-                aria-label="Disminuir cantidad"
-              >
-                −
-              </button>
-
-              <strong>
-                {quantity}
-              </strong>
-
-              <button
-                type="button"
-                onClick={
-                  increaseQuantity
-                }
-                aria-label="Aumentar cantidad"
-              >
-                +
-              </button>
-
-            </div>
-
-          </div>
-
-
-          {/* =========================
+                    {/* =========================
               FORMULARIO
           ========================== */}
 
@@ -951,9 +1023,7 @@ export default function DeltaForcePage() {
               </span>
 
               <strong>
-                {total.toFixed(
-                  2
-                )}
+                {total.toFixed(2)}
                 $
               </strong>
 
@@ -963,6 +1033,7 @@ export default function DeltaForcePage() {
             <button
               type="submit"
               className="finish-order-button"
+              disabled={creatingOrder}
             >
               FINALIZAR COMPRA
             </button>
@@ -970,7 +1041,7 @@ export default function DeltaForcePage() {
           </form>
 
 
-                    {/* =========================
+          {/* =========================
               CONFIRMACIÓN
           ========================== */}
 
@@ -1036,8 +1107,11 @@ export default function DeltaForcePage() {
                   type="button"
                   className="finish-order-button"
                   onClick={createOrder}
+                  disabled={creatingOrder}
                 >
-                  CONFIRMAR PEDIDO
+                  {creatingOrder
+                    ? "PROCESANDO..."
+                    : "CONFIRMAR PEDIDO"}
                 </button>
 
               </section>
