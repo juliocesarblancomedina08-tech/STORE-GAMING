@@ -46,15 +46,6 @@ export default function FreeFireLatamPage() {
     setOrderNumber("");
     setSupplierOrderId("");
     setOrderStatus("");
-
-    setTimeout(() => {
-      document
-        .getElementById("order-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
   }
 
   async function createOrder() {
@@ -139,26 +130,8 @@ export default function FreeFireLatamPage() {
 
       /*
        * ============================================================
-       * 4. ENVIAR PEDIDO AL SERVIDOR
+       * 4. ENVIAR PEDIDO
        * ============================================================
-       *
-       * IMPORTANTE:
-       *
-       * Enviamos el ID INTERNO de la oferta:
-       *
-       * ff-110
-       * ff-341
-       * ff-572
-       * etc.
-       *
-       * El servidor es quien obtiene:
-       *
-       * supplierOfferId
-       *
-       * y lo envía al reseller.
-       *
-       * De esta manera el navegador no controla
-       * directamente la oferta del proveedor.
        */
 
       const response =
@@ -282,7 +255,7 @@ export default function FreeFireLatamPage() {
     }
   }
 
-  function handleFinishPurchase(
+  function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
@@ -291,628 +264,993 @@ export default function FreeFireLatamPage() {
       return;
     }
 
-    if (!selectedOffer) {
-      setError(
-        "Seleccione una oferta."
-      );
-      return;
-    }
-
-    const cleanId =
-      playerId
-        .trim()
-        .replace(/\s+/g, "");
-
-    if (!cleanId) {
-      setError(
-        "Ponga el ID de su cuenta."
-      );
-      return;
-    }
-
-    if (
-      !/^[0-9]+$/.test(
-        cleanId
-      )
-    ) {
-      setError(
-        "El ID debe contener solamente números."
-      );
-      return;
-    }
-
-    if (
-      cleanId.length < 4 ||
-      cleanId.length > 20
-    ) {
-      setError(
-        "El ID parece no tener un formato válido."
-      );
-      return;
-    }
-
-    setError("");
-
-    createOrder();
-  }
-
-  function goToOrders() {
-    router.push("/orders");
+    void createOrder();
   }
 
   return (
-    <main className="game-service-page free-fire-page">
+    <main className="free-fire-page">
 
       {/* ============================================================
           HEADER
-      ============================================================ */}
+          ============================================================ */}
 
-      <header className="game-service-header">
+      <header className="free-fire-header">
 
         <button
           type="button"
-          className="game-back-button"
+          className="free-fire-back-button"
           onClick={() =>
-            router.push("/home")
+            router.push("/top-up")
           }
         >
           ←
         </button>
 
-        <div className="game-header-title">
+        <h1>
+          Free Fire LATAM
+        </h1>
 
-          <span>
-            STORE GAMING
-          </span>
-
-          <strong>
-            FREE FIRE LATAM
-          </strong>
-
-        </div>
-
-        <button
-          type="button"
-          className="game-cart-button"
-          onClick={() =>
-            router.push("/cart")
-          }
-        >
-          🛒
-        </button>
+        <div className="free-fire-header-space" />
 
       </header>
 
       {/* ============================================================
-          IMAGEN PRINCIPAL
-      ============================================================ */}
+          CONTENIDO
+          ============================================================ */}
 
-      <section className="free-fire-main-image">
+      <section className="free-fire-content">
 
-        <img
-          src="/images/free-fire-latam.jpg"
-          alt="Free Fire LATAM"
-        />
+        {/* ============================================================
+            BANNER
+            ============================================================ */}
 
-        <div className="free-fire-main-overlay" />
+        <div className="free-fire-banner">
 
-        <div className="free-fire-main-text">
+          <img
+            src="/images/free-fire-latam.jpg"
+            alt="Free Fire LATAM"
+          />
 
-          <span>
-            ⚡ TOP UP
-          </span>
+        </div>
 
-          <h1>
-            FREE FIRE
-            <strong>
-              LATAM
-            </strong>
-          </h1>
+        {/* ============================================================
+            INFORMACIÓN
+            ============================================================ */}
+
+        <div className="free-fire-note">
+
+          <strong>
+            🌎 Región LATAM
+          </strong>
 
           <p>
-            Diamantes, pases y membresías
+            Recarga de Free Fire LATAM.
+            Selecciona tu oferta e introduce
+            el ID de la cuenta donde deseas
+            recibir la compra.
           </p>
 
         </div>
 
-      </section>
+        {/* ============================================================
+            BOTÓN OFERTAS
+            ============================================================ */}
 
-      {/* ============================================================
-          BOTÓN PARA MOSTRAR OFERTAS
-      ============================================================ */}
+        <button
+          type="button"
+          className="free-fire-offers-toggle"
+          onClick={() => {
+            setShowOffers(
+              (value) => !value
+            );
 
-      <button
-        type="button"
-        className="offers-toggle"
-        onClick={() =>
-          setShowOffers(
-            (current) => !current
-          )
-        }
-      >
-
-        <span className="offers-toggle-text">
-
-          ✎
-
-          <strong>
-            PRESIONE PARA VER OFERTAS
-          </strong>
-
-        </span>
-
-        <span className="offers-toggle-pencil">
-          ✎
-        </span>
-
-      </button>
-
-      {/* ============================================================
-          OFERTAS
-      ============================================================ */}
-
-      {showOffers && (
-
-        <section className="offers-section">
-
-          <div className="offers-heading">
-
-            <div>
-
-              <span>
-                FREE FIRE LATAM
-              </span>
-
-              <h2>
-                ELIGE TU OFERTA
-              </h2>
-
-            </div>
-
-          </div>
-
-          <div className="offers-list">
-
-            {FREE_FIRE_LATAM.offers.map(
-              (offer) => {
-
-                const selected =
-                  selectedOffer?.id ===
-                  offer.id;
-
-                return (
-
-                  <button
-                    key={offer.id}
-                    type="button"
-                    className={`offer-card ${
-                      selected
-                        ? "selected"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      selectOffer(
-                        offer
-                      )
-                    }
-                  >
-
-                    <div className="offer-left">
-
-                      <div className="diamond-icon">
-                        {offer.icon}
-                      </div>
-
-                      <div className="offer-info">
-
-                        <strong>
-                          {offer.display}
-                        </strong>
-
-                        <span>
-                          {offer.name}
-                        </span>
-
-                      </div>
-
-                    </div>
-
-                    <div className="offer-right">
-
-                      <strong>
-                        {offer.price.toFixed(2)}$
-                      </strong>
-
-                      <span>
-                        SELECCIONAR →
-                      </span>
-
-                    </div>
-
-                  </button>
-
-                );
-              }
-            )}
-
-          </div>
-
-          <div className="game-note">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {FREE_FIRE_LATAM.note}
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
-      )}
-
-      {/* ============================================================
-          DATOS DEL PEDIDO
-      ============================================================ */}
-
-      {selectedOffer && !orderCreated && (
-
-        <section
-          id="order-section"
-          className="order-section"
+            setError("");
+          }}
         >
 
-          <div className="section-title">
+          <span>
+            ✏️ Presione para ver ofertas
+          </span>
 
-            <span>
-              01
-            </span>
+          <span className="free-fire-offers-arrow">
+            {showOffers
+              ? "▲"
+              : "▼"}
+          </span>
 
-            <div>
+        </button>
 
-              <small>
-                TU SELECCIÓN
-              </small>
+        {/* ============================================================
+            OFERTAS
+            ============================================================ */}
 
-              <h2>
-                DATOS DEL PEDIDO
-              </h2>
+        {showOffers && (
+
+          <section className="free-fire-offers-section">
+
+            <div className="free-fire-offers-list">
+
+              {FREE_FIRE_LATAM.offers.map(
+                (offer) => {
+
+                  const selected =
+                    selectedOffer?.id ===
+                    offer.id;
+
+                  return (
+
+                    <button
+                      key={offer.id}
+                      type="button"
+                      className={`free-fire-offer ${
+                        selected
+                          ? "selected"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        selectOffer(
+                          offer
+                        )
+                      }
+                    >
+
+                      <div className="free-fire-offer-left">
+
+                        <span className="free-fire-offer-icon">
+                          {offer.icon}
+                        </span>
+
+                        <div>
+
+                          <strong>
+                            {offer.display}
+                          </strong>
+
+                          <small>
+                            {offer.name}
+                          </small>
+
+                        </div>
+
+                      </div>
+
+                      <div className="free-fire-offer-price">
+
+                        {offer.price.toFixed(2)}$
+
+                      </div>
+
+                    </button>
+
+                  );
+                }
+              )}
 
             </div>
 
-          </div>
+          </section>
 
-          {/* OFERTA SELECCIONADA */}
+        )}
 
-          <div className="selected-order-card">
+        {/* ============================================================
+            FORMULARIO
+            ============================================================ */}
 
-            <div className="selected-order-icon">
-              {selectedOffer.icon}
-            </div>
+        {selectedOffer &&
+          !orderCreated && (
 
-            <div className="selected-order-info">
+            <section
+              id="free-fire-order-form"
+              className="free-fire-order-section"
+            >
 
-              <span>
-                FREE FIRE LATAM
-              </span>
+              {/* OFERTA SELECCIONADA */}
 
-              <strong>
-                {selectedOffer.name}
-              </strong>
+              <div className="free-fire-selected-offer">
 
-            </div>
+                <span>
+                  {selectedOffer.icon}
+                </span>
 
-            <div className="selected-order-price">
-              {selectedOffer.price.toFixed(2)}$
-            </div>
+                <div>
 
-          </div>
+                  <strong>
+                    {selectedOffer.name}
+                  </strong>
 
-          {/* NOTA */}
+                  <span>
+                    {selectedOffer.price.toFixed(2)}$
+                  </span>
 
-          <div className="game-note game-note-order">
+                </div>
 
-            <div className="game-note-icon">
-              !
-            </div>
+              </div>
 
-            <div className="game-note-content">
+              {/* FORMULARIO */}
 
-              <strong>
-                NOTA
-              </strong>
+              <form
+                onSubmit={
+                  handleSubmit
+                }
+              >
 
-              <p>
-                {FREE_FIRE_LATAM.note}
-              </p>
+                <label
+                  htmlFor="free-fire-player-id"
+                >
+                  ID DEL JUGADOR
+                </label>
 
-            </div>
+                <input
+                  id="free-fire-player-id"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="Introduzca su ID"
+                  value={playerId}
+                  onChange={(event) =>
+                    setPlayerId(
+                      event.target.value.replace(
+                        /[^0-9]/g,
+                        ""
+                      )
+                    )
+                  }
+                  maxLength={20}
+                  disabled={processing}
+                />
 
-          </div>
+                {/* ERROR */}
 
-          {/* FORMULARIO */}
+                {error && (
 
-          <form
-            onSubmit={
-              handleFinishPurchase
-            }
-            className="order-form"
+                  <div className="free-fire-form-error">
+                    {error}
+                  </div>
+
+                )}
+
+                {/* BOTÓN */}
+
+                <button
+                  type="submit"
+                  className="free-fire-create-order-button"
+                  disabled={processing}
+                >
+
+                  {processing
+                    ? "FINALIZANDO ORDEN..."
+                    : "FINALIZAR ORDEN"}
+
+                </button>
+
+              </form>
+
+            </section>
+
+          )}
+
+        {/* ============================================================
+            ORDEN CREADA
+            ============================================================ */}
+
+        {orderCreated && (
+
+          <section
+            id="success-section"
+            className="free-fire-success-section"
           >
 
-            <label
-              htmlFor="free-fire-player-id"
-              className="player-id-label"
-            >
-              PONGA SU ID
-            </label>
-
-            <p className="player-id-description">
-              Introduzca el ID de la cuenta
-              donde desea recibir la compra.
-            </p>
-
-            <div className="player-id-input-wrapper">
-
-              <span>
-                🆔
-              </span>
-
-              <input
-                id="free-fire-player-id"
-                type="text"
-                inputMode="numeric"
-                value={playerId}
-                onChange={(event) =>
-                  setPlayerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
-                  )
-                }
-                placeholder="Introduzca su ID"
-                autoComplete="off"
-                maxLength={20}
-                disabled={processing}
-              />
-
+            <div className="free-fire-success-icon">
+              ✓
             </div>
 
-            {/* ERROR */}
+            <h2>
+              Orden creada
+            </h2>
 
-            {error && (
+            <p>
+              Tu pedido de Free Fire LATAM
+              fue creado correctamente.
+            </p>
 
-              <div className="order-error">
-                {error}
+            {orderNumber && (
+
+              <div className="free-fire-order-number">
+
+                <span>
+                  Número de orden
+                </span>
+
+                <strong>
+                  {orderNumber}
+                </strong>
+
               </div>
 
             )}
 
-            {/* PRECIO */}
+            {supplierOrderId && (
 
-            <div className="order-total-preview">
+              <div className="free-fire-order-number">
 
-              <span>
-                PRECIO
-              </span>
+                <span>
+                  ID DE ORDEN DEL PROVEEDOR
+                </span>
 
-              <strong>
-                {selectedOffer.price.toFixed(2)}$
-              </strong>
+                <strong>
+                  {supplierOrderId}
+                </strong>
 
-            </div>
+              </div>
 
-            {/* FINALIZAR COMPRA */}
+            )}
+
+            {orderStatus && (
+
+              <div className="free-fire-order-number">
+
+                <span>
+                  ESTADO
+                </span>
+
+                <strong>
+                  {orderStatus}
+                </strong>
+
+              </div>
+
+            )}
 
             <button
-              type="submit"
-              className="finish-order-button"
-              disabled={processing}
+              type="button"
+              className="free-fire-review-button"
+              onClick={() =>
+                router.push("/orders")
+              }
             >
-
-              <span>
-                {processing
-                  ? "PROCESANDO COMPRA..."
-                  : "FINALIZAR COMPRA"}
-              </span>
-
-              <b>
-                →
-              </b>
-
+              Revisar orden
             </button>
 
-          </form>
+            <button
+              type="button"
+              className="free-fire-store-button"
+              onClick={() =>
+                router.push("/top-up")
+              }
+            >
+              Volver a la tienda
+            </button>
 
-        </section>
+          </section>
 
-      )}
-
-      {/* ============================================================
-          ORDEN CREADA
-      ============================================================ */}
-
-      {orderCreated && (
-
-        <section
-          id="success-section"
-          className="order-success-section"
-        >
-
-          <div className="success-circle">
-            ✓
-          </div>
-
-          <h2>
-            ORDEN CREADA
-          </h2>
-
-          <p>
-            Su orden ha sido creada
-            correctamente y está siendo
-            procesada.
-          </p>
-
-          <div className="success-order-number">
-
-            <span>
-              NÚMERO DE ORDEN
-            </span>
-
-            <strong>
-              #{orderNumber}
-            </strong>
-
-          </div>
-
-          {supplierOrderId && (
-
-            <div className="success-order-number">
-
-              <span>
-                ID DE ORDEN DEL PROVEEDOR
-              </span>
-
-              <strong>
-                #{supplierOrderId}
-              </strong>
-
-            </div>
-
-          )}
-
-          {orderStatus && (
-
-            <div className="success-order-number">
-
-              <span>
-                ESTADO
-              </span>
-
-              <strong>
-                {orderStatus}
-              </strong>
-
-            </div>
-
-          )}
-
-          <button
-            type="button"
-            className="view-orders-button"
-            onClick={
-              goToOrders
-            }
-          >
-
-            REVISAR ORDEN
-
-            <span>
-              →
-            </span>
-
-          </button>
-
-        </section>
-
-      )}
-
-      {/* ============================================================
-          INFORMACIÓN DEL SERVICIO
-      ============================================================ */}
-
-      <section className="service-info">
-
-        <div className="service-info-item">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🔒
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              FREE FIRE LATAM
-            </strong>
-
-            <p>
-              Diamantes, pases y
-              membresías.
-            </p>
-
-          </div>
-
-        </div>
+        )}
 
       </section>
 
       {/* ============================================================
           FOOTER
-      ============================================================ */}
+          ============================================================ */}
 
-      <footer className="game-service-footer">
-
-        <strong>
-          🛒STORE GAMING🎮
-        </strong>
-
-        <span>
-          FREE FIRE LATAM TOP UP
-        </span>
-
+      <footer className="free-fire-footer">
+        🛒 STORE GAMING 🎮
       </footer>
+
+      {/* ============================================================
+          ESTILOS
+          ============================================================ */}
+
+      <style jsx>{`
+
+        .free-fire-page {
+          min-height: 100vh;
+          color: #fff;
+
+          background:
+            linear-gradient(
+              rgba(0, 0, 0, 0.72),
+              rgba(0, 0, 0, 0.86)
+            ),
+            url("/images/battle-royale-bg.jpg")
+              center / cover fixed;
+
+          padding-bottom: 30px;
+        }
+
+        /* ==========================================================
+           HEADER
+           ========================================================== */
+
+        .free-fire-header {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          min-height: 58px;
+          padding: 8px 12px;
+
+          background: rgba(0, 0, 0, 0.88);
+
+          border-bottom:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+
+          backdrop-filter: blur(10px);
+        }
+
+        .free-fire-header h1 {
+          margin: 0;
+
+          font-size: 19px;
+          font-weight: 800;
+
+          text-align: center;
+        }
+
+        .free-fire-back-button {
+          width: 40px;
+          height: 40px;
+
+          border: 0;
+          border-radius: 10px;
+
+          background:
+            rgba(255, 255, 255, 0.08);
+
+          color: #fff;
+
+          font-size: 25px;
+
+          cursor: pointer;
+        }
+
+        .free-fire-header-space {
+          width: 40px;
+        }
+
+        /* ==========================================================
+           CONTENIDO
+           ========================================================== */
+
+        .free-fire-content {
+          width: min(100%, 680px);
+
+          margin: 0 auto;
+
+          padding:
+            0 12px 30px;
+        }
+
+        /* ==========================================================
+           BANNER
+           ========================================================== */
+
+        .free-fire-banner {
+          width:
+            calc(100% + 24px);
+
+          margin-left: -12px;
+
+          overflow: hidden;
+        }
+
+        .free-fire-banner img {
+          display: block;
+
+          width: 100%;
+
+          height: 210px;
+
+          object-fit: cover;
+        }
+
+        /* ==========================================================
+           INFORMACIÓN
+           ========================================================== */
+
+        .free-fire-note {
+          margin-top: 14px;
+
+          padding: 14px;
+
+          border-radius: 14px;
+
+          background:
+            rgba(0, 0, 0, 0.68);
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+        }
+
+        .free-fire-note strong {
+          color: #fff;
+
+          font-size: 15px;
+        }
+
+        .free-fire-note p {
+          margin:
+            7px 0 0;
+
+          color: #d8d8d8;
+
+          font-size: 13px;
+
+          line-height: 1.5;
+        }
+
+        /* ==========================================================
+           BOTÓN OFERTAS
+           ========================================================== */
+
+        .free-fire-offers-toggle {
+          width: 100%;
+
+          margin-top: 14px;
+
+          padding: 15px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.12);
+
+          border-radius: 13px;
+
+          background:
+            rgba(0, 0, 0, 0.78);
+
+          color: #fff;
+
+          font-size: 14px;
+
+          font-weight: 800;
+
+          cursor: pointer;
+        }
+
+        .free-fire-offers-arrow {
+          font-size: 12px;
+        }
+
+        /* ==========================================================
+           OFERTAS
+           ========================================================== */
+
+        .free-fire-offers-section {
+          margin-top: 10px;
+        }
+
+        .free-fire-offers-list {
+          display: flex;
+
+          flex-direction: column;
+
+          gap: 8px;
+        }
+
+        .free-fire-offer {
+          width: 100%;
+
+          min-height: 65px;
+
+          padding:
+            10px 12px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          gap: 10px;
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+
+          border-radius: 13px;
+
+          background:
+            rgba(0, 0, 0, 0.78);
+
+          color: #fff;
+
+          text-align: left;
+
+          cursor: pointer;
+
+          transition:
+            0.15s ease;
+        }
+
+        .free-fire-offer:active {
+          transform:
+            scale(0.98);
+        }
+
+        .free-fire-offer.selected {
+          border-color:
+            rgba(255, 50, 50, 0.8);
+
+          background:
+            rgba(120, 0, 0, 0.3);
+        }
+
+        .free-fire-offer-left {
+          display: flex;
+
+          align-items: center;
+
+          gap: 10px;
+
+          min-width: 0;
+        }
+
+        .free-fire-offer-icon {
+          width: 38px;
+          height: 38px;
+
+          flex: 0 0 38px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          border-radius: 10px;
+
+                    background:
+            rgba(255, 255, 255, 0.08);
+
+          font-size: 21px;
+        }
+
+        .free-fire-offer-left strong {
+          display: block;
+
+          font-size: 14px;
+        }
+
+        .free-fire-offer-left small {
+          display: block;
+
+          margin-top: 3px;
+
+          color: #aaa;
+
+          font-size: 11px;
+        }
+
+        .free-fire-offer-price {
+          flex-shrink: 0;
+
+          color: #fff;
+
+          font-size: 14px;
+
+          font-weight: 900;
+        }
+
+        /* ==========================================================
+           FORMULARIO
+           ========================================================== */
+
+        .free-fire-order-section {
+          margin-top: 16px;
+
+          padding: 16px;
+
+          border-radius: 15px;
+
+          background:
+            rgba(0, 0, 0, 0.82);
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+        }
+
+        .free-fire-selected-offer {
+          display: flex;
+
+          align-items: center;
+
+          gap: 11px;
+
+          margin-bottom: 15px;
+
+          padding: 12px;
+
+          border-radius: 12px;
+
+          background:
+            rgba(255, 255, 255, 0.06);
+        }
+
+        .free-fire-selected-offer > span {
+          font-size: 25px;
+        }
+
+        .free-fire-selected-offer div {
+          flex: 1;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          gap: 10px;
+        }
+
+        .free-fire-selected-offer strong {
+          font-size: 14px;
+        }
+
+        .free-fire-selected-offer div span {
+          font-weight: 900;
+
+          white-space: nowrap;
+        }
+
+        .free-fire-order-section form {
+          display: flex;
+
+          flex-direction: column;
+        }
+
+        .free-fire-order-section label {
+          margin-bottom: 7px;
+
+          font-size: 13px;
+
+          font-weight: 800;
+        }
+
+        .free-fire-order-section input {
+          width: 100%;
+
+          box-sizing: border-box;
+
+          padding: 13px;
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.16);
+
+          border-radius: 11px;
+
+          outline: none;
+
+          background:
+            rgba(255, 255, 255, 0.07);
+
+          color: #fff;
+
+          font-size: 15px;
+        }
+
+        .free-fire-order-section input::placeholder {
+          color: #888;
+        }
+
+        .free-fire-form-error {
+          margin-top: 8px;
+
+          padding: 9px;
+
+          border-radius: 9px;
+
+          background:
+            rgba(150, 0, 0, 0.25);
+
+          color: #ff9b9b;
+
+          font-size: 12px;
+        }
+
+        /* ==========================================================
+           BOTÓN CREAR ORDEN
+           ========================================================== */
+
+        .free-fire-create-order-button {
+          width: 100%;
+
+          margin-top: 12px;
+
+          padding: 13px;
+
+          border: 0;
+
+          border-radius: 11px;
+
+          background: #d71920;
+
+          color: #fff;
+
+          font-weight: 900;
+
+          cursor: pointer;
+        }
+
+        .free-fire-create-order-button:disabled {
+          opacity: 0.6;
+
+          cursor: wait;
+        }
+
+        /* ==========================================================
+           ORDEN CREADA
+           ========================================================== */
+
+        .free-fire-success-section {
+          margin-top: 18px;
+
+          padding:
+            22px 16px;
+
+          border-radius: 16px;
+
+          background:
+            rgba(0, 0, 0, 0.84);
+
+          border:
+            1px solid
+            rgba(50, 255, 100, 0.2);
+
+          text-align: center;
+        }
+
+        .free-fire-success-icon {
+          width: 58px;
+          height: 58px;
+
+          margin:
+            0 auto 10px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          border-radius: 50%;
+
+          background: #19a957;
+
+          color: #fff;
+
+          font-size: 31px;
+
+          font-weight: 900;
+        }
+
+        .free-fire-success-section h2 {
+          margin: 0;
+
+          font-size: 21px;
+        }
+
+        .free-fire-success-section p {
+          margin:
+            8px 0;
+
+          color: #cfcfcf;
+
+          font-size: 13px;
+        }
+
+        .free-fire-order-number {
+          margin-top: 13px;
+
+          padding: 12px;
+
+          border-radius: 10px;
+
+          background:
+            rgba(255, 255, 255, 0.06);
+        }
+
+        .free-fire-order-number span {
+          display: block;
+
+          color: #999;
+
+          font-size: 11px;
+        }
+
+        .free-fire-order-number strong {
+          display: block;
+
+          margin-top: 4px;
+
+          font-size: 16px;
+        }
+
+        /* ==========================================================
+           BOTONES FINALES
+           ========================================================== */
+
+        .free-fire-review-button,
+        .free-fire-store-button {
+          width: 100%;
+
+          margin-top: 12px;
+
+          padding: 13px;
+
+          border: 0;
+
+          border-radius: 11px;
+
+          font-weight: 900;
+
+          cursor: pointer;
+        }
+
+        .free-fire-review-button {
+          background: #19a957;
+
+          color: #fff;
+        }
+
+        .free-fire-store-button {
+          background:
+            rgba(255, 255, 255, 0.1);
+
+          color: #fff;
+        }
+
+        /* ==========================================================
+           FOOTER
+           ========================================================== */
+
+        .free-fire-footer {
+          padding:
+            25px 12px 5px;
+
+          color: #888;
+
+          font-size: 12px;
+
+          text-align: center;
+        }
+
+        /* ==========================================================
+           MÓVIL
+           ========================================================== */
+
+        @media (max-width: 480px) {
+
+          .free-fire-banner img {
+            height: 185px;
+          }
+
+          .free-fire-selected-offer div {
+            flex-direction: column;
+
+            align-items: flex-start;
+          }
+
+          .free-fire-offer-price {
+            font-size: 13px;
+          }
+
+        }
+
+      `}</style>
 
     </main>
   );
-  }
+}
