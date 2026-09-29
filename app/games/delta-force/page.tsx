@@ -874,7 +874,7 @@ export default function DeltaForcePage() {
       )}
 
 
-      {/* =========================
+            {/* =========================
           DATOS DEL PEDIDO
       ========================== */}
 
@@ -905,17 +905,16 @@ export default function DeltaForcePage() {
 
           </div>
 
+          <div className="selected-offer">
 
-          <div className="selected-order-card">
-
-            <div className="selected-order-icon">
+            <div className="selected-offer-icon">
               {selectedOffer.icon}
             </div>
 
-            <div className="selected-order-info">
+            <div className="selected-offer-info">
 
               <span>
-                DELTA FORCE
+                OFERTA SELECCIONADA
               </span>
 
               <strong>
@@ -924,48 +923,19 @@ export default function DeltaForcePage() {
 
             </div>
 
-            <div className="selected-order-price">
-
-              {selectedOffer.price.toFixed(
-                2
-              )}
-              $
-
+            <div className="selected-offer-price">
+              ${selectedOffer.price.toFixed(2)}
             </div>
 
           </div>
 
-
-          <div className="game-note game-note-order">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {gameNote}
-              </p>
-
-            </div>
-
-          </div>
-
-
-          {          /* =========================
+          {/* =========================
               FORMULARIO
           ========================== */}
 
           <form
             className="order-form"
-            onSubmit={
-              handleFinishPurchase
-            }
+            onSubmit={handleFinishPurchase}
           >
 
             <label
@@ -1016,3 +986,7 @@ export default function DeltaForcePage() {
             </button>
 
           </form>
+
+        </section>
+
+      )}
