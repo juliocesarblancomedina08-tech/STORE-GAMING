@@ -126,13 +126,9 @@ function jsonError(
   );
 }
 
-function getBearerToken(
-  request: NextRequest
-) {
+function getBearerToken(request: NextRequest) {
   const authorization =
-    request.headers.get(
-      "authorization"
-    ) || "";
+    request.headers.get("authorization") || "";
 
   if (
     !authorization
@@ -142,39 +138,24 @@ function getBearerToken(
     return null;
   }
 
-  return (
-    authorization
-      .slice(7)
-      .trim() || null
-  );
+  return authorization.slice(7).trim() || null;
 }
 
-function normalizeIdempotencyKey(
-  value: unknown
-) {
-  if (
-    typeof value !==
-    "string"
-  ) {
+function normalizeIdempotencyKey(value: unknown) {
+  if (typeof value !== "string") {
     return null;
   }
 
-  const clean =
-    value.trim();
+  const clean = value.trim();
 
   if (!clean) {
     return null;
   }
 
-  return clean.slice(
-    0,
-    255
-  );
+  return clean.slice(0, 255);
 }
 
-function getSupplierOrderId(
-  data: any
-): string | null {
+function getSupplierOrderId(data: any): string | null {
   return (
     data?.order?.id ??
     data?.data?.order?.id ??
@@ -187,9 +168,7 @@ function getSupplierOrderId(
   );
 }
 
-function getSupplierStatus(
-  data: any
-): string | null {
+function getSupplierStatus(data: any): string | null {
   return (
     data?.order?.status ??
     data?.data?.order?.status ??
@@ -213,18 +192,11 @@ function isSuccessfulSupplierStatus(
     "successful",
     "delivered",
     "done",
-  ].includes(
-    status.toLowerCase()
-  );
+  ].includes(status.toLowerCase());
 }
 
-function isSupplierRejection(
-  data: any
-) {
-  const status =
-    getSupplierStatus(
-      data
-    );
+function isSupplierRejection(data: any) {
+  const status = getSupplierStatus(data);
 
   if (
     status &&
@@ -237,28 +209,20 @@ function isSupplierRejection(
       "declined",
       "refunded",
       "error",
-    ].includes(
-      status.toLowerCase()
-    )
+    ].includes(status.toLowerCase())
   ) {
     return true;
   }
 
-  if (
-    data?.ok === false
-  ) {
+  if (data?.ok === false) {
     return true;
   }
 
   return false;
 }
 
-export async function POST(
-  request: NextRequest
-) {
-  let internalOrderId:
-    | string
-    | null = null;
+export async function POST(request: NextRequest) {
+  let internalOrderId: string | null = null;
 
   let reserved = false;
 
@@ -270,9 +234,7 @@ export async function POST(
      */
 
     const accessToken =
-      getBearerToken(
-        request
-      );
+      getBearerToken(request);
 
     if (!accessToken) {
       return jsonError(
@@ -312,27 +274,22 @@ export async function POST(
       await request.json();
 
     const offerId =
-      typeof body?.offerId ===
-      "string"
+      typeof body?.offerId === "string"
         ? body.offerId.trim()
         : "";
 
     const offerName =
-      typeof body?.offerName ===
-      "string"
+      typeof body?.offerName === "string"
         ? body.offerName.trim()
         : "";
 
     const playerId =
-      typeof body?.playerId ===
-      "string"
+      typeof body?.playerId === "string"
         ? body.playerId.trim()
         : "";
 
     const requestedRetailPrice =
-      Number(
-        body?.retailPrice
-      );
+      Number(body?.retailPrice);
 
     const idempotencyKey =
       normalizeIdempotencyKey(
@@ -358,19 +315,13 @@ export async function POST(
       );
     }
 
-    if (
-      !/^[0-9]+$/.test(
-        playerId
-      )
-    ) {
+    if (!/^[0-9]+$/.test(playerId)) {
       return jsonError(
         "El Player ID solo puede contener números."
       );
     }
 
-    if (
-      playerId.length < 4
-    ) {
+    if (playerId.length < 4) {
       return jsonError(
         "El Player ID parece demasiado corto."
       );
@@ -385,8 +336,7 @@ export async function POST(
     const offer =
       OFFERS.find(
         (item) =>
-          item.id ===
-          offerId
+          item.id === offerId
       );
 
     if (!offer) {
@@ -396,14 +346,10 @@ export async function POST(
     }
 
     const retailPrice =
-      Number(
-        offer.retailPrice
-      );
+      Number(offer.retailPrice);
 
     const supplierPrice =
-      Number(
-        offer.supplierPrice
-      );
+      Number(offer.supplierPrice);
 
     if (
       Number.isFinite(
@@ -431,9 +377,7 @@ export async function POST(
       error: existingOrderError,
     } =
       await supabaseAdmin
-        .from(
-          "topup_orders"
-        )
+        .from("topup_orders")
         .select(
           [
             "id",
@@ -456,9 +400,7 @@ export async function POST(
       existingOrderRaw as unknown as
         | {
             id: string;
-            status:
-              | string
-              | null;
+            status: string | null;
             supplier_order_id:
               | string
               | null;
@@ -480,9 +422,7 @@ export async function POST(
           }
         | null;
 
-    if (
-      existingOrderError
-    ) {
+    if (existingOrderError) {
       console.error(
         "ERROR BUSCANDO IDEMPOTENCIA:",
         existingOrderError
@@ -494,14 +434,10 @@ export async function POST(
       );
     }
 
-    if (
-      existingOrderData
-    ) {
+    if (existingOrderData) {
       return NextResponse.json({
         ok: true,
-
-        alreadyCreated:
-          true,
+        alreadyCreated: true,
 
         orderNumber:
           existingOrderData.id,
@@ -541,18 +477,11 @@ export async function POST(
     } =
       await supabaseAdmin
         .from("profiles")
-        .select(
-          "id,email,balance"
-        )
-        .eq(
-          "id",
-          user.id
-        )
+        .select("id,email,balance")
+        .eq("id", user.id)
         .maybeSingle();
 
-    if (
-      profileError
-    ) {
+    if (profileError) {
       console.error(
         "ERROR OBTENIENDO PERFIL:",
         profileError
@@ -582,12 +511,9 @@ export async function POST(
       error: insertOrderError,
     } =
       await supabaseAdmin
-        .from(
-          "topup_orders"
-        )
+        .from("topup_orders")
         .insert({
-          user_id:
-            user.id,
+          user_id: user.id,
 
           username:
             user.user_metadata
@@ -601,8 +527,7 @@ export async function POST(
             user.email ??
             null,
 
-          game:
-            "Delta Force",
+          game: "Delta Force",
 
           category_id:
             CATEGORY_ID,
@@ -636,9 +561,7 @@ export async function POST(
               playerId,
           },
         })
-        .select(
-          "id"
-        )
+        .select("id")
         .single();
 
     if (
@@ -679,18 +602,14 @@ export async function POST(
         }
       );
 
-    if (
-      reserveError
-    ) {
+    if (reserveError) {
       console.error(
         "ERROR RESERVANDO SALDO:",
         reserveError
       );
 
       await supabaseAdmin
-        .from(
-          "topup_orders"
-        )
+        .from("topup_orders")
         .update({
           status:
             "FAILED",
@@ -735,8 +654,7 @@ export async function POST(
      */
 
     const fazerApiKey =
-      process.env
-        .FAZERCARDS_API_KEY;
+      process.env.FAZERCARDS_API_KEY;
 
     if (!fazerApiKey) {
       await supabaseAdmin.rpc(
@@ -818,9 +736,7 @@ export async function POST(
       );
 
       await supabaseAdmin
-        .from(
-          "topup_orders"
-        )
+        .from("topup_orders")
         .update({
           status:
             "SUPPLIER_PENDING",
@@ -941,13 +857,9 @@ export async function POST(
           }
         );
 
-      if (
-        refundError
-      ) {
+      if (refundError) {
         await supabaseAdmin
-          .from(
-            "topup_orders"
-          )
+          .from("topup_orders")
           .update({
             status:
               "REFUND_PENDING",
@@ -1003,13 +915,9 @@ export async function POST(
      * ============================================================
      */
 
-    if (
-      !supplierOrderId
-    ) {
+    if (!supplierOrderId) {
       await supabaseAdmin
-        .from(
-          "topup_orders"
-        )
+        .from("topup_orders")
         .update({
           status:
             "SUPPLIER_PENDING",
@@ -1089,9 +997,7 @@ export async function POST(
       error: updateError,
     } =
       await supabaseAdmin
-        .from(
-          "topup_orders"
-        )
+        .from("topup_orders")
         .update({
           supplier_order_id:
             supplierOrderId,
@@ -1110,9 +1016,7 @@ export async function POST(
           internalOrderId
         );
 
-    if (
-      updateError
-    ) {
+    if (updateError) {
       console.error(
         "ERROR ACTUALIZANDO ORDEN:",
         updateError
@@ -1167,19 +1071,9 @@ export async function POST(
       error
     );
 
-    /*
-     * Si algo falla después de crear la orden,
-     * no hacemos un reembolso automático porque
-     * FazerCards podría haber recibido la solicitud.
-     */
-
-    if (
-      internalOrderId
-    ) {
+    if (internalOrderId) {
       await supabaseAdmin
-        .from(
-          "topup_orders"
-        )
+        .from("topup_orders")
         .update({
           status:
             reserved
