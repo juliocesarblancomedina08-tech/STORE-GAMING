@@ -66,16 +66,13 @@ export default function DeltaForcePage() {
 
   const [offers, setOffers] = useState<DeltaOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(true);
-
   const [offersOpen, setOffersOpen] = useState(false);
 
   const [selectedOffer, setSelectedOffer] =
     useState<DeltaOffer | null>(null);
 
   const [playerId, setPlayerId] = useState("");
-
   const [processing, setProcessing] = useState(false);
-
   const [error, setError] = useState("");
 
   const [orderCreated, setOrderCreated] = useState(false);
@@ -289,8 +286,11 @@ export default function DeltaForcePage() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
+
     void createOrder();
   }
 
@@ -787,108 +787,112 @@ export default function DeltaForcePage() {
         }
 
         .delta-create-order-button,
-.delta-review-button,
-.delta-store-button {
-  width: 100%;
-  margin-top: 12px;
-  padding: 13px;
-  border: 0;
-  border-radius: 11px;
-  font-weight: 900;
-  cursor: pointer;
-}
+        .delta-review-button,
+        .delta-store-button {
+          width: 100%;
+          margin-top: 12px;
+          padding: 13px;
+          border: 0;
+          border-radius: 11px;
+          font-weight: 900;
+          cursor: pointer;
+        }
 
-.delta-create-order-button {
-  background: #d71920;
-  color: #fff;
-}
+                .delta-create-order-button {
+          background: #d71920;
+          color: #fff;
+        }
 
-.delta-create-order-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
+        .delta-create-order-button:disabled {
+          opacity: 0.6;
+          cursor: wait;
+        }
 
-.delta-success-section {
-  margin-top: 18px;
-  padding: 22px 16px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.84);
-  border: 1px solid rgba(50, 255, 100, 0.2);
-  text-align: center;
-}
+        .delta-success-section {
+          margin-top: 18px;
+          padding: 22px 16px;
+          border-radius: 16px;
+          background: rgba(0, 0, 0, 0.84);
+          border: 1px solid rgba(50, 255, 100, 0.2);
+          text-align: center;
+        }
 
-.delta-success-icon {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #19a957;
-  color: #fff;
-  font-size: 31px;
-  font-weight: 900;
-}
+        .delta-success-icon {
+          width: 58px;
+          height: 58px;
+          margin: 0 auto 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: #19a957;
+          color: #fff;
+          font-size: 31px;
+          font-weight: 900;
+        }
 
-.delta-success-section h2 {
-  margin: 0;
-  font-size: 21px;
-}
+        .delta-success-section h2 {
+          margin: 0;
+          font-size: 21px;
+        }
 
-.delta-success-section p {
-  margin: 8px 0;
-  color: #cfcfcf;
-  font-size: 13px;
-}
+        .delta-success-section p {
+          margin: 8px 0;
+          color: #cfcfcf;
+          font-size: 13px;
+        }
 
-.delta-order-number {
-  margin-top: 13px;
-  padding: 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-}
+        .delta-order-number {
+          margin-top: 13px;
+          padding: 12px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.06);
+        }
 
-.delta-order-number span {
-  display: block;
-  color: #999;
-  font-size: 11px;
-}
+        .delta-order-number span {
+          display: block;
+          color: #999;
+          font-size: 11px;
+        }
 
-.delta-order-number strong {
-  display: block;
-  margin-top: 4px;
-  font-size: 16px;
-}
+        .delta-order-number strong {
+          display: block;
+          margin-top: 4px;
+          font-size: 16px;
+        }
 
-.delta-review-button {
-  background: #19a957;
-  color: #fff;
-}
+        .delta-review-button {
+          background: #19a957;
+          color: #fff;
+        }
 
-.delta-store-button {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
+        .delta-store-button {
+          background: rgba(255, 255, 255, 0.1);
+          color: #fff;
+        }
 
-.delta-force-footer {
-  padding: 25px 12px 5px;
-  color: #888;
-  font-size: 12px;
-  text-align: center;
-}
+        .delta-force-footer {
+          padding: 25px 12px 5px;
+          color: #888;
+          font-size: 12px;
+          text-align: center;
+        }
 
-@media (max-width: 480px) {
-  .delta-force-banner img {
-    height: 185px;
-  }
+        @media (max-width: 480px) {
+          .delta-force-banner img {
+            height: 185px;
+          }
 
-  .delta-selected-offer div {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+          .delta-selected-offer div {
+            flex-direction: column;
+            align-items: flex-start;
+          }
 
-  .delta-offer-price {
-    font-size: 13px;
-  }
+          .delta-offer-price {
+            font-size: 13px;
+          }
+        }
+      `}</style>
+    </main>
+  );
 }
