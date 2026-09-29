@@ -1,79 +1,116 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import {
+  FormEvent,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
 
-const gameNote =
-  "Región: Recarga de Mobile Legends en EE. UU. Ingresa tu ID de jugador y tu ID de servidor antes de realizar el pedido. Los diamantes se entregarán directamente a tu cuenta una vez realizado el pedido.";
+import { createClient } from "@supabase/supabase-js";
 
-const offers = [
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+type Offer = {
+  id: string;
+  name: string;
+  price: number;
+};
+
+const offers: Offer[] = [
   {
     id: "51_5_diamonds",
     name: "51 + 5 Diamantes",
-    display: "51 + 5💎",
-    price: 0.97,
-    icon: "💎",
+    price: 1.02,
   },
   {
     id: "weekly_diamond_pass",
-    name: "Pase Semanal de Diamantes",
-    display: "PASE SEMANAL",
-    price: 1.85,
-    icon: "🎟️",
+    name: "Pase semanal de diamantes",
+    price: 1.89,
   },
   {
     id: "253_25_diamonds",
     name: "253 + 25 Diamantes",
-    display: "253 + 25💎",
-    price: 4.45,
-    icon: "💎",
+    price: 4.49,
   },
   {
-    id: "505_66_diamonds",
+    id: "505_66_diamantes",
     name: "505 + 66 Diamantes",
-    display: "505 + 66💎",
-    price: 8.8,
-    icon: "💎",
+    price: 8.85,
   },
   {
-    id: "1010_182_diamonds",
+    id: "1010_182_diamantes",
     name: "1010 + 182 Diamantes",
-    display: "1010 + 182💎",
-    price: 17.45,
-    icon: "💎",
+    price: 17.49,
+  },
+  {
+    id: "1515_273_diamantes",
+    name: "1515 + 273 Diamantes",
+    price: 26.14,
+  },
+  {
+    id: "2525_480_diamantes",
+    name: "2525 + 480 Diamantes",
+    price: 43.47,
+  },
+  {
+    id: "3030_576_diamantes",
+    name: "3030 + 576 Diamantes",
+    price: 52.14,
+  },
+  {
+    id: "4008_802_diamantes",
+    name: "4008 + 802 Diamantes",
+    price: 69.47,
+  },
+  {
+    id: "5010_1002_diamantes",
+    name: "5010 + 1002 Diamantes",
+    price: 86.80,
   },
 ];
 
 export default function MobileLegendsPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
+  const [showOffers, setShowOffers] =
+    useState(false);
 
   const [selectedOffer, setSelectedOffer] =
-    useState<(typeof offers)[number] | null>(null);
+    useState<Offer | null>(null);
 
-  const [playerId, setPlayerId] = useState("");
-  const [serverId, setServerId] = useState("");
+  const [playerId, setPlayerId] =
+    useState("");
 
-  const [error, setError] = useState("");
+  const [serverId, setServerId] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
   const [showConfirmation, setShowConfirmation] =
     useState(false);
 
-  const [orderCreated, setOrderCreated] = useState(false);
-  const [orderNumber, setOrderNumber] = useState("");
+  const [orderCreated, setOrderCreated] =
+    useState(false);
+
+  const [orderNumber, setOrderNumber] =
+    useState("");
+
   const [supplierOrderId, setSupplierOrderId] =
     useState("");
-  const [orderStatus, setOrderStatus] = useState("");
 
-  const [processing, setProcessing] = useState(false);
+  const [orderStatus, setOrderStatus] =
+    useState("");
 
-  function selectOffer(
-    offer: (typeof offers)[number]
-  ) {
+  const [processing, setProcessing] =
+    useState(false);
+
+  function selectOffer(offer: Offer) {
     setSelectedOffer(offer);
-    setPlayerId("");
-    setServerId("");
     setError("");
     setShowConfirmation(false);
     setOrderCreated(false);
@@ -98,34 +135,70 @@ export default function MobileLegendsPage() {
 
     setError("");
 
+    const cleanPlayerId =
+      playerId.trim();
+
+    const cleanServerId =
+      serverId.trim();
+
     if (!selectedOffer) {
-      setError("Seleccione una oferta.");
+      setError(
+        "Seleccione una oferta."
+      );
       return;
     }
-
-    const cleanPlayerId = playerId.trim();
-    const cleanServerId = serverId.trim();
 
     if (!cleanPlayerId) {
-      setError("Ponga el ID de su cuenta.");
+      setError(
+        "Introduzca el ID del jugador."
+      );
       return;
     }
 
-    if (cleanPlayerId.length < 4) {
+    if (
+      !/^[0-9]+$/.test(
+        cleanPlayerId
+      )
+    ) {
       setError(
-        "El ID del jugador parece demasiado corto."
+        "El ID del jugador debe contener solamente números."
+      );
+      return;
+    }
+
+    if (
+      cleanPlayerId.length < 3 ||
+      cleanPlayerId.length > 20
+    ) {
+      setError(
+        "El ID del jugador no es válido."
       );
       return;
     }
 
     if (!cleanServerId) {
-      setError("Ponga el ID del servidor.");
+      setError(
+        "Introduzca el ID del servidor."
+      );
       return;
     }
 
-    if (cleanServerId.length < 2) {
+    if (
+      !/^[0-9]+$/.test(
+        cleanServerId
+      )
+    ) {
       setError(
-        "El ID del servidor parece demasiado corto."
+        "El ID del servidor debe contener solamente números."
+      );
+      return;
+    }
+
+    if (
+      cleanServerId.length > 20
+    ) {
+      setError(
+        "El ID del servidor no es válido."
       );
       return;
     }
@@ -133,85 +206,74 @@ export default function MobileLegendsPage() {
     setPlayerId(cleanPlayerId);
     setServerId(cleanServerId);
     setShowConfirmation(true);
-
-    setTimeout(() => {
-      document
-        .getElementById("confirmation-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
   }
 
   async function createOrder() {
-    if (!selectedOffer || processing) {
+    if (!selectedOffer) {
+      setError(
+        "Seleccione una oferta."
+      );
       return;
     }
 
-    setError("");
     setProcessing(true);
+    setError("");
 
     try {
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
+        data: {
+          session,
+        },
+      } =
+        await supabase.auth.getSession();
 
       if (!session?.access_token) {
         setError(
           "Su sesión ha expirado. Inicie sesión nuevamente."
         );
-        setProcessing(false);
-        return;
-      }
-
-      const cleanPlayerId = playerId.trim();
-      const cleanServerId = serverId.trim();
-
-      if (!cleanPlayerId || !cleanServerId) {
-        setError(
-          "Debe introducir el ID del jugador y el ID del servidor."
-        );
-        setProcessing(false);
         return;
       }
 
       const idempotencyKey =
         crypto.randomUUID();
 
-      const response = await fetch(
-        "/api/topups/mobile-legends",
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          "/api/topups/mobile-legends",
+          {
+            method: "POST",
 
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization:
-              `Bearer ${session.access_token}`,
-          },
+            headers: {
+              "Content-Type":
+                "application/json",
 
-          body: JSON.stringify({
-            offerId: selectedOffer.id,
-            playerId: cleanPlayerId,
-            serverId: cleanServerId,
-            idempotencyKey,
-          }),
-        }
-      );
+              Authorization:
+                `Bearer ${session.access_token}`,
+            },
 
-      const data = await response
-        .json()
-        .catch(() => null);
+            body: JSON.stringify({
+              offerId:
+                selectedOffer.id,
 
-      if (!response.ok || !data?.ok) {
-        setError(
-          data?.error ||
-            "No fue posible crear la orden. Intente nuevamente."
+              playerId:
+                playerId.trim(),
+
+              serverId:
+                serverId.trim(),
+
+              idempotencyKey,
+            }),
+          }
         );
 
-        setProcessing(false);
-        return;
+      const data =
+        await response.json();
+
+      if (!response.ok || !data?.ok) {
+        throw new Error(
+          data?.error ||
+            "No se pudo crear la orden."
+        );
       }
 
       setOrderNumber(
@@ -223,12 +285,11 @@ export default function MobileLegendsPage() {
       );
 
       setOrderStatus(
-        data.status || ""
+        data.status || "SUPPLIER_PENDING"
       );
 
-      setShowConfirmation(false);
       setOrderCreated(true);
-      setProcessing(false);
+      setShowConfirmation(false);
 
       setTimeout(() => {
         document
@@ -238,11 +299,18 @@ export default function MobileLegendsPage() {
             block: "start",
           });
       }, 100);
-    } catch {
-      setError(
-        "No se pudo conectar con el servidor. Intente nuevamente."
+    } catch (err) {
+      console.error(
+        "ERROR CREANDO ORDEN MOBILE LEGENDS:",
+        err
       );
 
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la orden."
+      );
+    } finally {
       setProcessing(false);
     }
   }
@@ -253,1260 +321,780 @@ export default function MobileLegendsPage() {
 
   return (
     <main className="mobile-legends-page">
-
       <header className="mobile-legends-header">
-
         <button
           type="button"
           className="mobile-legends-back-button"
-          onClick={() => router.push("/top-up")}
-          aria-label="Volver"
+          onClick={() =>
+            router.push("/top-up")
+          }
         >
           ←
         </button>
 
         <div className="mobile-legends-header-title">
-          <span>STORE GAMING</span>
+          <span>
+            Mobile Legends
+          </span>
 
-          <strong>
-            MOBILE LEGENDS
-          </strong>
+          <small>
+            United States
+          </small>
         </div>
 
         <button
           type="button"
           className="mobile-legends-orders-button"
-          onClick={() => router.push("/orders")}
-          aria-label="Pedidos"
+          onClick={goToOrders}
+          aria-label="Ver pedidos"
         >
-          ☰
+          📋
         </button>
-
       </header>
 
-      <section className="mobile-legends-banner">
+      <section className="mobile-legends-content">
+        <div className="mobile-legends-banner">
+          <img
+            src="/images/mobile-legends.jpg"
+            alt="Mobile Legends"
+          />
 
-        <img
-          src="/images/mobile-legends.jpg"
-          alt="Mobile Legends"
-        />
-
-        <div className="mobile-legends-banner-overlay" />
-
-        <div className="mobile-legends-banner-text">
-
-          <small>
-            TOP UP
-          </small>
-
-          <h1>
-            MOBILE
-          </h1>
-
-          <strong>
-            LEGENDS
-          </strong>
-
-          <p>
-            DIAMANTES · EE. UU.
-          </p>
-
-        </div>
-
-      </section>
-
-      <button
-        type="button"
-        className="mobile-legends-offers-toggle"
-        onClick={() =>
-          setShowOffers(
-            (current) => !current
-          )
-        }
-      >
-
-        <span>
-          {showOffers
-            ? "OCULTAR OFERTAS"
-            : "PRESIONE PARA VER OFERTAS"}
-        </span>
-
-        <b>
-          ✎
-        </b>
-
-      </button>
-
-      {showOffers && (
-        <section className="mobile-legends-offers-section">
-
-          <div className="mobile-legends-offers-heading">
-
-            <span>
-              OFERTAS DISPONIBLES
-            </span>
-
-            <small>
-              MOBILE LEGENDS · ESTADOS UNIDOS
-            </small>
-
-          </div>
-
-          <div className="mobile-legends-offers-list">
-
-            {offers.map((offer) => {
-
-              const selected =
-                selectedOffer?.id ===
-                offer.id;
-
-              return (
-                <button
-                  key={offer.id}
-                  type="button"
-                  className={`mobile-legends-offer ${
-                    selected
-                      ? "selected"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    selectOffer(offer)
-                  }
-                >
-
-                  <div className="mobile-legends-offer-left">
-
-                    <div className="mobile-legends-offer-icon">
-                      {offer.icon}
-                    </div>
-
-                    <div>
-                      <strong>
-                        {offer.display}
-                      </strong>
-
-                      <span>
-                        {offer.name}
-                      </span>
-                    </div>
-
-                  </div>
-
-                  <div className="mobile-legends-offer-right">
-
-                    <strong>
-                      {offer.price.toFixed(2)}$
-                    </strong>
-
-                    <span>
-                      →
-                    </span>
-
-                  </div>
-
-                </button>
-              );
-            })}
-
-          </div>
-
-        </section>
-      )}
-
-      <section className="mobile-legends-note">
-
-        <div className="mobile-legends-note-icon">
-          ⓘ
-        </div>
-
-        <div>
-          <strong>
-            INFORMACIÓN DEL SERVICIO
-          </strong>
-
-          <p>
-            {gameNote}
-          </p>
-        </div>
-
-      </section>
-
-      {selectedOffer && !orderCreated && (
-        <section
-          id="order-section"
-          className="mobile-legends-order-section"
-        >
-
-          <div className="mobile-legends-section-title">
-
-            <span>
-              01
-            </span>
-
-            <div>
-              <small>
-                TU SELECCIÓN
-              </small>
-
-              <h2>
-                DATOS DEL PEDIDO
-              </h2>
-            </div>
-
-          </div>
-
-          <div className="mobile-legends-selected-offer">
-
-            <div className="mobile-legends-selected-icon">
-              {selectedOffer.icon}
-            </div>
-
-            <div className="mobile-legends-selected-info">
+          <div className="mobile-legends-banner-overlay">
+            <div className="mobile-legends-banner-text">
+              <strong>
+                MOBILE LEGENDS
+              </strong>
 
               <span>
-                MOBILE LEGENDS
+                United States
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mobile-legends-note">
+          <span>ℹ️</span>
+
+          <p>
+            Introduzca correctamente su
+            ID de jugador y su ID de
+            servidor antes de realizar
+            la compra.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="mobile-legends-offers-toggle"
+          onClick={() =>
+            setShowOffers(
+              (value) => !value
+            )
+          }
+        >
+          <span>
+            {showOffers
+              ? "Ocultar ofertas"
+              : "Presione para ver ofertas"}
+          </span>
+
+          <span className="mobile-legends-offers-arrow">
+            {showOffers ? "▲" : "▼"}
+          </span>
+        </button>
+
+        {showOffers && (
+          <section className="mobile-legends-offers-section">
+            <div className="mobile-legends-offers-list">
+              {offers.map(
+                (offer) => (
+                  <button
+                    type="button"
+                    key={offer.id}
+                    className={`mobile-legends-offer ${
+                      selectedOffer?.id ===
+                      offer.id
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      selectOffer(
+                        offer
+                      )
+                    }
+                  >
+                    <div className="mobile-legends-offer-left">
+                      <div className="mobile-legends-offer-icon">
+                        💎
+                      </div>
+
+                      <div>
+                        <strong>
+                          {offer.name}
+                        </strong>
+
+                        <span>
+                          Mobile Legends
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mobile-legends-offer-price">
+                      ${offer.price.toFixed(2)}
+                    </div>
+                  </button>
+                )
+              )}
+            </div>
+          </section>
+        )}
+
+        {selectedOffer && (
+          <section
+            id="order-section"
+            className="mobile-legends-order-section"
+          >
+            <div className="mobile-legends-selected-offer">
+              <span>
+                Oferta seleccionada
               </span>
 
               <strong>
                 {selectedOffer.name}
               </strong>
 
-            </div>
-
-            <div className="mobile-legends-selected-price">
-              {selectedOffer.price.toFixed(2)}$
-            </div>
-
-          </div>
-
-          <div className="mobile-legends-warning">
-
-            <div>
-              ⚠
-            </div>
-
-            <section>
-
-              <strong>
-                ANTES DE CONTINUAR
-              </strong>
-
-              <p>
-                Verifique cuidadosamente
-                su ID de jugador y su ID de
-                servidor antes de continuar.
-                Los diamantes se enviarán
-                directamente a la cuenta
-                indicada.
-              </p>
-
-            </section>
-
-          </div>
-
-          <form
-            onSubmit={handleFinishPurchase}
-            className="mobile-legends-order-form"
-          >
-
-            <label>
-              ID DE JUGADOR
-            </label>
-
-            <p>
-              Introduzca el ID de la cuenta
-              donde desea recibir los
-              diamantes.
-            </p>
-
-            <div className="mobile-legends-input-wrapper">
-
-              <span>
-                🆔
-              </span>
-
-              <input
-                id="mobile-legends-player-id"
-                type="text"
-                inputMode="numeric"
-                value={playerId}
-                onChange={(event) =>
-                  setPlayerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
-                  )
-                }
-                placeholder="Introduzca su ID"
-                autoComplete="off"
-                maxLength={20}
-              />
-
-            </div>
-
-            <label className="mobile-legends-server-label">
-              ID DEL SERVIDOR
-            </label>
-
-            <p>
-              Introduzca el ID del servidor
-              asociado a su cuenta.
-            </p>
-
-            <div className="mobile-legends-input-wrapper">
-
-              <span>
-                🌐
-              </span>
-
-              <input
-                id="mobile-legends-server-id"
-                type="text"
-                inputMode="numeric"
-                value={serverId}
-                onChange={(event) =>
-                  setServerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
-                  )
-                }
-                placeholder="Introduzca el servidor"
-                autoComplete="off"
-                maxLength={10}
-              />
-
+              <b>
+                $
+                {selectedOffer.price.toFixed(
+                  2
+                )}
+              </b>
             </div>
 
             {error && (
-              <div className="mobile-legends-error">
-                {error}
+              <div className="mobile-legends-warning">
+                ⚠️ {error}
               </div>
             )}
 
-            <div className="mobile-legends-total">
+            {!showConfirmation &&
+              !orderCreated && (
+                <form
+                  className="mobile-legends-order-form"
+                  onSubmit={
+                    handleFinishPurchase
+                  }
+                >
+                  <label>
+                    ID del jugador
+                  </label>
 
-              <span>
-                PRECIO
-              </span>
+                  <div className="mobile-legends-input-wrapper">
+                    <span>👤</span>
 
-              <strong>
-                {selectedOffer.price.toFixed(2)}$
-              </strong>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={playerId}
+                      onChange={(event) =>
+                        setPlayerId(
+                          event.target.value.replace(
+                            /[^0-9]/g,
+                            ""
+                          )
+                        )
+                      }
+                      placeholder="Ej: 123456789"
+                      maxLength={20}
+                    />
+                  </div>
 
-            </div>
+                  <label>
+                    ID del servidor
+                  </label>
 
-            <button
-              type="submit"
-              className="mobile-legends-create-button"
-              disabled={processing}
-            >
+                  <div className="mobile-legends-input-wrapper">
+                    <span>🌐</span>
 
-              <span>
-                CONTINUAR
-              </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={serverId}
+                      onChange={(event) =>
+                        setServerId(
+                          event.target.value.replace(
+                            /[^0-9]/g,
+                            ""
+                          )
+                        )
+                      }
+                      placeholder="Ej: 1234"
+                      maxLength={20}
+                    />
+                  </div>
 
-              <b>
-                →
-              </b>
+                  <button
+                    type="submit"
+                    className="mobile-legends-create-order-button"
+                  >
+                    CONTINUAR
+                  </button>
+                </form>
+              )}
 
-            </button>
+            {showConfirmation &&
+              !orderCreated && (
+                <section className="mobile-legends-confirmation-section">
+                  <div className="mobile-legends-confirmation-card">
+                    <h3>
+                      Confirmar pedido
+                    </h3>
 
-          </form>
+                    <div className="mobile-legends-confirmation-row">
+                      <span>
+                        Oferta
+                      </span>
 
-        </section>
-      )}
+                      <strong>
+                        {selectedOffer.name}
+                      </strong>
+                    </div>
 
-      {showConfirmation &&
-        selectedOffer &&
-        !orderCreated && (
-          <section
-            id="confirmation-section"
-            className="mobile-legends-confirmation-section"
-          >
+                    <div className="mobile-legends-confirmation-row">
+                      <span>
+                        ID del jugador
+                      </span>
 
-            <div className="mobile-legends-section-title">
+                      <strong>
+                        {playerId}
+                      </strong>
+                    </div>
 
-              <span>
-                02
-              </span>
+                    <div className="mobile-legends-confirmation-row">
+                      <span>
+                        ID del servidor
+                      </span>
 
-              <div>
+                      <strong>
+                        {serverId}
+                      </strong>
+                    </div>
 
-                <small>
-                  CONFIRMAR
-                </small>
+                    <div className="mobile-legends-confirmation-total">
+                      <span>
+                        Total
+                      </span>
+
+                      <strong>
+                        $
+                        {selectedOffer.price.toFixed(
+                          2
+                        )}
+                      </strong>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="mobile-legends-confirm-button"
+                      onClick={
+                        createOrder
+                      }
+                      disabled={
+                        processing
+                      }
+                    >
+                      {processing
+                        ? "CREANDO PEDIDO..."
+                        : "CONFIRMAR PEDIDO"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="mobile-legends-cancel-button"
+                      onClick={() =>
+                        setShowConfirmation(
+                          false
+                        )
+                      }
+                      disabled={
+                        processing
+                      }
+                    >
+                      CANCELAR
+                    </button>
+                  </div>
+                </section>
+              )}
+
+            {orderCreated && (
+              <section
+                id="success-section"
+                className="mobile-legends-success-section"
+              >
+                <div className="mobile-legends-success-icon">
+                  ✓
+                </div>
 
                 <h2>
-                  REVISE SU ORDEN
+                  Orden creada
                 </h2>
 
-              </div>
+                <p>
+                  Tu pedido fue enviado
+                  correctamente.
+                </p>
 
-            </div>
+                <div className="mobile-legends-order-number">
+                  <span>
+                    Número de orden
+                  </span>
 
-            <div className="mobile-legends-confirmation-card">
+                  <strong>
+                    {orderNumber}
+                  </strong>
+                </div>
 
-              <h3>
-                Usted va a realizar una
-                compra de Mobile Legends
-              </h3>
+                {supplierOrderId && (
+                  <div className="mobile-legends-order-number">
+                    <span>
+                      Orden del proveedor
+                    </span>
 
-              <div className="mobile-legends-confirmation-row">
+                    <strong>
+                      {supplierOrderId}
+                    </strong>
+                  </div>
+                )}
 
-                <span>
-                  PRODUCTO
-                </span>
+                <div className="mobile-legends-order-number">
+                  <span>
+                    Estado
+                  </span>
 
-                <strong>
-                  {selectedOffer.name}
-                </strong>
+                  <strong>
+                    {orderStatus}
+                  </strong>
+                </div>
 
-              </div>
+                <button
+                  type="button"
+                  className="mobile-legends-review-button"
+                  onClick={
+                    goToOrders
+                  }
+                >
+                  REVISAR ORDEN
+                </button>
 
-              <div className="mobile-legends-confirmation-row">
-
-                <span>
-                  PRECIO A GASTAR
-                </span>
-
-                <strong>
-                  {selectedOffer.price.toFixed(2)}$
-                </strong>
-
-              </div>
-
-              <div className="mobile-legends-confirmation-row">
-
-                <span>
-                  ID DEL JUGADOR
-                </span>
-
-                <strong>
-                  {playerId}
-                </strong>
-
-              </div>
-
-              <div className="mobile-legends-confirmation-row">
-
-                <span>
-                  ID DEL SERVIDOR
-                </span>
-
-                <strong>
-                  {serverId}
-                </strong>
-
-              </div>
-
-              <p className="mobile-legends-confirmation-warning">
-                Revise cuidadosamente los
-                datos antes de finalizar la
-                compra.
-              </p>
-
-              <button
-                type="button"
-                className="mobile-legends-confirm-button"
-                onClick={createOrder}
-                disabled={processing}
-              >
-                {processing
-                  ? "PROCESANDO..."
-                  : "FINALIZAR"}
-              </button>
-
-            </div>
-
+                <button
+                  type="button"
+                  className="mobile-legends-store-button"
+                  onClick={() =>
+                    router.push(
+                      "/top-up"
+                    )
+                  }
+                >
+                  VOLVER A LA TIENDA
+                </button>
+              </section>
+            )}
           </section>
         )}
 
-      {orderCreated && (
-        <section
-          id="success-section"
-          className="mobile-legends-success-section"
-        >
-
-          <div className="mobile-legends-success-icon">
-            ✓
-          </div>
-
-          <h2>
-            ORDEN CREADA
-          </h2>
+        <section className="mobile-legends-service-info">
+          <h3>
+            Información del servicio
+          </h3>
 
           <p>
-            Su orden ha sido creada
-            correctamente y está siendo
-            procesada.
+            La recarga se realiza
+            directamente utilizando el
+            ID del jugador y el ID del
+            servidor proporcionados.
           </p>
 
-          <div className="mobile-legends-order-number">
-
-            <span>
-              NÚMERO DE ORDEN
-            </span>
-
-            <strong>
-              #{orderNumber}
-            </strong>
-
-          </div>
-
-          {supplierOrderId && (
-            <div className="mobile-legends-order-number">
-
-              <span>
-                REFERENCIA DEL PROVEEDOR
-              </span>
-
-              <strong>
-                {supplierOrderId}
-              </strong>
-
-            </div>
-          )}
-
-          {orderStatus && (
-            <div className="mobile-legends-order-number">
-
-              <span>
-                ESTADO
-              </span>
-
-              <strong>
-                {orderStatus}
-              </strong>
-
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="mobile-legends-review-button"
-            onClick={goToOrders}
-          >
-
-            REVISAR ORDEN
-
-            <span>
-              →
-            </span>
-
-          </button>
-
-          <button
-            type="button"
-            className="mobile-legends-store-button"
-            onClick={() =>
-              router.push("/top-up")
-            }
-          >
-            VOLVER A LA TIENDA
-          </button>
-
+          <p>
+            Verifique cuidadosamente
+            ambos datos antes de confirmar
+            el pedido.
+          </p>
         </section>
-      )}
-
-      <section className="mobile-legends-service-info">
-
-        <div>
-
-          <span>
-            01
-          </span>
-
-          <section>
-            <strong>
-              ENTREGA
-            </strong>
-
-            <small>
-              DIRECTA A SU CUENTA
-            </small>
-          </section>
-
-        </div>
-
-        <div>
-
-          <span>
-            02
-          </span>
-
-          <section>
-            <strong>
-              REGIÓN
-            </strong>
-
-            <small>
-              ESTADOS UNIDOS
-            </small>
-          </section>
-
-        </div>
-
-        <div>
-
-          <span>
-            03
-          </span>
-
-          <section>
-            <strong>
-              PROCESO
-            </strong>
-
-            <small>
-              AUTOMÁTICO
-            </small>
-          </section>
-
-        </div>
-
       </section>
 
       <footer className="mobile-legends-footer">
-
-        <strong>
-          🛒STORE GAMING🎮
-        </strong>
-
-        <span>
-          MOBILE LEGENDS · DIAMANTES
-        </span>
-
+        STORE GAMING
       </footer>
 
       <style jsx>{`
-
         .mobile-legends-page {
           min-height: 100vh;
-
           background:
             linear-gradient(
-              180deg,
-              rgba(0, 0, 0, 0.45),
-              rgba(0, 0, 0, 0.94)
+              rgba(0, 0, 0, 0.78),
+              rgba(0, 0, 0, 0.9)
             ),
             url("/images/battle-royale-bg.jpg")
               center / cover fixed;
-
           color: #fff;
-
-          padding-bottom: 35px;
+          padding-bottom: 30px;
         }
 
         .mobile-legends-header {
           position: sticky;
           top: 0;
           z-index: 20;
-
-          height: 62px;
-          padding: 0 13px;
-
+          height: 64px;
           display: grid;
-          grid-template-columns: 45px 1fr 45px;
+          grid-template-columns: 48px 1fr 48px;
           align-items: center;
-
-          background: rgba(5, 5, 5, 0.94);
-
+          padding: 0 10px;
+          background: rgba(0, 0, 0, 0.92);
           border-bottom: 1px solid
             rgba(255, 255, 255, 0.08);
-
           backdrop-filter: blur(12px);
         }
 
         .mobile-legends-back-button,
         .mobile-legends-orders-button {
-          width: 40px;
-          height: 40px;
-
+          width: 42px;
+          height: 42px;
+          border: 0;
+          border-radius: 12px;
+          background: rgba(
+            255,
+            255,
+            255,
+            0.08
+          );
+          color: #fff;
+          font-size: 21px;
           display: flex;
           align-items: center;
           justify-content: center;
-
-          border: 0;
-          border-radius: 11px;
-
-          background: rgba(255, 255, 255, 0.08);
-          color: #fff;
-
-          font-size: 23px;
-
           cursor: pointer;
-        }
-
-                .mobile-legends-orders-button {
-          font-size: 21px;
         }
 
         .mobile-legends-header-title {
           display: flex;
           flex-direction: column;
           align-items: center;
-
-          line-height: 1;
+          justify-content: center;
+          text-align: center;
         }
 
         .mobile-legends-header-title span {
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 1.8px;
+          font-size: 17px;
+          font-weight: 900;
         }
 
-        .mobile-legends-header-title strong {
-          margin-top: 4px;
+        .mobile-legends-header-title small {
+          margin-top: 2px;
+          color: #aaa;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
 
-          color: #d71920;
-
-          font-size: 16px;
-          font-weight: 900;
-
-          letter-spacing: 1.5px;
+        .mobile-legends-content {
+          width: 100%;
+          max-width: 560px;
+          margin: 0 auto;
+          padding: 0 12px;
         }
 
         .mobile-legends-banner {
           position: relative;
-
-          width: 100%;
-          height: 245px;
-
+          width: calc(100% + 24px);
+          margin-left: -12px;
           overflow: hidden;
-
-          background: #080808;
         }
 
         .mobile-legends-banner img {
-          width: 100%;
-          height: 100%;
-
           display: block;
-
+          width: 100%;
+          height: 230px;
           object-fit: cover;
         }
 
         .mobile-legends-banner-overlay {
           position: absolute;
           inset: 0;
-
+          display: flex;
+          align-items: flex-end;
+          padding: 20px;
           background:
             linear-gradient(
-              90deg,
-              rgba(0, 0, 0, 0.9),
-              rgba(0, 0, 0, 0.25),
-              rgba(0, 0, 0, 0.7)
-            ),
-            linear-gradient(
-              0deg,
-              rgba(0, 0, 0, 0.9),
-              transparent 55%
+              transparent 30%,
+              rgba(0, 0, 0, 0.85)
             );
         }
 
-        .mobile-legends-banner-text {
-          position: absolute;
-
-          left: 20px;
-          bottom: 21px;
-        }
-
-        .mobile-legends-banner-text small {
-          color: #d71920;
-
-          font-size: 11px;
-          font-weight: 900;
-
-          letter-spacing: 2px;
-        }
-
-        .mobile-legends-banner-text h1 {
-          margin: 5px 0 0;
-
-          font-size: 29px;
-          line-height: 1;
-
-          font-weight: 950;
+                .mobile-legends-banner-text strong {
+          font-size: 25px;
+          font-weight: 1000;
           letter-spacing: 1px;
         }
 
-        .mobile-legends-banner-text strong {
-          display: block;
-
+        .mobile-legends-banner-text span {
           margin-top: 3px;
-
-          font-size: 21px;
-
-          letter-spacing: 4px;
-        }
-
-        .mobile-legends-banner-text p {
-          margin: 9px 0 0;
-
-          color: #cfcfcf;
-
-          font-size: 10px;
-          font-weight: 700;
-
-          letter-spacing: 1px;
-        }
-
-        .mobile-legends-offers-toggle {
-          width: calc(100% - 24px);
-
-          margin: 14px 12px 0;
-          padding: 16px;
-
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-
-          border: 1px solid
-            rgba(255, 255, 255, 0.12);
-
-          border-radius: 13px;
-
-          background: rgba(0, 0, 0, 0.78);
-
-          color: #fff;
-
-          cursor: pointer;
-        }
-
-        .mobile-legends-offers-toggle span {
+          color: #ddd;
           font-size: 12px;
-          font-weight: 900;
-
-          letter-spacing: 0.7px;
         }
 
-        .mobile-legends-offers-toggle b {
-          color: #d71920;
-
-          font-size: 21px;
-        }
-
-        .mobile-legends-offers-section {
-          margin: 12px;
-          padding: 16px;
-
-          border-radius: 15px;
-
-          background: rgba(0, 0, 0, 0.78);
-
+        .mobile-legends-note {
+          display: flex;
+          gap: 10px;
+          margin-top: 14px;
+          padding: 13px;
+          border-radius: 12px;
+          background: rgba(
+            255,
+            255,
+            255,
+            0.07
+          );
           border: 1px solid
             rgba(255, 255, 255, 0.08);
         }
 
-        .mobile-legends-offers-heading {
+        .mobile-legends-note span {
+          font-size: 18px;
+        }
+
+        .mobile-legends-note p {
+          margin: 0;
+          color: #ccc;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+
+        .mobile-legends-offers-toggle {
+          width: 100%;
+          margin-top: 14px;
+          padding: 16px;
           display: flex;
-          flex-direction: column;
-
-          gap: 4px;
-
-          margin-bottom: 12px;
-        }
-
-        .mobile-legends-offers-heading span {
+          align-items: center;
+          justify-content: space-between;
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
+          border-radius: 13px;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.75
+          );
+          color: #fff;
           font-size: 14px;
-          font-weight: 900;
+          font-weight: 800;
+          cursor: pointer;
         }
 
-        .mobile-legends-offers-heading small {
-          color: #888;
-          font-size: 10px;
+        .mobile-legends-offers-arrow {
+          font-size: 12px;
+          color: #d71920;
+        }
+
+        .mobile-legends-offers-section {
+          margin-top: 10px;
         }
 
         .mobile-legends-offers-list {
           display: flex;
           flex-direction: column;
-
-          gap: 9px;
+          gap: 8px;
         }
 
         .mobile-legends-offer {
           width: 100%;
-
-          padding: 12px;
-
+          min-height: 67px;
+          padding: 11px 13px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-
-          gap: 10px;
-
+          gap: 12px;
           border: 1px solid
             rgba(255, 255, 255, 0.08);
-
-          border-radius: 12px;
-
-          background: rgba(255, 255, 255, 0.045);
-
+          border-radius: 13px;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.82
+          );
           color: #fff;
-
           text-align: left;
-
           cursor: pointer;
-
           transition:
             transform 0.15s ease,
-            border-color 0.15s ease,
-            background 0.15s ease;
+            border-color 0.15s ease;
         }
 
-        .mobile-legends-offer:active {
-          transform: scale(0.985);
+        .mobile-legends-offer:hover {
+          transform: translateY(-1px);
+          border-color: rgba(
+            215,
+            25,
+            32,
+            0.7
+          );
         }
 
         .mobile-legends-offer.selected {
           border-color: #d71920;
-
-          background:
-            rgba(215, 25, 32, 0.13);
+          box-shadow:
+            0 0 0 1px
+              rgba(215, 25, 32, 0.25);
         }
 
         .mobile-legends-offer-left {
           display: flex;
           align-items: center;
-
-          min-width: 0;
-
           gap: 11px;
+          min-width: 0;
         }
 
         .mobile-legends-offer-icon {
           width: 43px;
           height: 43px;
-
           flex: 0 0 43px;
-
           display: flex;
           align-items: center;
           justify-content: center;
-
-          border-radius: 11px;
-
-          background:
-            rgba(255, 255, 255, 0.08);
-
+          border-radius: 12px;
+          background: rgba(
+            255,
+            255,
+            255,
+            0.08
+          );
           font-size: 21px;
-        }
-
-        .mobile-legends-offer-left > div:last-child {
-          min-width: 0;
         }
 
         .mobile-legends-offer-left strong {
           display: block;
-
-          overflow: hidden;
-
-          text-overflow: ellipsis;
-          white-space: nowrap;
-
           font-size: 14px;
         }
 
         .mobile-legends-offer-left span {
           display: block;
-
           margin-top: 3px;
-
-          overflow: hidden;
-
-          text-overflow: ellipsis;
-          white-space: nowrap;
-
           color: #888;
-
           font-size: 10px;
         }
 
-        .mobile-legends-offer-right {
+        .mobile-legends-offer-price {
           flex: 0 0 auto;
-
-          display: flex;
-          align-items: center;
-
-          gap: 9px;
-        }
-
-        .mobile-legends-offer-right strong {
-          font-size: 14px;
-        }
-
-        .mobile-legends-offer-right span {
-          color: #d71920;
-
-          font-size: 20px;
-        }
-
-        .mobile-legends-note {
-          margin: 13px 12px 0;
-          padding: 14px;
-
-          display: flex;
-          gap: 11px;
-
-          border-radius: 13px;
-
-          background: rgba(0, 0, 0, 0.76);
-
-          border: 1px solid
-            rgba(255, 255, 255, 0.08);
-        }
-
-        .mobile-legends-note-icon {
-          flex: 0 0 30px;
-
-          width: 30px;
-          height: 30px;
-
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          border-radius: 50%;
-
-          background:
-            rgba(215, 25, 32, 0.16);
-
-          color: #d71920;
-
-          font-size: 17px;
-          font-weight: 900;
-        }
-
-        .mobile-legends-note strong {
-          display: block;
-
-          font-size: 11px;
-
-          letter-spacing: 0.6px;
-        }
-
-        .mobile-legends-note p {
-          margin: 6px 0 0;
-
-          color: #aaa;
-
-          font-size: 11px;
-          line-height: 1.55;
-        }
-
-        .mobile-legends-order-section {
-          margin: 15px 12px 0;
-          padding: 17px;
-
-          border-radius: 16px;
-
-          background: rgba(0, 0, 0, 0.82);
-
-          border: 1px solid
-            rgba(255, 255, 255, 0.09);
-        }
-
-        .mobile-legends-section-title {
-          display: flex;
-          align-items: center;
-
-          gap: 11px;
-
-          margin-bottom: 14px;
-        }
-
-        .mobile-legends-section-title > span {
-          color: #d71920;
-
-          font-size: 12px;
-          font-weight: 900;
-        }
-
-        .mobile-legends-section-title small {
-          display: block;
-
-          color: #888;
-
-          font-size: 9px;
-
-          letter-spacing: 1px;
-        }
-
-        .mobile-legends-section-title h2 {
-          margin: 3px 0 0;
-
-          font-size: 18px;
-
-          line-height: 1;
-        }
-
-        .mobile-legends-selected-offer {
-          padding: 13px;
-
-          display: flex;
-          align-items: center;
-
-          gap: 11px;
-
-          border-radius: 12px;
-
-          background:
-            rgba(255, 255, 255, 0.055);
-
-          border: 1px solid
-            rgba(255, 255, 255, 0.08);
-        }
-
-        .mobile-legends-selected-icon {
-          width: 43px;
-          height: 43px;
-
-          flex: 0 0 43px;
-
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          border-radius: 11px;
-
-          background:
-            rgba(215, 25, 32, 0.15);
-
-          font-size: 21px;
-        }
-
-        .mobile-legends-selected-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .mobile-legends-selected-info span {
-          display: block;
-
-          color: #888;
-
-          font-size: 9px;
-
-          letter-spacing: 0.7px;
-        }
-
-        .mobile-legends-selected-info strong {
-          display: block;
-
-          margin-top: 3px;
-
-          font-size: 14px;
-        }
-
-        .mobile-legends-selected-price {
-          flex: 0 0 auto;
-
+          color: #fff;
           font-size: 15px;
           font-weight: 900;
         }
 
-        .mobile-legends-warning {
-          margin-top: 12px;
-          padding: 13px;
+        .mobile-legends-order-section {
+          margin-top: 15px;
+        }
 
-          display: flex;
-
-          gap: 10px;
-
-          border-radius: 11px;
-
-          background:
-            rgba(215, 25, 32, 0.08);
-
+        .mobile-legends-selected-offer {
+          padding: 15px;
+          border-radius: 14px;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.84
+          );
           border: 1px solid
-            rgba(215, 25, 32, 0.25);
+            rgba(215, 25, 32, 0.45);
         }
 
-        .mobile-legends-warning > div {
-          color: #d71920;
-
-          font-size: 18px;
-        }
-
-        .mobile-legends-warning strong {
+        .mobile-legends-selected-offer span {
+          display: block;
+          color: #888;
           font-size: 10px;
+          text-transform: uppercase;
         }
 
-        .mobile-legends-warning p {
-          margin: 5px 0 0;
+        .mobile-legends-selected-offer strong {
+          display: block;
+          margin-top: 5px;
+          font-size: 16px;
+        }
 
-          color: #aaa;
+        .mobile-legends-selected-offer b {
+          display: block;
+          margin-top: 6px;
+          color: #ff3038;
+          font-size: 20px;
+        }
 
-          font-size: 10px;
-
-          line-height: 1.5;
+        .mobile-legends-warning {
+          margin-top: 10px;
+          padding: 11px;
+          border-radius: 10px;
+          background: rgba(
+            215,
+            25,
+            32,
+            0.12
+          );
+          border: 1px solid
+            rgba(215, 25, 32, 0.35);
+          color: #ffb0b3;
+          font-size: 12px;
         }
 
         .mobile-legends-order-form {
-          margin-top: 17px;
+          margin-top: 10px;
+          padding: 16px;
+          border-radius: 14px;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.84
+          );
+          border: 1px solid
+            rgba(255, 255, 255, 0.08);
         }
 
-        .mobile-legends-order-form > label {
+        .mobile-legends-order-form label {
           display: block;
-
+          margin: 0 0 7px;
+          color: #ccc;
           font-size: 12px;
-
-          font-weight: 900;
-
-          letter-spacing: 0.7px;
-        }
-
-        .mobile-legends-order-form > p {
-          margin: 5px 0 10px;
-
-          color: #888;
-
-          font-size: 10px;
-
-          line-height: 1.5;
-        }
-
-        .mobile-legends-server-label {
-          margin-top: 16px;
+          font-weight: 700;
         }
 
         .mobile-legends-input-wrapper {
-          height: 50px;
-
-          padding: 0 13px;
-
           display: flex;
           align-items: center;
-
           gap: 9px;
-
-          border: 1px solid
-            rgba(255, 255, 255, 0.11);
-
+          height: 48px;
+          margin-bottom: 13px;
+          padding: 0 13px;
           border-radius: 11px;
-
-          background:
-            rgba(255, 255, 255, 0.055);
+          background: rgba(
+            255,
+            255,
+            255,
+            0.07
+          );
+          border: 1px solid
+            rgba(255, 255, 255, 0.08);
         }
 
-        .mobile-legends-input-wrapper > span {
-          font-size: 17px;
+        .mobile-legends-input-wrapper span {
+          font-size: 16px;
         }
 
         .mobile-legends-input-wrapper input {
           width: 100%;
           height: 100%;
-
           border: 0;
           outline: 0;
-
           background: transparent;
-
           color: #fff;
-
           font-size: 14px;
         }
 
@@ -1514,431 +1102,236 @@ export default function MobileLegendsPage() {
           color: #666;
         }
 
-        .mobile-legends-error {
-          margin-top: 9px;
-
-          padding: 10px;
-
-          border-radius: 9px;
-
-          background:
-            rgba(215, 25, 32, 0.12);
-
-          border: 1px solid
-            rgba(215, 25, 32, 0.3);
-
-          color: #ff7777;
-
-          font-size: 10px;
-
-          line-height: 1.4;
-        }
-
-        .mobile-legends-total {
-          margin-top: 13px;
-
-          padding: 13px;
-
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-
-          border-radius: 10px;
-
-          background:
-            rgba(255, 255, 255, 0.055);
-        }
-
-        .mobile-legends-total span {
-          color: #888;
-
-          font-size: 10px;
-          font-weight: 800;
-        }
-
-        .mobile-legends-total strong {
-          font-size: 17px;
-        }
-
-        .mobile-legends-create-button {
+        .mobile-legends-create-order-button,
+        .mobile-legends-confirm-button,
+        .mobile-legends-review-button,
+        .mobile-legends-store-button,
+        .mobile-legends-cancel-button {
           width: 100%;
-          height: 51px;
-
-          margin-top: 11px;
-
-          padding: 0 15px;
-
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-
+          min-height: 48px;
           border: 0;
           border-radius: 11px;
-
-          background: #d71920;
-
-          color: #fff;
-
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 900;
-
-          letter-spacing: 0.6px;
-
           cursor: pointer;
         }
 
-        .mobile-legends-create-button b {
-          font-size: 21px;
-        }
-
-        .mobile-legends-create-button:disabled {
-          opacity: 0.55;
-
-          cursor: wait;
+        .mobile-legends-create-order-button,
+        .mobile-legends-confirm-button {
+          background: #d71920;
+          color: #fff;
         }
 
         .mobile-legends-confirmation-section {
-          margin: 15px 12px 0;
+          margin-top: 10px;
+        }
 
+        .mobile-legends-confirmation-card {
           padding: 17px;
-
-          border-radius: 16px;
-
-          background:
-            rgba(0, 0, 0, 0.82);
-
+          border-radius: 14px;
+          background: rgba(
+            0,
+            0,
+            0,
+            0.88
+          );
           border: 1px solid
             rgba(255, 255, 255, 0.09);
         }
 
-        .mobile-legends-confirmation-card {
-          padding: 15px;
-
-          border-radius: 13px;
-
-          background:
-            rgba(255, 255, 255, 0.045);
-
-          border: 1px solid
-            rgba(255, 255, 255, 0.08);
-        }
-
         .mobile-legends-confirmation-card h3 {
-          margin: 0 0 14px;
-
-          font-size: 14px;
-
-          line-height: 1.4;
+          margin: 0 0 15px;
+          font-size: 18px;
         }
 
         .mobile-legends-confirmation-row {
-          padding: 11px 0;
-
           display: flex;
           justify-content: space-between;
-
-          gap: 12px;
-
+          gap: 15px;
+          padding: 10px 0;
           border-bottom: 1px solid
             rgba(255, 255, 255, 0.07);
         }
 
         .mobile-legends-confirmation-row span {
           color: #888;
-
-          font-size: 9px;
-
-          font-weight: 800;
+          font-size: 11px;
         }
 
         .mobile-legends-confirmation-row strong {
           max-width: 60%;
-
-          font-size: 11px;
-
           text-align: right;
-
-          word-break: break-word;
-        }
-
-        .mobile-legends-confirmation-warning {
-          margin: 13px 0;
-
-          color: #aaa;
-
-          font-size: 10px;
-
-          line-height: 1.5;
-
-          text-align: center;
-        }
-
-        .mobile-legends-confirm-button {
-          width: 100%;
-          height: 50px;
-
-          border: 0;
-          border-radius: 11px;
-
-          background: #d71920;
-
-          color: #fff;
-
           font-size: 12px;
-          font-weight: 900;
-
-          cursor: pointer;
         }
 
-        .mobile-legends-confirm-button:disabled {
-          opacity: 0.55;
+        .mobile-legends-confirmation-total {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin: 14px 0;
+        }
 
+        .mobile-legends-confirmation-total span {
+          color: #aaa;
+          font-size: 12px;
+        }
+
+        .mobile-legends-confirmation-total strong {
+          color: #ff3038;
+          font-size: 21px;
+        }
+
+        .mobile-legends-cancel-button {
+          margin-top: 8px;
+          background: rgba(
+            255,
+            255,
+            255,
+            0.08
+          );
+          color: #fff;
+        }
+
+        .mobile-legends-confirm-button:disabled,
+        .mobile-legends-create-order-button:disabled,
+        .mobile-legends-cancel-button:disabled {
+          opacity: 0.55;
           cursor: wait;
         }
 
         .mobile-legends-success-section {
-          margin: 15px 12px 0;
-
-          padding: 23px 16px;
-
+          margin-top: 12px;
+          padding: 22px 16px;
           border-radius: 16px;
-
-          background:
-            rgba(0, 0, 0, 0.86);
-
+          background: rgba(
+            0,
+            0,
+            0,
+            0.86
+          );
           border: 1px solid
             rgba(50, 255, 100, 0.2);
-
           text-align: center;
         }
 
         .mobile-legends-success-icon {
           width: 58px;
           height: 58px;
-
           margin: 0 auto 10px;
-
           display: flex;
           align-items: center;
           justify-content: center;
-
           border-radius: 50%;
-
           background: #19a957;
-
           color: #fff;
-
           font-size: 31px;
           font-weight: 900;
         }
 
         .mobile-legends-success-section h2 {
           margin: 0;
-
           font-size: 21px;
         }
 
-        .mobile-legends-success-section > p {
-          margin: 8px 0 13px;
-
-          color: #aaa;
-
-          font-size: 11px;
-
-          line-height: 1.5;
+        .mobile-legends-success-section p {
+          margin: 8px 0;
+          color: #cfcfcf;
+          font-size: 13px;
         }
 
         .mobile-legends-order-number {
-          margin-top: 9px;
-
-          padding: 11px;
-
+          margin-top: 10px;
+          padding: 12px;
           border-radius: 10px;
-
-          background:
-            rgba(255, 255, 255, 0.055);
-
-          text-align: left;
+          background: rgba(
+            255,
+            255,
+            255,
+            0.06
+          );
         }
 
         .mobile-legends-order-number span {
           display: block;
-
-          color: #888;
-
-          font-size: 9px;
+          color: #999;
+          font-size: 11px;
         }
 
         .mobile-legends-order-number strong {
           display: block;
-
           margin-top: 4px;
-
-          font-size: 14px;
-
+          font-size: 15px;
           word-break: break-word;
         }
 
-        .mobile-legends-review-button,
-        .mobile-legends-store-button {
-          width: 100%;
-          height: 48px;
-
-          margin-top: 11px;
-
-          border: 0;
-          border-radius: 10px;
-
-          color: #fff;
-
-          font-size: 11px;
-          font-weight: 900;
-
-          cursor: pointer;
-        }
-
         .mobile-legends-review-button {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-
-          padding: 0 15px;
-
+          margin-top: 13px;
           background: #19a957;
-        }
-
-        .mobile-legends-review-button span {
-          font-size: 20px;
+          color: #fff;
         }
 
         .mobile-legends-store-button {
-          background:
-            rgba(255, 255, 255, 0.1);
+          margin-top: 8px;
+          background: rgba(
+            255,
+            255,
+            255,
+            0.1
+          );
+          color: #fff;
         }
 
         .mobile-legends-service-info {
-          margin: 17px 12px 0;
-
-          display: flex;
-          flex-direction: column;
-
+          margin-top: 18px;
+          padding: 16px;
           border-radius: 14px;
-
-          overflow: hidden;
-
-          background:
-            rgba(0, 0, 0, 0.76);
-
+          background: rgba(
+            0,
+            0,
+            0,
+            0.72
+          );
           border: 1px solid
-            rgba(255, 255, 255, 0.08);
+            rgba(255, 255, 255, 0.07);
         }
 
-        .mobile-legends-service-info > div {
-          padding: 13px;
-
-          display: flex;
-          align-items: center;
-
-          gap: 13px;
-
-          border-bottom: 1px solid
-            rgba(255, 255, 255, 0.06);
+        .mobile-legends-service-info h3 {
+          margin: 0 0 8px;
+          font-size: 14px;
         }
 
-        .mobile-legends-service-info > div:last-child {
-          border-bottom: 0;
-        }
-
-        .mobile-legends-service-info > div > span {
-          color: #d71920;
-
-          font-size: 10px;
-
-          font-weight: 900;
-        }
-
-        .mobile-legends-service-info section {
-          display: flex;
-          flex-direction: column;
-
-          gap: 2px;
-        }
-
-        .mobile-legends-service-info strong {
-          font-size: 10px;
-        }
-
-        .mobile-legends-service-info small {
-          color: #777;
-
-          font-size: 9px;
+        .mobile-legends-service-info p {
+          margin: 6px 0;
+          color: #999;
+          font-size: 11px;
+          line-height: 1.5;
         }
 
         .mobile-legends-footer {
           padding: 25px 12px 5px;
-
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-
-          gap: 5px;
-
           color: #777;
-
+          font-size: 11px;
           text-align: center;
         }
 
-        .mobile-legends-footer strong {
-          color: #fff;
-
-          font-size: 12px;
-        }
-
-        .mobile-legends-footer span {
-          font-size: 9px;
-        }
-
         @media (max-width: 480px) {
-
-          .mobile-legends-banner {
-            height: 205px;
-          }
-
-          .mobile-legends-banner-text h1 {
-            font-size: 25px;
-          }
-
-          .mobile-legends-banner-text strong {
-            font-size: 19px;
+          .mobile-legends-banner img {
+            height: 185px;
           }
 
           .mobile-legends-offer {
-            padding: 11px;
+            min-height: 64px;
           }
 
-          .mobile-legends-selected-offer {
-            align-items: flex-start;
-          }
-
-          .mobile-legends-selected-price {
+          .mobile-legends-offer-price {
             font-size: 14px;
           }
 
-          .mobile-legends-confirmation-row {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 4px;
+          .mobile-legends-banner-text strong {
+            font-size: 22px;
           }
-
-          .mobile-legends-confirmation-row strong {
-            max-width: 100%;
-            text-align: left;
-          }
-
         }
-
       `}</style>
-
     </main>
   );
 }
