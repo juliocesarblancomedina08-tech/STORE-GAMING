@@ -957,7 +957,7 @@ export default function DeltaForcePage() {
           </div>
 
 
-                    {/* =========================
+          {          /* =========================
               FORMULARIO
           ========================== */}
 
@@ -975,219 +975,44 @@ export default function DeltaForcePage() {
               ID DEL JUGADOR
             </label>
 
-            <p className="player-id-description">
-              Introduzca el ID de su cuenta
-              de Delta Force.
+            <input
+              id="player-id"
+              className="player-id-input"
+              type="text"
+              inputMode="numeric"
+              value={playerId}
+              onChange={(e) => {
+                setPlayerId(
+                  e.target.value.replace(/\D/g, "")
+                );
+                setError("");
+              }}
+              placeholder="Introduce tu ID"
+              autoComplete="off"
+            />
+
+            <p className="game-note">
+              {gameNote}
             </p>
 
-            <div className="player-id-input-wrapper">
-
-              <input
-                id="player-id"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                value={playerId}
-                onChange={(event) =>
-                  setPlayerId(
-                    event.target.value
-                  )
-                }
-                placeholder="Escriba su ID"
-              />
-
-            </div>
-
-
-            {/* =========================
-                ERROR
-            ========================== */}
-
             {error && (
-
-              <div className="order-error">
-                {error}
+              <div className="form-error">
+                ⚠️ {error}
               </div>
-
             )}
-
-
-            {/* =========================
-                TOTAL
-            ========================== */}
-
-            <div className="order-total-preview">
-
-              <span>
-                TOTAL
-              </span>
-
-              <strong>
-                {total.toFixed(2)}
-                $
-              </strong>
-
-            </div>
-
 
             <button
               type="submit"
-              className="finish-order-button"
-              disabled={creatingOrder}
+              className="continue-button"
+              disabled={
+                processing ||
+                !selectedOffer ||
+                !playerId.trim()
+              }
             >
-              FINALIZAR COMPRA
+              {processing
+                ? "PROCESANDO..."
+                : "CONTINUAR"}
             </button>
 
           </form>
-
-
-          {/* =========================
-              CONFIRMACIÓN
-          ========================== */}
-
-          {showConfirmation &&
-            !orderCreated && (
-
-              <section
-                id="confirmation-section"
-                className="confirmation-section"
-              >
-
-                <div className="section-title">
-
-                  <span>
-                    02
-                  </span>
-
-                  <div>
-
-                    <small>
-                      CONFIRMAR
-                    </small>
-
-                    <h2>
-                      CONFIRMA TU PEDIDO
-                    </h2>
-
-                  </div>
-
-                </div>
-
-
-                <div className="selected-order-card">
-
-                  <div className="selected-order-icon">
-                    {selectedOffer.icon}
-                  </div>
-
-                  <div className="selected-order-info">
-
-                    <span>
-                      DELTA FORCE
-                    </span>
-
-                    <strong>
-                      {selectedOffer.name}
-                    </strong>
-
-                    <small>
-                      ID: {playerId.trim()}
-                    </small>
-
-                  </div>
-
-                  <div className="selected-order-price">
-                    {total.toFixed(2)}$
-                  </div>
-
-                </div>
-
-
-                <button
-                  type="button"
-                  className="finish-order-button"
-                  onClick={createOrder}
-                  disabled={creatingOrder}
-                >
-                  {creatingOrder
-                    ? "PROCESANDO..."
-                    : "CONFIRMAR PEDIDO"}
-                </button>
-
-              </section>
-
-            )}
-
-
-          {/* =========================
-              PEDIDO CREADO
-          ========================== */}
-
-          {orderCreated && (
-
-            <section
-              id="success-section"
-              className="order-success-section"
-            >
-
-              <div className="success-circle">
-                ✓
-              </div>
-
-              <h2>
-                ORDEN CREADA
-              </h2>
-
-              <p>
-                Su pedido fue registrado
-                correctamente.
-              </p>
-
-              <div className="success-order-number">
-
-                <span>
-                  NÚMERO DE ORDEN
-                </span>
-
-                <strong>
-                  {orderNumber}
-                </strong>
-
-              </div>
-
-              <button
-                type="button"
-                className="view-orders-button"
-                onClick={goToOrders}
-              >
-                REVISAR ORDEN
-              </button>
-
-            </section>
-
-          )}
-
-        </section>
-
-      )}
-
-
-      {/* =========================
-          FOOTER
-      ========================== */}
-
-      <footer className="game-service-footer">
-
-        <strong>
-          🛒STORE GAMING🎮
-        </strong>
-
-        <span>
-          DELTA FORCE TOP UP
-        </span>
-
-      </footer>
-
-    </main>
-  );
-}
