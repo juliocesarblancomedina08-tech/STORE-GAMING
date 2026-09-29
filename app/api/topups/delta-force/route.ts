@@ -13,95 +13,120 @@ const FAZER_API_KEY =
 
 const CATEGORY_ID = "delta_force";
 
+/*
+ * STORE GAMING gana $0.20 sobre
+ * el precio real de FazerCards.
+ */
+const STORE_MARGIN = 0.20;
+
+/*
+ * Catálogo sincronizado con los precios
+ * proporcionados por FazerCards.
+ *
+ * price = precio que paga el cliente.
+ * supplierPrice = precio de FazerCards.
+ *
+ * 8100 Delta Coins queda temporalmente
+ * deshabilitado porque su precio real no
+ * apareció completo en el catálogo recibido.
+ */
 const OFFERS = [
   {
     id: "18_delta_coins",
     name: "18 Delta Coins",
-    price: 0.38,
-    supplierPrice: 0.2217,
+    price: 0.4317,
+    supplierPrice: 0.2317,
   },
   {
     id: "30_delta_coins",
     name: "30 Delta Coins",
-    price: 0.54,
-    supplierPrice: 0.3829,
+    price: 0.5909,
+    supplierPrice: 0.3909,
   },
   {
     id: "60_delta_coins",
     name: "60 Delta Coins",
-    price: 0.93,
+    price: 0.9758,
     supplierPrice: 0.7758,
   },
   {
     id: "320_delta_coins",
     name: "320 Delta Coins",
-    price: 4.04,
-    supplierPrice: 3.8889,
+    price: 4.1192,
+    supplierPrice: 3.9192,
   },
   {
     id: "460_delta_coins",
     name: "460 Delta Coins",
-    price: 5.79,
-    supplierPrice: 5.642,
+    price: 5.8722,
+    supplierPrice: 5.6722,
   },
   {
     id: "750_delta_coins",
     name: "750 Delta Coins",
-    price: 7.92,
-    supplierPrice: 7.7678,
+    price: 8.0384,
+    supplierPrice: 7.8384,
   },
   {
     id: "1480_delta_coins",
     name: "1480 Delta Coins",
-    price: 15.69,
-    supplierPrice: 15.5357,
+    price: 15.8666,
+    supplierPrice: 15.6666,
   },
   {
     id: "1980_delta_coins",
     name: "1980 Delta Coins",
-    price: 19.58,
-    supplierPrice: 19.4246,
+    price: 19.7757,
+    supplierPrice: 19.5757,
   },
   {
     id: "3950_delta_coins",
     name: "3950 Delta Coins",
-    price: 38.99,
-    supplierPrice: 38.8391,
+    price: 39.3515,
+    supplierPrice: 39.1515,
   },
+
+  /*
+   * PRECIO DESCONOCIDO.
+   *
+   * No permitir pedidos hasta conocer
+   * el precio real de FazerCards.
+   */
   {
     id: "8100_delta_coins",
     name: "8100 Delta Coins",
-    price: 77.82,
-    supplierPrice: 77.6682,
+    price: 0,
+    supplierPrice: 0,
   },
+
   {
     id: "16200_delta_coins",
     name: "16200 Delta Coins",
-    price: 157.84,
-    supplierPrice: 157.6929,
+    price: 157.9342,
+    supplierPrice: 157.7342,
   },
   {
     id: "24300_delta_coins",
     name: "24300 Delta Coins",
-    price: 236.69,
-    supplierPrice: 236.5449,
+    price: 236.7963,
+    supplierPrice: 236.5963,
   },
   {
     id: "season_pass_operations_special",
     name: "Season Pass Operations Special",
-    price: 4.42,
-    supplierPrice: 4.2647,
+    price: 4.4748,
+    supplierPrice: 4.2748,
   },
   {
     id: "season_pass_warfare_special",
     name: "Season Pass Warfare Special",
-    price: 4.42,
-    supplierPrice: 4.2647,
+    price: 4.4748,
+    supplierPrice: 4.2748,
   },
   {
     id: "season_pass_delta_force_deluxe",
     name: "Season Pass Delta Force Deluxe",
-    price: 6.06,
+    price: 6.109,
     supplierPrice: 5.909,
   },
 ] as const;
@@ -129,11 +154,13 @@ function getSupplierOrderId(
     data?.supplier_order_id,
     data?.supplierOrderId,
     data?.id,
+
     data?.data?.order_id,
     data?.data?.orderId,
     data?.data?.supplier_order_id,
     data?.data?.supplierOrderId,
     data?.data?.id,
+
     data?.order?.order_id,
     data?.order?.orderId,
     data?.order?.supplier_order_id,
@@ -161,9 +188,11 @@ function getSupplierStatus(
     data?.status,
     data?.order_status,
     data?.orderStatus,
+
     data?.data?.status,
     data?.data?.order_status,
     data?.data?.orderStatus,
+
     data?.order?.status,
     data?.order?.order_status,
     data?.order?.orderStatus,
@@ -220,11 +249,21 @@ function isSupplierCompleted(
   ].includes(status);
 }
 
+/*
+ * El precio se mantiene con 4 decimales.
+ *
+ * Ejemplo:
+ * FazerCards: 0.2317
+ * STORE GAMING: 0.4317
+ */
 function getRetailPrice(
   offer: (typeof OFFERS)[number]
 ) {
   return Number(
-    Number(offer.price).toFixed(2)
+    Number(
+      offer.supplierPrice +
+        STORE_MARGIN
+    ).toFixed(4)
   );
 }
 
@@ -232,7 +271,8 @@ export async function POST(
   request: NextRequest
 ) {
   let reserved = false;
-  let insertedOrderId: string | null = null;
+  let insertedOrderId: string | null =
+    null;
 
   try {
     /* =========================
@@ -275,7 +315,6 @@ export async function POST(
 
     const user = userData.user;
 
-
     /* =========================
        BODY
     ========================== */
@@ -284,12 +323,14 @@ export async function POST(
       await request.json();
 
     const offerId =
-      String(body?.offerId || "")
-        .trim();
+      String(
+        body?.offerId || ""
+      ).trim();
 
     const playerId =
-      String(body?.playerId || "")
-        .trim();
+      String(
+        body?.playerId || ""
+      ).trim();
 
     const idempotencyKey =
       String(
@@ -298,7 +339,6 @@ export async function POST(
 
     const requestedRetailPrice =
       Number(body?.retailPrice);
-
 
     /* =========================
        VALIDACIONES
@@ -364,14 +404,14 @@ export async function POST(
       );
     }
 
-
     /* =========================
        OFERTA
     ========================== */
 
     const offer =
       OFFERS.find(
-        (item) => item.id === offerId
+        (item) =>
+          item.id === offerId
       );
 
     if (!offer) {
@@ -384,27 +424,63 @@ export async function POST(
       );
     }
 
-    const retailPrice =
-      getRetailPrice(offer);
-
+    /*
+     * Evitar que una oferta cuyo precio
+     * todavía no conocemos pueda procesarse.
+     */
     if (
-      Number.isFinite(
-        requestedRetailPrice
-      ) &&
-      Math.abs(
-        requestedRetailPrice -
-          retailPrice
-      ) > 0.001
+      !Number.isFinite(
+        offer.supplierPrice
+      ) ||
+      offer.supplierPrice <= 0
     ) {
       return NextResponse.json(
         {
           error:
-            "El precio de la oferta no coincide.",
+            "Esta oferta todavía no tiene un precio disponible.",
         },
         { status: 400 }
       );
     }
 
+    const retailPrice =
+      getRetailPrice(offer);
+
+    /*
+     * Validamos el precio enviado por el
+     * cliente contra el precio calculado
+     * en el servidor.
+     */
+    if (
+      !Number.isFinite(
+        requestedRetailPrice
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El precio de la oferta no es válido.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      Math.abs(
+        requestedRetailPrice -
+          retailPrice
+      ) > 0.0001
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "El precio de la oferta no coincide.",
+          expected:
+            retailPrice,
+        },
+        { status: 400 }
+      );
+    }
 
     /* =========================
        IDEMPOTENCIA
@@ -461,7 +537,6 @@ export async function POST(
       );
     }
 
-
     /* =========================
        PERFIL / BALANCE
     ========================== */
@@ -509,7 +584,9 @@ export async function POST(
     }
 
     const balance =
-      Number(profile.balance || 0);
+      Number(
+        profile.balance || 0
+      );
 
     if (
       !Number.isFinite(balance) ||
@@ -520,12 +597,12 @@ export async function POST(
           error:
             "Saldo insuficiente.",
           balance,
-          required: retailPrice,
+          required:
+            retailPrice,
         },
         { status: 400 }
       );
     }
-
 
     /* =========================
        CREAR ORDEN
@@ -538,7 +615,8 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .insert({
-          user_id: user.id,
+          user_id:
+            user.id,
 
           game:
             "Delta Force",
@@ -603,7 +681,6 @@ export async function POST(
     insertedOrderId =
       insertedOrder.id;
 
-
     /* =========================
        RESERVAR SALDO
     ========================== */
@@ -632,7 +709,9 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status: "FAILED",
+          status:
+            "FAILED",
+
           updated_at:
             new Date().toISOString(),
         })
@@ -657,7 +736,9 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status: "FAILED",
+          status:
+            "FAILED",
+
           updated_at:
             new Date().toISOString(),
         })
@@ -676,7 +757,6 @@ export async function POST(
     }
 
     reserved = true;
-
 
     /* =========================
        ENVIAR A FAZERCARDS
@@ -706,6 +786,13 @@ export async function POST(
       );
     }
 
+    /*
+     * IMPORTANTE:
+     *
+     * Aquí NO enviamos el precio +$0.20.
+     * FazerCards recibe solamente su
+     * category_id, offer_id y player_id.
+     */
     const supplierPayload = {
       category_id:
         CATEGORY_ID,
@@ -757,11 +844,15 @@ export async function POST(
               ),
           }
         );
-    } catch (supplierNetworkError) {
+    } catch (
+      supplierNetworkError
+    ) {
       /*
        * No sabemos si FazerCards recibió
-       * el pedido. Por seguridad NO hacemos
-       * refund automático.
+       * el pedido.
+       *
+       * Por seguridad no hacemos refund
+       * automático.
        */
 
       console.error(
@@ -815,7 +906,6 @@ export async function POST(
       );
     }
 
-
     /* =========================
        LEER RESPUESTA
     ========================== */
@@ -823,12 +913,15 @@ export async function POST(
     const responseText =
       await supplierResponse.text();
 
-    let supplierData: any = null;
+    let supplierData: any =
+      null;
 
     try {
       supplierData =
         responseText
-          ? JSON.parse(responseText)
+          ? JSON.parse(
+              responseText
+            )
           : null;
     } catch {
       supplierData = {
@@ -846,7 +939,6 @@ export async function POST(
       getSupplierStatus(
         supplierData
       );
-
 
     /* =========================
        PROVEEDOR RECHAZÓ
@@ -942,7 +1034,6 @@ export async function POST(
       );
     }
 
-
     /* =========================
        SIN ORDER ID
     ========================== */
@@ -983,7 +1074,6 @@ export async function POST(
         { status: 202 }
       );
     }
-
 
     /* =========================
        ACTUALIZAR ORDEN
@@ -1033,9 +1123,10 @@ export async function POST(
       );
 
       /*
-       * No hacemos refund porque el proveedor
+       * No hacemos refund porque FazerCards
        * ya entregó un order ID.
        */
+
       reserved = false;
 
       return NextResponse.json(
@@ -1059,12 +1150,11 @@ export async function POST(
 
     reserved = false;
 
-
     /* =========================
        RESPUESTA FINAL
     ========================== */
 
-     return NextResponse.json(
+    return NextResponse.json(
       {
         ok: true,
 
@@ -1092,12 +1182,12 @@ export async function POST(
     );
 
     /*
-     * Si ya habíamos reservado el saldo pero
-     * ocurrió un error antes de conocer si
-     * FazerCards aceptó el pedido, dejamos la
-     * orden pendiente para evitar doble
-     * recarga/refund incorrecto.
+     * Si ya habíamos reservado el saldo
+     * pero ocurrió un error antes de saber
+     * si FazerCards aceptó el pedido,
+     * dejamos la orden pendiente.
      */
+
     if (
       insertedOrderId &&
       reserved
@@ -1116,7 +1206,9 @@ export async function POST(
             "id",
             insertedOrderId
           );
-      } catch (updateError) {
+      } catch (
+        updateError
+      ) {
         console.error(
           "No se pudo marcar la orden como pendiente:",
           updateError
