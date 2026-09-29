@@ -1,8 +1,28 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
+
 import { createClient } from "@supabase/supabase-js";
+
+import {
+  deltaForceGame,
+  type DeltaForceOffer,
+} from "../../../lib/games/delta-force";
+
+const supabase = createClient(
+  process.env
+    .NEXT_PUBLIC_SUPABASE_URL!,
+  process.env
+    .NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+const gameNote =
+  "Región: Global. La moneda se entrega directamente a tu cuenta después de realizar el pedido.";
 
 type SupplierOffer = {
   offer_id: string;
@@ -10,229 +30,73 @@ type SupplierOffer = {
   price_usd: string | number;
 };
 
-type DeltaOffer = {
-  id: string;
-  supplierOfferId: string;
-  name: string;
-  display: string;
-  price: number;
-  icon: string;
-};
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-const gameNote =
-  "Región: Global. La moneda se entrega directamente a su cuenta después de realizar el pedido.";
-
 export default function DeltaForcePage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
+  const [
+    showOffers,
+    setShowOffers,
+  ] = useState(false);
 
-  const [offers, setOffers] = useState<DeltaOffer[]>([]);
+  const [
+    selectedOffer,
+    setSelectedOffer,
+  ] =
+    useState<DeltaForceOffer | null>(
+      null
+    );
 
-  const [loadingOffers, setLoadingOffers] =
-    useState(true);
+  const [
+    playerId,
+    setPlayerId,
+  ] = useState("");
 
-  const [offersError, setOffersError] =
-    useState("");
+  const [
+    error,
+    setError,
+  ] = useState("");
 
-  const [selectedOffer, setSelectedOffer] =
-    useState<DeltaOffer | null>(null);
+  const [
+    orderCreated,
+    setOrderCreated,
+  ] = useState(false);
 
-  const [playerId, setPlayerId] =
-    useState("");
+  const [
+    orderNumber,
+    setOrderNumber,
+  ] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [
+    supplierOrderId,
+    setSupplierOrderId,
+  ] = useState("");
 
-  const [showConfirmation, setShowConfirmation] =
-    useState(false);
+  const [
+    orderStatus,
+    setOrderStatus,
+  ] = useState("");
 
-  const [orderCreated, setOrderCreated] =
-    useState(false);
-
-  const [orderNumber, setOrderNumber] =
-    useState("");
-
-  const [creatingOrder, setCreatingOrder] =
-    useState(false);
-
-  /*
-   * ============================================================
-   * CARGAR OFERTAS REALES DE FAZERCARDS
-   * ============================================================
-   */
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadOffers() {
-      try {
-        setLoadingOffers(true);
-        setOffersError("");
-
-        const response = await fetch(
-          "/api/fazercards/topups?category_id=delta_force",
-          {
-            method: "GET",
-            cache: "no-store",
-          }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok || !data?.ok) {
-          throw new Error(
-            data?.error ||
-              "No se pudieron cargar las ofertas de Delta Force."
-          );
-        }
-
-        if (!Array.isArray(data.offers)) {
-          throw new Error(
-            "FazerCards no devolvió una lista válida de ofertas."
-          );
-        }
-
-        const normalizedOffers: DeltaOffer[] =
-          data.offers
-            .map(
-              (
-                offer: SupplierOffer
-              ): DeltaOffer | null => {
-                if (
-                  !offer?.offer_id ||
-                  !offer?.name
-                ) {
-                  return null;
-                }
-
-                const price = Number(
-                  offer.price_usd
-                );
-
-                if (
-                  !Number.isFinite(price)
-                ) {
-                  return null;
-                }
-
-                const name =
-                  String(
-                    offer.name
-                  ).trim();
-
-                const lowerName =
-                  name.toLowerCase();
-
-                const isPass =
-                  lowerName.includes(
-                    "pass"
-                  ) ||
-                  lowerName.includes(
-                    "pase"
-                  );
-
-                return {
-                  id: String(
-                    offer.offer_id
-                  ),
-
-                  supplierOfferId:
-                    String(
-                      offer.offer_id
-                    ),
-
-                  name:
-                    name.toUpperCase(),
-
-                  display: isPass
-                    ? name.toUpperCase()
-                    : name
-                        .replace(
-                          /delta coins?/i,
-                          "🪙"
-                        )
-                        .toUpperCase(),
-
-                  price,
-
-                  icon: isPass
-                    ? "🎟️"
-                    : "🪙",
-                };
-              }
-            )
-            .filter(
-              (
-                offer: DeltaOffer | null
-              ): offer is DeltaOffer =>
-                offer !== null
-            );
-
-        if (cancelled) {
-          return;
-        }
-
-        if (
-          normalizedOffers.length === 0
-        ) {
-          throw new Error(
-            "FazerCards no devolvió ofertas disponibles."
-          );
-        }
-
-        setOffers(
-          normalizedOffers
-        );
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-
-        console.error(
-          "Error cargando Delta Force:",
-          err
-        );
-
-        setOffersError(
-          err instanceof Error
-            ? err.message
-            : "No se pudieron cargar las ofertas."
-        );
-      } finally {
-        if (!cancelled) {
-          setLoadingOffers(false);
-        }
-      }
-    }
-
-    loadOffers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  /*
-   * ============================================================
-   * SELECCIONAR OFERTA
-   * ============================================================
-   */
+  const [
+    processing,
+    setProcessing,
+  ] = useState(false);
 
   function selectOffer(
-    offer: DeltaOffer
+    offer: DeltaForceOffer
   ) {
     setSelectedOffer(offer);
+
     setPlayerId("");
+
     setError("");
-    setShowConfirmation(false);
+
     setOrderCreated(false);
+
     setOrderNumber("");
+
+    setSupplierOrderId("");
+
+    setOrderStatus("");
 
     setTimeout(() => {
       document
@@ -246,104 +110,102 @@ export default function DeltaForcePage() {
     }, 100);
   }
 
-  /*
-   * ============================================================
-   * FORMULARIO
-   * ============================================================
-   */
-
-  function handleFinishPurchase(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    setError("");
-
-    if (!selectedOffer) {
-      setError(
-        "Seleccione una oferta."
-      );
-      return;
-    }
-
-    const cleanId =
-      playerId.trim();
-
-    if (!cleanId) {
-      setError(
-        "Ponga el ID de su cuenta."
-      );
-      return;
-    }
-
-    if (!/^[0-9]+$/.test(cleanId)) {
-      setError(
-        "El ID solo puede contener números."
-      );
-      return;
-    }
-
-    if (cleanId.length < 4) {
-      setError(
-        "El ID parece demasiado corto."
-      );
-      return;
-    }
-
-    setShowConfirmation(true);
-
-    setTimeout(() => {
-      document
-        .getElementById(
-          "confirmation-section"
-        )
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  }
-
-  /*
-   * ============================================================
-   * CREAR PEDIDO REAL
-   * ============================================================
-   */
-
   async function createOrder() {
     if (
       !selectedOffer ||
-      creatingOrder
+      processing
     ) {
       return;
     }
 
     setError("");
-    setCreatingOrder(true);
+
+    setProcessing(true);
 
     try {
+      /*
+       * ============================================================
+       * 1. COMPROBAR SESIÓN
+       * ============================================================
+       */
+
       const {
-        data: sessionData,
+        data: {
+          session,
+        },
         error: sessionError,
       } =
         await supabase.auth.getSession();
 
       if (
         sessionError ||
-        !sessionData.session
+        !session?.user
       ) {
         setError(
           "Su sesión ha expirado. Inicie sesión nuevamente."
         );
-        router.push("/login");
+
+        router.replace("/");
+
         return;
       }
 
+      /*
+       * ============================================================
+       * 2. LIMPIAR PLAYER ID
+       * ============================================================
+       */
+
       const cleanPlayerId =
-        playerId.trim();
+        playerId
+          .trim()
+          .replace(/\s+/g, "");
+
+      if (!cleanPlayerId) {
+        setError(
+          "Ponga el ID de su cuenta."
+        );
+
+        return;
+      }
+
+      if (
+        !/^[0-9]+$/.test(
+          cleanPlayerId
+        )
+      ) {
+        setError(
+          "El ID debe contener solamente números."
+        );
+
+        return;
+      }
+
+      if (
+        cleanPlayerId.length < 4 ||
+        cleanPlayerId.length > 20
+      ) {
+        setError(
+          "El ID parece no tener un formato válido."
+        );
+
+        return;
+      }
+
+      /*
+       * ============================================================
+       * 3. CLAVE DE IDEMPOTENCIA
+       * ============================================================
+       */
 
       const idempotencyKey =
         crypto.randomUUID();
+
+      /*
+       * ============================================================
+       * 4. ENVIAR PEDIDO AL API
+       * ============================================================
+       */
 
       const response =
         await fetch(
@@ -355,17 +217,14 @@ export default function DeltaForcePage() {
               "Content-Type":
                 "application/json",
 
-              Accept:
-                "application/json",
-
               Authorization:
-                `Bearer ${sessionData.session.access_token}`,
+                `Bearer ${session.access_token}`,
             },
 
             body:
               JSON.stringify({
                 offerId:
-                  selectedOffer.supplierOfferId,
+                  selectedOffer.id,
 
                 offerName:
                   selectedOffer.name,
@@ -381,131 +240,134 @@ export default function DeltaForcePage() {
           }
         );
 
-      const data =
-        await response.json();
-
-      if (
-        !response.ok &&
-        !data?.ok
-      ) {
-        throw new Error(
-          data?.error ||
-            "No se pudo crear la orden."
-        );
-      }
-
-      if (!data?.orderNumber) {
-        throw new Error(
-          "La orden fue procesada pero no se recibió el número de orden."
-        );
-      }
-
-      setOrderNumber(
-        String(
-          data.orderNumber
-        )
-      );
-
-      setOrderCreated(true);
-      setShowConfirmation(false);
-
       /*
-       * Guardamos únicamente una referencia local
-       * para compatibilidad con pantallas antiguas.
-       *
-       * La orden real está en topup_orders.
+       * ============================================================
+       * 5. LEER RESPUESTA
+       * ============================================================
        */
 
-      const localOrder = {
-        id:
-          data.orderNumber,
-
-        game:
-          "DELTA FORCE",
-
-        product:
-          selectedOffer.name,
-
-        displayProduct:
-          selectedOffer.display,
-
-        price:
-          selectedOffer.price,
-
-        unitPrice:
-          selectedOffer.price,
-
-        quantity:
-          1,
-
-        playerId:
-          cleanPlayerId,
-
-        status:
-          data.status ===
-          "COMPLETED"
-            ? "Completada"
-            : "Pendiente",
-
-        supplier:
-          "FazerCards",
-
-        supplierOfferId:
-          selectedOffer.supplierOfferId,
-
-        supplierOrderId:
-          data.supplierOrderId ??
-          null,
-
-        createdAt:
-          new Date().toISOString(),
-      };
+      let result: any = {};
 
       try {
-        const existingOrders =
-          localStorage.getItem(
-            "storeGamingOrders"
+        result =
+          await response.json();
+      } catch {
+        result = {};
+      }
+
+      /*
+       * ============================================================
+       * 6. ERROR DEL SERVIDOR
+       * ============================================================
+       */
+
+      if (
+        !response.ok ||
+        !result.ok
+      ) {
+        setError(
+          result.error ||
+            "No se pudo crear la orden."
+        );
+
+        return;
+      }
+
+      /*
+       * ============================================================
+       * 7. OBTENER DATOS DE LA ORDEN
+       * ============================================================
+       */
+
+      const order =
+        result.order || {};
+
+      setOrderNumber(
+        result.orderNumber ||
+          order.order_number ||
+          order.id ||
+          result.id ||
+          ""
+      );
+
+      setSupplierOrderId(
+        result.supplierOrderId ||
+          order.supplier_order_id ||
+          ""
+      );
+
+      setOrderStatus(
+        result.status ||
+          order.status ||
+          order.supplier_status ||
+          "SUPPLIER_PENDING"
+      );
+
+      /*
+       * ============================================================
+       * 8. GUARDAR COMPATIBILIDAD LOCAL
+       * ============================================================
+       */
+
+      try {
+        const storedOrders =
+          JSON.parse(
+            localStorage.getItem(
+              "storeGamingOrders"
+            ) || "[]"
           );
 
-        let orders: any[] = [];
+        const localOrder = {
+          id:
+            result.orderNumber ||
+            result.id ||
+            crypto.randomUUID(),
 
-        if (existingOrders) {
-          const parsed =
-            JSON.parse(
-              existingOrders
-            );
+          orderNumber:
+            result.orderNumber ||
+            result.id ||
+            "",
 
-          if (
-            Array.isArray(
-              parsed
-            )
-          ) {
-            orders = parsed;
-          }
-        }
+          supplierOrderId:
+            result.supplierOrderId ||
+            "",
 
-        const alreadyExists =
-          orders.some(
-            (item) =>
-              String(
-                item?.id
-              ) ===
-              String(
-                localOrder.id
-              )
-          );
+          game:
+            "Delta Force",
 
-        if (!alreadyExists) {
-          orders.unshift(
-            localOrder
-          );
-        }
+          categoryId:
+            "delta_force",
+
+          offerId:
+            selectedOffer.id,
+
+          offerName:
+            selectedOffer.name,
+
+          playerId:
+            cleanPlayerId,
+
+          retailPrice:
+            selectedOffer.price,
+
+          supplierPrice:
+            result.supplierPrice ??
+            selectedOffer.supplierPrice,
+
+          status:
+            result.status ||
+            "SUPPLIER_PENDING",
+
+          createdAt:
+            new Date().toISOString(),
+        };
 
         localStorage.setItem(
           "storeGamingOrders",
-          JSON.stringify(
-            orders
-          )
+          JSON.stringify([
+            localOrder,
+            ...storedOrders,
+          ])
         );
 
         localStorage.setItem(
@@ -514,12 +376,22 @@ export default function DeltaForcePage() {
             localOrder
           )
         );
-      } catch (storageError) {
-        console.warn(
-          "No se pudo actualizar el almacenamiento local:",
-          storageError
+      } catch (
+        localStorageError
+      ) {
+        console.error(
+          "ERROR GUARDANDO ORDEN LOCAL:",
+          localStorageError
         );
       }
+
+      /*
+       * ============================================================
+       * 9. MOSTRAR ORDEN CREADA
+       * ============================================================
+       */
+
+      setOrderCreated(true);
 
       setTimeout(() => {
         document
@@ -531,51 +403,90 @@ export default function DeltaForcePage() {
             block: "start",
           });
       }, 100);
+
     } catch (err) {
       console.error(
-        "Error creando pedido Delta Force:",
+        "ERROR CREANDO TOPUP DELTA FORCE:",
         err
       );
 
       setError(
-        err instanceof Error
-          ? err.message
-          : "Ocurrió un error creando la orden."
+        "No se pudo conectar con el servidor. Si la compra fue enviada, no vuelva a intentarla hasta revisar el estado de la orden."
       );
+
     } finally {
-      setCreatingOrder(false);
+      setProcessing(false);
     }
   }
 
-  /*
-   * ============================================================
-   * IR A PEDIDOS
-   * ============================================================
-   */
+  function handleFinishPurchase(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
 
-  function goToOrders() {
-    router.push(
-      "/orders"
-    );
+    if (processing) {
+      return;
+    }
+
+    if (!selectedOffer) {
+      setError(
+        "Seleccione una oferta."
+      );
+
+      return;
+    }
+
+    const cleanId =
+      playerId
+        .trim()
+        .replace(/\s+/g, "");
+
+    if (!cleanId) {
+      setError(
+        "Ponga el ID de su cuenta."
+      );
+
+      return;
+    }
+
+    if (
+      !/^[0-9]+$/.test(
+        cleanId
+      )
+    ) {
+      setError(
+        "El ID debe contener solamente números."
+      );
+
+      return;
+    }
+
+    if (
+      cleanId.length < 4 ||
+      cleanId.length > 20
+    ) {
+      setError(
+        "El ID parece no tener un formato válido."
+      );
+
+      return;
+    }
+
+    setError("");
+
+    createOrder();
   }
 
-  /*
-   * ============================================================
-   * TOTAL
-   * ============================================================
-   */
-
-  const total =
-    selectedOffer
-      ? selectedOffer.price
-      : 0;
+  function goToOrders() {
+    router.push("/orders");
+  }
 
   return (
-    <main className="game-service-page">
+    <main className="game-service-page delta-force-page">
 
-      {/* =========================
+      {/* ============================================================
           HEADER
-      ========================== */}
+      ============================================================ */}
 
       <header className="game-service-header">
 
@@ -583,11 +494,8 @@ export default function DeltaForcePage() {
           type="button"
           className="game-back-button"
           onClick={() =>
-            router.push(
-              "/top-up"
-            )
+            router.push("/home")
           }
-          aria-label="Volver"
         >
           ←
         </button>
@@ -608,11 +516,8 @@ export default function DeltaForcePage() {
           type="button"
           className="game-cart-button"
           onClick={() =>
-            router.push(
-              "/cart"
-            )
+            router.push("/cart")
           }
-          aria-label="Carrito"
         >
           🛒
         </button>
@@ -620,20 +525,20 @@ export default function DeltaForcePage() {
       </header>
 
 
-      {/* =========================
+      {/* ============================================================
           IMAGEN PRINCIPAL
-      ========================== */}
+      ============================================================ */}
 
-      <section className="free-fire-main-image">
+      <section className="delta-force-main-image">
 
         <img
           src="/images/delta-force.jpg"
           alt="Delta Force"
         />
 
-        <div className="free-fire-main-overlay" />
+        <div className="delta-force-main-overlay" />
 
-        <div className="free-fire-main-text">
+        <div className="delta-force-main-text">
 
           <span>
             ⚡ TOP UP
@@ -647,7 +552,7 @@ export default function DeltaForcePage() {
           </h1>
 
           <p>
-            Monedas y pases
+            Delta Coins y pases
           </p>
 
         </div>
@@ -655,9 +560,9 @@ export default function DeltaForcePage() {
       </section>
 
 
-      {/* =========================
+      {/* ============================================================
           BOTÓN PARA MOSTRAR OFERTAS
-      ========================== */}
+      ============================================================ */}
 
       <button
         type="button"
@@ -687,9 +592,9 @@ export default function DeltaForcePage() {
       </button>
 
 
-      {/* =========================
+      {/* ============================================================
           OFERTAS
-      ========================== */}
+      ============================================================ */}
 
       {showOffers && (
 
@@ -712,173 +617,105 @@ export default function DeltaForcePage() {
           </div>
 
 
-          {loadingOffers && (
+          <div className="offers-list">
 
-            <div className="game-note">
+            {deltaForceGame.offers.map(
+              (offer) => {
 
-              <div className="game-note-icon">
-                ⟳
-              </div>
+                const selected =
+                  selectedOffer?.id ===
+                  offer.id;
 
-              <div className="game-note-content">
+                return (
 
-                <strong>
-                  CARGANDO OFERTAS
-                </strong>
+                  <button
+                    key={offer.id}
+                    type="button"
+                    className={`offer-card ${
+                      selected
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      selectOffer(
+                        offer
+                      )
+                    }
+                  >
 
-                <p>
-                  Consultando las ofertas
-                  disponibles de Delta Force...
-                </p>
+                    <div className="offer-left">
 
-              </div>
+                      <div className="diamond-icon">
+                        {offer.icon}
+                      </div>
+
+                      <div className="offer-info">
+
+                        <strong>
+                          {offer.display}
+                        </strong>
+
+                        <span>
+                          {offer.name}
+                        </span>
+
+                      </div>
+
+                    </div>
+
+
+                    <div className="offer-right">
+
+                      <strong>
+                        {offer.price.toFixed(2)}$
+                      </strong>
+
+                      <span>
+                        SELECCIONAR →
+                      </span>
+
+                    </div>
+
+                  </button>
+
+                );
+              }
+            )}
+
+          </div>
+
+
+          <div className="game-note">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
 
             </div>
 
-          )}
-
-
-          {!loadingOffers &&
-            offersError && (
-
-              <div className="game-note">
-
-                <div className="game-note-icon">
-                  !
-                </div>
-
-                <div className="game-note-content">
-
-                  <strong>
-                    ERROR
-                  </strong>
-
-                  <p>
-                    {offersError}
-                  </p>
-
-                </div>
-
-              </div>
-
-            )}
-
-
-          {!loadingOffers &&
-            !offersError &&
-            offers.length > 0 && (
-
-              <div className="offers-list">
-
-                {offers.map(
-                  (offer) => {
-
-                    const selected =
-                      selectedOffer?.id ===
-                      offer.id;
-
-                    return (
-
-                      <button
-                        key={
-                          offer.supplierOfferId
-                        }
-                        type="button"
-                        className={`offer-card ${
-                          selected
-                            ? "selected"
-                            : ""
-                        }`}
-                        onClick={() =>
-                          selectOffer(
-                            offer
-                          )
-                        }
-                      >
-
-                        <div className="offer-left">
-
-                          <div className="diamond-icon">
-                            {offer.icon}
-                          </div>
-
-                          <div className="offer-info">
-
-                            <strong>
-                              {offer.display}
-                            </strong>
-
-                            <span>
-                              {offer.name}
-                            </span>
-
-                          </div>
-
-                        </div>
-
-
-                        <div className="offer-right">
-
-                          <strong>
-                            {offer.price.toFixed(
-                              2
-                            )}
-                            $
-                          </strong>
-
-                          <span>
-                            SELECCIONAR →
-                          </span>
-
-                        </div>
-
-                      </button>
-
-                    );
-                  }
-                )}
-
-              </div>
-
-            )}
-
-
-          {!loadingOffers &&
-            !offersError &&
-            offers.length > 0 && (
-
-              <div className="game-note">
-
-                <div className="game-note-icon">
-                  !
-                </div>
-
-                <div className="game-note-content">
-
-                  <strong>
-                    NOTA
-                  </strong>
-
-                  <p>
-                    {gameNote}
-                  </p>
-
-                </div>
-
-              </div>
-
-            )}
+          </div>
 
         </section>
 
       )}
 
 
-            {/* =========================
+      {/* ============================================================
           DATOS DEL PEDIDO
-      ========================== */}
+      ============================================================ */}
 
-      {selectedOffer && (
+      {selectedOffer &&
+        !orderCreated && (
 
         <section
           id="order-section"
@@ -905,16 +742,21 @@ export default function DeltaForcePage() {
 
           </div>
 
-          <div className="selected-offer">
 
-            <div className="selected-offer-icon">
+          {/* ========================================================
+              OFERTA SELECCIONADA
+          ======================================================== */}
+
+          <div className="selected-order-card">
+
+            <div className="selected-order-icon">
               {selectedOffer.icon}
             </div>
 
-            <div className="selected-offer-info">
+            <div className="selected-order-info">
 
               <span>
-                OFERTA SELECCIONADA
+                DELTA FORCE
               </span>
 
               <strong>
@@ -923,19 +765,47 @@ export default function DeltaForcePage() {
 
             </div>
 
-            <div className="selected-offer-price">
-              ${selectedOffer.price.toFixed(2)}
+            <div className="selected-order-price">
+              {selectedOffer.price.toFixed(2)}$
             </div>
 
           </div>
 
-          {/* =========================
+
+          {/* ========================================================
+              NOTA
+          ======================================================== */}
+
+          <div className="game-note game-note-order">
+
+            <div className="game-note-icon">
+              !
+            </div>
+
+            <div className="game-note-content">
+
+              <strong>
+                NOTA
+              </strong>
+
+              <p>
+                {gameNote}
+              </p>
+
+            </div>
+
+          </div>
+
+
+          {/* ========================================================
               FORMULARIO
-          ========================== */}
+          ======================================================== */}
 
           <form
             className="order-form"
-            onSubmit={handleFinishPurchase}
+            onSubmit={
+              handleFinishPurchase
+            }
           >
 
             <label
@@ -945,44 +815,93 @@ export default function DeltaForcePage() {
               ID DEL JUGADOR
             </label>
 
-            <input
-              id="player-id"
-              className="player-id-input"
-              type="text"
-              inputMode="numeric"
-              value={playerId}
-              onChange={(e) => {
-                setPlayerId(
-                  e.target.value.replace(/\D/g, "")
-                );
-                setError("");
-              }}
-              placeholder="Introduce tu ID"
-              autoComplete="off"
-            />
-
-            <p className="game-note">
-              {gameNote}
+            <p className="player-id-description">
+              Introduzca el Player ID de
+              la cuenta donde desea
+              recibir la compra.
             </p>
 
+
+            <div className="player-id-input-wrapper">
+
+              <span>
+                🆔
+              </span>
+
+              <input
+                id="player-id"
+                type="text"
+                inputMode="numeric"
+                value={playerId}
+                onChange={(event) => {
+                  setPlayerId(
+                    event.target.value.replace(
+                      /[^0-9]/g,
+                      ""
+                    )
+                  );
+
+                  setError("");
+                }}
+                placeholder="Introduzca su Player ID"
+                autoComplete="off"
+                maxLength={20}
+                disabled={processing}
+              />
+
+            </div>
+
+
+            {/* ======================================================
+                ERROR
+            ====================================================== */}
+
             {error && (
-              <div className="form-error">
-                ⚠️ {error}
+
+              <div className="order-error">
+                {error}
               </div>
+
             )}
+
+
+            {/* ======================================================
+                PRECIO
+            ====================================================== */}
+
+            <div className="order-total-preview">
+
+              <span>
+                PRECIO
+              </span>
+
+              <strong>
+                {selectedOffer.price.toFixed(2)}$
+              </strong>
+
+            </div>
+
+
+            {/* ======================================================
+                FINALIZAR COMPRA
+            ====================================================== */}
 
             <button
               type="submit"
-              className="continue-button"
-              disabled={
-                processing ||
-                !selectedOffer ||
-                !playerId.trim()
-              }
+              className="finish-order-button"
+              disabled={processing}
             >
-              {processing
-                ? "PROCESANDO..."
-                : "CONTINUAR"}
+
+              <span>
+                {processing
+                  ? "PROCESANDO COMPRA..."
+                  : "FINALIZAR COMPRA"}
+              </span>
+
+              <b>
+                →
+              </b>
+
             </button>
 
           </form>
@@ -990,3 +909,178 @@ export default function DeltaForcePage() {
         </section>
 
       )}
+
+
+      {/* ============================================================
+          ORDEN CREADA
+      ============================================================ */}
+
+      {orderCreated && (
+
+        <section
+          id="success-section"
+          className="order-success-section"
+        >
+
+          <div className="success-circle">
+            ✓
+          </div>
+
+          <h2>
+            ORDEN CREADA
+          </h2>
+
+          <p>
+            Su orden ha sido creada
+            correctamente y está siendo
+            procesada.
+          </p>
+
+
+          {/* ========================================================
+              NÚMERO DE ORDEN
+          ======================================================== */}
+
+          <div className="success-order-number">
+
+            <span>
+              NÚMERO DE ORDEN
+            </span>
+
+            <strong>
+              {orderNumber ||
+                "PENDIENTE"}
+            </strong>
+
+          </div>
+
+
+          {/* ========================================================
+              ORDEN DEL PROVEEDOR
+          ======================================================== */}
+
+          {supplierOrderId && (
+
+            <div className="success-order-number">
+
+              <span>
+                ORDEN DEL PROVEEDOR
+              </span>
+
+              <strong>
+                {supplierOrderId}
+              </strong>
+
+            </div>
+
+          )}
+
+
+                    {/* ========================================================
+              ESTADO
+          ======================================================== */}
+
+          <div className="success-order-status">
+
+            <span>
+              ESTADO
+            </span>
+
+            <strong>
+              {orderStatus ||
+                "PROCESANDO"}
+            </strong>
+
+          </div>
+
+          <div className="success-order-details">
+
+            <div className="success-detail-row">
+              <span>PRODUCTO</span>
+              <strong>
+                {selectedOffer?.name || "Delta Force"}
+              </strong>
+            </div>
+
+            <div className="success-detail-row">
+              <span>PLAYER ID</span>
+              <strong>
+                {playerId}
+              </strong>
+            </div>
+
+            <div className="success-detail-row">
+              <span>PRECIO</span>
+              <strong>
+                ${selectedOffer?.price.toFixed(2)} USD
+              </strong>
+            </div>
+
+            {supplierOrderId && (
+              <div className="success-detail-row">
+                <span>ID DEL PROVEEDOR</span>
+                <strong>
+                  {supplierOrderId}
+                </strong>
+              </div>
+            )}
+
+          </div>
+
+          <div className="success-order-actions">
+
+            <button
+              type="button"
+              className="success-orders-button"
+              onClick={goToOrders}
+            >
+              VER MIS PEDIDOS
+            </button>
+
+            <button
+              type="button"
+              className="success-new-order-button"
+              onClick={() => {
+                setOrderCreated(false);
+                setOrderNumber("");
+                setSupplierOrderId("");
+                setOrderStatus("");
+                setSelectedOffer(null);
+                setPlayerId("");
+                setError("");
+              }}
+            >
+              HACER OTRO PEDIDO
+            </button>
+
+          </div>
+
+        </div>
+
+      )}
+
+    </section>
+
+    {/* ============================================================
+        FOOTER
+    ============================================================ */}
+
+    <footer className="game-service-footer">
+
+      <div className="footer-brand">
+        🛒STORE GAMING🎮
+      </div>
+
+      <p>
+        Recargas de Delta Force
+      </p>
+
+      <span>
+        © {new Date().getFullYear()} STORE GAMING
+      </span>
+
+    </footer>
+
+  </main>
+);
+}
