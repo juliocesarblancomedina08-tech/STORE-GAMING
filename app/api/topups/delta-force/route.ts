@@ -494,7 +494,7 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .select(
-          "id,order_number,status,supplier_order_id,retail_price"
+          "id,status,supplier_order_id,retail_price"
         )
         .eq(
           "user_id",
@@ -530,7 +530,6 @@ export async function POST(
           duplicate: true,
           order: existingOrder,
           orderNumber:
-            existingOrder.order_number ||
             existingOrder.id,
         },
         { status: 200 }
@@ -896,7 +895,6 @@ export async function POST(
           pending: true,
 
           orderNumber:
-            insertedOrder.order_number ||
             insertedOrder.id,
 
           message:
@@ -1065,7 +1063,6 @@ export async function POST(
           pending: true,
 
           orderNumber:
-            insertedOrder.order_number ||
             insertedOrder.id,
 
           message:
@@ -1136,7 +1133,6 @@ export async function POST(
           pending: true,
 
           orderNumber:
-            insertedOrder.order_number ||
             insertedOrder.id,
 
           supplierOrderId,
@@ -1159,7 +1155,6 @@ export async function POST(
         ok: true,
 
         orderNumber:
-          insertedOrder.order_number ||
           insertedOrder.id,
 
         orderId:
