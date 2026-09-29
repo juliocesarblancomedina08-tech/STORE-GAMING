@@ -104,25 +104,30 @@ export default function DeltaForcePage() {
           );
         }
 
-        const supplierOffers: SupplierOffer[] = Array.isArray(data.offers)
+        const supplierOffers: SupplierOffer[] = Array.isArray(
+          data.offers
+        )
           ? data.offers
           : [];
 
-        const normalized: DeltaOffer[] = supplierOffers.map((offer) => {
-          const supplierPrice = Number(offer.price_usd);
+        const normalized: DeltaOffer[] = supplierOffers.map(
+          (offer) => {
+            const supplierPrice = Number(offer.price_usd);
 
-          return {
-            id: offer.offer_id,
-            supplierOfferId: offer.offer_id,
-            name: offer.name,
-            display: getDisplay(offer.name),
-            supplierPrice,
-            price:
-              Math.round((supplierPrice + STORE_MARGIN) * 10000) /
-              10000,
-            icon: getIcon(offer.name),
-          };
-        });
+            return {
+              id: offer.offer_id,
+              supplierOfferId: offer.offer_id,
+              name: offer.name,
+              display: getDisplay(offer.name),
+              supplierPrice,
+              price:
+                Math.round(
+                  (supplierPrice + STORE_MARGIN) * 10000
+                ) / 10000,
+              icon: getIcon(offer.name),
+            };
+          }
+        );
 
         if (!cancelled) {
           setOffers(normalized);
@@ -163,35 +168,6 @@ export default function DeltaForcePage() {
     setError("");
     setOrderCreated(false);
     setOrderNumber("");
-  }
-
-  function handleFinishPurchase() {
-    if (!selectedOffer) {
-      setError("Selecciona una oferta.");
-      return;
-    }
-
-    if (
-      !selectedOffer.supplierPrice ||
-      selectedOffer.supplierPrice <= 0
-    ) {
-      setError(
-        "Esta oferta todavía no tiene un precio disponible."
-      );
-      return;
-    }
-
-    setError("");
-    setOffersOpen(false);
-
-    setTimeout(() => {
-      document
-        .getElementById("delta-order-form")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-    }, 100);
   }
 
   async function createOrder() {
@@ -324,7 +300,7 @@ export default function DeltaForcePage() {
         <button
           type="button"
           className="delta-back-button"
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/top-up")}
         >
           ←
         </button>
@@ -478,22 +454,13 @@ export default function DeltaForcePage() {
               )}
 
               <button
-                type="button"
-                className="delta-confirm-button"
-                onClick={handleFinishPurchase}
-                disabled={processing}
-              >
-                Continuar
-              </button>
-
-              <button
                 type="submit"
                 className="delta-create-order-button"
                 disabled={processing}
               >
                 {processing
-                  ? "CREANDO PEDIDO..."
-                  : "CREAR PEDIDO"}
+                  ? "FINALIZANDO ORDEN..."
+                  : "FINALIZAR ORDEN"}
               </button>
             </form>
           </section>
@@ -530,7 +497,7 @@ export default function DeltaForcePage() {
             <button
               type="button"
               className="delta-store-button"
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/top-up")}
             >
               Volver a la tienda
             </button>
@@ -788,7 +755,7 @@ export default function DeltaForcePage() {
           flex-direction: column;
         }
 
-                .delta-order-section label {
+        .delta-order-section label {
           margin-bottom: 7px;
           font-size: 13px;
           font-weight: 800;
@@ -819,119 +786,109 @@ export default function DeltaForcePage() {
           font-size: 12px;
         }
 
-        .delta-confirm-button,
         .delta-create-order-button,
-        .delta-review-button,
-        .delta-store-button {
-          width: 100%;
-          margin-top: 12px;
-          padding: 13px;
-          border: 0;
-          border-radius: 11px;
-          font-weight: 900;
-          cursor: pointer;
-        }
+.delta-review-button,
+.delta-store-button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px;
+  border: 0;
+  border-radius: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
 
-        .delta-confirm-button {
-          background: #fff;
-          color: #111;
-        }
+.delta-create-order-button {
+  background: #d71920;
+  color: #fff;
+}
 
-        .delta-create-order-button {
-          background: #d71920;
-          color: #fff;
-        }
+.delta-create-order-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
 
-        .delta-create-order-button:disabled {
-          opacity: 0.6;
-          cursor: wait;
-        }
+.delta-success-section {
+  margin-top: 18px;
+  padding: 22px 16px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.84);
+  border: 1px solid rgba(50, 255, 100, 0.2);
+  text-align: center;
+}
 
-        .delta-success-section {
-          margin-top: 18px;
-          padding: 22px 16px;
-          border-radius: 16px;
-          background: rgba(0, 0, 0, 0.84);
-          border: 1px solid rgba(50, 255, 100, 0.2);
-          text-align: center;
-        }
+.delta-success-icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #19a957;
+  color: #fff;
+  font-size: 31px;
+  font-weight: 900;
+}
 
-        .delta-success-icon {
-          width: 58px;
-          height: 58px;
-          margin: 0 auto 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          background: #19a957;
-          color: #fff;
-          font-size: 31px;
-          font-weight: 900;
-        }
+.delta-success-section h2 {
+  margin: 0;
+  font-size: 21px;
+}
 
-        .delta-success-section h2 {
-          margin: 0;
-          font-size: 21px;
-        }
+.delta-success-section p {
+  margin: 8px 0;
+  color: #cfcfcf;
+  font-size: 13px;
+}
 
-        .delta-success-section p {
-          margin: 8px 0;
-          color: #cfcfcf;
-          font-size: 13px;
-        }
+.delta-order-number {
+  margin-top: 13px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
 
-        .delta-order-number {
-          margin-top: 13px;
-          padding: 12px;
-          border-radius: 10px;
-          background: rgba(255, 255, 255, 0.06);
-        }
+.delta-order-number span {
+  display: block;
+  color: #999;
+  font-size: 11px;
+}
 
-        .delta-order-number span {
-          display: block;
-          color: #999;
-          font-size: 11px;
-        }
+.delta-order-number strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+}
 
-        .delta-order-number strong {
-          display: block;
-          margin-top: 4px;
-          font-size: 16px;
-        }
+.delta-review-button {
+  background: #19a957;
+  color: #fff;
+}
 
-        .delta-review-button {
-          background: #19a957;
-          color: #fff;
-        }
+.delta-store-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
 
-        .delta-store-button {
-          background: rgba(255, 255, 255, 0.1);
-          color: #fff;
-        }
+.delta-force-footer {
+  padding: 25px 12px 5px;
+  color: #888;
+  font-size: 12px;
+  text-align: center;
+}
 
-        .delta-force-footer {
-          padding: 25px 12px 5px;
-          color: #888;
-          font-size: 12px;
-          text-align: center;
-        }
+@media (max-width: 480px) {
+  .delta-force-banner img {
+    height: 185px;
+  }
 
-        @media (max-width: 480px) {
-          .delta-force-banner img {
-            height: 185px;
-          }
+  .delta-selected-offer div {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-          .delta-selected-offer div {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
-          .delta-offer-price {
-            font-size: 13px;
-          }
-        }
-      `}</style>
-    </main>
-  );
+  .delta-offer-price {
+    font-size: 13px;
+  }
 }
