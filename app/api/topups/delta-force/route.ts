@@ -829,12 +829,6 @@ export async function POST(
 
               "User-Agent":
                 "STORE-GAMING/1.0",
-
-              Referer:
-                "https://store-gaming.vercel.app/",
-
-              Origin:
-                "https://store-gaming.vercel.app",
             },
 
             body:
