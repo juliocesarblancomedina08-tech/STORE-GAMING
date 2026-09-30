@@ -67,7 +67,9 @@ export default function FcMobileIdPage() {
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        setError("Su sesión ha expirado. Inicie sesión nuevamente.");
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
         return;
       }
 
@@ -144,7 +146,9 @@ export default function FcMobileIdPage() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     void createOrder();
   }
@@ -680,10 +684,6 @@ export default function FcMobileIdPage() {
                         <div className="fc-mobile-id-offer-name">
                           {offer.name}
                         </div>
-
-                        <div className="fc-mobile-id-offer-description">
-                          {offer.displayName}
-                        </div>
                       </div>
                     </div>
 
@@ -728,6 +728,7 @@ export default function FcMobileIdPage() {
             >
               <label className="fc-mobile-id-label">
                 Player ID
+
                 <input
                   className="fc-mobile-id-input"
                   type="text"
