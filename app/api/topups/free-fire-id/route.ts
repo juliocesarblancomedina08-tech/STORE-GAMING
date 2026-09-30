@@ -16,7 +16,10 @@ const CATEGORY_ID = "free_fire_id";
 
 const STORE_MARGIN = 0.20;
 
-function jsonError(message: string, status = 400) {
+function jsonError(
+  message: string,
+  status = 400
+) {
   return NextResponse.json(
     {
       ok: false,
@@ -26,7 +29,9 @@ function jsonError(message: string, status = 400) {
   );
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest
+) {
   let insertedOrderId: string | null = null;
   let reserved = false;
 
@@ -40,7 +45,9 @@ export async function POST(request: NextRequest) {
     const authorization =
       request.headers.get("authorization") || "";
 
-    if (!authorization.startsWith("Bearer ")) {
+    if (
+      !authorization.startsWith("Bearer ")
+    ) {
       return jsonError(
         "Sesión no válida.",
         401
@@ -48,7 +55,9 @@ export async function POST(request: NextRequest) {
     }
 
     const accessToken =
-      authorization.slice(7).trim();
+      authorization
+        .slice(7)
+        .trim();
 
     if (!accessToken) {
       return jsonError(
@@ -78,7 +87,8 @@ export async function POST(request: NextRequest) {
      * ============================================================
      */
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
     const offerId =
       typeof body.offerId === "string"
@@ -96,7 +106,8 @@ export async function POST(request: NextRequest) {
         : "";
 
     const idempotencyKey =
-      typeof body.idempotencyKey === "string"
+      typeof body.idempotencyKey ===
+      "string"
         ? body.idempotencyKey.trim()
         : "";
 
@@ -115,7 +126,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!/^[0-9]+$/.test(playerId)) {
+    if (
+      !/^[0-9]+$/.test(playerId)
+    ) {
       return jsonError(
         "El ID debe contener solamente números."
       );
@@ -138,13 +151,15 @@ export async function POST(request: NextRequest) {
 
     /*
      * ============================================================
-     * 3. BUSCAR OFERTA REAL
+     * 3. BUSCAR OFERTA
      * ============================================================
      */
 
-    const offer = FREE_FIRE_ID.offers.find(
-      (item) => item.id === offerId
-    );
+    const offer =
+      FREE_FIRE_ID.offers.find(
+        (item) =>
+          item.id === offerId
+      );
 
     if (!offer) {
       return jsonError(
@@ -152,15 +167,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const expectedRetailPrice = Number(
-      (
-        offer.supplierPrice +
-        STORE_MARGIN
-      ).toFixed(4)
-    );
+    const expectedRetailPrice =
+      Number(
+        (
+          offer.supplierPrice +
+          STORE_MARGIN
+        ).toFixed(4)
+      );
 
     if (
-      !Number.isFinite(clientRetailPrice) ||
+      !Number.isFinite(
+        clientRetailPrice
+      ) ||
       Math.abs(
         clientRetailPrice -
           expectedRetailPrice
@@ -187,7 +205,10 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from("topup_orders")
         .select("*")
-        .eq("user_id", user.id)
+        .eq(
+          "user_id",
+          user.id
+        )
         .eq(
           "idempotency_key",
           idempotencyKey
@@ -233,7 +254,10 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from("profiles")
         .select("balance")
-        .eq("id", user.id)
+        .eq(
+          "id",
+          user.id
+        )
         .maybeSingle();
 
     if (profileError) {
@@ -249,9 +273,13 @@ export async function POST(request: NextRequest) {
     }
 
     const balance =
-      Number(profile?.balance || 0);
+      Number(
+        profile?.balance || 0
+      );
 
-    if (balance < retailPrice) {
+    if (
+      balance < retailPrice
+    ) {
       return jsonError(
         "SALDO INSUFICIENTE",
         400
@@ -271,7 +299,8 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from("topup_orders")
         .insert({
-          user_id: user.id,
+          user_id:
+            user.id,
 
           game:
             FREE_FIRE_ID.name,
@@ -283,6 +312,7 @@ export async function POST(request: NextRequest) {
             offer.id,
 
           offer_name:
+            offerName ||
             offer.name,
 
           player_id:
@@ -393,7 +423,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (reserveResult === false) {
+    if (
+      reserveResult === false
+    ) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
@@ -448,18 +480,8 @@ export async function POST(request: NextRequest) {
 
     /*
      * ============================================================
-     * 9. ENVIAR A FAZERCARDS
+     * 9. ENVIAR PEDIDO A FAZERCARDS
      * ============================================================
-     *
-     * Free Fire (ID):
-     *
-     * category_id:
-     * free_fire_id
-     *
-     * fields:
-     * player_id
-     *
-     * No enviamos el precio al proveedor.
      */
 
     const supplierPayload = {
@@ -474,6 +496,13 @@ export async function POST(request: NextRequest) {
           playerId,
       },
     };
+
+    console.log(
+      "ENVIANDO PEDIDO A FAZERCARDS:",
+      JSON.stringify(
+        supplierPayload
+      )
+    );
 
     let supplierResponse: Response;
 
@@ -499,12 +528,6 @@ export async function POST(request: NextRequest) {
 
               "User-Agent":
                 "STORE-GAMING/1.0",
-
-              Referer:
-                "https://store-gaming.vercel.app/",
-
-              Origin:
-                "https://store-gaming.vercel.app/",
             },
 
             body: JSON.stringify(
@@ -512,7 +535,9 @@ export async function POST(request: NextRequest) {
             ),
           }
         );
-    } catch (supplierNetworkError) {
+    } catch (
+      supplierNetworkError
+    ) {
       console.error(
         "ERROR DE RED CON FAZERCARDS:",
         supplierNetworkError
@@ -551,20 +576,23 @@ export async function POST(request: NextRequest) {
           message:
             "La orden fue creada y quedó pendiente de confirmación del proveedor.",
         },
-        { status: 202 }
+        {
+          status: 202,
+        }
       );
     }
 
     /*
      * ============================================================
-     * 10. LEER RESPUESTA DE FAZERCARDS
+     * 10. LEER RESPUESTA
      * ============================================================
      */
 
     const responseText =
       await supplierResponse.text();
 
-    let supplierData: any = {};
+    let supplierData: any =
+      {};
 
     try {
       supplierData =
@@ -580,9 +608,16 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    console.log(
+      "RESPUESTA DE FAZERCARDS:",
+      JSON.stringify(
+        supplierData
+      )
+    );
+
     /*
      * ============================================================
-     * 11. GUARDAR RESPUESTA DEL PROVEEDOR
+     * 11. OBTENER ID DEL PROVEEDOR
      * ============================================================
      */
 
@@ -608,14 +643,17 @@ export async function POST(request: NextRequest) {
      * ============================================================
      */
 
-    if (!supplierResponse.ok) {
+    if (
+      !supplierResponse.ok
+    ) {
       console.error(
         "FAZERCARDS RECHAZÓ LA ORDEN:",
         supplierResponse.status,
         supplierData
       );
 
-      let refundError: unknown = null;
+      let refundError:
+        unknown = null;
 
       try {
         await supabaseAdmin.rpc(
@@ -675,7 +713,7 @@ export async function POST(request: NextRequest) {
 
     /*
      * ============================================================
-     * 13. GUARDAR ORDEN DEL PROVEEDOR
+     * 13. DETERMINAR ESTADO
      * ============================================================
      */
 
@@ -711,6 +749,12 @@ export async function POST(request: NextRequest) {
         "FAILED";
     }
 
+    /*
+     * ============================================================
+     * 14. ACTUALIZAR ORDEN
+     * ============================================================
+     */
+
     await supabaseAdmin
       .from("topup_orders")
       .update({
@@ -745,7 +789,7 @@ export async function POST(request: NextRequest) {
 
     /*
      * ============================================================
-     * 14. SI EL PROVEEDOR FALLÓ, DEVOLVER SALDO
+     * 15. SI FALLÓ, DEVOLVER SALDO
      * ============================================================
      */
 
@@ -763,7 +807,9 @@ export async function POST(request: NextRequest) {
         );
 
         reserved = false;
-      } catch (refundError) {
+      } catch (
+        refundError
+      ) {
         console.error(
           "ERROR DEVOLVIENDO SALDO:",
           refundError
@@ -787,7 +833,7 @@ export async function POST(request: NextRequest) {
 
     /*
      * ============================================================
-     * 15. RESPUESTA
+     * 16. RESPUESTA FINAL
      * ============================================================
      */
 
@@ -831,10 +877,8 @@ export async function POST(request: NextRequest) {
     );
 
     /*
-     * Si la orden interna ya existe pero
-     * ocurrió un error después, dejarla
-     * pendiente para no arriesgar una
-     * segunda recarga.
+     * Si ya existe una orden y ocurrió
+     * un error después, NO crear otra.
      */
 
     if (insertedOrderId) {
@@ -860,4 +904,4 @@ export async function POST(request: NextRequest) {
       500
     );
   }
-}
+                          }
