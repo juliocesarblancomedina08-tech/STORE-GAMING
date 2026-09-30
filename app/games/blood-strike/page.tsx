@@ -68,24 +68,29 @@ export default function BloodStrikePage() {
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        setError("Su sesión ha expirado. Inicie sesión nuevamente.");
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
         return;
       }
 
       const idempotencyKey = crypto.randomUUID();
 
-      const response = await fetch("/api/topups/blood-strike", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          offerId: selectedOffer.id,
-          playerId: cleanPlayerId,
-          idempotencyKey,
-        }),
-      });
+      const response = await fetch(
+        "/api/topups/blood-strike",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            offerId: selectedOffer.id,
+            playerId: cleanPlayerId,
+            idempotencyKey,
+          }),
+        }
+      );
 
       const data = await response.json().catch(() => null);
 
@@ -137,7 +142,9 @@ export default function BloodStrikePage() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     void createOrder();
   }
@@ -199,7 +206,9 @@ export default function BloodStrikePage() {
           className={`blood-strike-offers-toggle ${
             showOffers ? "open" : ""
           }`}
-          onClick={() => setShowOffers((value) => !value)}
+          onClick={() =>
+            setShowOffers((value) => !value)
+          }
         >
           <span>
             {showOffers
@@ -232,11 +241,9 @@ export default function BloodStrikePage() {
                         {offer.name}
                       </div>
 
-                      {offer.description && (
-                        <div className="blood-strike-offer-description">
-                          {offer.description}
-                        </div>
-                      )}
+                      <div className="blood-strike-offer-description">
+                        {offer.displayName}
+                      </div>
                     </div>
                   </div>
 
