@@ -1,41 +1,246 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
-import {
-  HONOR_OF_KINGS,
-  HonorOfKingsOffer,
-} from "../../../lib/games/honor-of-kings";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+type SupplierOffer = {
+  offer_id: string;
+  name: string;
+  price_usd?: string | number;
+  precio_usd?: string | number;
+};
+
+type HonorOfKingsOffer = {
+  id: string;
+  supplierOfferId: string;
+  name: string;
+  display: string;
+  price: number;
+  supplierPrice: number;
+  icon: string;
+};
+
+const STORE_MARGIN = 0.2;
+
+function getIcon(name: string) {
+  const lower = name.toLowerCase();
+
+  if (
+    lower.includes("weekly") ||
+    lower.includes("card")
+  ) {
+    return "🎟️";
+  }
+
+  if (
+    lower.includes("lucky") ||
+    lower.includes("rebate") ||
+    lower.includes("pack")
+  ) {
+    return "🎁";
+  }
+
+  if (lower.includes("honor")) {
+    return "🏆";
+  }
+
+  return "🪙";
+}
+
+function getDisplay(name: string) {
+  const lower = name.toLowerCase();
+
+  if (lower === "double token lucky bag") {
+    return "BOLSA DE LA SUERTE 🎁";
+  }
+
+  if (lower === "honor point value pack") {
+    return "PAQUETE DE HONOR 🏆";
+  }
+
+  if (
+    lower ===
+    "standard purchase rebate paquete"
+  ) {
+    return "REEMBOLSO ESTÁNDAR 🎁";
+  }
+
+  if (
+    lower === "premium purchase rebate pack"
+  ) {
+    return "REEMBOLSO PREMIUM 🎁";
+  }
+
+  if (lower === "weekly card") {
+    return "TARJETA SEMANAL 🎟️";
+  }
+
+  if (lower === "weekly card plus") {
+    return "TARJETA SEMANAL PLUS 🎟️";
+  }
+
+  const match = name.match(/^(\d+)\s+tokens/i);
+
+  if (match) {
+    return `${match[1]} 🪙`;
+  }
+
+  return name;
+}
 
 export default function HonorOfKingsPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
+  const [offers, setOffers] =
+    useState<HonorOfKingsOffer[]>([]);
+
+  const [loadingOffers, setLoadingOffers] =
+    useState(true);
+
+  const [offersOpen, setOffersOpen] =
+    useState(false);
+
   const [selectedOffer, setSelectedOffer] =
     useState<HonorOfKingsOffer | null>(null);
 
-  const [playerId, setPlayerId] = useState("");
-  const [error, setError] = useState("");
+  const [playerId, setPlayerId] =
+    useState("");
 
-  const [orderCreated, setOrderCreated] = useState(false);
-  const [orderNumber, setOrderNumber] = useState("");
-  const [supplierOrderId, setSupplierOrderId] = useState("");
-  const [orderStatus, setOrderStatus] = useState("");
-  const [processing, setProcessing] = useState(false);
+  const [processing, setProcessing] =
+    useState(false);
 
-  function selectOffer(offer: HonorOfKingsOffer) {
+  const [error, setError] =
+    useState("");
+
+  const [orderCreated, setOrderCreated] =
+    useState(false);
+
+  const [orderNumber, setOrderNumber] =
+    useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOffers() {
+      try {
+        setLoadingOffers(true);
+        setError("");
+
+        const response = await fetch(
+          "/api/fazercards/topups?category_id=honor_of_kings",
+          {
+            cache: "no-store",
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data?.ok) {
+          throw new Error(
+            data?.error ||
+              "No se pudo cargar el catálogo."
+          );
+        }
+
+        const supplierOffers: SupplierOffer[] =
+          Array.isArray(data.offers)
+            ? data.offers
+            : [];
+
+        const normalized: HonorOfKingsOffer[] =
+          supplierOffers
+            .map((offer) => {
+              const supplierPrice = Number(
+                offer.price_usd ??
+                  offer.precio_usd
+              );
+
+              return {
+                id: offer.offer_id,
+                supplierOfferId:
+                  offer.offer_id,
+                name: offer.name,
+                display: getDisplay(
+                  offer.name
+                ),
+                supplierPrice,
+                price:
+                  Math.round(
+                    (supplierPrice +
+                      STORE_MARGIN) *
+                      10000
+                  ) / 10000,
+                icon: getIcon(
+                  offer.name
+                ),
+              };
+            })
+            .filter(
+              (offer) =>
+                offer.id &&
+                offer.name &&
+                Number.isFinite(
+                  offer.supplierPrice
+                )
+            );
+
+        if (!cancelled) {
+          setOffers(normalized);
+        }
+      } catch (err) {
+        console.error(err);
+
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "No se pudo cargar el catálogo."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingOffers(false);
+        }
+      }
+    }
+
+    loadOffers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleSelectOffer(
+    offer: HonorOfKingsOffer
+  ) {
+    if (
+      !offer.supplierPrice ||
+      offer.supplierPrice <= 0
+    ) {
+      setError(
+        "Esta oferta todavía no tiene un precio disponible."
+      );
+
+      return;
+    }
+
     setSelectedOffer(offer);
-    setPlayerId("");
     setError("");
     setOrderCreated(false);
     setOrderNumber("");
-    setSupplierOrderId("");
-    setOrderStatus("");
 
     setTimeout(() => {
       document
-        .getElementById("order-section")
+        .getElementById(
+          "hok-order-form"
+        )
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -45,102 +250,148 @@ export default function HonorOfKingsPage() {
 
   async function createOrder() {
     if (!selectedOffer) {
-      setError("Seleccione una oferta.");
-      return;
-    }
-
-    const cleanPlayerId = playerId.trim();
-
-    if (!/^\d{4,20}$/.test(cleanPlayerId)) {
       setError(
-        "Ingrese un Player ID válido de entre 4 y 20 dígitos."
+        "Selecciona una oferta."
       );
+
       return;
     }
 
-    setProcessing(true);
-    setError("");
+    const cleanPlayerId =
+      playerId.trim();
+
+    if (!cleanPlayerId) {
+      setError(
+        "Introduce tu Player ID."
+      );
+
+      return;
+    }
+
+    if (!/^[0-9]+$/.test(cleanPlayerId)) {
+      setError(
+        "El Player ID solo puede contener números."
+      );
+
+      return;
+    }
+
+    if (cleanPlayerId.length < 4) {
+      setError(
+        "El Player ID debe tener al menos 4 números."
+      );
+
+      return;
+    }
+
+    if (cleanPlayerId.length > 20) {
+      setError(
+        "El Player ID no puede superar 20 números."
+      );
+
+      return;
+    }
+
+    if (
+      !selectedOffer.supplierPrice ||
+      selectedOffer.supplierPrice <= 0
+    ) {
+      setError(
+        "Esta oferta todavía no tiene un precio disponible."
+      );
+
+      return;
+    }
 
     try {
+      setProcessing(true);
+      setError("");
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        setError(
-          "Su sesión ha expirado. Inicie sesión nuevamente."
-        );
+        router.push("/login");
         return;
       }
-
-      const idempotencyKey = crypto.randomUUID();
 
       const response = await fetch(
         "/api/topups/honor-of-kings",
         {
           method: "POST",
+
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${session.access_token}`,
           },
+
           body: JSON.stringify({
-            offerId: selectedOffer.id,
-            offerName: selectedOffer.name,
-            playerId: cleanPlayerId,
-            retailPrice: selectedOffer.price,
-            quantity: 1,
-            idempotencyKey,
+            offerId:
+              selectedOffer.supplierOfferId,
+
+            offerName:
+              selectedOffer.name,
+
+            playerId:
+              cleanPlayerId,
+
+            retailPrice:
+              selectedOffer.price,
+
+            idempotencyKey:
+              crypto.randomUUID(),
           }),
         }
       );
 
-      const result = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
-          result?.error ||
-            result?.message ||
-            "No se pudo crear la orden."
+          data?.error ||
+            data?.message ||
+            "No se pudo crear el pedido."
         );
       }
 
-      const order = result?.order || {};
+      const createdOrderNumber =
+        data.orderNumber ||
+        data.order_number ||
+        data.order?.order_number ||
+        data.order?.id ||
+        "";
 
       setOrderNumber(
-        order?.order_number ||
-          result?.orderNumber ||
-          result?.id ||
-          ""
-      );
-
-      setSupplierOrderId(
-        order?.supplier_order_id ||
-          result?.supplierOrderId ||
-          order?.supplier_order_id ||
-          ""
-      );
-
-      setOrderStatus(
-        order?.status ||
-          result?.status ||
-          "SUPPLIER_PENDING"
+        String(createdOrderNumber)
       );
 
       setOrderCreated(true);
 
+      setSelectedOffer(null);
+      setPlayerId("");
+
       setTimeout(() => {
         document
-          .getElementById("success-section")
+          .getElementById(
+            "hok-success"
+          )
           ?.scrollIntoView({
             behavior: "smooth",
             block: "start",
           });
       }, 100);
     } catch (err) {
+      console.error(err);
+
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudo crear la orden."
+          : "No se pudo crear el pedido."
       );
     } finally {
       setProcessing(false);
@@ -151,29 +402,299 @@ export default function HonorOfKingsPage() {
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
     void createOrder();
   }
 
   return (
-    <main className="honor-of-kings-page">
+    <main className="hok-page">
+      <header className="hok-header">
+        <button
+          type="button"
+          className="hok-back-button"
+          onClick={() =>
+            router.push("/top-up")
+          }
+        >
+          ←
+        </button>
+
+        <h1>Honor of Kings</h1>
+
+        <div className="hok-header-space" />
+      </header>
+
+      <section className="hok-content">
+        <div className="hok-banner">
+          <img
+            src="/images/honor-of-kings.jpg"
+            alt="Honor of Kings"
+          />
+        </div>
+
+        <div className="hok-note">
+          <strong>
+            🌎 Región Global
+          </strong>
+
+          <p>
+            Recarga de Honor of Kings.
+            Introduce tu ID de jugador
+            antes de realizar el pedido.
+            El producto seleccionado se
+            entrega directamente a tu cuenta
+            después de realizar el pedido.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="hok-offers-toggle"
+          onClick={() => {
+            setOffersOpen(
+              (value) => !value
+            );
+
+            setError("");
+          }}
+        >
+          <span>
+            ✏️ Presione para ver ofertas
+          </span>
+
+          <span className="hok-offers-arrow">
+            {offersOpen
+              ? "▲"
+              : "▼"}
+          </span>
+        </button>
+
+        {offersOpen && (
+          <section className="hok-offers-section">
+            {loadingOffers ? (
+              <div className="hok-loading">
+                Cargando ofertas...
+              </div>
+            ) : error &&
+              offers.length === 0 ? (
+              <div className="hok-error">
+                {error}
+              </div>
+            ) : offers.length === 0 ? (
+              <div className="hok-error">
+                No hay ofertas disponibles.
+              </div>
+            ) : (
+              <div className="hok-offers-list">
+                {offers.map(
+                  (offer) => {
+                    const unavailable =
+                      !offer.supplierPrice ||
+                      offer.supplierPrice <=
+                        0;
+
+                    const selected =
+                      selectedOffer?.supplierOfferId ===
+                      offer.supplierOfferId;
+
+                    return (
+                      <button
+                        key={
+                          offer.supplierOfferId
+                        }
+                        type="button"
+                        className={`hok-offer ${
+                          selected
+                            ? "selected"
+                            : ""
+                        } ${
+                          unavailable
+                            ? "unavailable"
+                            : ""
+                        }`}
+                        disabled={
+                          unavailable
+                        }
+                        onClick={() =>
+                          handleSelectOffer(
+                            offer
+                          )
+                        }
+                      >
+                        <div className="hok-offer-left">
+                          <span className="hok-offer-icon">
+                            {offer.icon}
+                          </span>
+
+                          <div>
+                            <strong>
+                              {offer.display}
+                            </strong>
+
+                            <small>
+                              {offer.name}
+                            </small>
+                          </div>
+                        </div>
+
+                        <div className="hok-offer-price">
+                          {unavailable
+                            ? "NO DISPONIBLE"
+                            : `${offer.price.toFixed(
+                                4
+                              )}$`}
+                        </div>
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {selectedOffer &&
+          !orderCreated && (
+            <section
+              id="hok-order-form"
+              className="hok-order-section"
+            >
+              <div className="hok-selected-offer">
+                <span>
+                  {selectedOffer.icon}
+                </span>
+
+                <div>
+                  <strong>
+                    {selectedOffer.name}
+                  </strong>
+
+                  <span>
+                    {selectedOffer.price.toFixed(
+                      4
+                    )}
+                    $
+                  </span>
+                </div>
+              </div>
+
+              <form
+                onSubmit={handleSubmit}
+              >
+                <label htmlFor="hok-player-id">
+                  ID del jugador
+                </label>
+
+                <input
+                  id="hok-player-id"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="Introduzca su Player ID"
+                  value={playerId}
+                  onChange={(event) =>
+                    setPlayerId(
+                      event.target.value
+                    )
+                  }
+                  disabled={processing}
+                />
+
+                {error && (
+                  <div className="hok-form-error">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="hok-create-order-button"
+                  disabled={processing}
+                >
+                  {processing
+                    ? "FINALIZANDO ORDEN..."
+                    : "FINALIZAR ORDEN"}
+                </button>
+              </form>
+            </section>
+          )}
+
+        {orderCreated && (
+          <section
+            id="hok-success"
+            className="hok-success-section"
+          >
+            <div className="hok-success-icon">
+              ✓
+            </div>
+
+            <h2>
+              Orden creada
+            </h2>
+
+            <p>
+              Tu pedido de Honor of
+              Kings fue creado
+              correctamente.
+            </p>
+
+            {orderNumber && (
+              <div className="hok-order-number">
+                <span>
+                  Número de orden
+                </span>
+
+                <strong>
+                  {orderNumber}
+                </strong>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="hok-review-button"
+              onClick={() =>
+                router.push(
+                  "/orders"
+                )
+              }
+            >
+              Revisar orden
+            </button>
+
+            <button
+              type="button"
+              className="hok-store-button"
+              onClick={() =>
+                router.push(
+                  "/top-up"
+                )
+              }
+            >
+              Volver a la tienda
+            </button>
+          </section>
+        )}
+      </section>
+
+      <footer className="hok-footer">
+        🛒 STORE GAMING 🎮
+      </footer>
+
       <style jsx>{`
-        .honor-of-kings-page {
+        .hok-page {
           min-height: 100vh;
-          padding-bottom: 40px;
           color: #fff;
 
           background:
             linear-gradient(
               rgba(0, 0, 0, 0.72),
-              rgba(0, 0, 0, 0.88)
+              rgba(0, 0, 0, 0.86)
             ),
             url("/images/battle-royale-bg.jpg")
               center / cover fixed;
 
-          font-family:
-            Arial,
-            Helvetica,
-            sans-serif;
+          padding-bottom: 30px;
         }
 
         .hok-header {
@@ -185,229 +706,282 @@ export default function HonorOfKingsPage() {
           align-items: center;
           justify-content: space-between;
 
-          gap: 12px;
+          min-height: 58px;
 
-          padding: 13px 16px;
+          padding: 8px 12px;
 
-          background: rgba(5, 5, 5, 0.95);
+          background:
+            rgba(0, 0, 0, 0.88);
 
           border-bottom:
-            1px solid rgba(255, 255, 255, 0.08);
+            1px solid
+            rgba(255, 255, 255, 0.1);
 
-          backdrop-filter: blur(12px);
+          backdrop-filter: blur(10px);
         }
 
-        .hok-title {
+        .hok-header h1 {
           margin: 0;
 
-          font-size: 20px;
-          font-weight: 900;
-          letter-spacing: 0.3px;
+          font-size: 19px;
+          font-weight: 800;
+
+          text-align: center;
         }
 
-        .hok-back {
+        .hok-back-button {
+          width: 40px;
+          height: 40px;
+
           border: 0;
           border-radius: 10px;
 
-          padding: 9px 12px;
-
-          color: #fff;
           background:
             rgba(255, 255, 255, 0.08);
 
-          font-size: 13px;
-          font-weight: 800;
+          color: #fff;
+
+          font-size: 25px;
 
           cursor: pointer;
         }
 
-        .hok-container {
-          width: min(720px, 100%);
+        .hok-header-space {
+          width: 40px;
+        }
+
+        .hok-content {
+          width: min(100%, 680px);
+
           margin: 0 auto;
-          padding: 18px 14px 0;
+
+          padding:
+            0 12px 30px;
         }
 
         .hok-banner {
-          width: 100%;
-          height: 210px;
+          width: calc(100% + 24px);
+
+          margin-left: -12px;
 
           overflow: hidden;
-
-          border-radius: 18px;
-
-          background: #111;
-
-          border:
-            1px solid rgba(255, 255, 255, 0.1);
-
-          box-shadow:
-            0 12px 35px rgba(0, 0, 0, 0.5);
         }
 
         .hok-banner img {
-          width: 100%;
-          height: 100%;
-
           display: block;
+
+          width: 100%;
+          height: 210px;
 
           object-fit: cover;
         }
 
         .hok-note {
           margin-top: 14px;
+
           padding: 14px;
 
           border-radius: 14px;
 
           background:
-            rgba(0, 0, 0, 0.78);
+            rgba(0, 0, 0, 0.68);
 
           border:
-            1px solid rgba(255, 255, 255, 0.08);
-
-          color: #ddd;
-
-          font-size: 13px;
-          line-height: 1.55;
+            1px solid
+            rgba(255, 255, 255, 0.1);
         }
 
         .hok-note strong {
           color: #fff;
+
+          font-size: 15px;
+        }
+
+        .hok-note p {
+          margin: 7px 0 0;
+
+          color: #d8d8d8;
+
+          font-size: 13px;
+
+          line-height: 1.5;
         }
 
         .hok-offers-toggle {
           width: 100%;
 
-          margin-top: 16px;
-          padding: 15px 16px;
+          margin-top: 14px;
+
+          padding: 15px;
 
           display: flex;
+
           align-items: center;
           justify-content: space-between;
 
-          gap: 12px;
-
           border:
-            1px solid rgba(255, 255, 255, 0.1);
+            1px solid
+            rgba(255, 255, 255, 0.12);
 
-          border-radius: 14px;
+          border-radius: 13px;
 
           background:
-            rgba(10, 10, 10, 0.9);
+            rgba(0, 0, 0, 0.78);
 
           color: #fff;
 
-          font-size: 15px;
-          font-weight: 900;
+          font-size: 14px;
+          font-weight: 800;
 
           cursor: pointer;
         }
 
-        .hok-toggle-arrow {
-          color: #ff3030;
-          font-size: 20px;
+        .hok-offers-arrow {
+          font-size: 12px;
         }
 
-        .hok-offers {
+        .hok-offers-section {
           margin-top: 10px;
         }
 
         .hok-offers-list {
           display: flex;
+
           flex-direction: column;
-          gap: 9px;
+
+          gap: 8px;
         }
 
         .hok-offer {
           width: 100%;
 
+          min-height: 65px;
+
+          padding: 10px 12px;
+
           display: flex;
+
           align-items: center;
           justify-content: space-between;
 
-          gap: 12px;
-
-          padding: 13px;
+          gap: 10px;
 
           border:
-            1px solid rgba(255, 255, 255, 0.09);
+            1px solid
+            rgba(255, 255, 255, 0.1);
 
           border-radius: 13px;
 
           background:
-            rgba(5, 5, 5, 0.88);
+            rgba(0, 0, 0, 0.78);
 
           color: #fff;
 
-          cursor: pointer;
-
           text-align: left;
 
-          transition:
-            transform 0.15s ease,
-            border-color 0.15s ease,
-            background 0.15s ease;
+          cursor: pointer;
+
+          transition: 0.15s ease;
         }
 
-        .hok-offer:hover {
-          transform: translateY(-1px);
-
-          border-color:
-            rgba(255, 48, 48, 0.65);
+        .hok-offer:active {
+          transform: scale(0.98);
         }
 
         .hok-offer.selected {
-          border-color: #ff3030;
+          border-color:
+            rgba(255, 50, 50, 0.8);
 
           background:
-            rgba(90, 0, 0, 0.42);
+            rgba(120, 0, 0, 0.3);
+        }
 
-          box-shadow:
-            0 0 0 1px
-            rgba(255, 48, 48, 0.2);
+        .hok-offer.unavailable {
+          opacity: 0.5;
+
+          cursor: not-allowed;
         }
 
         .hok-offer-left {
           display: flex;
+
           align-items: center;
 
-          gap: 11px;
+          gap: 10px;
 
           min-width: 0;
         }
 
-        .hok-icon {
+        .hok-offer-icon {
           width: 38px;
           height: 38px;
 
           flex: 0 0 38px;
 
-          display: grid;
-          place-items: center;
+          display: flex;
+
+          align-items: center;
+          justify-content: center;
 
           border-radius: 10px;
 
           background:
             rgba(255, 255, 255, 0.08);
 
-          font-size: 19px;
+          font-size: 21px;
         }
 
-        .hok-offer-name {
+        .hok-offer-left strong {
+          display: block;
+
           font-size: 14px;
-          font-weight: 900;
-          line-height: 1.3;
+        }
+
+        .hok-offer-left small {
+          display: block;
+
+          margin-top: 3px;
+
+          color: #aaa;
+
+          font-size: 11px;
         }
 
         .hok-offer-price {
           flex-shrink: 0;
 
-          font-size: 15px;
+          color: #fff;
+
+          font-size: 14px;
+
           font-weight: 900;
         }
 
-        .hok-order {
+                .hok-loading,
+        .hok-error {
+          padding: 18px;
+
+          border-radius: 13px;
+
+          background:
+            rgba(0, 0, 0, 0.78);
+
+          text-align: center;
+
+          font-size: 14px;
+        }
+
+        .hok-error {
+          color: #ff8e8e;
+
+          border:
+            1px solid
+            rgba(255, 70, 70, 0.35);
+        }
+
+        .hok-order-section {
           margin-top: 16px;
+
           padding: 16px;
 
           border-radius: 15px;
@@ -416,176 +990,165 @@ export default function HonorOfKingsPage() {
             rgba(0, 0, 0, 0.82);
 
           border:
-            1px solid rgba(255, 255, 255, 0.1);
+            1px solid
+            rgba(255, 255, 255, 0.1);
         }
 
-        .hok-section-title {
-          margin: 0 0 12px;
+        .hok-selected-offer {
+          display: flex;
 
-          font-size: 17px;
-          font-weight: 900;
-        }
+          align-items: center;
 
-        .hok-selected {
-          margin-bottom: 14px;
+          gap: 11px;
+
+          margin-bottom: 15px;
+
           padding: 12px;
 
           border-radius: 12px;
 
           background:
             rgba(255, 255, 255, 0.06);
-
-          border:
-            1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .hok-selected-label {
-          color: #999;
-
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.6px;
+        .hok-selected-offer > span {
+          font-size: 25px;
         }
 
-        .hok-selected-row {
-          margin-top: 5px;
+        .hok-selected-offer div {
+          flex: 1;
 
           display: flex;
+
           align-items: center;
           justify-content: space-between;
 
-          gap: 12px;
+          gap: 10px;
         }
 
-        .hok-selected-name {
+        .hok-selected-offer strong {
           font-size: 14px;
-          font-weight: 900;
         }
 
-        .hok-selected-price {
-          color: #ff4b4b;
+        .hok-selected-offer div span {
           font-weight: 900;
+
+          white-space: nowrap;
         }
 
-        .hok-form {
+        .hok-order-section form {
           display: flex;
+
           flex-direction: column;
-          gap: 12px;
         }
 
-        .hok-label {
-          color: #bbb;
+        .hok-order-section label {
+          margin-bottom: 7px;
 
-          font-size: 12px;
+          font-size: 13px;
+
           font-weight: 800;
         }
 
-        .hok-input {
+        .hok-order-section input {
           width: 100%;
+
           box-sizing: border-box;
 
-          margin-top: 6px;
-          padding: 13px 14px;
-
-          border-radius: 11px;
+          padding: 13px;
 
           border:
-            1px solid rgba(255, 255, 255, 0.12);
+            1px solid
+            rgba(255, 255, 255, 0.16);
+
+          border-radius: 11px;
 
           outline: none;
 
           background:
-            rgba(255, 255, 255, 0.06);
+            rgba(255, 255, 255, 0.07);
 
           color: #fff;
 
           font-size: 15px;
         }
 
-        .hok-input:focus {
-          border-color: #ff3030;
-
-          box-shadow:
-            0 0 0 2px
-            rgba(255, 48, 48, 0.12);
+        .hok-order-section input::placeholder {
+          color: #888;
         }
 
-        .hok-input::placeholder {
-          color: #777;
-        }
+        .hok-form-error {
+          margin-top: 8px;
 
-        .hok-error {
-          padding: 11px 12px;
+          padding: 9px;
 
-          border-radius: 10px;
-
-          border:
-            1px solid rgba(255, 50, 50, 0.35);
+          border-radius: 9px;
 
           background:
-            rgba(110, 0, 0, 0.3);
+            rgba(150, 0, 0, 0.25);
 
-          color: #ff6868;
+          color: #ff9b9b;
 
-          font-size: 13px;
-          font-weight: 800;
+          font-size: 12px;
         }
 
-        .hok-create {
+        .hok-create-order-button,
+        .hok-review-button,
+        .hok-store-button {
           width: 100%;
 
-          padding: 14px;
+          margin-top: 12px;
+
+          padding: 13px;
 
           border: 0;
-          border-radius: 12px;
 
-          background: #e52525;
+          border-radius: 11px;
 
-          color: #fff;
-
-          font-size: 15px;
           font-weight: 900;
 
           cursor: pointer;
-
-          transition:
-            transform 0.15s ease,
-            opacity 0.15s ease;
         }
 
-        .hok-create:hover {
-          transform: translateY(-1px);
+        .hok-create-order-button {
+          background: #d71920;
+
+          color: #fff;
         }
 
-        .hok-create:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
-          transform: none;
+        .hok-create-order-button:disabled {
+          opacity: 0.6;
+
+          cursor: wait;
         }
 
-        .hok-success {
+        .hok-success-section {
           margin-top: 16px;
-          padding: 18px 16px;
+
+          padding: 20px 16px;
 
           border-radius: 15px;
 
           background:
-            rgba(0, 45, 20, 0.82);
+            rgba(0, 0, 0, 0.84);
 
           border:
-            1px solid rgba(57, 255, 130, 0.25);
+            1px solid
+            rgba(70, 255, 120, 0.25);
 
           text-align: center;
         }
 
         .hok-success-icon {
-          width: 54px;
-          height: 54px;
+          width: 56px;
+          height: 56px;
 
-          margin: 0 auto 10px;
+          margin: 0 auto 12px;
 
-          display: grid;
-          place-items: center;
+          display: flex;
+
+          align-items: center;
+          justify-content: center;
 
           border-radius: 50%;
 
@@ -593,99 +1156,71 @@ export default function HonorOfKingsPage() {
 
           color: #fff;
 
-          font-size: 27px;
+          font-size: 30px;
+
           font-weight: 900;
         }
 
-        .hok-success-title {
+        .hok-success-section h2 {
           margin: 0;
 
-          font-size: 20px;
-          font-weight: 900;
+          font-size: 21px;
         }
 
-        .hok-success-text {
+        .hok-success-section p {
           margin: 8px 0 0;
 
-          color: #c9e8d5;
+          color: #cfcfcf;
 
           font-size: 13px;
+
           line-height: 1.5;
         }
 
         .hok-order-number {
-          margin-top: 12px;
-          padding: 11px;
+          margin-top: 14px;
+
+          padding: 12px;
+
+          display: flex;
+
+          flex-direction: column;
+
+          gap: 4px;
 
           border-radius: 10px;
 
           background:
-            rgba(0, 0, 0, 0.35);
+            rgba(255, 255, 255, 0.06);
+        }
 
-          font-weight: 900;
+        .hok-order-number span {
+          color: #999;
+
+          font-size: 11px;
+        }
+
+        .hok-order-number strong {
+          font-size: 14px;
 
           word-break: break-word;
         }
 
-        .hok-actions {
-          display: grid;
-
-          grid-template-columns: 1fr 1fr;
-
-          gap: 9px;
-
-          margin-top: 13px;
-        }
-
-        .hok-action {
-          padding: 12px 10px;
-
-          border: 0;
-          border-radius: 10px;
+        .hok-review-button {
+          background: #d71920;
 
           color: #fff;
+        }
 
+        .hok-store-button {
           background:
             rgba(255, 255, 255, 0.1);
 
-          font-size: 13px;
-          font-weight: 900;
-
-          cursor: pointer;
-        }
-
-        .hok-service {
-          margin-top: 16px;
-          padding: 15px;
-
-          border-radius: 14px;
-
-          background:
-            rgba(0, 0, 0, 0.72);
-
-          border:
-            1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .hok-service-title {
-          margin: 0 0 9px;
-
-          font-size: 14px;
-          font-weight: 900;
-        }
-
-        .hok-service-list {
-          margin: 0;
-          padding-left: 18px;
-
-          color: #bbb;
-
-          font-size: 12px;
-          line-height: 1.7;
+          color: #fff;
         }
 
         .hok-footer {
-          padding: 24px 14px 0;
+          padding: 10px 15px;
 
           text-align: center;
 
@@ -695,294 +1230,27 @@ export default function HonorOfKingsPage() {
         }
 
         @media (max-width: 480px) {
-          .hok-header {
-            padding: 12px;
-          }
-
-          .hok-title {
+          .hok-header h1 {
             font-size: 17px;
           }
 
-          .hok-container {
-            padding: 12px 10px 0;
-          }
-
-          .hok-banner {
+          .hok-banner img {
             height: 175px;
-            border-radius: 15px;
           }
 
           .hok-offer {
-            padding: 11px;
+            padding: 10px;
           }
 
-          .hok-offer-name {
+          .hok-offer-left strong {
             font-size: 13px;
           }
 
           .hok-offer-price {
-            font-size: 14px;
-          }
-
-          .hok-actions {
-            grid-template-columns: 1fr;
+            font-size: 13px;
           }
         }
       `}</style>
-
-      <header className="hok-header">
-        <h1 className="hok-title">
-          Honor of Kings
-        </h1>
-
-        <button
-          type="button"
-          className="hok-back"
-          onClick={() => router.push("/")}
-        >
-          ← Tienda
-        </button>
-      </header>
-
-      <div className="hok-container">
-        <div className="hok-banner">
-          <img
-            src={HONOR_OF_KINGS.image}
-            alt="Honor of Kings"
-          />
-        </div>
-
-        <div className="hok-note">
-          <strong>
-            📌 Información del servicio
-          </strong>
-
-          <br />
-
-          {HONOR_OF_KINGS.note}
-        </div>
-
-        <button
-          type="button"
-          className="hok-offers-toggle"
-          onClick={() =>
-            setShowOffers((value) => !value)
-          }
-        >
-          <span>
-            ✏️ Presione para ver ofertas
-          </span>
-
-          <span className="hok-toggle-arrow">
-            {showOffers ? "▲" : "▼"}
-          </span>
-        </button>
-
-        {showOffers && (
-          <section className="hok-offers">
-            <div className="hok-offers-list">
-              {HONOR_OF_KINGS.offers.map(
-                (offer) => (
-                  <button
-                    type="button"
-                    key={offer.id}
-                    className={`hok-offer ${
-                      selectedOffer?.id === offer.id
-                        ? "selected"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      selectOffer(offer)
-                    }
-                  >
-                    <div className="hok-offer-left">
-                      <div className="hok-icon">
-                        {offer.icon}
-                      </div>
-
-                      <div className="hok-offer-name">
-                        {offer.name}
-                      </div>
-                    </div>
-
-                    <div className="hok-offer-price">
-                      $
-                      {Number(
-                        offer.price
-                      ).toFixed(2)}
-                    </div>
-                  </button>
-                )
-              )}
-            </div>
-          </section>
-        )}
-
-        {selectedOffer && (
-          <section
-            id="order-section"
-            className="hok-order"
-          >
-            <h2 className="hok-section-title">
-              Crear pedido
-            </h2>
-
-            <div className="hok-selected">
-              <div className="hok-selected-label">
-                Oferta seleccionada
-              </div>
-
-              <div className="hok-selected-row">
-                <div className="hok-selected-name">
-                  {selectedOffer.name}
-                </div>
-
-                <div className="hok-selected-price">
-                  $
-                  {Number(
-                    selectedOffer.price
-                  ).toFixed(2)}
-                </div>
-              </div>
-            </div>
-
-            <form
-              className="hok-form"
-              onSubmit={handleSubmit}
-            >
-              <label className="hok-label">
-                Player ID
-
-                <input
-                  className="hok-input"
-                  type="text"
-                  inputMode="numeric"
-                  value={playerId}
-                  onChange={(event) =>
-                    setPlayerId(
-                      event.target.value.replace(
-                        /\D/g,
-                        ""
-                      )
-                    )
-                  }
-                  placeholder="Ingrese su Player ID"
-                  maxLength={20}
-                  disabled={processing}
-                />
-              </label>
-
-              {error && (
-                <div className="hok-error">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="hok-create"
-                disabled={processing}
-              >
-                {processing
-                  ? "Procesando pedido..."
-                  : "Crear pedido"}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {orderCreated && (
-          <section
-            id="success-section"
-            className="hok-success"
-          >
-            <div className="hok-success-icon">
-              ✓
-            </div>
-
-            <h2 className="hok-success-title">
-              ¡Orden creada!
-            </h2>
-
-            <p className="hok-success-text">
-              Tu pedido fue registrado
-              correctamente.
-              El proveedor procesará
-              la recarga.
-            </p>
-
-            {orderNumber && (
-              <div className="hok-order-number">
-                🧾 Orden: {orderNumber}
-              </div>
-            )}
-
-            {supplierOrderId && (
-              <div className="hok-order-number">
-                Proveedor: {supplierOrderId}
-              </div>
-            )}
-
-            {orderStatus && (
-              <div className="hok-order-number">
-                Estado: {orderStatus}
-              </div>
-            )}
-
-            <div className="hok-actions">
-              <button
-                type="button"
-                className="hok-action"
-                onClick={() =>
-                  router.push("/orders")
-                }
-              >
-                📋 Revisar orden
-              </button>
-
-              <button
-  type="button"
-  className="hok-action"
-  onClick={() =>
-    router.push("/")
-  }
->
-  🛒 Volver a la tienda
-</button>
-</div>
-</section>
-)}
-
-<section className="hok-service">
-  <h3 className="hok-service-title">
-    ⚡ Servicio de recarga
-  </h3>
-
-  <ul className="hok-service-list">
-    <li>
-      Entrega directa a la cuenta.
-    </li>
-
-    <li>
-      Necesitas introducir tu Player ID.
-    </li>
-
-    <li>
-      Pedido procesado mediante FazerCards.
-    </li>
-
-    <li>
-      Revisa tu ID antes de confirmar el pedido.
-    </li>
-  </ul>
-</section>
-
-<footer className="hok-footer">
-  🛒STORE GAMING🎮
-  <br />
-  Honor of Kings
-</footer>
-</div>
-</main>
-);
+    </main>
+  );
 }
