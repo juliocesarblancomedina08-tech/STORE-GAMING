@@ -1,12 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
+import { supabase } from "../../../lib/supabase";
 import {
   ARENA_BREAKOUT,
   ArenaBreakoutOffer,
-} from "@/lib/games/arena-breakout";
+} from "../../../lib/games/arena-breakout";
 
 export default function ArenaBreakoutPage() {
   const router = useRouter();
@@ -14,8 +14,10 @@ export default function ArenaBreakoutPage() {
   const [showOffers, setShowOffers] = useState(true);
   const [selectedOffer, setSelectedOffer] =
     useState<ArenaBreakoutOffer | null>(null);
+
   const [quantity, setQuantity] = useState(1);
   const [playerId, setPlayerId] = useState("");
+
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState(false);
 
@@ -24,12 +26,12 @@ export default function ArenaBreakoutPage() {
   const [supplierOrderId, setSupplierOrderId] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
 
-  const supabase = createClientComponentClient();
-
   function selectOffer(offer: ArenaBreakoutOffer) {
     setSelectedOffer(offer);
     setQuantity(1);
+    setPlayerId("");
     setError("");
+
     setOrderCreated(false);
     setOrderNumber("");
     setSupplierOrderId("");
@@ -42,7 +44,7 @@ export default function ArenaBreakoutPage() {
           behavior: "smooth",
           block: "start",
         });
-    }, 50);
+    }, 100);
   }
 
   function decreaseQuantity() {
@@ -54,92 +56,128 @@ export default function ArenaBreakoutPage() {
   }
 
   async function createOrder() {
+    if (!selectedOffer || processing) {
+      return;
+    }
+
     setError("");
-    setOrderCreated(false);
-
-    if (!selectedOffer) {
-      setError("Seleccione una oferta.");
-      return;
-    }
-
-    const cleanPlayerId = playerId.trim();
-
-    if (!/^\d{4,32}$/.test(cleanPlayerId)) {
-      setError("El Player ID debe contener entre 4 y 32 números.");
-      return;
-    }
-
-    /*
-     * El endpoint actual de Arena Breakout crea una orden por oferta.
-     * No enviamos quantity al proveedor porque su API actual no define
-     * un campo quantity.
-     */
-    if (quantity !== 1) {
-      setError(
-        "Para esta recarga debe realizarse una orden individual. Mantenga la cantidad en 1."
-      );
-      return;
-    }
-
     setProcessing(true);
 
     try {
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (!session?.access_token) {
-        setError("Su sesión ha expirado. Inicie sesión nuevamente.");
-        setProcessing(false);
+      if (sessionError || !session?.user) {
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
+
+        router.replace("/");
+        return;
+      }
+
+      const cleanPlayerId = playerId.trim();
+
+      if (!cleanPlayerId) {
+        setError("Ponga el ID de su cuenta.");
+        return;
+      }
+
+      if (!/^[0-9]+$/.test(cleanPlayerId)) {
+        setError(
+          "El ID debe contener solamente números."
+        );
+        return;
+      }
+
+      if (
+        cleanPlayerId.length < 4 ||
+        cleanPlayerId.length > 32
+      ) {
+        setError(
+          "El ID debe tener entre 4 y 32 números."
+        );
+        return;
+      }
+
+      /*
+       * El endpoint actual de Arena Breakout
+       * procesa una oferta por orden.
+       *
+       * No enviamos quantity al proveedor porque
+       * FazerCards no define quantity para este producto.
+       */
+      if (quantity !== 1) {
+        setError(
+          "Para esta recarga la cantidad debe ser 1."
+        );
         return;
       }
 
       const idempotencyKey = crypto.randomUUID();
 
-      const response = await fetch("/api/topups/arena-breakout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          offerId: selectedOffer.id,
-          playerId: cleanPlayerId,
-          retailPrice: selectedOffer.price,
-          idempotencyKey,
-        }),
-      });
+      const response = await fetch(
+        "/api/topups/arena-breakout",
+        {
+          method: "POST",
 
-      const data = await response.json().catch(() => ({}));
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:
+              `Bearer ${session.access_token}`,
+          },
+
+          body: JSON.stringify({
+            offerId: selectedOffer.id,
+            offerName: selectedOffer.name,
+            playerId: cleanPlayerId,
+            retailPrice: selectedOffer.price,
+            idempotencyKey,
+          }),
+        }
+      );
+
+      const result = await response.json().catch(
+        () => ({})
+      );
 
       if (!response.ok && response.status !== 202) {
-        throw new Error(
-          data?.error ||
-            data?.message ||
+        setError(
+          result?.error ||
+            result?.message ||
             "No se pudo crear la orden."
         );
+
+        return;
       }
 
-      setOrderCreated(true);
       setOrderNumber(
-        String(
-          data?.orderNumber ||
-            data?.order?.orderNumber ||
-            data?.order?.id ||
-            ""
-        )
+        result?.orderNumber ||
+          result?.id ||
+          result?.order?.id ||
+          ""
       );
+
       setSupplierOrderId(
-        String(
-          data?.supplierOrderId ||
-            data?.supplier_order_id ||
-            ""
-        )
+        result?.supplierOrderId ||
+          result?.supplier_order_id ||
+          ""
       );
+
       setOrderStatus(
-        String(data?.status || "SUPPLIER_PENDING")
+        result?.status ||
+          "SUPPLIER_PENDING"
       );
+
+      setOrderCreated(true);
     } catch (err) {
+      console.error(
+        "ERROR CREANDO ORDEN ARENA BREAKOUT:",
+        err
+      );
+
       setError(
         err instanceof Error
           ? err.message
@@ -150,7 +188,9 @@ export default function ArenaBreakoutPage() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     void createOrder();
   }
@@ -175,6 +215,7 @@ export default function ArenaBreakoutPage() {
           type="button"
           className="arena-breakout-orders-button"
           onClick={() => router.push("/orders")}
+          aria-label="Mis órdenes"
         >
           📋
         </button>
@@ -196,10 +237,13 @@ export default function ArenaBreakoutPage() {
         </section>
 
         <section className="arena-breakout-note">
-          <div className="arena-breakout-note-icon">ℹ️</div>
+          <div className="arena-breakout-note-icon">
+            ℹ️
+          </div>
 
           <div className="arena-breakout-note-content">
             <strong>Información del servicio</strong>
+
             <p>{ARENA_BREAKOUT.note}</p>
           </div>
         </section>
@@ -207,59 +251,72 @@ export default function ArenaBreakoutPage() {
         <button
           type="button"
           className="arena-breakout-offers-toggle"
-          onClick={() => setShowOffers((current) => !current)}
+          onClick={() =>
+            setShowOffers((current) => !current)
+          }
         >
-          <span>Presione para ver ofertas</span>
+          <span>
+            Presione para ver ofertas
+          </span>
 
           <span
             className={`arena-breakout-offers-arrow ${
               showOffers ? "open" : ""
             }`}
           >
-           ⌄
+            ⌄
           </span>
         </button>
 
         {showOffers && (
           <section className="arena-breakout-offers-section">
             <div className="arena-breakout-offers-list">
-              {ARENA_BREAKOUT.offers.map((offer) => {
-                const isSelected =
-                  selectedOffer?.id === offer.id;
+              {ARENA_BREAKOUT.offers.map(
+                (offer) => {
+                  const isSelected =
+                    selectedOffer?.id === offer.id;
 
-                return (
-                  <button
-                    key={offer.id}
-                    type="button"
-                    className={`arena-breakout-offer ${
-                      isSelected ? "selected" : ""
-                    }`}
-                    onClick={() => selectOffer(offer)}
-                  >
-                    <div className="arena-breakout-offer-left">
-                      <div className="arena-breakout-offer-icon">
-                        🎁
-                      </div>
-
-                      <div>
-                        <div className="arena-breakout-offer-name">
-                          {offer.name}
+                  return (
+                    <button
+                      key={offer.id}
+                      type="button"
+                      className={`arena-breakout-offer ${
+                        isSelected
+                          ? "selected"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        selectOffer(offer)
+                      }
+                    >
+                      <div className="arena-breakout-offer-left">
+                        <div className="arena-breakout-offer-icon">
+                          🎁
                         </div>
 
-                        <div className="arena-breakout-offer-description">
-                          {offer.displayName}
+                        <div>
+                          <div className="arena-breakout-offer-name">
+                            {offer.name}
+                          </div>
+
+                          <div className="arena-breakout-offer-description">
+                            {offer.displayName}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="arena-breakout-offer-right">
-                      <div className="arena-breakout-offer-price">
-                        ${Number(offer.price).toFixed(2)}
+                      <div className="arena-breakout-offer-right">
+                        <div className="arena-breakout-offer-price">
+                          $
+                          {Number(
+                            offer.price
+                          ).toFixed(2)}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                }
+              )}
             </div>
           </section>
         )}
@@ -283,27 +340,38 @@ export default function ArenaBreakoutPage() {
                   </div>
 
                   <span className="arena-breakout-selected-price">
-                    ${Number(selectedOffer.price).toFixed(2)}
+                    $
+                    {Number(
+                      selectedOffer.price
+                    ).toFixed(2)}
                   </span>
                 </div>
 
                 <div className="arena-breakout-quantity-section">
-                  <label>Cantidad</label>
+                  <label>
+                    Cantidad
+                  </label>
 
                   <div className="arena-breakout-quantity-control">
                     <button
                       type="button"
-                      onClick={decreaseQuantity}
+                      onClick={
+                        decreaseQuantity
+                      }
                       aria-label="Disminuir cantidad"
                     >
                       −
                     </button>
 
-                    <span>{quantity}</span>
+                    <span>
+                      {quantity}
+                    </span>
 
                     <button
                       type="button"
-                      onClick={increaseQuantity}
+                      onClick={
+                        increaseQuantity
+                      }
                       aria-label="Aumentar cantidad"
                     >
                       +
@@ -313,17 +381,23 @@ export default function ArenaBreakoutPage() {
 
                 <div className="arena-breakout-order-note">
                   <span>🎮</span>
+
                   <p>
-                    Introduzca correctamente el Player ID de
-                    su cuenta de Arena Breakout.
+                    Introduzca correctamente
+                    el Player ID de su cuenta
+                    de Arena Breakout.
                   </p>
                 </div>
 
                 <form
                   className="arena-breakout-order-form"
-                  onSubmit={handleSubmit}
+                  onSubmit={
+                    handleSubmit
+                  }
                 >
-                  <label htmlFor="arena-breakout-player-id">
+                  <label
+                    htmlFor="arena-breakout-player-id"
+                  >
                     Player ID
                   </label>
 
@@ -335,13 +409,17 @@ export default function ArenaBreakoutPage() {
                       type="text"
                       inputMode="numeric"
                       autoComplete="off"
+                      maxLength={32}
                       placeholder="Introduzca su Player ID"
                       value={playerId}
-                      maxLength={32}
                       onChange={(event) => {
                         setPlayerId(
-                          event.target.value.replace(/\D/g, "")
+                          event.target.value.replace(
+                            /\D/g,
+                            ""
+                          )
                         );
+
                         setError("");
                       }}
                     />
@@ -354,12 +432,16 @@ export default function ArenaBreakoutPage() {
                   )}
 
                   <div className="arena-breakout-total">
-                    <span>Total</span>
+                    <span>
+                      Total
+                    </span>
 
                     <strong>
                       $
                       {(
-                        Number(selectedOffer.price) * quantity
+                        Number(
+                          selectedOffer.price
+                        ) * quantity
                       ).toFixed(2)}
                     </strong>
                   </div>
@@ -381,38 +463,60 @@ export default function ArenaBreakoutPage() {
                   ✓
                 </div>
 
-                <h2>ORDEN CREADA</h2>
+                <h2>
+                  ORDEN CREADA
+                </h2>
 
                 <p>
-                  Su solicitud de recarga fue registrada
+                  Su solicitud de recarga
+                  fue registrada
                   correctamente.
                 </p>
 
                 {orderNumber && (
                   <div className="arena-breakout-success-row">
-                    <span>Número de orden</span>
-                    <strong>{orderNumber}</strong>
+                    <span>
+                      Número de orden
+                    </span>
+
+                    <strong>
+                      {orderNumber}
+                    </strong>
                   </div>
                 )}
 
                 {supplierOrderId && (
                   <div className="arena-breakout-success-row">
-                    <span>ID del proveedor</span>
-                    <strong>{supplierOrderId}</strong>
+                    <span>
+                      ID del proveedor
+                    </span>
+
+                    <strong>
+                      {supplierOrderId}
+                    </strong>
                   </div>
                 )}
 
                 {orderStatus && (
                   <div className="arena-breakout-success-row">
-                    <span>Estado</span>
-                    <strong>{orderStatus}</strong>
+                    <span>
+                      Estado
+                    </span>
+
+                    <strong>
+                      {orderStatus}
+                    </strong>
                   </div>
                 )}
 
                 <button
                   type="button"
                   className="arena-breakout-create-order-button"
-                  onClick={() => router.push("/orders")}
+                  onClick={() =>
+                    router.push(
+                      "/orders"
+                    )
+                  }
                 >
                   REVISAR ORDEN
                 </button>
@@ -453,4 +557,4 @@ export default function ArenaBreakoutPage() {
       </div>
     </main>
   );
-        }
+      }
