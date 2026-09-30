@@ -2,124 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-
-const offers = [
-  {
-    id: "hok-16",
-    name: "16 FICHAS",
-    display: "16 FICHAS",
-    price: 0.27,
-    icon: "🪙",
-  },
-  {
-    id: "hok-lucky-double",
-    name: "BOLSA DE LA SUERTE CON DOBLE FICHA",
-    display: "BOLSA DE LA SUERTE",
-    price: 0.36,
-    icon: "🎁",
-  },
-  {
-    id: "hok-honor-value",
-    name: "PAQUETE DE VALOR DE PUNTOS DE HONOR",
-    display: "PAQUETE DE HONOR",
-    price: 0.36,
-    icon: "🏆",
-  },
-  {
-    id: "hok-standard-refund",
-    name: "PAQUETE DE REEMBOLSO POR COMPRA ESTÁNDAR",
-    display: "REEMBOLSO ESTÁNDAR",
-    price: 0.43,
-    icon: "🎁",
-  },
-  {
-    id: "hok-80",
-    name: "80 FICHAS",
-    display: "80 FICHAS",
-    price: 0.95,
-    icon: "🪙",
-  },
-  {
-    id: "hok-weekly",
-    name: "TARJETA SEMANAL",
-    display: "TARJETA SEMANAL",
-    price: 1.07,
-    icon: "🎟️",
-  },
-  {
-    id: "hok-premium-refund",
-    name: "PAQUETE DE REEMBOLSO POR COMPRA PREMIUM",
-    display: "REEMBOLSO PREMIUM",
-    price: 1.29,
-    icon: "🎁",
-  },
-  {
-    id: "hok-240",
-    name: "240 FICHAS",
-    display: "240 FICHAS",
-    price: 2.63,
-    icon: "🪙",
-  },
-  {
-    id: "hok-weekly-plus",
-    name: "TARJETA SEMANAL PLUS",
-    display: "TARJETA SEMANAL PLUS",
-    price: 2.95,
-    icon: "🎟️",
-  },
-  {
-    id: "hok-400",
-    name: "400 FICHAS",
-    display: "400 FICHAS",
-    price: 4.32,
-    icon: "🪙",
-  },
-  {
-    id: "hok-560",
-    name: "560 FICHAS",
-    display: "560 FICHAS",
-    price: 6.01,
-    icon: "🪙",
-  },
-  {
-    id: "hok-830",
-    name: "830 FICHAS",
-    display: "830 FICHAS",
-    price: 8.54,
-    icon: "🪙",
-  },
-  {
-    id: "hok-1245",
-    name: "1245 FICHAS",
-    display: "1245 FICHAS",
-    price: 12.76,
-    icon: "🪙",
-  },
-  {
-    id: "hok-2508",
-    name: "2508 TOKENS",
-    display: "2508 TOKENS",
-    price: 25.44,
-    icon: "🪙",
-  },
-  {
-    id: "hok-4180",
-    name: "4180 TOKENS",
-    display: "4180 TOKENS",
-    price: 42.33,
-    icon: "🪙",
-  },
-  {
-    id: "hok-8360",
-    name: "8360 TOKENS",
-    display: "8360 TOKENS",
-    price: 84.57,
-    icon: "🪙",
-  },
-];
-
-const gameNote =
-  "Recarga Honor of Kings. Introduce tu ID de jugador antes de realizar el pedido. El producto seleccionado se entregará directamente en tu cuenta una vez realizado el pedido.";
+import { supabase } from "../../../lib/supabase";
+import {
+  HONOR_OF_KINGS,
+  HonorOfKingsOffer,
+} from "../../../lib/games/honor-of-kings";
 
 export default function HonorOfKingsPage() {
   const router = useRouter();
@@ -127,16 +14,11 @@ export default function HonorOfKingsPage() {
   const [showOffers, setShowOffers] = useState(false);
 
   const [selectedOffer, setSelectedOffer] =
-    useState<(typeof offers)[number] | null>(null);
+    useState<HonorOfKingsOffer | null>(null);
 
   const [playerId, setPlayerId] = useState("");
 
-  const [quantity, setQuantity] = useState(1);
-
   const [error, setError] = useState("");
-
-  const [showConfirmation, setShowConfirmation] =
-    useState(false);
 
   const [orderCreated, setOrderCreated] =
     useState(false);
@@ -144,16 +26,23 @@ export default function HonorOfKingsPage() {
   const [orderNumber, setOrderNumber] =
     useState("");
 
-  function selectOffer(
-    offer: (typeof offers)[number]
-  ) {
+  const [supplierOrderId, setSupplierOrderId] =
+    useState("");
+
+  const [orderStatus, setOrderStatus] =
+    useState("");
+
+  const [processing, setProcessing] =
+    useState(false);
+
+  function selectOffer(offer: HonorOfKingsOffer) {
     setSelectedOffer(offer);
     setPlayerId("");
-    setQuantity(1);
     setError("");
-    setShowConfirmation(false);
     setOrderCreated(false);
     setOrderNumber("");
+    setSupplierOrderId("");
+    setOrderStatus("");
 
     setTimeout(() => {
       document
@@ -162,834 +51,1019 @@ export default function HonorOfKingsPage() {
           behavior: "smooth",
           block: "start",
         });
-    }, 100);
+    }, 50);
   }
 
-  function decreaseQuantity() {
-    setQuantity((current) =>
-      Math.max(1, current - 1)
-    );
-  }
-
-  function increaseQuantity() {
-    setQuantity((current) =>
-      current + 1
-    );
-  }
-
-  function handleFinishPurchase(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    setError("");
-
+  async function createOrder() {
     if (!selectedOffer) {
       setError("Seleccione una oferta.");
       return;
     }
 
-    const cleanId = playerId.trim();
+    const cleanPlayerId = playerId.trim();
 
-    if (!cleanId) {
-      setError("Ponga el ID de su cuenta.");
+    if (!/^\d{4,20}$/.test(cleanPlayerId)) {
+      setError(
+        "Ingrese un Player ID válido de entre 4 y 20 dígitos."
+      );
       return;
     }
 
-    if (cleanId.length < 4) {
-      setError("El ID parece demasiado corto.");
-      return;
-    }
+    setProcessing(true);
+    setError("");
 
-    setShowConfirmation(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    setTimeout(() => {
-      document
-        .getElementById("confirmation-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  }
-
-  function createOrder() {
-    if (!selectedOffer) {
-      return;
-    }
-
-    const generatedNumber =
-      `HOK-${Date.now().toString().slice(-8)}`;
-
-    const total =
-      selectedOffer.price * quantity;
-
-    const order = {
-      id: generatedNumber,
-      game: "HONOR OF KINGS",
-      product: selectedOffer.name,
-      displayProduct: selectedOffer.display,
-      price: total,
-      unitPrice: selectedOffer.price,
-      quantity,
-      playerId: playerId.trim(),
-      status: "Pendiente",
-      createdAt: new Date().toISOString(),
-    };
-
-    const existingOrders =
-      localStorage.getItem("storeGamingOrders");
-
-    let orders: any[] = [];
-
-    if (existingOrders) {
-      try {
-        const parsed = JSON.parse(existingOrders);
-
-        if (Array.isArray(parsed)) {
-          orders = parsed;
-        }
-      } catch {
-        orders = [];
+      if (!session?.access_token) {
+        setError(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
+        return;
       }
+
+      const idempotencyKey = crypto.randomUUID();
+
+      const response = await fetch(
+        "/api/topups/honor-of-kings",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+
+          body: JSON.stringify({
+            offerId: selectedOffer.id,
+            offerName: selectedOffer.name,
+            playerId: cleanPlayerId,
+            retailPrice: selectedOffer.price,
+            idempotencyKey,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error ||
+            result?.message ||
+            "No se pudo crear la orden."
+        );
+      }
+
+      const order = result?.order || {};
+
+      setOrderNumber(
+        order?.order_number ||
+          result?.orderNumber ||
+          result?.id ||
+          ""
+      );
+
+      setSupplierOrderId(
+        order?.supplier_order_id ||
+          result?.supplierOrderId ||
+          ""
+      );
+
+      setOrderStatus(
+        order?.status ||
+          result?.status ||
+          "SUPPLIER_PENDING"
+      );
+
+      setOrderCreated(true);
+
+      setTimeout(() => {
+        document
+          .getElementById("success-section")
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      }, 100);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la orden."
+      );
+    } finally {
+      setProcessing(false);
     }
-
-    orders.unshift(order);
-
-    localStorage.setItem(
-      "storeGamingOrders",
-      JSON.stringify(orders)
-    );
-
-    localStorage.setItem(
-      "storeGamingLastOrder",
-      JSON.stringify(order)
-    );
-
-    setOrderNumber(generatedNumber);
-    setOrderCreated(true);
-
-    setTimeout(() => {
-      document
-        .getElementById("success-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
   }
 
-  function goToOrders() {
-    router.push("/orders");
+  function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+    void createOrder();
   }
-
-  const total = selectedOffer
-    ? selectedOffer.price * quantity
-    : 0;
 
   return (
-    <main className="game-service-page">
+    <main className="honor-of-kings-page">
+      <style jsx>{`
+        .honor-of-kings-page {
+          min-height: 100vh;
+          padding-bottom: 40px;
+          color: #fff;
 
-      <header className="game-service-header">
+          background:
+            linear-gradient(
+              rgba(0, 0, 0, 0.72),
+              rgba(0, 0, 0, 0.88)
+            ),
+            url("/images/battle-royale-bg.jpg")
+              center / cover fixed;
+
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+        }
+
+        .hok-header {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          gap: 12px;
+
+          padding: 13px 16px;
+
+          background: rgba(5, 5, 5, 0.95);
+
+          border-bottom:
+            1px solid rgba(255, 255, 255, 0.08);
+
+          backdrop-filter: blur(12px);
+        }
+
+        .hok-title {
+          margin: 0;
+
+          font-size: 20px;
+          font-weight: 900;
+
+          letter-spacing: 0.3px;
+        }
+
+        .hok-back {
+          border: 0;
+
+          border-radius: 10px;
+
+          padding: 9px 12px;
+
+          color: #fff;
+
+          background:
+            rgba(255, 255, 255, 0.08);
+
+          font-size: 13px;
+          font-weight: 800;
+
+          cursor: pointer;
+        }
+
+        .hok-container {
+          width: min(720px, 100%);
+
+          margin: 0 auto;
+
+          padding:
+            18px 14px 0;
+        }
+
+        .hok-banner {
+          width: 100%;
+          height: 210px;
+
+          overflow: hidden;
+
+          border-radius: 18px;
+
+          background: #111;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.1);
+
+          box-shadow:
+            0 12px 35px rgba(0, 0, 0, 0.5);
+        }
+
+        .hok-banner img {
+          width: 100%;
+          height: 100%;
+
+          display: block;
+
+          object-fit: cover;
+        }
+
+        .hok-note {
+          margin-top: 14px;
+
+          padding: 14px;
+
+          border-radius: 14px;
+
+          background:
+            rgba(0, 0, 0, 0.78);
+
+          border:
+            1px solid rgba(255, 255, 255, 0.08);
+
+          color: #ddd;
+
+          font-size: 13px;
+
+          line-height: 1.55;
+        }
+
+        .hok-note strong {
+          color: #fff;
+        }
+
+        .hok-offers-toggle {
+          width: 100%;
+
+          margin-top: 16px;
+
+          padding: 15px 16px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          gap: 12px;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.1);
+
+          border-radius: 14px;
+
+          background:
+            rgba(10, 10, 10, 0.9);
+
+          color: #fff;
+
+          font-size: 15px;
+          font-weight: 900;
+
+          cursor: pointer;
+        }
+
+        .hok-toggle-arrow {
+          color: #ff3030;
+
+          font-size: 20px;
+        }
+
+        .hok-offers {
+          margin-top: 10px;
+        }
+
+        .hok-offers-list {
+          display: flex;
+
+          flex-direction: column;
+
+          gap: 9px;
+        }
+
+        .hok-offer {
+          width: 100%;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          gap: 12px;
+
+          padding: 13px;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.09);
+
+          border-radius: 13px;
+
+          background:
+            rgba(5, 5, 5, 0.88);
+
+          color: #fff;
+
+          cursor: pointer;
+
+          text-align: left;
+
+          transition:
+            transform 0.15s ease,
+            border-color 0.15s ease,
+            background 0.15s ease;
+        }
+
+        .hok-offer:hover {
+          transform: translateY(-1px);
+
+          border-color:
+            rgba(255, 48, 48, 0.65);
+        }
+
+        .hok-offer.selected {
+          border-color: #ff3030;
+
+          background:
+            rgba(90, 0, 0, 0.42);
+
+          box-shadow:
+            0 0 0 1px
+            rgba(255, 48, 48, 0.2);
+        }
+
+        .hok-offer-left {
+          display: flex;
+
+          align-items: center;
+
+          gap: 11px;
+
+          min-width: 0;
+        }
+
+        .hok-icon {
+          width: 38px;
+          height: 38px;
+
+          flex:
+            0 0 38px;
+
+          display: grid;
+
+          place-items: center;
+
+          border-radius: 10px;
+
+          background:
+            rgba(255, 255, 255, 0.08);
+
+          font-size: 19px;
+        }
+
+        .hok-offer-name {
+          font-size: 14px;
+
+          font-weight: 900;
+
+          line-height: 1.3;
+        }
+
+        .hok-offer-price {
+          flex-shrink: 0;
+
+          font-size: 15px;
+
+          font-weight: 900;
+        }
+
+        .hok-order {
+          margin-top: 16px;
+
+          padding: 16px;
+
+          border-radius: 15px;
+
+          background:
+            rgba(0, 0, 0, 0.82);
+
+          border:
+            1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hok-section-title {
+          margin: 0 0 12px;
+
+          font-size: 17px;
+
+          font-weight: 900;
+        }
+
+        .hok-selected {
+          margin-bottom: 14px;
+
+          padding: 12px;
+
+          border-radius: 12px;
+
+          background:
+            rgba(255, 255, 255, 0.06);
+
+          border:
+            1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .hok-selected-label {
+          color: #999;
+
+          font-size: 11px;
+
+          text-transform: uppercase;
+
+          letter-spacing: 0.6px;
+        }
+
+        .hok-selected-row {
+          margin-top: 5px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          gap: 12px;
+        }
+
+        .hok-selected-name {
+          font-size: 14px;
+
+          font-weight: 900;
+        }
+
+        .hok-selected-price {
+          color: #ff4b4b;
+
+          font-weight: 900;
+        }
+
+        .hok-form {
+          display: flex;
+
+          flex-direction: column;
+
+          gap: 12px;
+        }
+
+        .hok-label {
+          color: #bbb;
+
+          font-size: 12px;
+
+          font-weight: 800;
+        }
+
+        .hok-input {
+          width: 100%;
+
+          box-sizing: border-box;
+
+          margin-top: 6px;
+
+          padding: 13px 14px;
+
+          border-radius: 11px;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.12);
+
+          outline: none;
+
+          background:
+            rgba(255, 255, 255, 0.06);
+
+          color: #fff;
+
+          font-size: 15px;
+        }
+
+        .hok-input:focus {
+          border-color: #ff3030;
+
+          box-shadow:
+            0 0 0 2px
+            rgba(255, 48, 48, 0.12);
+        }
+
+        .hok-input::placeholder {
+          color: #777;
+        }
+
+        .hok-error {
+          padding: 11px 12px;
+
+          border-radius: 10px;
+
+          border:
+            1px solid rgba(255, 50, 50, 0.35);
+
+          background:
+            rgba(110, 0, 0, 0.3);
+
+          color: #ff6868;
+
+          font-size: 13px;
+
+          font-weight: 800;
+        }
+
+        .hok-create {
+          width: 100%;
+
+          padding: 14px;
+
+          border: 0;
+
+          border-radius: 12px;
+
+          background: #e52525;
+
+          color: #fff;
+
+          font-size: 15px;
+
+          font-weight: 900;
+
+          cursor: pointer;
+
+          transition:
+            transform 0.15s ease,
+            opacity 0.15s ease;
+        }
+
+        .hok-create:hover {
+          transform: translateY(-1px);
+        }
+
+        .hok-create:disabled {
+          opacity: 0.55;
+
+          cursor: not-allowed;
+
+          transform: none;
+        }
+
+        .hok-success {
+          margin-top: 16px;
+
+          padding: 18px 16px;
+
+          border-radius: 15px;
+
+          background:
+            rgba(0, 45, 20, 0.82);
+
+          border:
+            1px solid rgba(57, 255, 130, 0.25);
+
+          text-align: center;
+        }
+
+        .hok-success-icon {
+          width: 54px;
+          height: 54px;
+
+          margin:
+            0 auto 10px;
+
+          display: grid;
+
+          place-items: center;
+
+          border-radius: 50%;
+
+          background: #18a957;
+
+          color: #fff;
+
+          font-size: 27px;
+
+          font-weight: 900;
+        }
+
+        .hok-success-title {
+          margin: 0;
+
+          font-size: 20px;
+
+          font-weight: 900;
+        }
+
+        .hok-success-text {
+          margin: 8px 0 0;
+
+          color: #c9e8d5;
+
+          font-size: 13px;
+
+          line-height: 1.5;
+        }
+
+        .hok-order-number {
+          margin-top: 12px;
+
+          padding: 11px;
+
+          border-radius: 10px;
+
+          background:
+            rgba(0, 0, 0, 0.35);
+
+          font-weight: 900;
+
+          word-break: break-word;
+        }
+
+        .hok-actions {
+          display: grid;
+
+          grid-template-columns: 1fr 1fr;
+
+          gap: 9px;
+
+          margin-top: 13px;
+        }
+
+        .hok-action {
+          padding: 12px 10px;
+
+          border: 0;
+
+          border-radius: 10px;
+
+          color: #fff;
+
+          background:
+            rgba(255, 255, 255, 0.1);
+
+          font-size: 13px;
+
+          font-weight: 900;
+
+          cursor: pointer;
+        }
+
+        .hok-service {
+          margin-top: 16px;
+
+          padding: 15px;
+
+          border-radius: 14px;
+
+          background:
+            rgba(0, 0, 0, 0.72);
+
+          border:
+            1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .hok-service-title {
+          margin: 0 0 9px;
+
+          font-size: 14px;
+
+          font-weight: 900;
+        }
+
+        .hok-service-list {
+          margin: 0;
+
+          padding-left: 18px;
+
+          color: #bbb;
+
+          font-size: 12px;
+
+          line-height: 1.7;
+        }
+
+        .hok-footer {
+          padding:
+            24px 14px 0;
+
+          text-align: center;
+
+          color: #777;
+
+          font-size: 11px;
+        }
+
+        @media (max-width: 480px) {
+          .hok-header {
+            padding: 12px;
+          }
+
+          .hok-title {
+            font-size: 17px;
+          }
+
+          .hok-container {
+            padding:
+              12px 10px 0;
+          }
+
+          .hok-banner {
+            height: 175px;
+
+            border-radius: 15px;
+          }
+
+          .hok-offer {
+            padding: 11px;
+          }
+
+          .hok-offer-name {
+            font-size: 13px;
+          }
+
+          .hok-offer-price {
+            font-size: 14px;
+          }
+
+          .hok-actions {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <header className="hok-header">
+        <h1 className="hok-title">
+          Honor of Kings
+        </h1>
 
         <button
           type="button"
-          className="game-back-button"
-          onClick={() => router.push("/top-up")}
+          className="hok-back"
+          onClick={() => router.push("/")}
         >
-          ←
+          ← Tienda
         </button>
-
-        <div className="game-header-title">
-
-          <span>
-            STORE GAMING
-          </span>
-
-          <strong>
-            HONOR OF KINGS
-          </strong>
-
-        </div>
-
-        <button
-          type="button"
-          className="game-cart-button"
-          onClick={() => router.push("/cart")}
-        >
-          🛒
-        </button>
-
       </header>
 
-
-      {/* =========================
-          IMAGEN PRINCIPAL
-      ========================== */}
-
-      <section className="free-fire-main-image">
-
-        <img
-          src="/images/honor-of-kings.jpg"
-          alt="Honor of Kings"
-        />
-
-        <div className="free-fire-main-overlay" />
-
-        <div className="free-fire-main-text">
-
-          <span>
-            ⚡ TOP UP
-          </span>
-
-          <h1>
-            HONOR
-            <strong>
-              OF KINGS
-            </strong>
-          </h1>
-
-          <p>
-            Fichas, tokens y tarjetas
-          </p>
-
+      <div className="hok-container">
+        <div className="hok-banner">
+          <img
+            src="/images/honor-of-kings.jpg"
+            alt="Honor of Kings"
+          />
         </div>
 
-      </section>
-
-
-      {/* =========================
-          BOTÓN PARA MOSTRAR OFERTAS
-      ========================== */}
-
-      <button
-        type="button"
-        className="offers-toggle"
-        onClick={() =>
-          setShowOffers((current) => !current)
-        }
-      >
-
-        <span className="offers-toggle-text">
-
-          ✎
-
+        <div className="hok-note">
           <strong>
-            PRESIONE PARA VER OFERTAS
+            📌 Información del servicio
           </strong>
 
-        </span>
+          <br />
 
-        <span className="offers-toggle-pencil">
-          ✎
-        </span>
+          Recarga de Honor of Kings.
 
-      </button>
+          <br />
 
+          Introduce tu ID de jugador antes
+          de realizar el pedido.
 
-      {/* =========================
-          OFERTAS
-      ========================== */}
+          <br />
 
-      {showOffers && (
+          El producto seleccionado se entrega
+          directamente a tu cuenta después
+          de realizar el pedido.
+        </div>
 
-        <section className="offers-section">
-
-          <div className="offers-heading">
-
-            <div>
-
-              <span>
-                HONOR OF KINGS
-              </span>
-
-              <h2>
-                ELIGE TU OFERTA
-              </h2>
-
-            </div>
-
-          </div>
-
-
-          <div className="offers-list">
-
-            {offers.map((offer) => {
-
-              const selected =
-                selectedOffer?.id === offer.id;
-
-              return (
-
-                <button
-                  key={offer.id}
-                  type="button"
-                  className={`offer-card ${
-                    selected
-                      ? "selected"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    selectOffer(offer)
-                  }
-                >
-
-                  <div className="offer-left">
-
-                    <div className="diamond-icon">
-                      {offer.icon}
-                    </div>
-
-                    <div className="offer-info">
-
-                      <strong>
-                        {offer.display}
-                      </strong>
-
-                      <span>
-                        {offer.name}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-
-                  <div className="offer-right">
-
-                    <strong>
-                      {offer.price.toFixed(2)}$
-                    </strong>
-
-                    <span>
-                      SELECCIONAR →
-                    </span>
-
-                  </div>
-
-                </button>
-
-              );
-            })}
-
-          </div>
-
-
-          {/* =========================
-              NOTA
-          ========================== */}
-
-          <div className="game-note">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {gameNote}
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
-      )}
-
-
-      {/* =========================
-          DATOS DEL PEDIDO
-      ========================== */}
-
-      {selectedOffer && (
-
-        <section
-          id="order-section"
-          className="order-section"
+        <button
+          type="button"
+          className="hok-offers-toggle"
+          onClick={() =>
+            setShowOffers((value) => !value)
+          }
         >
+          <span>
+            ✏️ Presione para ver ofertas
+          </span>
 
-          <div className="section-title">
+          <span className="hok-toggle-arrow">
+            {showOffers ? "▲" : "▼"}
+          </span>
+        </button>
 
-            <span>
-              01
-            </span>
+        {showOffers && (
+          <section className="hok-offers">
+            <div className="hok-offers-list">
+              {HONOR_OF_KINGS.offers.map(
+                (offer) => (
+                  <button
+                    type="button"
+                    key={offer.id}
+                    className={`hok-offer ${
+                      selectedOffer?.id === offer.id
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      selectOffer(offer)
+                    }
+                  >
+                    <div className="hok-offer-left">
+                      <div className="hok-icon">
+                        {offer.icon}
+                      </div>
 
-            <div>
+                      <div>
+                        <div className="hok-offer-name">
+                          {offer.name}
+                        </div>
+                      </div>
+                    </div>
 
-              <small>
-                TU SELECCIÓN
-              </small>
-
-              <h2>
-                DATOS DEL PEDIDO
-              </h2>
-
+                    <div className="hok-offer-price">
+                      $
+                      {Number(
+                        offer.price
+                      ).toFixed(2)}
+                    </div>
+                  </button>
+                )
+              )}
             </div>
-
-          </div>
-
-
-          <div className="selected-order-card">
-
-            <div className="selected-order-icon">
-              {selectedOffer.icon}
-            </div>
-
-            <div className="selected-order-info">
-
-              <span>
-                HONOR OF KINGS
-              </span>
-
-              <strong>
-                {selectedOffer.name}
-              </strong>
-
-            </div>
-
-            <div className="selected-order-price">
-              {selectedOffer.price.toFixed(2)}$
-            </div>
-
-          </div>
-
-
-          {/* =========================
-              NOTA
-          ========================== */}
-
-          <div className="game-note game-note-order">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {gameNote}
-              </p>
-
-            </div>
-
-          </div>
-
-
-          {/* =========================
-              CANTIDAD
-          ========================== */}
-
-          <div className="quantity-section">
-
-            <span>
-              CANTIDAD
-            </span>
-
-            <div className="quantity-control">
-
-              <button
-                type="button"
-                onClick={decreaseQuantity}
-              >
-                −
-              </button>
-
-              <strong>
-                {quantity}
-              </strong>
-
-              <button
-                type="button"
-                onClick={increaseQuantity}
-              >
-                +
-              </button>
-
-            </div>
-
-          </div>
-
-
-          {/* =========================
-              ID
-          ========================== */}
-
-          <form
-            onSubmit={handleFinishPurchase}
-            className="order-form"
-          >
-
-            <label
-              htmlFor="honor-player-id"
-              className="player-id-label"
-            >
-              PONGA SU ID
-            </label>
-
-            <p className="player-id-description">
-              Introduzca el ID de la cuenta
-              de Honor of Kings donde desea
-              recibir la compra.
-            </p>
-
-
-            <div className="player-id-input-wrapper">
-
-              <span>
-                🆔
-              </span>
-
-              <input
-                id="honor-player-id"
-                type="text"
-                inputMode="numeric"
-                value={playerId}
-                onChange={(event) =>
-                  setPlayerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
-                  )
-                }
-                placeholder="Introduzca su ID"
-                autoComplete="off"
-                maxLength={20}
-              />
-
-            </div>
-
-
-            {error && (
-
-              <div className="order-error">
-                {error}
-              </div>
-
-            )}
-
-
-            <div className="order-total-preview">
-
-              <span>
-                PRECIO TOTAL
-              </span>
-
-              <strong>
-                {total.toFixed(2)}$
-              </strong>
-
-            </div>
-
-
-            <button
-              type="submit"
-              className="finish-order-button"
-            >
-
-              <span>
-                FINALIZAR COMPRA
-              </span>
-
-              <b>
-                →
-              </b>
-
-            </button>
-
-          </form>
-
-        </section>
-
-      )}
-
-
-      {/* =========================
-          CONFIRMACIÓN
-      ========================== */}
-
-      {showConfirmation &&
-        selectedOffer &&
-        !orderCreated && (
-
-          <section
-            id="confirmation-section"
-            className="confirmation-section"
-          >
-
-            <div className="section-title">
-
-              <span>
-                02
-              </span>
-
-              <div>
-
-                <small>
-                  CONFIRMAR
-                </small>
-
-                <h2>
-                  REVISE SU ORDEN
-                </h2>
-
-              </div>
-
-            </div>
-
-
-            <div className="confirmation-card">
-
-              <h3>
-                Usted va a realizar una
-                compra de Honor of Kings.
-              </h3>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRODUCTO
-                </span>
-
-                <strong>
-                  {selectedOffer.name}
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  CANTIDAD
-                </span>
-
-                <strong>
-                  {quantity}
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRECIO UNITARIO
-                </span>
-
-                <strong>
-                  {selectedOffer.price.toFixed(2)}$
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  PRECIO TOTAL
-                </span>
-
-                <strong>
-                  {total.toFixed(2)}$
-                </strong>
-
-              </div>
-
-
-              <div className="confirmation-row">
-
-                <span>
-                  ID DEL JUGADOR
-                </span>
-
-                <strong>
-                  {playerId}
-                </strong>
-
-              </div>
-
-
-              <p className="confirmation-warning">
-                Revise cuidadosamente los
-                datos antes de finalizar la
-                compra.
-              </p>
-
-
-              <button
-                type="button"
-                className="confirm-final-button"
-                onClick={createOrder}
-              >
-                FINALIZAR
-              </button>
-
-            </div>
-
           </section>
-
         )}
 
-
-      {/* =========================
-          ORDEN CREADA
-      ========================== */}
-
-      {orderCreated && (
-
-        <section
-          id="success-section"
-          className="order-success-section"
-        >
-
-          <div className="success-circle">
-            ✓
-          </div>
-
-          <h2>
-            ORDEN CREADA
-          </h2>
-
-          <p>
-            Su orden ha sido creada
-            correctamente.
-          </p>
-
-
-          <div className="success-order-number">
-
-            <span>
-              NÚMERO DE ORDEN
-            </span>
-
-            <strong>
-              #{orderNumber}
-            </strong>
-
-          </div>
-
-
-          <button
-            type="button"
-            className="view-orders-button"
-            onClick={goToOrders}
+        {selectedOffer && (
+          <section
+            id="order-section"
+            className="hok-order"
           >
+            <h2 className="hok-section-title">
+              Crear pedido
+            </h2>
 
-            VER MIS ÓRDENES
+            <div className="hok-selected">
+              <div className="hok-selected-label">
+                Oferta seleccionada
+              </div>
 
-            <span>
-              →
-            </span>
+              <div className="hok-selected-row">
+                <div className="hok-selected-name">
+                  {selectedOffer.name}
+                </div>
 
-          </button>
+                <div className="hok-selected-price">
+                  $
+                  {Number(
+                    selectedOffer.price
+                  ).toFixed(2)}
+                </div>
+              </div>
+            </div>
 
+            <form
+              className="hok-form"
+              onSubmit={handleSubmit}
+            >
+              <label className="hok-label">
+                Player ID
+
+                <input
+                  className="hok-input"
+                  type="text"
+                  inputMode="numeric"
+                  value={playerId}
+                  onChange={(event) =>
+                    setPlayerId(
+                      event.target.value.replace(
+                        /\D/g,
+                        ""
+                      )
+                    )
+                  }
+                  placeholder="Ingrese su Player ID"
+                  maxLength={20}
+                  disabled={processing}
+                />
+              </label>
+
+              {error && (
+                <div className="hok-error">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="hok-create"
+                disabled={processing}
+              >
+                {processing
+                  ? "Procesando pedido..."
+                  : "Crear pedido"}
+              </button>
+            </form>
+          </section>
+        )}
+
+        {orderCreated && (
+          <section
+            id="success-section"
+            className="hok-success"
+          >
+            <div className="hok-success-icon">
+              ✓
+            </div>
+
+            <h2 className="hok-success-title">
+              ¡Orden creada!
+            </h2>
+
+            <p className="hok-success-text">
+              Tu pedido fue registrado
+              correctamente.
+              El proveedor procesará
+              la recarga.
+            </p>
+
+            {orderNumber && (
+              <div className="hok-order-number">
+                🧾 Orden: {orderNumber}
+              </div>
+            )}
+
+            {supplierOrderId && (
+              <div className="hok-order-number">
+                Proveedor: {supplierOrderId}
+              </div>
+            )}
+
+            {orderStatus && (
+              <div className="hok-order-number">
+                Estado: {orderStatus}
+              </div>
+            )}
+
+            <div className="hok-actions">
+  <button
+    type="button"
+    className="hok-action"
+    onClick={() =>
+      router.push("/orders")
+    }
+  >
+    📋 Revisar orden
+  </button>
+
+  <button
+    type="button"
+    className="hok-action"
+    onClick={() =>
+      router.push("/")
+    }
+  >
+    🛒 Volver a la tienda
+  </button>
+</div>
+          </section>
+        )}
+
+        <section className="hok-service">
+          <h3 className="hok-service-title">
+            ⚡ Servicio de recarga
+          </h3>
+
+          <ul className="hok-service-list">
+            <li>
+              Entrega directa a la cuenta.
+            </li>
+
+            <li>
+              Necesitas introducir tu Player ID.
+            </li>
+
+            <li>
+              Pedido procesado mediante FazerCards.
+            </li>
+
+            <li>
+              Revisa tu ID antes de confirmar el pedido.
+            </li>
+          </ul>
         </section>
 
-      )}
-
-
-      {/* =========================
-          INFORMACIÓN DEL SERVICIO
-      ========================== */}
-
-      <section className="service-info">
-
-        <div className="service-info-item">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
-          </div>
-
-        </div>
-
-
-        <div className="service-info-item">
-
-          <span>
-            🔒
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-
-        <div className="service-info-item">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              HONOR OF KINGS
-            </strong>
-
-            <p>
-              Fichas, tokens y tarjetas
-              directamente a tu cuenta.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-
-      {/* =========================
-          FOOTER
-      ========================== */}
-
-      <footer className="game-service-footer">
-
-        <strong>
+        <footer className="hok-footer">
           🛒STORE GAMING🎮
-        </strong>
-
-        <span>
-          HONOR OF KINGS TOP UP
-        </span>
-
-      </footer>
-
+          <br />
+          Honor of Kings
+        </footer>
+      </div>
     </main>
   );
-    }
+}
