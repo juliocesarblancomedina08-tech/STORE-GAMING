@@ -11,14 +11,17 @@ import {
 export default function FcMobileIdPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
+  const [showOffers, setShowOffers] =
+    useState(false);
 
   const [selectedOffer, setSelectedOffer] =
     useState<FcMobileIdOffer | null>(null);
 
-  const [playerId, setPlayerId] = useState("");
+  const [playerId, setPlayerId] =
+    useState("");
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
 
   const [orderCreated, setOrderCreated] =
     useState(false);
@@ -35,7 +38,9 @@ export default function FcMobileIdPage() {
   const [processing, setProcessing] =
     useState(false);
 
-  function selectOffer(offer: FcMobileIdOffer) {
+  function selectOffer(
+    offer: FcMobileIdOffer
+  ) {
     setSelectedOffer(offer);
     setPlayerId("");
     setError("");
@@ -46,7 +51,9 @@ export default function FcMobileIdPage() {
 
     setTimeout(() => {
       document
-        .getElementById("order-section")
+        .getElementById(
+          "order-section"
+        )
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -55,7 +62,10 @@ export default function FcMobileIdPage() {
   }
 
   async function createOrder() {
-    if (!selectedOffer || processing) {
+    if (
+      !selectedOffer ||
+      processing
+    ) {
       return;
     }
 
@@ -64,15 +74,16 @@ export default function FcMobileIdPage() {
 
     try {
       /*
-       * ============================================================
-       * 1. COMPROBAR SESIÓN
-       * ============================================================
+       * ==========================================================
+       * SESIÓN
+       * ==========================================================
        */
 
       const {
         data: { session },
         error: sessionError,
-      } = await supabase.auth.getSession();
+      } =
+        await supabase.auth.getSession();
 
       if (
         sessionError ||
@@ -87,9 +98,9 @@ export default function FcMobileIdPage() {
       }
 
       /*
-       * ============================================================
-       * 2. LIMPIAR PLAYER ID
-       * ============================================================
+       * ==========================================================
+       * PLAYER ID
+       * ==========================================================
        */
 
       const cleanPlayerId =
@@ -124,18 +135,18 @@ export default function FcMobileIdPage() {
       }
 
       /*
-       * ============================================================
-       * 3. IDEMPOTENCIA
-       * ============================================================
+       * ==========================================================
+       * IDEMPOTENCIA
+       * ==========================================================
        */
 
       const idempotencyKey =
         crypto.randomUUID();
 
       /*
-       * ============================================================
-       * 4. ENVIAR PEDIDO
-       * ============================================================
+       * ==========================================================
+       * PEDIDO
+       * ==========================================================
        */
 
       const response =
@@ -176,9 +187,9 @@ export default function FcMobileIdPage() {
         await response.json();
 
       /*
-       * ============================================================
-       * 5. ERROR
-       * ============================================================
+       * ==========================================================
+       * ERROR
+       * ==========================================================
        */
 
       if (
@@ -194,9 +205,9 @@ export default function FcMobileIdPage() {
       }
 
       /*
-       * ============================================================
-       * 6. GUARDAR INFORMACIÓN
-       * ============================================================
+       * ==========================================================
+       * INFORMACIÓN DE LA ORDEN
+       * ==========================================================
        */
 
       setOrderNumber(
@@ -207,7 +218,8 @@ export default function FcMobileIdPage() {
       );
 
       setSupplierOrderId(
-        result.order?.supplier_order_id ||
+        result.order
+          ?.supplier_order_id ||
           result.supplierOrderId ||
           ""
       );
@@ -215,14 +227,8 @@ export default function FcMobileIdPage() {
       setOrderStatus(
         result.order?.status ||
           result.status ||
-          "PENDING"
+          "SUPPLIER_PENDING"
       );
-
-      /*
-       * ============================================================
-       * 7. MOSTRAR ORDEN CREADA
-       * ============================================================
-       */
 
       setOrderCreated(true);
 
@@ -297,7 +303,7 @@ export default function FcMobileIdPage() {
       return;
     }
 
-    createOrder();
+    void createOrder();
   }
 
   function goToOrders() {
@@ -307,9 +313,9 @@ export default function FcMobileIdPage() {
   return (
     <main className="game-service-page fc-mobile-page">
 
-      {/* ============================================================
+      {/* ==========================================================
           HEADER
-      ============================================================ */}
+      ========================================================== */}
 
       <header className="game-service-header">
 
@@ -335,27 +341,17 @@ export default function FcMobileIdPage() {
 
         </div>
 
-        <button
-          type="button"
-          className="game-cart-button"
-          onClick={() =>
-            router.push("/cart")
-          }
-        >
-          🛒
-        </button>
-
       </header>
 
-      {/* ============================================================
-          IMAGEN PRINCIPAL
-      ============================================================ */}
+      {/* ==========================================================
+          BANNER
+      ========================================================== */}
 
       <section className="free-fire-main-image fc-mobile-main-image">
 
         <img
           src={FC_MOBILE_ID.image}
-          alt="EAFC Mobile"
+          alt="EAFC Mobile Indonesia"
         />
 
         <div className="free-fire-main-overlay" />
@@ -374,16 +370,16 @@ export default function FcMobileIdPage() {
           </h1>
 
           <p>
-            FC Points y Plata
+            FC Points y Silver
           </p>
 
         </div>
 
       </section>
 
-      {/* ============================================================
-          BOTÓN PARA MOSTRAR OFERTAS
-      ============================================================ */}
+      {/* ==========================================================
+          MOSTRAR OFERTAS
+      ========================================================== */}
 
       <button
         type="button"
@@ -396,27 +392,23 @@ export default function FcMobileIdPage() {
       >
 
         <span className="offers-toggle-text">
-
           ✎
-
           <strong>
             PRESIONE PARA VER OFERTAS
           </strong>
-
         </span>
 
         <span className="offers-toggle-pencil">
-          ✎
+          {showOffers ? "⌃" : "⌄"}
         </span>
 
       </button>
 
-      {/* ============================================================
+      {/* ==========================================================
           OFERTAS
-      ============================================================ */}
+      ========================================================== */}
 
       {showOffers && (
-
         <section className="offers-section">
 
           <div className="offers-heading">
@@ -445,7 +437,6 @@ export default function FcMobileIdPage() {
                   offer.id;
 
                 return (
-
                   <button
                     key={offer.id}
                     type="button"
@@ -484,7 +475,10 @@ export default function FcMobileIdPage() {
                     <div className="offer-right">
 
                       <strong>
-                        {offer.price.toFixed(2)}$
+                        $
+                        {offer.price.toFixed(
+                          2
+                        )}
                       </strong>
 
                       <span>
@@ -494,7 +488,6 @@ export default function FcMobileIdPage() {
                     </div>
 
                   </button>
-
                 );
               }
             )}
@@ -522,206 +515,204 @@ export default function FcMobileIdPage() {
           </div>
 
         </section>
-
       )}
 
-      {/* ============================================================
+      {/* ==========================================================
           DATOS DEL PEDIDO
-      ============================================================ */}
+      ========================================================== */}
 
       {selectedOffer &&
         !orderCreated && (
 
-        <section
-          id="order-section"
-          className="order-section"
-        >
-
-          <div className="section-title">
-
-            <span>
-              01
-            </span>
-
-            <div>
-
-              <small>
-                TU SELECCIÓN
-              </small>
-
-              <h2>
-                DATOS DEL PEDIDO
-              </h2>
-
-            </div>
-
-          </div>
-
-          {/* ========================================================
-              OFERTA SELECCIONADA
-          ======================================================== */}
-
-          <div className="selected-order-card">
-
-            <div className="selected-order-icon">
-              {selectedOffer.icon}
-            </div>
-
-            <div className="selected-order-info">
-
-              <span>
-                EAFC MOBILE
-              </span>
-
-              <strong>
-                {selectedOffer.name}
-              </strong>
-
-            </div>
-
-            <div className="selected-order-price">
-              {selectedOffer.price.toFixed(2)}$
-            </div>
-
-          </div>
-
-          {/* ========================================================
-              NOTA
-          ======================================================== */}
-
-          <div className="game-note game-note-order">
-
-            <div className="game-note-icon">
-              !
-            </div>
-
-            <div className="game-note-content">
-
-              <strong>
-                NOTA
-              </strong>
-
-              <p>
-                {FC_MOBILE_ID.note}
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* ========================================================
-              FORMULARIO
-          ======================================================== */}
-
-          <form
-            onSubmit={
-              handleFinishPurchase
-            }
-            className="order-form"
+          <section
+            id="order-section"
+            className="order-section"
           >
 
-            <label
-              htmlFor="fc-mobile-player-id"
-              className="player-id-label"
-            >
-              ID DEL JUGADOR
-            </label>
-
-            <p className="player-id-description">
-              Introduzca el ID de la cuenta
-              donde desea recibir la compra.
-            </p>
-
-            {/* ======================================================
-                CAMPO ID
-            ====================================================== */}
-
-            <div className="player-id-input-wrapper">
+            <div className="section-title">
 
               <span>
-                🆔
+                01
               </span>
 
-              <input
-                id="fc-mobile-player-id"
-                type="text"
-                inputMode="numeric"
-                value={playerId}
-                onChange={(event) =>
-                  setPlayerId(
-                    event.target.value.replace(
-                      /[^0-9]/g,
-                      ""
-                    )
-                  )
-                }
-                placeholder="Introduzca su ID"
-                autoComplete="off"
-                maxLength={20}
-                disabled={processing}
-              />
+              <div>
 
-            </div>
+                <small>
+                  TU SELECCIÓN
+                </small>
 
-            {/* ======================================================
-                ERROR
-            ====================================================== */}
+                <h2>
+                  DATOS DEL PEDIDO
+                </h2>
 
-            {error && (
-
-              <div className="order-error">
-                {error}
               </div>
 
-            )}
+            </div>
 
-            {/* ======================================================
-                PRECIO
-            ====================================================== */}
+            {/* ====================================================
+                OFERTA
+            ==================================================== */}
 
-            <div className="order-total-preview">
+            <div className="selected-order-card">
 
-              <span>
-                PRECIO
-              </span>
+              <div className="selected-order-icon">
+                {selectedOffer.icon}
+              </div>
 
-              <strong>
-                {selectedOffer.price.toFixed(2)}$
-              </strong>
+              <div className="selected-order-info">
+
+                <span>
+                  EAFC MOBILE
+                </span>
+
+                <strong>
+                  {selectedOffer.name}
+                </strong>
+
+              </div>
+
+              <div className="selected-order-price">
+                $
+                {selectedOffer.price.toFixed(
+                  2
+                )}
+              </div>
 
             </div>
 
-            {/* ======================================================
-                FINALIZAR COMPRA
-            ====================================================== */}
+            {/* ====================================================
+                NOTA
+            ==================================================== */}
 
-            <button
-              type="submit"
-              className="finish-order-button fc-mobile-finish-button"
-              disabled={processing}
+            <div className="game-note game-note-order">
+
+              <div className="game-note-icon">
+                !
+              </div>
+
+              <div className="game-note-content">
+
+                <strong>
+                  NOTA
+                </strong>
+
+                <p>
+                  {FC_MOBILE_ID.note}
+                </p>
+
+              </div>
+
+            </div>
+
+            {/* ====================================================
+                FORMULARIO
+            ==================================================== */}
+
+            <form
+              onSubmit={
+                handleFinishPurchase
+              }
+              className="order-form"
             >
 
-              <span>
-                {processing
-                  ? "PROCESANDO COMPRA..."
-                  : "FINALIZAR COMPRA"}
-              </span>
+              <label
+                htmlFor="fc-mobile-player-id"
+                className="player-id-label"
+              >
+                ID DEL JUGADOR
+              </label>
 
-              <b>
-                →
-              </b>
+              <p className="player-id-description">
+                Introduzca el ID de su cuenta
+                de EA Sports FC Mobile.
+              </p>
 
-            </button>
+              <div className="player-id-input-wrapper">
 
-          </form>
+                <span>
+                  🆔
+                </span>
 
-        </section>
+                <input
+                  id="fc-mobile-player-id"
+                  type="text"
+                  inputMode="numeric"
+                  value={playerId}
+                  onChange={(event) =>
+                    setPlayerId(
+                      event.target.value.replace(
+                        /[^0-9]/g,
+                        ""
+                      )
+                    )
+                  }
+                  placeholder="Introduzca su ID"
+                  autoComplete="off"
+                  maxLength={20}
+                  disabled={processing}
+                />
 
-      )}
+              </div>
 
-      {/* ============================================================
+              {/* ==================================================
+                  ERROR
+              ================================================== */}
+
+              {error && (
+                <div className="order-error">
+                  {error}
+                </div>
+              )}
+
+              {/* ==================================================
+                  PRECIO
+              ================================================== */}
+
+              <div className="order-total-preview">
+
+                <span>
+                  PRECIO
+                </span>
+
+                <strong>
+                  $
+                  {selectedOffer.price.toFixed(
+                    2
+                  )}
+                </strong>
+
+              </div>
+
+              {/* ==================================================
+                  FINALIZAR
+              ================================================== */}
+
+              <button
+                type="submit"
+                className="finish-order-button fc-mobile-finish-button"
+                disabled={processing}
+              >
+
+                <span>
+                  {processing
+                    ? "PROCESANDO COMPRA..."
+                    : "FINALIZAR COMPRA"}
+                </span>
+
+                <b>
+                  →
+                </b>
+
+              </button>
+
+            </form>
+
+          </section>
+        )}
+
+      {/* ==========================================================
           ORDEN CREADA
-      ============================================================ */}
+      ========================================================== */}
 
       {orderCreated && (
 
@@ -757,7 +748,6 @@ export default function FcMobileIdPage() {
           </div>
 
           {supplierOrderId && (
-
             <div className="success-order-number">
 
               <span>
@@ -769,11 +759,9 @@ export default function FcMobileIdPage() {
               </strong>
 
             </div>
-
           )}
 
           {orderStatus && (
-
             <div className="success-order-number">
 
               <span>
@@ -785,7 +773,6 @@ export default function FcMobileIdPage() {
               </strong>
 
             </div>
-
           )}
 
           <button
@@ -795,22 +782,18 @@ export default function FcMobileIdPage() {
               goToOrders
             }
           >
-
             REVISAR ORDEN
-
             <span>
               →
             </span>
-
           </button>
 
         </section>
-
       )}
 
-      {/* ============================================================
-          INFORMACIÓN DEL SERVICIO
-      ============================================================ */}
+      {/* ==========================================================
+          INFORMACIÓN
+      ========================================================== */}
 
       <section className="service-info">
 
@@ -868,7 +851,7 @@ export default function FcMobileIdPage() {
             </strong>
 
             <p>
-              FC Points y Plata.
+              FC Points y Silver.
             </p>
 
           </div>
@@ -877,9 +860,9 @@ export default function FcMobileIdPage() {
 
       </section>
 
-      {/* ============================================================
+      {/* ==========================================================
           FOOTER
-      ============================================================ */}
+      ========================================================== */}
 
       <footer className="game-service-footer">
 
@@ -888,11 +871,11 @@ export default function FcMobileIdPage() {
         </strong>
 
         <span>
-          EAFC MOBILE TOP UP
+          EAFC MOBILE INDONESIA
         </span>
 
       </footer>
 
     </main>
   );
-}
+    }
