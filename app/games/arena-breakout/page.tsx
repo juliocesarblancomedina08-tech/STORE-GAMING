@@ -1,187 +1,357 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
-import {
-  ARENA_BREAKOUT,
-  ArenaBreakoutOffer,
-} from "../../../lib/games/arena-breakout";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+type SupplierOffer = {
+  offer_id: string;
+  name: string;
+  price_usd: string | number;
+};
+
+type ArenaOffer = {
+  id: string;
+  supplierOfferId: string;
+  name: string;
+  display: string;
+  price: number;
+  supplierPrice: number;
+  icon: string;
+};
+
+const STORE_MARGIN = 0.2;
+
+function getIcon(name: string) {
+  const lower = name.toLowerCase();
+
+  if (
+    lower.includes("pass") ||
+    lower.includes("pase") ||
+    lower.includes("case") ||
+    lower.includes("caja") ||
+    lower.includes("privileges") ||
+    lower.includes("privilegios") ||
+    lower.includes("select")
+  ) {
+    return "🎟️";
+  }
+
+  return "🪙";
+}
+
+function getDisplay(name: string) {
+  const lower = name.toLowerCase();
+
+  if (lower.includes("66 bonds")) {
+    return "66🪙";
+  }
+
+  if (lower.includes("335 bonds")) {
+    return "335🪙";
+  }
+
+  if (lower.includes("675 bonds")) {
+    return "675🪙";
+  }
+
+  if (lower.includes("1690 bonds")) {
+    return "1690🪙";
+  }
+
+  if (lower.includes("3400 bonds")) {
+    return "3400🪙";
+  }
+
+  if (lower.includes("6820 bonds")) {
+    return "6820🪙";
+  }
+
+  if (lower.includes("beginner select")) {
+    return "BEGINNER SELECT";
+  }
+
+  if (
+    lower.includes(
+      "monthly advanced battle pass activation pass"
+    )
+  ) {
+    return "PASE AVANZADO MENSUAL 🎟️";
+  }
+
+  if (lower.includes("bulletproof case privileges")) {
+    return "PRIVILEGIOS CAJA A PRUEBA DE BALAS 🎟️";
+  }
+
+  if (lower.includes("bulletproof case 30d")) {
+    return "CAJA A PRUEBA DE BALAS 30D 🎟️";
+  }
+
+  if (
+    lower.includes(
+      "monthly premium battle pass activation pass"
+    )
+  ) {
+    return "PASE PREMIUM MENSUAL 🎟️";
+  }
+
+  if (lower.includes("composite case privileges")) {
+    return "PRIVILEGIOS CAJA COMPUESTA 🎟️";
+  }
+
+  if (lower.includes("composition case 30d")) {
+    return "CAJA COMPUESTA 30D 🎟️";
+  }
+
+  if (
+    lower.includes(
+      "quarterly premium battle pass bundle activation pass bundle"
+    )
+  ) {
+    return "PASE PREMIUM TRIMESTRAL 🎟️";
+  }
+
+  return name;
+}
 
 export default function ArenaBreakoutPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(true);
+  const [offers, setOffers] = useState<ArenaOffer[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(true);
+  const [offersOpen, setOffersOpen] = useState(false);
+
   const [selectedOffer, setSelectedOffer] =
-    useState<ArenaBreakoutOffer | null>(null);
+    useState<ArenaOffer | null>(null);
 
-  const [quantity, setQuantity] = useState(1);
   const [playerId, setPlayerId] = useState("");
-
-  const [error, setError] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
 
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
-  const [supplierOrderId, setSupplierOrderId] = useState("");
-  const [orderStatus, setOrderStatus] = useState("");
 
-  function selectOffer(offer: ArenaBreakoutOffer) {
-    setSelectedOffer(offer);
-    setQuantity(1);
-    setPlayerId("");
-    setError("");
+  useEffect(() => {
+    let cancelled = false;
 
-    setOrderCreated(false);
-    setOrderNumber("");
-    setSupplierOrderId("");
-    setOrderStatus("");
+    async function loadOffers() {
+      try {
+        setLoadingOffers(true);
+        setError("");
 
-    setTimeout(() => {
-      document
-        .getElementById("arena-breakout-order-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  }
+        const response = await fetch(
+          "/api/fazercards/topups?category_id=arena_breakout",
+          {
+            cache: "no-store",
+          }
+        );
 
-  function decreaseQuantity() {
-    setQuantity((current) => Math.max(1, current - 1));
-  }
+        const data = await response.json();
 
-  function increaseQuantity() {
-    setQuantity((current) => current + 1);
-  }
+        if (!response.ok || !data?.ok) {
+          throw new Error(
+            data?.error || "No se pudo cargar el catálogo."
+          );
+        }
 
-  async function createOrder() {
-    if (!selectedOffer || processing) {
+        const supplierOffers: SupplierOffer[] = Array.isArray(
+          data.offers
+        )
+          ? data.offers
+          : [];
+
+        const normalized: ArenaOffer[] =
+          supplierOffers.map((offer) => {
+            const supplierPrice = Number(
+              offer.price_usd
+            );
+
+            return {
+              id: offer.offer_id,
+              supplierOfferId: offer.offer_id,
+              name: offer.name,
+              display: getDisplay(offer.name),
+              supplierPrice,
+              price:
+                Math.round(
+                  (supplierPrice + STORE_MARGIN) * 10000
+                ) / 10000,
+              icon: getIcon(offer.name),
+            };
+          });
+
+        if (!cancelled) {
+          setOffers(normalized);
+        }
+      } catch (err) {
+        console.error(err);
+
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "No se pudo cargar el catálogo."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingOffers(false);
+        }
+      }
+    }
+
+    loadOffers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleSelectOffer(offer: ArenaOffer) {
+    if (
+      !offer.supplierPrice ||
+      offer.supplierPrice <= 0
+    ) {
+      setError(
+        "Esta oferta todavía no tiene un precio disponible."
+      );
       return;
     }
 
+    setSelectedOffer(offer);
     setError("");
-    setProcessing(true);
+    setOrderCreated(false);
+    setOrderNumber("");
+  }
+
+  async function createOrder() {
+    if (!selectedOffer) {
+      setError("Selecciona una oferta.");
+      return;
+    }
+
+    const cleanPlayerId = playerId.trim();
+
+    if (!cleanPlayerId) {
+      setError("Introduce tu Player ID.");
+      return;
+    }
+
+    if (!/^[0-9]+$/.test(cleanPlayerId)) {
+      setError(
+        "El Player ID solo puede contener números."
+      );
+      return;
+    }
+
+    if (cleanPlayerId.length < 4) {
+      setError(
+        "El Player ID debe tener al menos 4 números."
+      );
+      return;
+    }
+
+    if (cleanPlayerId.length > 32) {
+      setError(
+        "El Player ID no puede superar 32 números."
+      );
+      return;
+    }
+
+    if (
+      !selectedOffer.supplierPrice ||
+      selectedOffer.supplierPrice <= 0
+    ) {
+      setError(
+        "Esta oferta todavía no tiene un precio disponible."
+      );
+      return;
+    }
 
     try {
+      setProcessing(true);
+      setError("");
+
       const {
         data: { session },
-        error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError || !session?.user) {
-        setError(
-          "Su sesión ha expirado. Inicie sesión nuevamente."
-        );
-
-        router.replace("/");
+      if (!session?.access_token) {
+        router.push("/login");
         return;
       }
-
-      const cleanPlayerId = playerId.trim();
-
-      if (!cleanPlayerId) {
-        setError("Ponga el ID de su cuenta.");
-        return;
-      }
-
-      if (!/^[0-9]+$/.test(cleanPlayerId)) {
-        setError(
-          "El ID debe contener solamente números."
-        );
-        return;
-      }
-
-      if (
-        cleanPlayerId.length < 4 ||
-        cleanPlayerId.length > 32
-      ) {
-        setError(
-          "El ID debe tener entre 4 y 32 números."
-        );
-        return;
-      }
-
-      /*
-       * El endpoint actual de Arena Breakout
-       * procesa una oferta por orden.
-       *
-       * No enviamos quantity al proveedor porque
-       * FazerCards no define quantity para este producto.
-       */
-      if (quantity !== 1) {
-        setError(
-          "Para esta recarga la cantidad debe ser 1."
-        );
-        return;
-      }
-
-      const idempotencyKey = crypto.randomUUID();
 
       const response = await fetch(
         "/api/topups/arena-breakout",
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
-            Authorization:
-              `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
-
           body: JSON.stringify({
-            offerId: selectedOffer.id,
+            offerId: selectedOffer.supplierOfferId,
             offerName: selectedOffer.name,
             playerId: cleanPlayerId,
             retailPrice: selectedOffer.price,
-            idempotencyKey,
+            idempotencyKey: crypto.randomUUID(),
           }),
         }
       );
 
-      const result = await response.json().catch(
-        () => ({})
-      );
+      const data = await response.json();
 
-      if (!response.ok && response.status !== 202) {
-        setError(
-          result?.error ||
-            result?.message ||
-            "No se pudo crear la orden."
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            data?.message ||
+            "No se pudo crear el pedido."
         );
-
-        return;
       }
 
+      const createdOrderNumber =
+        data.orderNumber ||
+        data.order_number ||
+        data.order?.order_number ||
+        data.order?.id ||
+        "";
+
       setOrderNumber(
-        result?.orderNumber ||
-          result?.id ||
-          result?.order?.id ||
-          ""
-      );
-
-      setSupplierOrderId(
-        result?.supplierOrderId ||
-          result?.supplier_order_id ||
-          ""
-      );
-
-      setOrderStatus(
-        result?.status ||
-          "SUPPLIER_PENDING"
+        String(createdOrderNumber)
       );
 
       setOrderCreated(true);
+      setSelectedOffer(null);
+      setPlayerId("");
+
+      try {
+        localStorage.setItem(
+          "last_arena_breakout_order",
+          JSON.stringify({
+            orderNumber: createdOrderNumber,
+            offerId:
+              selectedOffer.supplierOfferId,
+            offerName: selectedOffer.name,
+            playerId: cleanPlayerId,
+            retailPrice: selectedOffer.price,
+            createdAt: new Date().toISOString(),
+          })
+        );
+      } catch {
+        // No bloquear el pedido si localStorage no está disponible.
+      }
     } catch (err) {
-      console.error(
-        "ERROR CREANDO ORDEN ARENA BREAKOUT:",
-        err
-      );
+      console.error(err);
 
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudo crear la orden."
+          : "No se pudo crear el pedido."
       );
     } finally {
       setProcessing(false);
@@ -192,6 +362,7 @@ export default function ArenaBreakoutPage() {
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
     void createOrder();
   }
 
@@ -200,361 +371,688 @@ export default function ArenaBreakoutPage() {
       <header className="arena-breakout-header">
         <button
           type="button"
-          className="arena-breakout-back-button"
-          onClick={() => router.back()}
-          aria-label="Volver"
+          className="arena-back-button"
+          onClick={() => router.push("/top-up")}
         >
           ←
         </button>
 
-        <div className="arena-breakout-header-title">
-          ARENA BREAKOUT
+        <h1>Arena Breakout</h1>
+
+        <div className="arena-header-space" />
+      </header>
+
+      <section className="arena-breakout-content">
+        <div className="arena-breakout-banner">
+          <img
+            src="/images/arena-breakout.jpg"
+            alt="Arena Breakout"
+          />
+        </div>
+
+        <div className="arena-breakout-note">
+          <strong>🌎 Región Global</strong>
+
+          <p>
+            Recarga de Arena Breakout. La moneda se
+            entrega directamente a tu cuenta después de
+            realizar el pedido.
+          </p>
         </div>
 
         <button
           type="button"
-          className="arena-breakout-orders-button"
-          onClick={() => router.push("/orders")}
-          aria-label="Mis órdenes"
-        >
-          📋
-        </button>
-      </header>
-
-      <div className="arena-breakout-content">
-        <section className="arena-breakout-banner">
-          <img
-            src={ARENA_BREAKOUT.image}
-            alt="Arena Breakout"
-          />
-
-          <div className="arena-breakout-banner-overlay">
-            <div className="arena-breakout-banner-text">
-              <span>ARENA</span>
-              <strong>BREAKOUT</strong>
-            </div>
-          </div>
-        </section>
-
-        <section className="arena-breakout-note">
-          <div className="arena-breakout-note-icon">
-            ℹ️
-          </div>
-
-          <div className="arena-breakout-note-content">
-            <strong>Información del servicio</strong>
-
-            <p>{ARENA_BREAKOUT.note}</p>
-          </div>
-        </section>
-
-        <button
-          type="button"
-          className="arena-breakout-offers-toggle"
-          onClick={() =>
-            setShowOffers((current) => !current)
-          }
+          className="arena-offers-toggle"
+          onClick={() => {
+            setOffersOpen((value) => !value);
+            setError("");
+          }}
         >
           <span>
-            Presione para ver ofertas
+            ✏️ Presione para ver ofertas
           </span>
 
-          <span
-            className={`arena-breakout-offers-arrow ${
-              showOffers ? "open" : ""
-            }`}
-          >
-            ⌄
+          <span className="arena-offers-arrow">
+            {offersOpen ? "▲" : "▼"}
           </span>
         </button>
 
-        {showOffers && (
-          <section className="arena-breakout-offers-section">
-            <div className="arena-breakout-offers-list">
-              {ARENA_BREAKOUT.offers.map(
-                (offer) => {
-                  const isSelected =
-                    selectedOffer?.id === offer.id;
+        {offersOpen && (
+          <section className="arena-offers-section">
+            {loadingOffers ? (
+              <div className="arena-loading">
+                Cargando ofertas...
+              </div>
+            ) : error && offers.length === 0 ? (
+              <div className="arena-error">
+                {error}
+              </div>
+            ) : offers.length === 0 ? (
+              <div className="arena-error">
+                No hay ofertas disponibles.
+              </div>
+            ) : (
+              <div className="arena-offers-list">
+                {offers.map((offer) => {
+                  const unavailable =
+                    !offer.supplierPrice ||
+                    offer.supplierPrice <= 0;
+
+                  const selected =
+                    selectedOffer?.supplierOfferId ===
+                    offer.supplierOfferId;
 
                   return (
                     <button
-                      key={offer.id}
+                      key={offer.supplierOfferId}
                       type="button"
-                      className={`arena-breakout-offer ${
-                        isSelected
-                          ? "selected"
+                      className={`arena-offer ${
+                        selected ? "selected" : ""
+                      } ${
+                        unavailable
+                          ? "unavailable"
                           : ""
                       }`}
+                      disabled={unavailable}
                       onClick={() =>
-                        selectOffer(offer)
+                        handleSelectOffer(offer)
                       }
                     >
-                      <div className="arena-breakout-offer-left">
-                        <div className="arena-breakout-offer-icon">
-                          🎁
-                        </div>
+                      <div className="arena-offer-left">
+                        <span className="arena-offer-icon">
+                          {offer.icon}
+                        </span>
 
                         <div>
-                          <div className="arena-breakout-offer-name">
-                            {offer.name}
-                          </div>
+                          <strong>
+                            {offer.display}
+                          </strong>
 
-                          <div className="arena-breakout-offer-description">
-                            {offer.displayName}
-                          </div>
+                          <small>
+                            {offer.name}
+                          </small>
                         </div>
                       </div>
 
-                      <div className="arena-breakout-offer-right">
-                        <div className="arena-breakout-offer-price">
-                          $
-                          {Number(
-                            offer.price
-                          ).toFixed(2)}
-                        </div>
+                      <div className="arena-offer-price">
+                        {unavailable
+                          ? "NO DISPONIBLE"
+                          : `${offer.price.toFixed(
+                              4
+                            )}$`}
                       </div>
                     </button>
                   );
-                }
-              )}
-            </div>
-          </section>
-        )}
-
-        {selectedOffer && (
-          <section
-            id="arena-breakout-order-section"
-            className="arena-breakout-order-section"
-          >
-            {!orderCreated ? (
-              <>
-                <div className="arena-breakout-selected-offer">
-                  <div>
-                    <span className="arena-breakout-selected-label">
-                      OFERTA SELECCIONADA
-                    </span>
-
-                    <strong>
-                      {selectedOffer.displayName}
-                    </strong>
-                  </div>
-
-                  <span className="arena-breakout-selected-price">
-                    $
-                    {Number(
-                      selectedOffer.price
-                    ).toFixed(2)}
-                  </span>
-                </div>
-
-                <div className="arena-breakout-quantity-section">
-                  <label>
-                    Cantidad
-                  </label>
-
-                  <div className="arena-breakout-quantity-control">
-                    <button
-                      type="button"
-                      onClick={
-                        decreaseQuantity
-                      }
-                      aria-label="Disminuir cantidad"
-                    >
-                      −
-                    </button>
-
-                    <span>
-                      {quantity}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={
-                        increaseQuantity
-                      }
-                      aria-label="Aumentar cantidad"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <div className="arena-breakout-order-note">
-                  <span>🎮</span>
-
-                  <p>
-                    Introduzca correctamente
-                    el Player ID de su cuenta
-                    de Arena Breakout.
-                  </p>
-                </div>
-
-                <form
-                  className="arena-breakout-order-form"
-                  onSubmit={
-                    handleSubmit
-                  }
-                >
-                  <label
-                    htmlFor="arena-breakout-player-id"
-                  >
-                    Player ID
-                  </label>
-
-                  <div className="arena-breakout-input-wrapper">
-                    <span>🆔</span>
-
-                    <input
-                      id="arena-breakout-player-id"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      maxLength={32}
-                      placeholder="Introduzca su Player ID"
-                      value={playerId}
-                      onChange={(event) => {
-                        setPlayerId(
-                          event.target.value.replace(
-                            /\D/g,
-                            ""
-                          )
-                        );
-
-                        setError("");
-                      }}
-                    />
-                  </div>
-
-                  {error && (
-                    <div className="arena-breakout-error">
-                      ⚠️ {error}
-                    </div>
-                  )}
-
-                  <div className="arena-breakout-total">
-                    <span>
-                      Total
-                    </span>
-
-                    <strong>
-                      $
-                      {(
-                        Number(
-                          selectedOffer.price
-                        ) * quantity
-                      ).toFixed(2)}
-                    </strong>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="arena-breakout-create-order-button"
-                    disabled={processing}
-                  >
-                    {processing
-                      ? "CREANDO ORDEN..."
-                      : "CREAR ORDEN"}
-                  </button>
-                </form>
-              </>
-            ) : (
-              <div className="arena-breakout-success">
-                <div className="arena-breakout-success-icon">
-                  ✓
-                </div>
-
-                <h2>
-                  ORDEN CREADA
-                </h2>
-
-                <p>
-                  Su solicitud de recarga
-                  fue registrada
-                  correctamente.
-                </p>
-
-                {orderNumber && (
-                  <div className="arena-breakout-success-row">
-                    <span>
-                      Número de orden
-                    </span>
-
-                    <strong>
-                      {orderNumber}
-                    </strong>
-                  </div>
-                )}
-
-                {supplierOrderId && (
-                  <div className="arena-breakout-success-row">
-                    <span>
-                      ID del proveedor
-                    </span>
-
-                    <strong>
-                      {supplierOrderId}
-                    </strong>
-                  </div>
-                )}
-
-                {orderStatus && (
-                  <div className="arena-breakout-success-row">
-                    <span>
-                      Estado
-                    </span>
-
-                    <strong>
-                      {orderStatus}
-                    </strong>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  className="arena-breakout-create-order-button"
-                  onClick={() =>
-                    router.push(
-                      "/orders"
-                    )
-                  }
-                >
-                  REVISAR ORDEN
-                </button>
+                })}
               </div>
             )}
           </section>
         )}
 
-        <section className="arena-breakout-service-info">
-          <div>
-            <span>🌎</span>
-            <strong>Región</strong>
-            <p>Global</p>
-          </div>
+        {selectedOffer && !orderCreated && (
+          <section
+            id="arena-order-form"
+            className="arena-order-section"
+          >
+            <div className="arena-selected-offer">
+              <span>
+                {selectedOffer.icon}
+              </span>
 
-          <div>
-            <span>⚡</span>
-            <strong>Entrega</strong>
-            <p>Automática</p>
-          </div>
+              <div>
+                <strong>
+                  {selectedOffer.name}
+                </strong>
 
-          <div>
-            <span>🆔</span>
-            <strong>Dato requerido</strong>
-            <p>Player ID</p>
-          </div>
-        </section>
+                <span>
+                  {selectedOffer.price.toFixed(
+                    4
+                  )}
+                  $
+                </span>
+              </div>
+            </div>
 
-        <footer className="arena-breakout-footer">
-          <p>
-            Recarga segura de Arena Breakout
-          </p>
+            <form onSubmit={handleSubmit}>
+              <label htmlFor="arena-player-id">
+                ID del jugador
+              </label>
 
-          <span>
-            🛒STORE GAMING🎮
-          </span>
-        </footer>
-      </div>
+              <input
+                id="arena-player-id"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="Introduzca su Player ID"
+                value={playerId}
+                onChange={(event) =>
+                  setPlayerId(
+                    event.target.value
+                  )
+                }
+                disabled={processing}
+              />
+
+              {error && (
+                <div className="arena-form-error">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="arena-create-order-button"
+                disabled={processing}
+              >
+                {processing
+                  ? "FINALIZANDO ORDEN..."
+                  : "FINALIZAR ORDEN"}
+              </button>
+            </form>
+          </section>
+        )}
+
+        {orderCreated && (
+          <section className="arena-success-section">
+            <div className="arena-success-icon">
+              ✓
+            </div>
+
+            <h2>Orden creada</h2>
+
+            <p>
+              Tu pedido de Arena Breakout fue creado
+              correctamente.
+            </p>
+
+            {orderNumber && (
+              <div className="arena-order-number">
+                <span>Número de orden</span>
+
+                <strong>
+                  {orderNumber}
+                </strong>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="arena-review-button"
+              onClick={() =>
+                router.push("/orders")
+              }
+            >
+              Revisar orden
+            </button>
+
+            <button
+              type="button"
+              className="arena-store-button"
+              onClick={() =>
+                router.push("/top-up")
+              }
+            >
+              Volver a la tienda
+            </button>
+          </section>
+        )}
+      </section>
+
+      <footer className="arena-breakout-footer">
+        🛒 STORE GAMING 🎮
+      </footer>
+
+      <style jsx>{`
+        .arena-breakout-page {
+          min-height: 100vh;
+          color: #fff;
+          background:
+            linear-gradient(
+              rgba(0, 0, 0, 0.72),
+              rgba(0, 0, 0, 0.86)
+            ),
+            url("/images/battle-royale-bg.jpg")
+              center / cover fixed;
+          padding-bottom: 30px;
+        }
+
+        .arena-breakout-header {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          min-height: 58px;
+          padding: 8px 12px;
+          background: rgba(0, 0, 0, 0.88);
+          border-bottom: 1px solid
+            rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+        }
+
+        .arena-breakout-header h1 {
+          margin: 0;
+          font-size: 19px;
+          font-weight: 800;
+          text-align: center;
+        }
+
+        .arena-back-button {
+          width: 40px;
+          height: 40px;
+          border: 0;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.08);
+          color: #fff;
+          font-size: 25px;
+          cursor: pointer;
+        }
+
+        .arena-header-space {
+          width: 40px;
+        }
+
+        .arena-breakout-content {
+          width: min(100%, 680px);
+          margin: 0 auto;
+          padding: 0 12px 30px;
+        }
+
+        .arena-breakout-banner {
+          width: calc(100% + 24px);
+          margin-left: -12px;
+          overflow: hidden;
+        }
+
+        .arena-breakout-banner img {
+          display: block;
+          width: 100%;
+          height: 210px;
+          object-fit: cover;
+        }
+
+        .arena-breakout-note {
+          margin-top: 14px;
+          padding: 14px;
+          border-radius: 14px;
+          background: rgba(0, 0, 0, 0.68);
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
+        }
+
+        .arena-breakout-note strong {
+          color: #fff;
+          font-size: 15px;
+        }
+
+        .arena-breakout-note p {
+          margin: 7px 0 0;
+          color: #d8d8d8;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        .arena-offers-toggle {
+          width: 100%;
+          margin-top: 14px;
+          padding: 15px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border: 1px solid
+            rgba(255, 255, 255, 0.12);
+          border-radius: 13px;
+          background: rgba(0, 0, 0, 0.78);
+          color: #fff;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .arena-offers-arrow {
+          font-size: 12px;
+        }
+
+        .arena-offers-section {
+          margin-top: 10px;
+        }
+
+        .arena-offers-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .arena-offer {
+          width: 100%;
+          min-height: 65px;
+          padding: 10px 12px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
+          border-radius: 13px;
+          background: rgba(0, 0, 0, 0.78);
+          color: #fff;
+          text-align: left;
+          cursor: pointer;
+          transition: 0.15s ease;
+        }
+
+        .arena-offer:active {
+          transform: scale(0.98);
+        }
+
+        .arena-offer.selected {
+          border-color: rgba(
+            229,
+            9,
+            20,
+            0.7
+          );
+          background:
+            linear-gradient(
+              135deg,
+              rgba(120, 0, 0, 0.38),
+              rgba(0, 0, 0, 0.82)
+            );
+          box-shadow:
+            0 0 0 1px
+              rgba(229, 9, 20, 0.25),
+            0 8px 25px
+              rgba(0, 0, 0, 0.25);
+        }
+
+        .arena-offer.unavailable {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .arena-offer-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .arena-offer-icon {
+          width: 38px;
+          height: 38px;
+          flex: 0 0 38px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 10px;
+          background: rgba(
+            255,
+            255,
+            255,
+            0.08
+          );
+          font-size: 21px;
+        }
+
+        .arena-offer-left strong {
+          display: block;
+          font-size: 14px;
+        }
+
+        .arena-offer-left small {
+          display: block;
+          margin-top: 3px;
+          color: #aaa;
+          font-size: 11px;
+          line-height: 1.35;
+        }
+
+        .arena-offer-price {
+          flex-shrink: 0;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 900;
+        }
+
+        .arena-loading,
+        .arena-error {
+          padding: 18px;
+          border-radius: 13px;
+          background: rgba(0, 0, 0, 0.78);
+          text-align: center;
+          font-size: 14px;
+        }
+
+        .arena-error {
+          color: #ff8e8e;
+          border: 1px solid
+            rgba(255, 70, 70, 0.35);
+        }
+
+        .arena-order-section {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid
+    rgba(255, 255, 255, 0.1);
+}
+
+.arena-selected-offer {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 15px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.06
+  );
+}
+
+.arena-selected-offer > span {
+  font-size: 25px;
+}
+
+.arena-selected-offer div {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.arena-selected-offer strong {
+  font-size: 14px;
+}
+
+.arena-selected-offer div span {
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.arena-order-section form {
+  display: flex;
+  flex-direction: column;
+}
+
+.arena-order-section label {
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.arena-order-section input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px;
+  border: 1px solid
+    rgba(255, 255, 255, 0.16);
+  border-radius: 11px;
+  outline: none;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.07
+  );
+  color: #fff;
+  font-size: 15px;
+}
+
+.arena-order-section input::placeholder {
+  color: #888;
+}
+
+.arena-form-error {
+  margin-top: 8px;
+  padding: 9px;
+  border-radius: 9px;
+  background: rgba(150, 0, 0, 0.25);
+  color: #ff9b9b;
+  font-size: 12px;
+}
+
+.arena-create-order-button,
+.arena-review-button,
+.arena-store-button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px;
+  border: 0;
+  border-radius: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.arena-create-order-button {
+  background: #d71920;
+  color: #fff;
+}
+
+.arena-create-order-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.arena-success-section {
+  margin-top: 16px;
+  padding: 22px 16px;
+  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.86);
+  border: 1px solid
+    rgba(60, 220, 120, 0.3);
+  text-align: center;
+}
+
+.arena-success-icon {
+  width: 62px;
+  height: 62px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #fff;
+  font-size: 34px;
+  font-weight: 900;
+  box-shadow: 0 0 25px
+    rgba(34, 197, 94, 0.35);
+}
+
+.arena-success-section h2 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.arena-success-section p {
+  margin: 8px 0 0;
+  color: #cfcfcf;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.arena-order-number {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 11px;
+  background: rgba(
+    255,
+    255,
+    255,
+    0.06
+  );
+}
+
+.arena-order-number span {
+  display: block;
+  color: #999;
+  font-size: 11px;
+}
+
+.arena-order-number strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  word-break: break-all;
+}
+
+.arena-review-button {
+  background: #fff;
+  color: #111;
+}
+
+.arena-store-button {
+  background: rgba(
+    255,
+    255,
+    255,
+    0.08
+  );
+  color: #fff;
+  border: 1px solid
+    rgba(255, 255, 255, 0.12);
+}
+
+.arena-breakout-footer {
+  padding: 20px 12px 5px;
+  color: #888;
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .arena-breakout-header h1 {
+    font-size: 17px;
+  }
+
+  .arena-breakout-banner img {
+    height: 190px;
+  }
+
+  .arena-offer {
+    min-height: 62px;
+    padding: 9px 10px;
+  }
+
+  .arena-offer-left strong {
+    font-size: 13px;
+  }
+
+  .arena-offer-left small {
+    font-size: 10px;
+  }
+
+  .arena-offer-price {
+    font-size: 13px;
+  }
+}
+      `}</style>
     </main>
   );
-      }
+}
