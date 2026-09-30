@@ -3,110 +3,29 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
-
-/*
- * ============================================================
- * SAUSAGE MAN — OFERTAS REALES FAZERCARDS
- * ============================================================
- */
-
-const offers = [
-  {
-    id: "sausage-61",
-    supplierOfferId: "61_candies",
-    name: "61 Candies",
-    display: "61 🍬",
-    price: 0.54,
-    icon: "🍬",
-  },
-  {
-    id: "sausage-186",
-    supplierOfferId: "186_candies",
-    name: "186 Candies",
-    display: "186 🍬",
-    price: 1.32,
-    icon: "🍬",
-  },
-  {
-    id: "sausage-318",
-    supplierOfferId: "318_candies",
-    name: "318 Candies",
-    display: "318 🍬",
-    price: 2.1,
-    icon: "🍬",
-  },
-  {
-    id: "sausage-686",
-    supplierOfferId: "686_candies",
-    name: "686 Candies",
-    display: "686 🍬",
-    price: 4.06,
-    icon: "🍬",
-  },
-  {
-    id: "sausage-1378",
-    supplierOfferId: "1378_candies",
-    name: "1378 Caramelos",
-    display: "1378 🍬",
-    price: 7.57,
-    icon: "🍬",
-  },
-  {
-    id: "sausage-2118",
-    supplierOfferId: "2118_caramelos",
-    name: "2118 Caramelos",
-    display: "2118 🍬",
-    price: 11.46,
-    icon: "🍬",
-  },
-  {
-    id: "sausage-3548",
-    supplierOfferId: "3548_caramelos",
-    name: "3548 Caramelos",
-    display: "3548 🍬",
-    price: 19.67,
-    icon: "🍬",
-  },
-  {
-    id: "sausage-7108",
-    supplierOfferId: "7108_caramelos",
-    name: "7108 Caramelos",
-    display: "7108 🍬",
-    price: 39.18,
-    icon: "🍬",
-  },
-] as const;
-
-const GAME_NAME = "SAUSAGE MAN";
-
-const GAME_IMAGE = "/images/sausage-man.jpg";
-
-const gameNote =
-  "Recarga de Sausage Man. Introduce tu ID de personaje antes de realizar el pedido. El producto seleccionado se entrega directamente a tu cuenta después de realizar el pedido.";
+import {
+  SAUSAGE_MAN,
+  SausageManOffer,
+} from "../../../lib/games/sausage-man";
 
 export default function SausageManPage() {
   const router = useRouter();
 
-  /*
-   * ============================================================
-   * ESTADOS
-   * ============================================================
-   */
-
   const [showOffers, setShowOffers] = useState(false);
 
   const [selectedOffer, setSelectedOffer] =
-    useState<(typeof offers)[number] | null>(null);
+    useState<SausageManOffer | null>(null);
 
-  const [playerId, setPlayerId] = useState("");
+  const [characterId, setCharacterId] =
+    useState("");
 
   const [error, setError] = useState("");
 
-  const [processing, setProcessing] = useState(false);
+  const [orderCreated, setOrderCreated] =
+    useState(false);
 
-  const [orderCreated, setOrderCreated] = useState(false);
-
-  const [orderNumber, setOrderNumber] = useState("");
+  const [orderNumber, setOrderNumber] =
+    useState("");
 
   const [supplierOrderId, setSupplierOrderId] =
     useState("");
@@ -114,21 +33,24 @@ export default function SausageManPage() {
   const [orderStatus, setOrderStatus] =
     useState("");
 
-  /*
-   * ============================================================
-   * SELECCIONAR OFERTA
-   * ============================================================
-   */
+  const [processing, setProcessing] =
+    useState(false);
 
   function selectOffer(
-    offer: (typeof offers)[number]
+    offer: SausageManOffer
   ) {
     setSelectedOffer(offer);
-    setPlayerId("");
+
+    setCharacterId("");
+
     setError("");
+
     setOrderCreated(false);
+
     setOrderNumber("");
+
     setSupplierOrderId("");
+
     setOrderStatus("");
 
     setTimeout(() => {
@@ -138,88 +60,43 @@ export default function SausageManPage() {
           behavior: "smooth",
           block: "start",
         });
-    }, 100);
+    }, 50);
   }
 
-  /*
-   * ============================================================
-   * CREAR ORDEN
-   * ============================================================
-   */
-
   async function createOrder() {
-    if (!selectedOffer || processing) {
+    if (!selectedOffer) {
+      setError("Seleccione una oferta.");
       return;
     }
 
-    setError("");
+    const cleanCharacterId =
+      characterId.trim();
+
+    if (!/^\d{4,20}$/.test(cleanCharacterId)) {
+      setError(
+        "Ingrese un ID de personaje válido de entre 4 y 20 dígitos."
+      );
+      return;
+    }
+
     setProcessing(true);
+    setError("");
 
     try {
-      /*
-       * ========================================================
-       * 1. COMPROBAR SESIÓN
-       * ========================================================
-       */
-
       const {
         data: { session },
-        error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError) {
-        console.error(
-          "ERROR OBTENIENDO SESIÓN:",
-          sessionError
-        );
-
+      if (!session?.access_token) {
         setError(
-          "No se pudo comprobar tu sesión."
+          "Su sesión ha expirado. Inicie sesión nuevamente."
         );
 
         return;
       }
-
-      if (!session) {
-        setError(
-          "Tu sesión ha expirado. Inicia sesión nuevamente."
-        );
-
-        router.push("/login");
-
-        return;
-      }
-
-      /*
-       * ========================================================
-       * 2. LIMPIAR ID
-       * ========================================================
-       */
-
-      const cleanPlayerId = playerId.trim();
-
-      if (!cleanPlayerId) {
-        setError(
-          "Introduzca su ID de personaje."
-        );
-
-        return;
-      }
-
-      /*
-       * ========================================================
-       * 3. IDEMPOTENCY KEY
-       * ========================================================
-       */
 
       const idempotencyKey =
         crypto.randomUUID();
-
-      /*
-       * ========================================================
-       * 4. ENVIAR PEDIDO A NUESTRA API
-       * ========================================================
-       */
 
       const response = await fetch(
         "/api/topups/sausage-man",
@@ -227,195 +104,62 @@ export default function SausageManPage() {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
+
             Authorization:
               `Bearer ${session.access_token}`,
           },
 
           body: JSON.stringify({
-            offerId:
-              selectedOffer.supplierOfferId,
+            offerId: selectedOffer.id,
 
             offerName:
               selectedOffer.name,
 
+            characterId:
+              cleanCharacterId,
+
             retailPrice:
               selectedOffer.price,
-
-            playerId:
-              cleanPlayerId,
 
             idempotencyKey,
           }),
         }
       );
 
-      /*
-       * ========================================================
-       * 5. LEER RESPUESTA
-       * ========================================================
-       */
-
-      let result: any = null;
-
-      try {
-        result = await response.json();
-      } catch {
-        result = null;
-      }
+      const result =
+        await response.json();
 
       if (!response.ok) {
-        console.error(
-          "ERROR API SAUSAGE MAN:",
-          result
-        );
-
-        setError(
+        throw new Error(
           result?.error ||
             result?.message ||
             "No se pudo crear la orden."
         );
-
-        return;
       }
 
-      if (!result?.ok) {
-        console.error(
-          "RESPUESTA API NO OK:",
-          result
-        );
-
-        setError(
-          result?.error ||
-            result?.message ||
-            "La orden no pudo ser creada."
-        );
-
-        return;
-      }
-
-      /*
-       * ========================================================
-       * 6. OBTENER DATOS DE LA ORDEN
-       * ========================================================
-       */
-
-      const apiOrder =
-        result.order || {};
-
-      const generatedOrderNumber =
-        result.orderNumber ||
-        apiOrder.orderNumber ||
-        apiOrder.order_number ||
-        result.id ||
-        apiOrder.id ||
-        `SM-${Date.now()}`;
-
-      const generatedSupplierOrderId =
-        result.supplierOrderId ||
-        apiOrder.supplierOrderId ||
-        apiOrder.supplier_order_id ||
-        "";
-
-      const generatedStatus =
-        result.status ||
-        apiOrder.status ||
-        "SUPPLIER_PENDING";
-
-      /*
-       * ========================================================
-       * 7. GUARDAR ESTADO
-       * ========================================================
-       */
+      const order =
+        result?.order || {};
 
       setOrderNumber(
-        String(generatedOrderNumber)
+        order?.order_number ||
+          result?.orderNumber ||
+          result?.id ||
+          ""
       );
 
       setSupplierOrderId(
-        String(generatedSupplierOrderId)
+        order?.supplier_order_id ||
+          result?.supplierOrderId ||
+          ""
       );
 
       setOrderStatus(
-        String(generatedStatus)
+        order?.status ||
+          result?.status ||
+          "SUPPLIER_PENDING"
       );
-
-      /*
-       * ========================================================
-       * 8. GUARDAR ORDEN LOCALMENTE
-       * ========================================================
-       */
-
-      const localOrder = {
-        orderNumber:
-          String(generatedOrderNumber),
-
-        supplierOrderId:
-          String(generatedSupplierOrderId),
-
-        status:
-          String(generatedStatus),
-
-        game:
-          GAME_NAME,
-
-        offerId:
-          selectedOffer.id,
-
-        supplierOfferId:
-          selectedOffer.supplierOfferId,
-
-        offerName:
-          selectedOffer.name,
-
-        playerId:
-          cleanPlayerId,
-
-        price:
-          selectedOffer.price,
-
-        createdAt:
-          new Date().toISOString(),
-      };
-
-      try {
-        const existingOrders =
-          JSON.parse(
-            localStorage.getItem(
-              "storeGamingOrders"
-            ) || "[]"
-          );
-
-        const updatedOrders = [
-          localOrder,
-          ...existingOrders,
-        ];
-
-        localStorage.setItem(
-          "storeGamingOrders",
-          JSON.stringify(
-            updatedOrders
-          )
-        );
-
-        localStorage.setItem(
-          "storeGamingLastOrder",
-          JSON.stringify(
-            localOrder
-          )
-        );
-      } catch (storageError) {
-        console.error(
-          "ERROR GUARDANDO ORDEN LOCAL:",
-          storageError
-        );
-      }
-
-      /*
-       * ========================================================
-       * 9. MOSTRAR ÉXITO
-       * ========================================================
-       */
 
       setOrderCreated(true);
 
@@ -430,697 +174,933 @@ export default function SausageManPage() {
           });
       }, 100);
     } catch (err) {
-      console.error(
-        "ERROR CREANDO TOPUP SAUSAGE MAN:",
-        err
-      );
-
       setError(
-        "No se pudo conectar con el servidor. Si la compra pudo haber sido enviada, no vuelva a intentarla hasta revisar el estado de la orden."
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la orden."
       );
     } finally {
       setProcessing(false);
     }
   }
 
-  /*
-   * ============================================================
-   * FINALIZAR COMPRA
-   * ============================================================
-   */
-
-  function handleFinishPurchase(
+  function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    setError("");
-
-    if (processing) {
-      return;
-    }
-
-    if (!selectedOffer) {
-      setError(
-        "Seleccione una oferta."
-      );
-
-      return;
-    }
-
-    const cleanId =
-      playerId.trim();
-
-    if (!cleanId) {
-      setError(
-        "Introduzca su ID de personaje."
-      );
-
-      return;
-    }
-
-    if (
-      !/^[0-9]+$/.test(
-        cleanId
-      )
-    ) {
-      setError(
-        "El ID de personaje solo puede contener números."
-      );
-
-      return;
-    }
-
-    if (
-      cleanId.length < 4 ||
-      cleanId.length > 30
-    ) {
-      setError(
-        "El ID de personaje parece no tener un formato válido."
-      );
-
-      return;
-    }
-
-    createOrder();
+    void createOrder();
   }
-
-  /*
-   * ============================================================
-   * IR A ÓRDENES
-   * ============================================================
-   */
-
-  function goToOrders() {
-    router.push("/orders");
-  }
-
-  /*
-   * ============================================================
-   * RENDER
-   * ============================================================
-   */
 
   return (
-    <main className="game-service-page">
+    <main className="sausage-man-page">
+      <style jsx>{`
+        .sausage-man-page {
+          min-height: 100vh;
+          padding-bottom: 40px;
+          color: #fff;
 
-      {/* ========================================================
-          HEADER
-      ======================================================== */}
+          background:
+            linear-gradient(
+              rgba(0, 0, 0, 0.72),
+              rgba(0, 0, 0, 0.88)
+            ),
+            url("/images/battle-royale-bg.jpg")
+              center / cover fixed;
 
-      <header className="game-service-header">
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+        }
+
+        .sausage-header {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          gap: 12px;
+
+          padding: 13px 16px;
+
+          background:
+            rgba(5, 5, 5, 0.95);
+
+          border-bottom:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+
+          backdrop-filter: blur(12px);
+        }
+
+        .sausage-title {
+          margin: 0;
+
+          font-size: 20px;
+          font-weight: 900;
+
+          letter-spacing: 0.3px;
+        }
+
+        .sausage-back {
+          border: 0;
+
+          border-radius: 10px;
+
+          padding: 9px 12px;
+
+          color: #fff;
+
+          background:
+            rgba(255, 255, 255, 0.08);
+
+          font-size: 13px;
+          font-weight: 800;
+
+          cursor: pointer;
+        }
+
+        .sausage-container {
+          width: min(720px, 100%);
+
+          margin: 0 auto;
+
+          padding: 18px 14px 0;
+        }
+
+        .sausage-banner {
+          width: 100%;
+          height: 210px;
+
+          overflow: hidden;
+
+          border-radius: 18px;
+
+          background: #111;
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+
+          box-shadow:
+            0 12px 35px
+            rgba(0, 0, 0, 0.5);
+        }
+
+        .sausage-banner img {
+          width: 100%;
+          height: 100%;
+
+          display: block;
+
+          object-fit: cover;
+        }
+
+        .sausage-note {
+          margin-top: 14px;
+
+          padding: 14px;
+
+          border-radius: 14px;
+
+          background:
+            rgba(0, 0, 0, 0.78);
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+
+          color: #ddd;
+
+          font-size: 13px;
+
+          line-height: 1.55;
+        }
+
+        .sausage-note strong {
+          color: #fff;
+        }
+
+        .sausage-toggle {
+          width: 100%;
+
+          margin-top: 16px;
+
+          padding: 15px 16px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          gap: 12px;
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+
+          border-radius: 14px;
+
+          background:
+            rgba(10, 10, 10, 0.9);
+
+          color: #fff;
+
+          font-size: 15px;
+          font-weight: 900;
+
+          cursor: pointer;
+        }
+
+        .sausage-arrow {
+          color: #ff3030;
+
+          font-size: 20px;
+        }
+
+        .sausage-offers {
+          margin-top: 10px;
+        }
+
+        .sausage-list {
+          display: flex;
+
+          flex-direction: column;
+
+          gap: 9px;
+        }
+
+        .sausage-offer {
+          width: 100%;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          gap: 12px;
+
+          padding: 13px;
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.09);
+
+          border-radius: 13px;
+
+          background:
+            rgba(5, 5, 5, 0.88);
+
+          color: #fff;
+
+          cursor: pointer;
+
+          text-align: left;
+
+          transition:
+            transform 0.15s ease,
+            border-color 0.15s ease,
+            background 0.15s ease;
+        }
+
+        .sausage-offer:hover {
+          transform: translateY(-1px);
+
+          border-color:
+            rgba(255, 48, 48, 0.65);
+        }
+
+        .sausage-offer.selected {
+          border-color: #ff3030;
+
+          background:
+            rgba(90, 0, 0, 0.42);
+
+          box-shadow:
+            0 0 0 1px
+            rgba(255, 48, 48, 0.2);
+        }
+
+        .sausage-offer-left {
+          display: flex;
+
+          align-items: center;
+
+          gap: 11px;
+
+          min-width: 0;
+        }
+
+        .sausage-icon {
+          width: 38px;
+          height: 38px;
+
+          flex: 0 0 38px;
+
+          display: grid;
+
+          place-items: center;
+
+          border-radius: 10px;
+
+          background:
+            rgba(255, 255, 255, 0.08);
+
+          font-size: 19px;
+        }
+
+        .sausage-offer-name {
+          font-size: 14px;
+
+          font-weight: 900;
+
+          line-height: 1.3;
+        }
+
+        .sausage-offer-price {
+          flex-shrink: 0;
+
+          font-size: 15px;
+
+          font-weight: 900;
+        }
+
+        .sausage-order {
+          margin-top: 16px;
+
+          padding: 16px;
+
+          border-radius: 15px;
+
+          background:
+            rgba(0, 0, 0, 0.82);
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+        }
+
+        .sausage-section-title {
+          margin: 0 0 12px;
+
+          font-size: 17px;
+
+          font-weight: 900;
+        }
+
+        .sausage-selected {
+          margin-bottom: 14px;
+
+          padding: 12px;
+
+          border-radius: 12px;
+
+          background:
+            rgba(255, 255, 255, 0.06);
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+        }
+
+        .sausage-selected-label {
+          color: #999;
+
+          font-size: 11px;
+
+          text-transform: uppercase;
+
+          letter-spacing: 0.6px;
+        }
+
+        .sausage-selected-row {
+          margin-top: 5px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: space-between;
+
+          gap: 12px;
+        }
+
+        .sausage-selected-name {
+          font-size: 14px;
+
+          font-weight: 900;
+        }
+
+        .sausage-selected-price {
+          color: #ff4b4b;
+
+          font-weight: 900;
+        }
+
+        .sausage-form {
+          display: flex;
+
+          flex-direction: column;
+
+          gap: 12px;
+        }
+
+        .sausage-label {
+          color: #bbb;
+
+          font-size: 12px;
+
+          font-weight: 800;
+        }
+
+        .sausage-input {
+          width: 100%;
+
+          box-sizing: border-box;
+
+          margin-top: 6px;
+
+          padding: 13px 14px;
+
+          border-radius: 11px;
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.12);
+
+          outline: none;
+
+          background:
+            rgba(255, 255, 255, 0.06);
+
+          color: #fff;
+
+          font-size: 15px;
+        }
+
+        .sausage-input:focus {
+          border-color: #ff3030;
+
+          box-shadow:
+            0 0 0 2px
+            rgba(255, 48, 48, 0.12);
+        }
+
+        .sausage-input::placeholder {
+          color: #777;
+        }
+
+        .sausage-error {
+          padding: 11px 12px;
+
+          border-radius: 10px;
+
+          border:
+            1px solid
+            rgba(255, 50, 50, 0.35);
+
+          background:
+            rgba(110, 0, 0, 0.3);
+
+          color: #ff6868;
+
+          font-size: 13px;
+
+          font-weight: 800;
+        }
+
+        .sausage-create {
+          width: 100%;
+
+          padding: 14px;
+
+          border: 0;
+
+          border-radius: 12px;
+
+          background: #e52525;
+
+          color: #fff;
+
+          font-size: 15px;
+
+          font-weight: 900;
+
+          cursor: pointer;
+
+          transition:
+            transform 0.15s ease,
+            opacity 0.15s ease;
+        }
+
+        .sausage-create:hover {
+          transform: translateY(-1px);
+        }
+
+        .sausage-create:disabled {
+          opacity: 0.55;
+
+          cursor: not-allowed;
+
+          transform: none;
+        }
+
+        .sausage-success {
+          margin-top: 16px;
+
+          padding: 18px 16px;
+
+          border-radius: 15px;
+
+          background:
+            rgba(0, 45, 20, 0.82);
+
+          border:
+            1px solid
+            rgba(57, 255, 130, 0.25);
+
+          text-align: center;
+        }
+
+        .sausage-success-icon {
+          width: 54px;
+          height: 54px;
+
+          margin:
+            0 auto 10px;
+
+          display: grid;
+
+          place-items: center;
+
+          border-radius: 50%;
+
+          background: #18a957;
+
+          color: #fff;
+
+          font-size: 27px;
+
+          font-weight: 900;
+        }
+
+        .sausage-success-title {
+          margin: 0;
+
+          font-size: 20px;
+
+          font-weight: 900;
+        }
+
+        .sausage-success-text {
+          margin: 8px 0 0;
+
+          color: #c9e8d5;
+
+          font-size: 13px;
+
+          line-height: 1.5;
+        }
+
+        .sausage-order-number {
+          margin-top: 12px;
+
+          padding: 11px;
+
+          border-radius: 10px;
+
+          background:
+            rgba(0, 0, 0, 0.35);
+
+          font-weight: 900;
+
+          word-break: break-word;
+        }
+
+        .sausage-actions {
+          display: grid;
+
+          grid-template-columns: 1fr 1fr;
+
+          gap: 9px;
+
+          margin-top: 13px;
+        }
+
+        .sausage-action {
+          padding: 12px 10px;
+
+          border: 0;
+
+          border-radius: 10px;
+
+          color: #fff;
+
+          background:
+            rgba(255, 255, 255, 0.1);
+
+          font-size: 13px;
+
+          font-weight: 900;
+
+          cursor: pointer;
+        }
+
+        .sausage-service {
+          margin-top: 16px;
+
+          padding: 15px;
+
+          border-radius: 14px;
+
+          background:
+            rgba(0, 0, 0, 0.72);
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+        }
+
+        .sausage-service-title {
+          margin: 0 0 9px;
+
+          font-size: 14px;
+
+          font-weight: 900;
+        }
+
+        .sausage-service-list {
+          margin: 0;
+
+          padding-left: 18px;
+
+          color: #bbb;
+
+          font-size: 12px;
+
+          line-height: 1.7;
+        }
+
+        .sausage-footer {
+          padding:
+            24px 14px 0;
+
+          text-align: center;
+
+          color: #777;
+
+          font-size: 11px;
+        }
+
+        @media (max-width: 480px) {
+          .sausage-header {
+            padding: 12px;
+          }
+
+          .sausage-title {
+            font-size: 17px;
+          }
+
+          .sausage-container {
+            padding:
+              12px 10px 0;
+          }
+
+          .sausage-banner {
+            height: 175px;
+
+            border-radius: 15px;
+          }
+
+          .sausage-offer {
+            padding: 11px;
+          }
+
+          .sausage-offer-name {
+            font-size: 13px;
+          }
+
+          .sausage-offer-price {
+            font-size: 14px;
+          }
+
+          .sausage-actions {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <header className="sausage-header">
+        <h1 className="sausage-title">
+          Sausage Man
+        </h1>
 
         <button
           type="button"
-          className="game-back-button"
-          onClick={() =>
-            router.push("/home")
-          }
+          className="sausage-back"
+          onClick={() => router.push("/")}
         >
-          ←
+          ← Tienda
         </button>
-
-        <div className="game-header-title">
-
-          <span>
-            STORE GAMING
-          </span>
-
-          <strong>
-            SAUSAGE MAN
-          </strong>
-
-        </div>
-
-        <button
-          type="button"
-          className="game-cart-button"
-          onClick={() =>
-            router.push("/cart")
-          }
-        >
-          🛒
-        </button>
-
       </header>
 
-      {/* ========================================================
-          IMAGEN PRINCIPAL
-      ======================================================== */}
-
-      <section className="free-fire-main-image">
-
-        <img
-          src={GAME_IMAGE}
-          alt="Sausage Man"
-        />
-
-        <div className="free-fire-main-overlay" />
-
-        <div className="free-fire-main-text">
-
-          <span>
-            ⚡ TOP UP
-          </span>
-
-          <h1>
-            SAUSAGE
-            <strong>
-              MAN
-            </strong>
-          </h1>
-
-          <p>
-            Caramelos para tu cuenta
-          </p>
-
+      <div className="sausage-container">
+        <div className="sausage-banner">
+          <img
+            src="/images/sausage-man.jpg"
+            alt="Sausage Man"
+          />
         </div>
 
-      </section>
-
-      {/* ========================================================
-          BOTÓN OFERTAS
-      ======================================================== */}
-
-      <button
-        type="button"
-        className="offers-toggle"
-        onClick={() =>
-          setShowOffers(
-            (current) => !current
-          )
-        }
-      >
-
-        <span className="offers-toggle-text">
-
-          ✎
-
+        <div className="sausage-note">
           <strong>
-            PRESIONE PARA VER OFERTAS
+            📌 Información del servicio
           </strong>
 
-        </span>
+          <br />
 
-        <span className="offers-toggle-pencil">
-          ✎
-        </span>
+          Recarga de Sausage Man.
 
-      </button>
+          <br />
 
-      {/* ========================================================
-          OFERTAS
-      ======================================================== */}
+          Introduce tu ID de personaje antes
+          de realizar el pedido.
 
-      {showOffers && (
-        <section className="offers-section">
+          <br />
 
-          <div className="offers-heading">
+          El producto seleccionado se entrega
+          directamente a tu cuenta después
+          de realizar el pedido.
+        </div>
 
-            <div>
+        <button
+          type="button"
+          className="sausage-toggle"
+          onClick={() =>
+            setShowOffers(
+              (value) => !value
+            )
+          }
+        >
+          <span>
+            ✏️ Presione para ver ofertas
+          </span>
 
-              <span>
-                SAUSAGE MAN
-              </span>
+          <span className="sausage-arrow">
+            {showOffers ? "▲" : "▼"}
+          </span>
+        </button>
 
-              <h2>
-                ELIGE TU OFERTA
-              </h2>
-
-            </div>
-
-          </div>
-
-          <div className="offers-list">
-
-            {offers.map(
-              (offer) => {
-
-                const selected =
-                  selectedOffer?.id ===
-                  offer.id;
-
-                return (
+        {showOffers && (
+          <section className="sausage-offers">
+            <div className="sausage-list">
+              {SAUSAGE_MAN.offers.map(
+                (offer) => (
                   <button
-                    key={offer.id}
                     type="button"
-                    className={`offer-card ${
-                      selected
+                    key={offer.id}
+                    className={`sausage-offer ${
+                      selectedOffer?.id ===
+                      offer.id
                         ? "selected"
                         : ""
                     }`}
                     onClick={() =>
-                      selectOffer(
-                        offer
-                      )
+                      selectOffer(offer)
                     }
                   >
-
-                    <div className="offer-card-left">
-
-                      <span className="offer-icon">
+                    <div className="sausage-offer-left">
+                      <div className="sausage-icon">
                         {offer.icon}
-                      </span>
-
-                      <div className="offer-info">
-
-                        <strong>
-                          {offer.display}
-                        </strong>
-
-                        <span>
-                          {offer.name}
-                        </span>
-
                       </div>
 
+                      <div>
+                        <div className="sausage-offer-name">
+                          {offer.name}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="offer-card-right">
-
-                      <strong>
-                        ${offer.price.toFixed(2)}
-                      </strong>
-
-                      <span>
-                        USD
-                      </span>
-
+                    <div className="sausage-offer-price">
+                      $
+                      {Number(
+                        offer.price
+                      ).toFixed(2)}
                     </div>
-
                   </button>
-                );
-              }
-            )}
-
-          </div>
-
-        </section>
-      )}
-
-      {/* ========================================================
-          NOTA DEL SERVICIO
-      ======================================================== */}
-
-      <section className="game-note">
-
-        <div className="game-note-icon">
-          ℹ️
-        </div>
-
-        <div>
-          <strong>
-            INFORMACIÓN DEL SERVICIO
-          </strong>
-
-          <p>
-            {gameNote}
-          </p>
-        </div>
-
-      </section>
-
-      {/* ========================================================
-          FORMULARIO DE ORDEN
-      ======================================================== */}
-
-      {selectedOffer && !orderCreated && (
-        <section
-          id="order-section"
-          className="order-section"
-        >
-
-          <div className="selected-order-card">
-
-            <div className="selected-order-icon">
-              {selectedOffer.icon}
+                )
+              )}
             </div>
+          </section>
+        )}
 
-            <div className="selected-order-info">
-
-              <span>
-                OFERTA SELECCIONADA
-              </span>
-
-              <strong>
-                {selectedOffer.name}
-              </strong>
-
-            </div>
-
-            <div className="selected-order-price">
-
-              <strong>
-                ${selectedOffer.price.toFixed(2)}
-              </strong>
-
-              <span>
-                USD
-              </span>
-
-            </div>
-
-          </div>
-
-          <form
-            className="order-form"
-            onSubmit={
-              handleFinishPurchase
-            }
+        {selectedOffer && (
+          <section
+            id="order-section"
+            className="sausage-order"
           >
+            <h2 className="sausage-section-title">
+              Crear pedido
+            </h2>
 
-            <div className="player-id-field">
+            <div className="sausage-selected">
+              <div className="sausage-selected-label">
+                Oferta seleccionada
+              </div>
 
-              <label
-                htmlFor="player-id"
-                className="player-id-label"
-              >
-                ID DE PERSONAJE
-              </label>
+              <div className="sausage-selected-row">
+                <div className="sausage-selected-name">
+                  {selectedOffer.name}
+                </div>
 
-              <p className="player-id-description">
-                Introduce el ID de personaje
-                de tu cuenta de Sausage Man.
-              </p>
+                <div className="sausage-selected-price">
+                  $
+                  {Number(
+                    selectedOffer.price
+                  ).toFixed(2)}
+                </div>
+              </div>
+            </div>
 
-              <div className="player-id-input-wrapper">
-
-                <span>
-                  🎮
-                </span>
+            <form
+              className="sausage-form"
+              onSubmit={handleSubmit}
+            >
+              <label className="sausage-label">
+                ID de personaje
 
                 <input
-                  id="player-id"
+                  className="sausage-input"
                   type="text"
                   inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={playerId}
-                  onChange={(event) => {
-                    const value =
-                      event.target.value
-                        .replace(
-                          /[^0-9]/g,
-                          ""
-                        );
-
-                    setPlayerId(value);
-                    setError("");
-                  }}
-                  placeholder="Introduce tu ID de personaje"
-                  maxLength={30}
-                  autoComplete="off"
+                  value={characterId}
+                  onChange={(event) =>
+                    setCharacterId(
+                      event.target.value.replace(
+                        /\D/g,
+                        ""
+                      )
+                    )
+                  }
+                  placeholder="Ingrese su ID de personaje"
+                  maxLength={20}
                   disabled={processing}
                 />
+              </label>
 
-              </div>
-
-            </div>
-
-            {error && (
-              <div className="order-error">
-                {error}
-              </div>
-            )}
-
-            <div className="order-total-preview">
-
-              <span>
-                TOTAL
-              </span>
-
-              <strong>
-                ${selectedOffer.price.toFixed(2)}
-              </strong>
-
-            </div>
-
-            <button
-              type="submit"
-              className="finish-order-button"
-              disabled={processing}
-            >
-
-              {processing ? (
-                <>
-                  <span>
-                    ⏳
-                  </span>
-
-                  PROCESANDO...
-                </>
-              ) : (
-                <>
-                  FINALIZAR COMPRA
-                  <span>
-                    →
-                  </span>
-                </>
+              {error && (
+                <div className="sausage-error">
+                  {error}
+                </div>
               )}
 
-            </button>
+              <button
+                type="submit"
+                className="sausage-create"
+                disabled={processing}
+              >
+                {processing
+                  ? "Procesando pedido..."
+                  : "Crear pedido"}
+              </button>
+            </form>
+          </section>
+        )}
 
-          </form>
-
-        </section>
-      )}
-
-            {/* ========================================================
-          ORDEN CREADA
-      ======================================================== */}
-
-      {orderCreated && (
-        <section
-          id="success-section"
-          className="order-success-section"
-        >
-
-          <div className="success-circle">
-            ✓
-          </div>
-
-          <h2>
-            orden creada
-          </h2>
-
-          <p className="success-message">
-            Tu pedido fue creado correctamente.
-          </p>
-
-          <div className="success-order-number">
-
-            <span>
-              Número de orden
-            </span>
-
-            <strong>
-              {orderNumber}
-            </strong>
-
-          </div>
-
-          <div className="success-order-info">
-
-            <div>
-
-              <span>
-                Servicio
-              </span>
-
-              <strong>
-                {GAME_NAME}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                Oferta
-              </span>
-
-              <strong>
-                {selectedOffer?.name ||
-                  "Sausage Man"}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                ID de personaje
-              </span>
-
-              <strong>
-                {playerId}
-              </strong>
-
-            </div>
-
-            <div>
-
-              <span>
-                Total
-              </span>
-
-              <strong>
-                $
-                {selectedOffer?.price.toFixed(
-                  2
-                ) || "0.00"}
-              </strong>
-
-            </div>
-
-            {supplierOrderId && (
-              <div>
-
-                <span>
-                  Orden del proveedor
-                </span>
-
-                <strong>
-                  {supplierOrderId}
-                </strong>
-
-              </div>
-            )}
-
-            <div>
-
-              <span>
-                Estado
-              </span>
-
-              <strong>
-                {orderStatus}
-              </strong>
-
-            </div>
-
-          </div>
-
-          <button
-            type="button"
-            className="view-orders-button"
-            onClick={goToOrders}
+        {orderCreated && (
+          <section
+            id="success-section"
+            className="sausage-success"
           >
-            revisar orden
-          </button>
+            <div className="sausage-success-icon">
+              ✓
+            </div>
 
-          <button
-            type="button"
-            className="back-to-game-button"
-            onClick={() => {
+            <h2 className="sausage-success-title">
+              ¡Orden creada!
+            </h2>
 
-              setOrderCreated(false);
+            <p className="sausage-success-text">
+  Tu pedido fue registrado
+  correctamente.
+  El proveedor procesará
+  la recarga.
+</p>
 
-              setSelectedOffer(null);
+{orderNumber && (
+  <div className="sausage-order-number">
+    🧾 Orden: {orderNumber}
+  </div>
+)}
 
-              setPlayerId("");
+{supplierOrderId && (
+  <div className="sausage-order-number">
+    Proveedor: {supplierOrderId}
+  </div>
+)}
 
-              setOrderNumber("");
+{orderStatus && (
+  <div className="sausage-order-number">
+    Estado: {orderStatus}
+  </div>
+)}
 
-              setSupplierOrderId("");
+<div className="sausage-actions">
+  <button
+    type="button"
+    className="sausage-action"
+    onClick={() => router.push("/orders")}
+  >
+    📋 Revisar orden
+  </button>
 
-              setOrderStatus("");
+  <button
+    type="button"
+    className="sausage-action"
+    onClick={() => router.push("/")}
+  >
+    🛒 Volver a la tienda
+  </button>
+</div>
+</section>
+)}
 
-              setError("");
+<section className="sausage-service">
+  <h3 className="sausage-service-title">
+    ⚡ Servicio de recarga
+  </h3>
 
-            }}
-          >
-            realizar otra compra
-          </button>
+  <ul className="sausage-service-list">
+    <li>
+      Entrega directa a la cuenta.
+    </li>
 
-        </section>
-      )}
+    <li>
+      Necesitas introducir tu Player ID.
+    </li>
 
-      {/* ========================================================
-          INFORMACIÓN DEL SERVICIO
-      ======================================================== */}
+    <li>
+      Pedido procesado mediante FazerCards.
+    </li>
 
-      <section className="service-info">
+    <li>
+      Revisa tu ID antes de confirmar el pedido.
+    </li>
+  </ul>
+</section>
 
-        <div className="service-info-item">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🔒
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              SAUSAGE MAN
-            </strong>
-
-            <p>
-              Caramelos directamente
-              a tu cuenta.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* ========================================================
-          FOOTER
-      ======================================================== */}
-
-      <footer className="game-service-footer">
-
-        <strong>
-          🛒STORE GAMING🎮
-        </strong>
-
-        <span>
-          SAUSAGE MAN TOP UP
-        </span>
-
-      </footer>
-
-    </main>
-  );
+<footer className="sausage-footer">
+  🛒STORE GAMING🎮
+  <br />
+  Honor of Kings
+</footer>
+</div>
+</main>
+);
 }
