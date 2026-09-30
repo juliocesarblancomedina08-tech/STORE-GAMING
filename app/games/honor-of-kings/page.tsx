@@ -12,28 +12,17 @@ export default function HonorOfKingsPage() {
   const router = useRouter();
 
   const [showOffers, setShowOffers] = useState(false);
-
   const [selectedOffer, setSelectedOffer] =
     useState<HonorOfKingsOffer | null>(null);
 
   const [playerId, setPlayerId] = useState("");
-
   const [error, setError] = useState("");
 
-  const [orderCreated, setOrderCreated] =
-    useState(false);
-
-  const [orderNumber, setOrderNumber] =
-    useState("");
-
-  const [supplierOrderId, setSupplierOrderId] =
-    useState("");
-
-  const [orderStatus, setOrderStatus] =
-    useState("");
-
-  const [processing, setProcessing] =
-    useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [supplierOrderId, setSupplierOrderId] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
+  const [processing, setProcessing] = useState(false);
 
   function selectOffer(offer: HonorOfKingsOffer) {
     setSelectedOffer(offer);
@@ -90,17 +79,16 @@ export default function HonorOfKingsPage() {
         "/api/topups/honor-of-kings",
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-
           body: JSON.stringify({
             offerId: selectedOffer.id,
             offerName: selectedOffer.name,
             playerId: cleanPlayerId,
             retailPrice: selectedOffer.price,
+            quantity: 1,
             idempotencyKey,
           }),
         }
@@ -128,6 +116,7 @@ export default function HonorOfKingsPage() {
       setSupplierOrderId(
         order?.supplier_order_id ||
           result?.supplierOrderId ||
+          order?.supplier_order_id ||
           ""
       );
 
@@ -213,19 +202,16 @@ export default function HonorOfKingsPage() {
 
           font-size: 20px;
           font-weight: 900;
-
           letter-spacing: 0.3px;
         }
 
         .hok-back {
           border: 0;
-
           border-radius: 10px;
 
           padding: 9px 12px;
 
           color: #fff;
-
           background:
             rgba(255, 255, 255, 0.08);
 
@@ -237,11 +223,8 @@ export default function HonorOfKingsPage() {
 
         .hok-container {
           width: min(720px, 100%);
-
           margin: 0 auto;
-
-          padding:
-            18px 14px 0;
+          padding: 18px 14px 0;
         }
 
         .hok-banner {
@@ -272,7 +255,6 @@ export default function HonorOfKingsPage() {
 
         .hok-note {
           margin-top: 14px;
-
           padding: 14px;
 
           border-radius: 14px;
@@ -286,7 +268,6 @@ export default function HonorOfKingsPage() {
           color: #ddd;
 
           font-size: 13px;
-
           line-height: 1.55;
         }
 
@@ -298,13 +279,10 @@ export default function HonorOfKingsPage() {
           width: 100%;
 
           margin-top: 16px;
-
           padding: 15px 16px;
 
           display: flex;
-
           align-items: center;
-
           justify-content: space-between;
 
           gap: 12px;
@@ -327,7 +305,6 @@ export default function HonorOfKingsPage() {
 
         .hok-toggle-arrow {
           color: #ff3030;
-
           font-size: 20px;
         }
 
@@ -337,9 +314,7 @@ export default function HonorOfKingsPage() {
 
         .hok-offers-list {
           display: flex;
-
           flex-direction: column;
-
           gap: 9px;
         }
 
@@ -347,9 +322,7 @@ export default function HonorOfKingsPage() {
           width: 100%;
 
           display: flex;
-
           align-items: center;
-
           justify-content: space-between;
 
           gap: 12px;
@@ -396,7 +369,6 @@ export default function HonorOfKingsPage() {
 
         .hok-offer-left {
           display: flex;
-
           align-items: center;
 
           gap: 11px;
@@ -408,11 +380,9 @@ export default function HonorOfKingsPage() {
           width: 38px;
           height: 38px;
 
-          flex:
-            0 0 38px;
+          flex: 0 0 38px;
 
           display: grid;
-
           place-items: center;
 
           border-radius: 10px;
@@ -425,9 +395,7 @@ export default function HonorOfKingsPage() {
 
         .hok-offer-name {
           font-size: 14px;
-
           font-weight: 900;
-
           line-height: 1.3;
         }
 
@@ -435,13 +403,11 @@ export default function HonorOfKingsPage() {
           flex-shrink: 0;
 
           font-size: 15px;
-
           font-weight: 900;
         }
 
         .hok-order {
           margin-top: 16px;
-
           padding: 16px;
 
           border-radius: 15px;
@@ -457,13 +423,11 @@ export default function HonorOfKingsPage() {
           margin: 0 0 12px;
 
           font-size: 17px;
-
           font-weight: 900;
         }
 
         .hok-selected {
           margin-bottom: 14px;
-
           padding: 12px;
 
           border-radius: 12px;
@@ -479,9 +443,7 @@ export default function HonorOfKingsPage() {
           color: #999;
 
           font-size: 11px;
-
           text-transform: uppercase;
-
           letter-spacing: 0.6px;
         }
 
@@ -489,9 +451,7 @@ export default function HonorOfKingsPage() {
           margin-top: 5px;
 
           display: flex;
-
           align-items: center;
-
           justify-content: space-between;
 
           gap: 12px;
@@ -499,21 +459,17 @@ export default function HonorOfKingsPage() {
 
         .hok-selected-name {
           font-size: 14px;
-
           font-weight: 900;
         }
 
         .hok-selected-price {
           color: #ff4b4b;
-
           font-weight: 900;
         }
 
         .hok-form {
           display: flex;
-
           flex-direction: column;
-
           gap: 12px;
         }
 
@@ -521,17 +477,14 @@ export default function HonorOfKingsPage() {
           color: #bbb;
 
           font-size: 12px;
-
           font-weight: 800;
         }
 
         .hok-input {
           width: 100%;
-
           box-sizing: border-box;
 
           margin-top: 6px;
-
           padding: 13px 14px;
 
           border-radius: 11px;
@@ -575,7 +528,6 @@ export default function HonorOfKingsPage() {
           color: #ff6868;
 
           font-size: 13px;
-
           font-weight: 800;
         }
 
@@ -585,7 +537,6 @@ export default function HonorOfKingsPage() {
           padding: 14px;
 
           border: 0;
-
           border-radius: 12px;
 
           background: #e52525;
@@ -593,7 +544,6 @@ export default function HonorOfKingsPage() {
           color: #fff;
 
           font-size: 15px;
-
           font-weight: 900;
 
           cursor: pointer;
@@ -609,15 +559,12 @@ export default function HonorOfKingsPage() {
 
         .hok-create:disabled {
           opacity: 0.55;
-
           cursor: not-allowed;
-
           transform: none;
         }
 
         .hok-success {
           margin-top: 16px;
-
           padding: 18px 16px;
 
           border-radius: 15px;
@@ -635,11 +582,9 @@ export default function HonorOfKingsPage() {
           width: 54px;
           height: 54px;
 
-          margin:
-            0 auto 10px;
+          margin: 0 auto 10px;
 
           display: grid;
-
           place-items: center;
 
           border-radius: 50%;
@@ -649,7 +594,6 @@ export default function HonorOfKingsPage() {
           color: #fff;
 
           font-size: 27px;
-
           font-weight: 900;
         }
 
@@ -657,7 +601,6 @@ export default function HonorOfKingsPage() {
           margin: 0;
 
           font-size: 20px;
-
           font-weight: 900;
         }
 
@@ -667,13 +610,11 @@ export default function HonorOfKingsPage() {
           color: #c9e8d5;
 
           font-size: 13px;
-
           line-height: 1.5;
         }
 
         .hok-order-number {
           margin-top: 12px;
-
           padding: 11px;
 
           border-radius: 10px;
@@ -700,7 +641,6 @@ export default function HonorOfKingsPage() {
           padding: 12px 10px;
 
           border: 0;
-
           border-radius: 10px;
 
           color: #fff;
@@ -709,7 +649,6 @@ export default function HonorOfKingsPage() {
             rgba(255, 255, 255, 0.1);
 
           font-size: 13px;
-
           font-weight: 900;
 
           cursor: pointer;
@@ -717,7 +656,6 @@ export default function HonorOfKingsPage() {
 
         .hok-service {
           margin-top: 16px;
-
           padding: 15px;
 
           border-radius: 14px;
@@ -733,25 +671,21 @@ export default function HonorOfKingsPage() {
           margin: 0 0 9px;
 
           font-size: 14px;
-
           font-weight: 900;
         }
 
         .hok-service-list {
           margin: 0;
-
           padding-left: 18px;
 
           color: #bbb;
 
           font-size: 12px;
-
           line-height: 1.7;
         }
 
         .hok-footer {
-          padding:
-            24px 14px 0;
+          padding: 24px 14px 0;
 
           text-align: center;
 
@@ -770,13 +704,11 @@ export default function HonorOfKingsPage() {
           }
 
           .hok-container {
-            padding:
-              12px 10px 0;
+            padding: 12px 10px 0;
           }
 
           .hok-banner {
             height: 175px;
-
             border-radius: 15px;
           }
 
@@ -815,7 +747,7 @@ export default function HonorOfKingsPage() {
       <div className="hok-container">
         <div className="hok-banner">
           <img
-            src="/images/honor-of-kings.jpg"
+            src={HONOR_OF_KINGS.image}
             alt="Honor of Kings"
           />
         </div>
@@ -827,18 +759,7 @@ export default function HonorOfKingsPage() {
 
           <br />
 
-          Recarga de Honor of Kings.
-
-          <br />
-
-          Introduce tu ID de jugador antes
-          de realizar el pedido.
-
-          <br />
-
-          El producto seleccionado se entrega
-          directamente a tu cuenta después
-          de realizar el pedido.
+          {HONOR_OF_KINGS.note}
         </div>
 
         <button
@@ -879,10 +800,8 @@ export default function HonorOfKingsPage() {
                         {offer.icon}
                       </div>
 
-                      <div>
-                        <div className="hok-offer-name">
-                          {offer.name}
-                        </div>
+                      <div className="hok-offer-name">
+                        {offer.name}
                       </div>
                     </div>
 
@@ -1011,59 +930,59 @@ export default function HonorOfKingsPage() {
             )}
 
             <div className="hok-actions">
-  <button
-    type="button"
-    className="hok-action"
-    onClick={() =>
-      router.push("/orders")
-    }
-  >
-    📋 Revisar orden
-  </button>
+              <button
+                type="button"
+                className="hok-action"
+                onClick={() =>
+                  router.push("/orders")
+                }
+              >
+                📋 Revisar orden
+              </button>
 
-  <button
-    type="button"
-    className="hok-action"
-    onClick={() =>
-      router.push("/")
-    }
-  >
-    🛒 Volver a la tienda
-  </button>
+              <button
+  type="button"
+  className="hok-action"
+  onClick={() =>
+    router.push("/")
+  }
+>
+  🛒 Volver a la tienda
+</button>
 </div>
-          </section>
-        )}
+</section>
+)}
 
-        <section className="hok-service">
-          <h3 className="hok-service-title">
-            ⚡ Servicio de recarga
-          </h3>
+<section className="hok-service">
+  <h3 className="hok-service-title">
+    ⚡ Servicio de recarga
+  </h3>
 
-          <ul className="hok-service-list">
-            <li>
-              Entrega directa a la cuenta.
-            </li>
+  <ul className="hok-service-list">
+    <li>
+      Entrega directa a la cuenta.
+    </li>
 
-            <li>
-              Necesitas introducir tu Player ID.
-            </li>
+    <li>
+      Necesitas introducir tu Player ID.
+    </li>
 
-            <li>
-              Pedido procesado mediante FazerCards.
-            </li>
+    <li>
+      Pedido procesado mediante FazerCards.
+    </li>
 
-            <li>
-              Revisa tu ID antes de confirmar el pedido.
-            </li>
-          </ul>
-        </section>
+    <li>
+      Revisa tu ID antes de confirmar el pedido.
+    </li>
+  </ul>
+</section>
 
-        <footer className="hok-footer">
-          🛒STORE GAMING🎮
-          <br />
-          Honor of Kings
-        </footer>
-      </div>
-    </main>
-  );
+<footer className="hok-footer">
+  🛒STORE GAMING🎮
+  <br />
+  Honor of Kings
+</footer>
+</div>
+</main>
+);
 }
