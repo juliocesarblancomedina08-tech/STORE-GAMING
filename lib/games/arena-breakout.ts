@@ -8,7 +8,9 @@ export type ArenaBreakoutOffer = {
 
 export const ARENA_BREAKOUT = {
   categoryId: "arena_breakout",
+
   name: "Arena Breakout",
+
   image: "/images/arena-breakout.jpg",
 
   note:
@@ -80,8 +82,7 @@ export const ARENA_BREAKOUT = {
     {
       id: "monthly_advanced_battle_pass_activation_pass",
       name: "Pase de activación del pase de batalla avanzado mensual",
-      displayName:
-        "PASE DE BATALLA AVANZADO MENSUAL",
+      displayName: "PASE DE BATALLA AVANZADO MENSUAL",
       supplierPrice: 0.8534,
       price: 1.0534,
     },
@@ -89,8 +90,7 @@ export const ARENA_BREAKOUT = {
     {
       id: "bulletproof_case_privileges",
       name: "Privilegios de la caja a prueba de balas",
-      displayName:
-        "PRIVILEGIOS DE LA CAJA A PRUEBA DE BALAS",
+      displayName: "PRIVILEGIOS DE LA CAJA A PRUEBA DE BALAS",
       supplierPrice: 2.2064,
       price: 2.4064,
     },
@@ -98,8 +98,7 @@ export const ARENA_BREAKOUT = {
     {
       id: "bulletproof_case_30d",
       name: "Casa a prueba de balas (30d)",
-      displayName:
-        "CAJA A PRUEBA DE BALAS (30 DÍAS)",
+      displayName: "CAJA A PRUEBA DE BALAS (30 DÍAS)",
       supplierPrice: 2.1681,
       price: 2.3681,
     },
@@ -107,8 +106,7 @@ export const ARENA_BREAKOUT = {
     {
       id: "monthly_premium_battle_pass_activation_pass",
       name: "Monthly Premium Battle Pass Activation Pass",
-      displayName:
-        "PASE DE BATALLA PREMIUM MENSUAL",
+      displayName: "PASE DE BATALLA PREMIUM MENSUAL",
       supplierPrice: 3.4527,
       price: 3.6527,
     },
@@ -116,8 +114,7 @@ export const ARENA_BREAKOUT = {
     {
       id: "composite_case_privileges",
       name: "Composite Case Privileges",
-      displayName:
-        "PRIVILEGIOS DE LA CAJA COMPUESTA",
+      displayName: "PRIVILEGIOS DE LA CAJA COMPUESTA",
       supplierPrice: 6.6394,
       price: 6.8394,
     },
@@ -125,19 +122,15 @@ export const ARENA_BREAKOUT = {
     {
       id: "composition_case_30d",
       name: "Composition Case (30d)",
-      displayName:
-        "CAJA COMPUESTA (30 DÍAS)",
+      displayName: "CAJA COMPUESTA (30 DÍAS)",
       supplierPrice: 6.5457,
       price: 6.7457,
     },
 
     {
-      id:
-        "quarterly_premium_battle_pass_bundle_activation_pass_bundle",
-      name:
-        "Quarterly Premium Battle Pass Bundle Activation Pass Bundle",
-      displayName:
-        "PAQUETE DE PASE DE BATALLA PREMIUM TRIMESTRAL",
+      id: "quarterly_premium_battle_pass_bundle_activation_pass_bundle",
+      name: "Quarterly Premium Battle Pass Bundle Activation Pass Bundle",
+      displayName: "PAQUETE DE PASE DE BATALLA PREMIUM TRIMESTRAL",
       supplierPrice: 10.3692,
       price: 10.5692,
     },
