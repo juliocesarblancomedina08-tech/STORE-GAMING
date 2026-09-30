@@ -11,36 +11,21 @@ import {
 export default function BloodStrikePage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] =
-    useState(false);
-
+  const [showOffers, setShowOffers] = useState(false);
   const [selectedOffer, setSelectedOffer] =
     useState<BloodStrikeOffer | null>(null);
 
-  const [playerId, setPlayerId] =
-    useState("");
+  const [playerId, setPlayerId] = useState("");
+  const [error, setError] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [processing, setProcessing] = useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
 
-  const [orderCreated, setOrderCreated] =
-    useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [supplierOrderId, setSupplierOrderId] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
 
-  const [orderNumber, setOrderNumber] =
-    useState("");
-
-  const [supplierOrderId, setSupplierOrderId] =
-    useState("");
-
-  const [orderStatus, setOrderStatus] =
-    useState("");
-
-  const [processing, setProcessing] =
-    useState(false);
-
-  function selectOffer(
-    offer: BloodStrikeOffer
-  ) {
+  function selectOffer(offer: BloodStrikeOffer) {
     setSelectedOffer(offer);
     setPlayerId("");
     setError("");
@@ -60,296 +45,134 @@ export default function BloodStrikePage() {
   }
 
   async function createOrder() {
-    if (
-      !selectedOffer ||
-      processing
-    ) {
+    if (!selectedOffer) {
+      setError("Seleccione una oferta.");
       return;
     }
 
-    setError("");
+    const cleanPlayerId = playerId.trim();
+
+    if (!/^[A-Za-z0-9_-]{4,32}$/.test(cleanPlayerId)) {
+      setError(
+        "Introduzca un ID de jugador válido. Solo se permiten letras, números, guion y guion bajo."
+      );
+      return;
+    }
+
     setProcessing(true);
+    setError("");
 
     try {
-      /*
-       * ============================================================
-       * 1. COMPROBAR SESIÓN
-       * ============================================================
-       */
-
       const {
         data: { session },
-        error: sessionError,
-      } =
-        await supabase.auth.getSession();
+      } = await supabase.auth.getSession();
 
-      if (
-        sessionError ||
-        !session?.user
-      ) {
-        setError(
-          "Su sesión ha expirado. Inicie sesión nuevamente."
-        );
-
-        router.replace("/");
+      if (!session?.access_token) {
+        setError("Su sesión ha expirado. Inicie sesión nuevamente.");
         return;
       }
 
-      /*
-       * ============================================================
-       * 2. LIMPIAR PLAYER ID
-       * ============================================================
-       */
+      const idempotencyKey = crypto.randomUUID();
 
-      const cleanPlayerId =
-        playerId
-          .trim()
-          .replace(/\s+/g, "");
+      const response = await fetch("/api/topups/blood-strike", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          offerId: selectedOffer.id,
+          playerId: cleanPlayerId,
+          idempotencyKey,
+        }),
+      });
 
-      if (!cleanPlayerId) {
-        setError(
-          "Ponga el ID de su cuenta."
-        );
-        return;
-      }
+      const data = await response.json().catch(() => null);
 
-      if (
-        !/^[A-Za-z0-9_-]+$/.test(
-          cleanPlayerId
-        )
-      ) {
-        setError(
-          "El ID solamente puede contener letras, números, guion o guion bajo."
-        );
-        return;
-      }
-
-      if (
-        cleanPlayerId.length < 4 ||
-        cleanPlayerId.length > 32
-      ) {
-        setError(
-          "El ID parece no tener un formato válido."
-        );
-        return;
-      }
-
-      /*
-       * ============================================================
-       * 3. IDEMPOTENCIA
-       * ============================================================
-       */
-
-      const idempotencyKey =
-        crypto.randomUUID();
-
-      /*
-       * ============================================================
-       * 4. ENVIAR PEDIDO
-       * ============================================================
-       */
-
-      const response =
-        await fetch(
-          "/api/topups/blood-strike",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-
-            body: JSON.stringify({
-              offerId:
-                selectedOffer.id,
-
-              playerId:
-                cleanPlayerId,
-
-              idempotencyKey,
-            }),
-          }
-        );
-
-      const result =
-        await response.json();
-
-      /*
-       * ============================================================
-       * 5. ERROR
-       * ============================================================
-       */
-
-      if (
-        !response.ok ||
-        !result.ok
-      ) {
-        setError(
-          result.error ||
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            data?.message ||
             "No se pudo crear la orden."
         );
-
-        return;
       }
 
-      /*
-       * ============================================================
-       * 6. GUARDAR INFORMACIÓN
-       * ============================================================
-       */
-
       setOrderNumber(
-        result.order?.order_number ||
-          result.orderNumber ||
-          result.order?.id ||
-          result.id ||
+        data?.orderNumber ||
+          data?.order?.orderNumber ||
+          data?.order?.id ||
           ""
       );
 
       setSupplierOrderId(
-        result.order?.supplier_order_id ||
-          result.supplierOrderId ||
+        data?.supplierOrderId ||
+          data?.order?.supplierOrderId ||
           ""
       );
 
       setOrderStatus(
-        result.order?.status ||
-          result.status ||
-          "SUPPLIER_PENDING"
+        data?.status ||
+          data?.order?.status ||
+          "PENDING"
       );
-
-      /*
-       * ============================================================
-       * 7. MOSTRAR ORDEN CREADA
-       * ============================================================
-       */
 
       setOrderCreated(true);
 
       setTimeout(() => {
         document
-          .getElementById(
-            "success-section"
-          )
+          .getElementById("success-section")
           ?.scrollIntoView({
             behavior: "smooth",
             block: "start",
           });
       }, 100);
     } catch (err) {
-      console.error(
-        "ERROR CREANDO TOPUP BLOOD STRIKE:",
-        err
-      );
-
       setError(
-        "No se pudo conectar con el servidor. Si la compra fue enviada, no vuelva a intentarla hasta revisar el estado de la orden."
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la orden."
       );
     } finally {
       setProcessing(false);
     }
   }
 
-  function handleFinishPurchase(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (processing) {
-      return;
-    }
-
-    if (!selectedOffer) {
-      setError(
-        "Seleccione una oferta."
-      );
-      return;
-    }
-
-    const cleanId =
-      playerId
-        .trim()
-        .replace(/\s+/g, "");
-
-    if (!cleanId) {
-      setError(
-        "Ponga el ID de su cuenta."
-      );
-      return;
-    }
-
-    if (
-      !/^[A-Za-z0-9_-]+$/.test(
-        cleanId
-      )
-    ) {
-      setError(
-        "El ID solamente puede contener letras, números, guion o guion bajo."
-      );
-      return;
-    }
-
-    if (
-      cleanId.length < 4 ||
-      cleanId.length > 32
-    ) {
-      setError(
-        "El ID parece no tener un formato válido."
-      );
-      return;
-    }
-
-    createOrder();
+    void createOrder();
   }
 
   function goToOrders() {
     router.push("/orders");
   }
 
+  function goToStore() {
+    router.push("/top-up");
+  }
+
   return (
     <main className="blood-strike-page">
-      {/* ============================================================
-          HEADER
-      ============================================================ */}
-
       <header className="blood-strike-header">
         <button
           type="button"
           className="blood-strike-back-button"
-          onClick={() =>
-            router.push("/top-up")
-          }
+          onClick={goToStore}
         >
           ←
         </button>
 
         <div className="blood-strike-header-title">
-          <span>
-            Blood Strike
-          </span>
-
-          <small>
-            Top Up
-          </small>
+          🩸 BLOOD STRIKE
         </div>
 
         <button
           type="button"
           className="blood-strike-orders-button"
           onClick={goToOrders}
-          aria-label="Ver pedidos"
         >
-          📋
+          📦
         </button>
       </header>
-
-      {/* ============================================================
-          BANNER
-      ============================================================ */}
 
       <section className="blood-strike-banner">
         <img
@@ -359,42 +182,24 @@ export default function BloodStrikePage() {
 
         <div className="blood-strike-banner-overlay">
           <div className="blood-strike-banner-text">
-            <strong>
-              BLOOD STRIKE
-            </strong>
-
-            <span>
-              BC, pases y ofertas
-            </span>
+            <strong>BLOOD STRIKE</strong>
+            <span>Recarga rápida y segura</span>
           </div>
         </div>
       </section>
 
-      <section className="blood-strike-content">
-        {/* ==========================================================
-            NOTA
-        ========================================================== */}
-
+      <div className="blood-strike-content">
         <div className="blood-strike-note">
-          <span>ℹ️</span>
-
-          <p>
-            {BLOOD_STRIKE.note}
-          </p>
+          Introduce correctamente tu ID de jugador antes
+          de crear la orden.
         </div>
-
-        {/* ==========================================================
-            MOSTRAR OFERTAS
-        ========================================================== */}
 
         <button
           type="button"
-          className="blood-strike-offers-toggle"
-          onClick={() =>
-            setShowOffers(
-              (current) => !current
-            )
-          }
+          className={`blood-strike-offers-toggle ${
+            showOffers ? "open" : ""
+          }`}
+          onClick={() => setShowOffers((value) => !value)}
         >
           <span>
             {showOffers
@@ -403,206 +208,116 @@ export default function BloodStrikePage() {
           </span>
 
           <span className="blood-strike-offers-arrow">
-            {showOffers
-              ? "▲"
-              : "▼"}
+            ▼
           </span>
         </button>
-
-        {/* ==========================================================
-            OFERTAS
-        ========================================================== */}
 
         {showOffers && (
           <section className="blood-strike-offers-section">
             <div className="blood-strike-offers-list">
-              {BLOOD_STRIKE.offers.map(
-                (offer) => {
-                  const selected =
-                    selectedOffer?.id ===
-                    offer.id;
+              {BLOOD_STRIKE.offers.map((offer) => (
+                <button
+                  key={offer.id}
+                  type="button"
+                  className="blood-strike-offer"
+                  onClick={() => selectOffer(offer)}
+                >
+                  <div className="blood-strike-offer-left">
+                    <div className="blood-strike-offer-icon">
+                      🎁
+                    </div>
 
-                  const offerName =
-                    offer.displayName
-                      .toLowerCase();
-
-                  const icon =
-                    offerName.includes(
-                      "pass"
-                    ) ||
-                    offerName.includes(
-                      "chest"
-                    ) ||
-                    offerName.includes(
-                      "bag"
-                    )
-                      ? "🎟️"
-                      : "🪙";
-
-                  return (
-                    <button
-                      key={offer.id}
-                      type="button"
-                      className={`blood-strike-offer ${
-                        selected
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        selectOffer(
-                          offer
-                        )
-                      }
-                    >
-                      <div className="blood-strike-offer-left">
-                        <div className="blood-strike-offer-icon">
-                          {icon}
-                        </div>
-
-                        <div>
-                          <strong>
-                            {
-                              offer.displayName
-                            }
-                          </strong>
-
-                          <span>
-                            {offer.name}
-                          </span>
-                        </div>
+                    <div>
+                      <div className="blood-strike-offer-name">
+                        {offer.name}
                       </div>
 
-                      <div className="blood-strike-offer-price">
-                        $
-                        {offer.price.toFixed(
-                          2
-                        )}
-                      </div>
-                    </button>
-                  );
-                }
-              )}
+                      {offer.description && (
+                        <div className="blood-strike-offer-description">
+                          {offer.description}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="blood-strike-offer-price">
+                    ${Number(offer.price).toFixed(2)}
+                  </div>
+                </button>
+              ))}
             </div>
           </section>
         )}
 
-        {/* ==========================================================
-            PEDIDO
-        ========================================================== */}
+        {selectedOffer && (
+          <section
+            id="order-section"
+            className="blood-strike-order-section"
+          >
+            <div className="blood-strike-selected-offer">
+              <div className="blood-strike-selected-title">
+                Oferta seleccionada
+              </div>
 
-        {selectedOffer &&
-          !orderCreated && (
-            <section
-              id="order-section"
-              className="blood-strike-order-section"
-            >
-              <div className="blood-strike-selected-offer">
-                <span>
-                  Oferta seleccionada
-                </span>
-
-                <strong>
-                  {
-                    selectedOffer.displayName
-                  }
-                </strong>
-
-                <b>
-                  $
-                  {selectedOffer.price.toFixed(
-                    2
-                  )}
-                </b>
+              <div className="blood-strike-selected-name">
+                {selectedOffer.name}
               </div>
 
               <div className="blood-strike-order-note">
-                <span>ℹ️</span>
-
-                <p>
-                  {BLOOD_STRIKE.note}
-                </p>
+                Introduce el ID de jugador de tu cuenta de
+                Blood Strike para recibir la recarga.
               </div>
 
               <form
                 className="blood-strike-order-form"
-                onSubmit={
-                  handleFinishPurchase
-                }
+                onSubmit={handleSubmit}
               >
-                <label>
-                  ID DEL JUGADOR
-                </label>
-
-                <p className="blood-strike-input-description">
-                  Introduzca el Player ID
-                  de la cuenta donde desea
-                  recibir la compra.
-                </p>
+                <div className="blood-strike-input-description">
+                  ID de jugador
+                </div>
 
                 <div className="blood-strike-input-wrapper">
-                  <span>
-                    🆔
-                  </span>
-
                   <input
+                    className="blood-strike-input"
                     type="text"
-                    value={playerId}
-                    onChange={(
-                      event
-                    ) =>
-                      setPlayerId(
-                        event.target.value.replace(
-                          /[^A-Za-z0-9_-]/g,
-                          ""
-                        )
-                      )
-                    }
-                    placeholder="Introduzca su Player ID"
+                    inputMode="text"
                     autoComplete="off"
-                    maxLength={32}
-                    disabled={
-                      processing
+                    placeholder="Ej: 123456789"
+                    value={playerId}
+                    onChange={(event) =>
+                      setPlayerId(event.target.value)
                     }
+                    maxLength={32}
                   />
                 </div>
 
                 {error && (
                   <div className="blood-strike-error">
-                    ⚠️ {error}
+                    {error}
                   </div>
                 )}
 
                 <div className="blood-strike-total">
-                  <span>
-                    PRECIO
-                  </span>
+                  <span>Total</span>
 
                   <strong>
-                    $
-                    {selectedOffer.price.toFixed(
-                      2
-                    )}
+                    ${Number(selectedOffer.price).toFixed(2)}
                   </strong>
                 </div>
 
                 <button
                   type="submit"
                   className="blood-strike-create-order-button"
-                  disabled={
-                    processing
-                  }
+                  disabled={processing}
                 >
                   {processing
-                    ? "PROCESANDO COMPRA..."
-                    : "FINALIZAR COMPRA"}
+                    ? "CREANDO ORDEN..."
+                    : "CREAR ORDEN"}
                 </button>
               </form>
-            </section>
-          )}
-
-        {/* ==========================================================
-            ORDEN CREADA
-        ========================================================== */}
+            </div>
+          </section>
+        )}
 
         {orderCreated && (
           <section
@@ -613,56 +328,38 @@ export default function BloodStrikePage() {
               ✓
             </div>
 
-            <h2>
+            <div className="blood-strike-success-title">
               Orden creada
-            </h2>
-
-            <p>
-              Su orden ha sido creada
-              correctamente y está siendo
-              procesada.
-            </p>
-
-            <div className="blood-strike-order-number">
-              <span>
-                Número de orden
-              </span>
-
-              <strong>
-                #{orderNumber}
-              </strong>
             </div>
+
+            <div className="blood-strike-success-text">
+              Tu orden fue creada correctamente.
+              Puedes revisar su estado desde el historial
+              de pedidos.
+            </div>
+
+            {orderNumber && (
+              <div className="blood-strike-order-number">
+                Orden: {orderNumber}
+              </div>
+            )}
 
             {supplierOrderId && (
               <div className="blood-strike-order-number">
-                <span>
-                  ID de orden del proveedor
-                </span>
-
-                <strong>
-                  #{supplierOrderId}
-                </strong>
+                ID proveedor: {supplierOrderId}
               </div>
             )}
 
             {orderStatus && (
               <div className="blood-strike-order-number">
-                <span>
-                  Estado
-                </span>
-
-                <strong>
-                  {orderStatus}
-                </strong>
+                Estado: {orderStatus}
               </div>
             )}
 
             <button
               type="button"
               className="blood-strike-review-button"
-              onClick={
-                goToOrders
-              }
+              onClick={goToOrders}
             >
               REVISAR ORDEN
             </button>
@@ -670,47 +367,25 @@ export default function BloodStrikePage() {
             <button
               type="button"
               className="blood-strike-store-button"
-              onClick={() =>
-                router.push(
-                  "/top-up"
-                )
-              }
+              onClick={goToStore}
             >
               VOLVER A LA TIENDA
             </button>
           </section>
         )}
 
-        {/* ==========================================================
-            INFORMACIÓN
-        ========================================================== */}
-
         <section className="blood-strike-service-info">
-          <h3>
-            Información del servicio
-          </h3>
+          <div className="blood-strike-service-info-title">
+            🩸 Servicio Blood Strike
+          </div>
 
-          <p>
-            Introduzca correctamente
-            su Player ID antes de
-            realizar la compra.
-          </p>
-
-          <p>
-            Compruebe los datos antes de
-            confirmar el pedido.
-          </p>
-
-          <p>
-            La orden queda registrada
-            para poder revisar su estado.
-          </p>
+          <div className="blood-strike-service-info-text">
+            Las recargas son procesadas automáticamente.
+            Comprueba cuidadosamente tu ID antes de crear
+            la orden.
+          </div>
         </section>
-      </section>
-
-      {/* ============================================================
-          FOOTER
-      ============================================================ */}
+      </div>
 
       <footer className="blood-strike-footer">
         🛒STORE GAMING🎮
@@ -719,142 +394,103 @@ export default function BloodStrikePage() {
       <style jsx>{`
         .blood-strike-page {
           min-height: 100vh;
-
+          width: 100%;
+          color: #fff;
           background:
             linear-gradient(
-              rgba(0, 0, 0, 0.78),
-              rgba(0, 0, 0, 0.9)
+              rgba(0, 0, 0, 0.68),
+              rgba(0, 0, 0, 0.78)
             ),
             url("/images/battle-royale-bg.jpg")
               center / cover fixed;
-
-          color: #fff;
-
-          padding-bottom: 30px;
+          overflow-x: hidden;
+          padding-bottom: 20px;
         }
 
         .blood-strike-header {
           position: sticky;
           top: 0;
           z-index: 20;
-
-          height: 64px;
-
-          display: grid;
-
-          grid-template-columns:
-            48px
-            1fr
-            48px;
-
+          width: 100%;
+          min-height: 58px;
+          display: flex;
           align-items: center;
-
-          padding: 0 10px;
-
-          background:
-            rgba(0, 0, 0, 0.92);
-
-          border-bottom:
-            1px solid
-            rgba(255, 255, 255, 0.08);
-
-          backdrop-filter: blur(12px);
+          justify-content: space-between;
+          gap: 10px;
+          padding: 8px 12px;
+          box-sizing: border-box;
+          background: rgba(0, 0, 0, 0.92);
+          border-bottom: 1px solid
+            rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
         }
 
         .blood-strike-back-button,
         .blood-strike-orders-button {
           width: 42px;
           height: 42px;
-
-          border: 0;
-
-          border-radius: 12px;
-
-          background:
-            rgba(
-              255,
-              255,
-              255,
-              0.08
-            );
-
-          color: #fff;
-
-          font-size: 21px;
-
+          flex: 0 0 42px;
           display: flex;
           align-items: center;
           justify-content: center;
-
+          border: 1px solid
+            rgba(255, 255, 255, 0.14);
+          border-radius: 11px;
+          background: rgba(255, 255, 255, 0.07);
+          color: #fff;
+          font-size: 20px;
+          font-weight: 900;
           cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+        }
+
+        .blood-strike-orders-button {
+          font-size: 19px;
         }
 
         .blood-strike-header-title {
-          display: flex;
-
-          flex-direction: column;
-
-          align-items: center;
-          justify-content: center;
-
+          flex: 1;
           text-align: center;
-        }
-
-        .blood-strike-header-title span {
-          font-size: 17px;
-
-          font-weight: 900;
-        }
-
-        .blood-strike-header-title small {
-          margin-top: 2px;
-
-          color: #aaa;
-
-          font-size: 10px;
-
-          text-transform: uppercase;
-
-          letter-spacing: 1px;
+          color: #fff;
+          font-size: 16px;
+          font-weight: 950;
+          letter-spacing: 0.5px;
+          white-space: nowrap;
         }
 
         .blood-strike-banner {
           position: relative;
-
           width: 100%;
-
+          height: 205px;
           overflow: hidden;
+          background: #080808;
         }
 
         .blood-strike-banner img {
-          display: block;
-
           width: 100%;
-
-          height: 230px;
-
+          height: 100%;
+          display: block;
           object-fit: cover;
         }
 
         .blood-strike-banner-overlay {
           position: absolute;
-
           inset: 0;
-
           display: flex;
-
           align-items: flex-end;
-
-          padding: 20px;
-
+          padding: 18px;
+          box-sizing: border-box;
           background:
             linear-gradient(
-              transparent 30%,
-              rgba(0, 0, 0, 0.88)
+              to top,
+              rgba(0, 0, 0, 0.88),
+              rgba(0, 0, 0, 0.1) 65%,
+              transparent
             );
         }
 
-                .blood-strike-banner-text {
+        .blood-strike-banner-text {
           display: flex;
           flex-direction: column;
         }
@@ -869,7 +505,6 @@ export default function BloodStrikePage() {
           margin-top: 3px;
           font-size: 13px;
           font-weight: 700;
-          opacity: 0.95;
         }
 
         .blood-strike-content {
@@ -879,6 +514,7 @@ export default function BloodStrikePage() {
           max-width: 650px;
           margin: 0 auto;
           padding: 18px 14px 30px;
+          box-sizing: border-box;
         }
 
         .blood-strike-note {
@@ -886,7 +522,8 @@ export default function BloodStrikePage() {
           padding: 12px 14px;
           border-radius: 12px;
           background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid
+            rgba(255, 255, 255, 0.12);
           color: #fff;
           text-align: center;
           font-size: 13px;
@@ -901,7 +538,8 @@ export default function BloodStrikePage() {
           align-items: center;
           justify-content: space-between;
           padding: 0 16px;
-          border: 1px solid rgba(255, 255, 255, 0.16);
+          border: 1px solid
+            rgba(255, 255, 255, 0.16);
           border-radius: 14px;
           background: rgba(15, 15, 15, 0.92);
           color: #fff;
@@ -940,7 +578,8 @@ export default function BloodStrikePage() {
           justify-content: space-between;
           gap: 12px;
           padding: 10px 12px;
-          border: 1px solid rgba(255, 255, 255, 0.13);
+          border: 1px solid
+            rgba(255, 255, 255, 0.13);
           border-radius: 14px;
           background: rgba(12, 12, 12, 0.94);
           color: #fff;
@@ -951,6 +590,7 @@ export default function BloodStrikePage() {
             background 0.15s ease;
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
+          text-align: left;
         }
 
         .blood-strike-offer:active {
@@ -1011,7 +651,8 @@ export default function BloodStrikePage() {
           padding: 14px;
           border-radius: 15px;
           background: rgba(12, 12, 12, 0.94);
-          border: 1px solid rgba(255, 255, 255, 0.14);
+          border: 1px solid
+            rgba(255, 255, 255, 0.14);
         }
 
         .blood-strike-selected-title {
@@ -1061,7 +702,8 @@ export default function BloodStrikePage() {
           width: 100%;
           height: 50px;
           padding: 0 14px;
-          border: 1px solid rgba(255, 255, 255, 0.16);
+          border: 1px solid
+            rgba(255, 255, 255, 0.16);
           border-radius: 12px;
           outline: none;
           background: rgba(0, 0, 0, 0.72);
@@ -1083,7 +725,8 @@ export default function BloodStrikePage() {
           padding: 11px 12px;
           border-radius: 11px;
           background: rgba(120, 0, 0, 0.35);
-          border: 1px solid rgba(255, 70, 70, 0.35);
+          border: 1px solid
+            rgba(255, 70, 70, 0.35);
           color: #ffb2b2;
           font-size: 12px;
           font-weight: 700;
@@ -1105,7 +748,7 @@ export default function BloodStrikePage() {
           font-weight: 950;
         }
 
-        .blood-strike-create-order-button {
+                .blood-strike-create-order-button {
           width: 100%;
           min-height: 52px;
           border: 0;
