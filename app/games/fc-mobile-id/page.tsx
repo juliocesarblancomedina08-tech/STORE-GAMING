@@ -11,7 +11,7 @@ import {
 export default function FcMobileIdPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
+  const [showOffers, setShowOffers] = useState(true);
   const [selectedOffer, setSelectedOffer] =
     useState<FcMobileIdOffer | null>(null);
 
@@ -40,7 +40,7 @@ export default function FcMobileIdPage() {
           behavior: "smooth",
           block: "start",
         });
-    }, 50);
+    }, 100);
   }
 
   async function createOrder() {
@@ -210,6 +210,7 @@ export default function FcMobileIdPage() {
         }
 
         .fc-mobile-id-banner {
+          position: relative;
           width: 100%;
           height: 210px;
           overflow: hidden;
@@ -226,6 +227,34 @@ export default function FcMobileIdPage() {
           height: 100%;
           display: block;
           object-fit: cover;
+        }
+
+        .fc-mobile-id-banner-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: flex-end;
+          padding: 18px;
+          background:
+            linear-gradient(
+              transparent 30%,
+              rgba(0, 0, 0, 0.82)
+            );
+        }
+
+        .fc-mobile-id-banner-text span {
+          display: block;
+          color: #ff3b3b;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 1.5px;
+        }
+
+        .fc-mobile-id-banner-text strong {
+          display: block;
+          margin-top: 3px;
+          font-size: 21px;
+          font-weight: 900;
         }
 
         .fc-mobile-id-note {
@@ -245,7 +274,7 @@ export default function FcMobileIdPage() {
         }
 
         .fc-mobile-id-note-warning {
-          margin-top: 8px;
+          margin-top: 9px;
           color: #ff6b6b;
           font-weight: 800;
         }
@@ -275,6 +304,13 @@ export default function FcMobileIdPage() {
 
         .fc-mobile-id-offers-section {
           margin-top: 10px;
+        }
+
+        .fc-mobile-id-offers-heading {
+          margin: 0 0 10px;
+          padding: 0 3px;
+          font-size: 17px;
+          font-weight: 900;
         }
 
         .fc-mobile-id-offers-list {
@@ -323,13 +359,20 @@ export default function FcMobileIdPage() {
         }
 
         .fc-mobile-id-offer-icon {
-          width: 38px;
-          height: 38px;
-          flex: 0 0 38px;
+          width: 40px;
+          height: 40px;
+          flex: 0 0 40px;
           display: grid;
           place-items: center;
           border-radius: 10px;
-          background: rgba(255, 255, 255, 0.08);
+          background:
+            linear-gradient(
+              145deg,
+              rgba(255, 48, 48, 0.25),
+              rgba(255, 255, 255, 0.06)
+            );
+          border: 1px solid
+            rgba(255, 48, 48, 0.18);
           font-size: 19px;
         }
 
@@ -511,7 +554,7 @@ export default function FcMobileIdPage() {
         }
 
         .fc-mobile-id-order-number {
-          margin-top: 12px;
+          margin-top: 10px;
           padding: 11px;
           border-radius: 10px;
           background: rgba(0, 0, 0, 0.35);
@@ -535,6 +578,10 @@ export default function FcMobileIdPage() {
           font-size: 13px;
           font-weight: 900;
           cursor: pointer;
+        }
+
+        .fc-mobile-id-success-button:hover {
+          background: rgba(255, 255, 255, 0.16);
         }
 
         .fc-mobile-id-service {
@@ -585,6 +632,10 @@ export default function FcMobileIdPage() {
             border-radius: 15px;
           }
 
+          .fc-mobile-id-banner-text strong {
+            font-size: 18px;
+          }
+
           .fc-mobile-id-offer {
             padding: 11px;
           }
@@ -608,6 +659,15 @@ export default function FcMobileIdPage() {
       `}</style>
 
       <header className="fc-mobile-id-header">
+        <button
+          type="button"
+          className="fc-mobile-id-back"
+          onClick={() => router.push("/top-up")}
+          aria-label="Volver"
+        >
+          ← Volver
+        </button>
+
         <h1 className="fc-mobile-id-title">
           EAFC Mobile 🇮🇩
         </h1>
@@ -615,26 +675,37 @@ export default function FcMobileIdPage() {
         <button
           type="button"
           className="fc-mobile-id-back"
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/orders")}
+          aria-label="Pedidos"
         >
-          ← Tienda
+          🛒
         </button>
       </header>
 
       <div className="fc-mobile-id-container">
-        <div className="fc-mobile-id-banner">
+        <section className="fc-mobile-id-banner">
           <img
             src="/images/fc-mobile.jpg"
             alt="EAFC Mobile"
           />
-        </div>
 
-        <div className="fc-mobile-id-note">
+          <div className="fc-mobile-id-banner-overlay">
+            <div className="fc-mobile-id-banner-text">
+              <span>RECARGA</span>
+              <strong>EA SPORTS FC MOBILE</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="fc-mobile-id-note">
           <strong>📌 Información del servicio</strong>
           <br />
           Región: Indonesia.
           <br />
           Recarga de EA Sports FC Mobile.
+          <br />
+          Introduce tu Player ID antes de realizar el
+          pedido.
           <br />
           El producto seleccionado se entrega
           directamente a tu cuenta después de realizar
@@ -644,7 +715,7 @@ export default function FcMobileIdPage() {
             ⚠️ Asegúrate de que tu cuenta EA esté
             registrada en la región de Indonesia.
           </div>
-        </div>
+        </section>
 
         <button
           type="button"
@@ -652,194 +723,212 @@ export default function FcMobileIdPage() {
           onClick={() => setShowOffers((value) => !value)}
         >
           <span>
-            ✏️ Presione para ver ofertas
+            ✏️ PRESIONE PARA VER OFERTAS
           </span>
 
           <span>
-            {showOffers ? "▲" : "▼"}
+            {showOffers ? "⌃" : "⌄"}
           </span>
         </button>
 
         {showOffers && (
           <section className="fc-mobile-id-offers-section">
+            <h2 className="fc-mobile-id-offers-heading">
+              SELECCIONA TU RECARGA
+            </h2>
+
             <div className="fc-mobile-id-offers-list">
               {FC_MOBILE_ID.offers.map(
-                (offer: FcMobileIdOffer) => (
-                  <button
-                    type="button"
-                    key={offer.id}
-                    className={`fc-mobile-id-offer ${
-                      selectedOffer?.id === offer.id
-                        ? "selected"
-                        : ""
-                    }`}
-                    onClick={() => selectOffer(offer)}
-                  >
-                    <div className="fc-mobile-id-offer-left">
-                      <div className="fc-mobile-id-offer-icon">
-                        ⚽
-                      </div>
+                (offer: FcMobileIdOffer) => {
+                  const isSelected =
+                    selectedOffer?.id === offer.id;
 
-                      <div>
-                        <div className="fc-mobile-id-offer-name">
-                          {offer.name}
+                  return (
+                    <button
+                      type="button"
+                      key={offer.id}
+                      className={`fc-mobile-id-offer ${
+                        isSelected ? "selected" : ""
+                      }`}
+                      onClick={() => selectOffer(offer)}
+                    >
+                      <div className="fc-mobile-id-offer-left">
+                        <div className="fc-mobile-id-offer-icon">
+                          ⚽
+                        </div>
+
+                        <div>
+                          <div className="fc-mobile-id-offer-name">
+                            {offer.name}
+                          </div>
+
+                          <div className="fc-mobile-id-offer-description">
+                            EAFC Mobile Indonesia
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="fc-mobile-id-offer-price">
-                      ${Number(offer.price).toFixed(2)}
-                    </div>
-                  </button>
-                )
+                      <div className="fc-mobile-id-offer-price">
+                        ${Number(offer.price).toFixed(2)}
+                      </div>
+                    </button>
+                  );
+                }
               )}
             </div>
           </section>
         )}
 
-        {selectedOffer && (
-          <section
-            id="order-section"
-            className="fc-mobile-id-order-section"
-          >
-            <h2 className="fc-mobile-id-section-title">
-              Crear pedido
-            </h2>
+        {selectedOffer && !orderCreated && (
+  <section
+    id="order-section"
+    className="fc-mobile-id-order-section"
+  >
+    <h2 className="fc-mobile-id-section-title">
+      COMPLETA TU PEDIDO
+    </h2>
 
-            <div className="fc-mobile-id-selected">
-              <div className="fc-mobile-id-selected-label">
-                Oferta seleccionada
-              </div>
+    <div className="fc-mobile-id-selected">
+      <div className="fc-mobile-id-selected-label">
+        Oferta seleccionada
+      </div>
 
-              <div className="fc-mobile-id-selected-row">
-                <div className="fc-mobile-id-selected-name">
-                  {selectedOffer.name}
-                </div>
+      <div className="fc-mobile-id-selected-row">
+        <div className="fc-mobile-id-selected-name">
+          {selectedOffer.name}
+        </div>
 
-                <div className="fc-mobile-id-selected-price">
-                  ${Number(selectedOffer.price).toFixed(2)}
-                </div>
-              </div>
-            </div>
+        <div className="fc-mobile-id-selected-price">
+          ${Number(selectedOffer.price).toFixed(2)}
+        </div>
+      </div>
+    </div>
 
-            <form
-              className="fc-mobile-id-form"
-              onSubmit={handleSubmit}
-            >
-              <label className="fc-mobile-id-label">
-                Player ID
+    <form
+      className="fc-mobile-id-form"
+      onSubmit={handleSubmit}
+    >
+      <label className="fc-mobile-id-label">
+        PLAYER ID
 
-                <input
-                  className="fc-mobile-id-input"
-                  type="text"
-                  inputMode="numeric"
-                  value={playerId}
-                  onChange={(event) =>
-                    setPlayerId(
-                      event.target.value.replace(/\D/g, "")
-                    )
-                  }
-                  placeholder="Ingrese su Player ID"
-                  maxLength={20}
-                  disabled={processing}
-                />
-              </label>
+        <input
+          className="fc-mobile-id-input"
+          type="text"
+          inputMode="numeric"
+          value={playerId}
+          onChange={(event) => {
+            setPlayerId(
+              event.target.value.replace(/\D/g, "")
+            );
+            setError("");
+          }}
+          placeholder="Ingrese su Player ID"
+          maxLength={20}
+          autoComplete="off"
+          disabled={processing}
+        />
+      </label>
 
-              {error && (
-                <div className="fc-mobile-id-error">
-                  {error}
-                </div>
-              )}
+      <div className="fc-mobile-id-note">
+        Introduce únicamente el Player ID numérico
+        de tu cuenta de EAFC Mobile Indonesia.
+      </div>
 
-              <button
-                type="submit"
-                className="fc-mobile-id-create-button"
-                disabled={processing}
-              >
-                {processing
-                  ? "Procesando pedido..."
-                  : "Crear pedido"}
-              </button>
-            </form>
-          </section>
-        )}
+      {error && (
+        <div className="fc-mobile-id-error">
+          {error}
+        </div>
+      )}
 
-        {orderCreated && (
-          <section
-            id="success-section"
-            className="fc-mobile-id-success"
-          >
-            <div className="fc-mobile-id-success-icon">
-              ✓
-            </div>
+      <button
+        type="submit"
+        className="fc-mobile-id-create-button"
+        disabled={processing}
+      >
+        {processing
+          ? "PROCESANDO PEDIDO..."
+          : "CREAR PEDIDO"}
+      </button>
+    </form>
+  </section>
+)}
 
-            <h2 className="fc-mobile-id-success-title">
-              ¡Orden creada!
-            </h2>
+{orderCreated && (
+  <section
+    id="success-section"
+    className="fc-mobile-id-success"
+  >
+    <div className="fc-mobile-id-success-icon">
+      ✓
+    </div>
 
-            <p className="fc-mobile-id-success-text">
-              Tu pedido fue registrado correctamente.
-              El proveedor procesará la recarga.
-            </p>
+    <h2 className="fc-mobile-id-success-title">
+      ¡ORDEN CREADA!
+    </h2>
 
-                        {orderNumber && (
-              <div className="fc-mobile-id-order-number">
-                🧾 Orden: {orderNumber}
-              </div>
-            )}
+    <p className="fc-mobile-id-success-text">
+      Tu pedido fue registrado correctamente.
+      El proveedor procesará la recarga.
+    </p>
 
-            {supplierOrderId && (
-              <div className="fc-mobile-id-order-number">
-                Proveedor: {supplierOrderId}
-              </div>
-            )}
+    {orderNumber && (
+      <div className="fc-mobile-id-order-number">
+        🧾 Orden: {orderNumber}
+      </div>
+    )}
 
-            {orderStatus && (
-              <div className="fc-mobile-id-order-number">
-                Estado: {orderStatus}
-              </div>
-            )}
+    {supplierOrderId && (
+      <div className="fc-mobile-id-order-number">
+        Proveedor: {supplierOrderId}
+      </div>
+    )}
 
-            <div className="fc-mobile-id-success-actions">
-              <button
-                type="button"
-                className="fc-mobile-id-success-button"
-                onClick={() => router.push("/orders")}
-              >
-                📋 Revisar orden
-              </button>
+    {orderStatus && (
+      <div className="fc-mobile-id-order-number">
+        Estado: {orderStatus}
+      </div>
+    )}
 
-              <button
-                type="button"
-                className="fc-mobile-id-success-button"
-                onClick={() => router.push("/")}
-              >
-                🛒 Volver a la tienda
-              </button>
-            </div>
-          </section>
-        )}
+    <div className="fc-mobile-id-success-actions">
+      <button
+        type="button"
+        className="fc-mobile-id-success-button"
+        onClick={() => router.push("/orders")}
+      >
+        📋 Revisar orden
+      </button>
 
-        <section className="fc-mobile-id-service">
-          <h3 className="fc-mobile-id-service-title">
-            ⚡ Servicio de recarga
-          </h3>
+      <button
+        type="button"
+        className="fc-mobile-id-success-button"
+        onClick={() => router.push("/top-up")}
+      >
+        🛒 Volver a la tienda
+      </button>
+    </div>
+  </section>
+)}
 
-          <ul className="fc-mobile-id-service-list">
-            <li>Entrega directa a la cuenta.</li>
-            <li>Región: Indonesia.</li>
-            <li>Necesitas introducir tu Player ID.</li>
-            <li>
-              Los productos están bloqueados por región.
-            </li>
-          </ul>
-        </section>
+<section className="fc-mobile-id-service">
+  <h3 className="fc-mobile-id-service-title">
+    ⚡ SERVICIO DE RECARGA
+  </h3>
 
-        <footer className="fc-mobile-id-footer">
-          🛒STORE GAMING🎮
-          <br />
-          EAFC Mobile (ID)
-        </footer>
+  <ul className="fc-mobile-id-service-list">
+    <li>Entrega directa a la cuenta.</li>
+    <li>Región: Indonesia.</li>
+    <li>Necesitas introducir tu Player ID.</li>
+    <li>
+      Los productos están bloqueados por región.
+    </li>
+  </ul>
+</section>
+
+<footer className="fc-mobile-id-footer">
+  <strong>🛒STORE GAMING🎮</strong>
+  <br />
+  EAFC Mobile (ID)
+</footer>
       </div>
     </main>
   );
