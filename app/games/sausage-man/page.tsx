@@ -11,46 +11,28 @@ import {
 export default function SausageManPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
+  const [showOffers, setShowOffers] = useState(true);
 
   const [selectedOffer, setSelectedOffer] =
     useState<SausageManOffer | null>(null);
 
-  const [characterId, setCharacterId] =
-    useState("");
-
+  const [characterId, setCharacterId] = useState("");
   const [error, setError] = useState("");
 
-  const [orderCreated, setOrderCreated] =
-    useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [supplierOrderId, setSupplierOrderId] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
 
-  const [orderNumber, setOrderNumber] =
-    useState("");
+  const [processing, setProcessing] = useState(false);
 
-  const [supplierOrderId, setSupplierOrderId] =
-    useState("");
-
-  const [orderStatus, setOrderStatus] =
-    useState("");
-
-  const [processing, setProcessing] =
-    useState(false);
-
-  function selectOffer(
-    offer: SausageManOffer
-  ) {
+  function selectOffer(offer: SausageManOffer) {
     setSelectedOffer(offer);
-
     setCharacterId("");
-
     setError("");
-
     setOrderCreated(false);
-
     setOrderNumber("");
-
     setSupplierOrderId("");
-
     setOrderStatus("");
 
     setTimeout(() => {
@@ -60,7 +42,7 @@ export default function SausageManPage() {
           behavior: "smooth",
           block: "start",
         });
-    }, 50);
+    }, 100);
   }
 
   async function createOrder() {
@@ -69,8 +51,7 @@ export default function SausageManPage() {
       return;
     }
 
-    const cleanCharacterId =
-      characterId.trim();
+    const cleanCharacterId = characterId.trim();
 
     if (!/^\d{4,20}$/.test(cleanCharacterId)) {
       setError(
@@ -91,45 +72,30 @@ export default function SausageManPage() {
         setError(
           "Su sesión ha expirado. Inicie sesión nuevamente."
         );
-
         return;
       }
 
-      const idempotencyKey =
-        crypto.randomUUID();
+      const idempotencyKey = crypto.randomUUID();
 
       const response = await fetch(
         "/api/topups/sausage-man",
         {
           method: "POST",
-
           headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
           },
-
           body: JSON.stringify({
             offerId: selectedOffer.id,
-
-            offerName:
-              selectedOffer.name,
-
-            characterId:
-              cleanCharacterId,
-
-            retailPrice:
-              selectedOffer.price,
-
+            offerName: selectedOffer.name,
+            characterId: cleanCharacterId,
+            retailPrice: selectedOffer.price,
             idempotencyKey,
           }),
         }
       );
 
-      const result =
-        await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -139,8 +105,7 @@ export default function SausageManPage() {
         );
       }
 
-      const order =
-        result?.order || {};
+      const order = result?.order || {};
 
       setOrderNumber(
         order?.order_number ||
@@ -165,9 +130,7 @@ export default function SausageManPage() {
 
       setTimeout(() => {
         document
-          .getElementById(
-            "success-section"
-          )
+          .getElementById("success-section")
           ?.scrollIntoView({
             behavior: "smooth",
             block: "start",
@@ -188,7 +151,6 @@ export default function SausageManPage() {
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
     void createOrder();
   }
 
@@ -199,7 +161,6 @@ export default function SausageManPage() {
           min-height: 100vh;
           padding-bottom: 40px;
           color: #fff;
-
           background:
             linear-gradient(
               rgba(0, 0, 0, 0.72),
@@ -207,85 +168,57 @@ export default function SausageManPage() {
             ),
             url("/images/battle-royale-bg.jpg")
               center / cover fixed;
-
-          font-family:
-            Arial,
-            Helvetica,
-            sans-serif;
+          font-family: Arial, Helvetica, sans-serif;
         }
 
         .sausage-header {
           position: sticky;
           top: 0;
           z-index: 20;
-
           display: flex;
           align-items: center;
           justify-content: space-between;
-
           gap: 12px;
-
           padding: 13px 16px;
-
-          background:
-            rgba(5, 5, 5, 0.95);
-
-          border-bottom:
-            1px solid
+          background: rgba(5, 5, 5, 0.95);
+          border-bottom: 1px solid
             rgba(255, 255, 255, 0.08);
-
           backdrop-filter: blur(12px);
         }
 
         .sausage-title {
           margin: 0;
-
           font-size: 20px;
           font-weight: 900;
-
           letter-spacing: 0.3px;
         }
 
         .sausage-back {
           border: 0;
-
           border-radius: 10px;
-
           padding: 9px 12px;
-
           color: #fff;
-
-          background:
-            rgba(255, 255, 255, 0.08);
-
+          background: rgba(255, 255, 255, 0.08);
           font-size: 13px;
           font-weight: 800;
-
           cursor: pointer;
         }
 
         .sausage-container {
           width: min(720px, 100%);
-
           margin: 0 auto;
-
           padding: 18px 14px 0;
         }
 
         .sausage-banner {
+          position: relative;
           width: 100%;
           height: 210px;
-
           overflow: hidden;
-
           border-radius: 18px;
-
           background: #111;
-
-          border:
-            1px solid
+          border: 1px solid
             rgba(255, 255, 255, 0.1);
-
           box-shadow:
             0 12px 35px
             rgba(0, 0, 0, 0.5);
@@ -294,30 +227,47 @@ export default function SausageManPage() {
         .sausage-banner img {
           width: 100%;
           height: 100%;
-
           display: block;
-
           object-fit: cover;
+        }
+
+        .sausage-banner-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: flex-end;
+          padding: 18px;
+          background:
+            linear-gradient(
+              transparent 30%,
+              rgba(0, 0, 0, 0.85)
+            );
+        }
+
+        .sausage-banner-text span {
+          display: block;
+          color: #ff3030;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 1.5px;
+        }
+
+        .sausage-banner-text strong {
+          display: block;
+          margin-top: 3px;
+          font-size: 22px;
+          font-weight: 900;
         }
 
         .sausage-note {
           margin-top: 14px;
-
           padding: 14px;
-
           border-radius: 14px;
-
-          background:
-            rgba(0, 0, 0, 0.78);
-
-          border:
-            1px solid
+          background: rgba(0, 0, 0, 0.78);
+          border: 1px solid
             rgba(255, 255, 255, 0.08);
-
           color: #ddd;
-
           font-size: 13px;
-
           line-height: 1.55;
         }
 
@@ -325,41 +275,32 @@ export default function SausageManPage() {
           color: #fff;
         }
 
+        .sausage-note-warning {
+          margin-top: 8px;
+          color: #ff6b6b;
+          font-weight: 800;
+        }
+
         .sausage-toggle {
           width: 100%;
-
           margin-top: 16px;
-
           padding: 15px 16px;
-
           display: flex;
-
           align-items: center;
-
           justify-content: space-between;
-
           gap: 12px;
-
-          border:
-            1px solid
+          border: 1px solid
             rgba(255, 255, 255, 0.1);
-
           border-radius: 14px;
-
-          background:
-            rgba(10, 10, 10, 0.9);
-
+          background: rgba(10, 10, 10, 0.9);
           color: #fff;
-
           font-size: 15px;
           font-weight: 900;
-
           cursor: pointer;
         }
 
         .sausage-arrow {
           color: #ff3030;
-
           font-size: 20px;
         }
 
@@ -367,42 +308,33 @@ export default function SausageManPage() {
           margin-top: 10px;
         }
 
+        .sausage-heading {
+          margin: 0 0 10px;
+          padding: 0 3px;
+          font-size: 17px;
+          font-weight: 900;
+        }
+
         .sausage-list {
           display: flex;
-
           flex-direction: column;
-
           gap: 9px;
         }
 
         .sausage-offer {
           width: 100%;
-
           display: flex;
-
           align-items: center;
-
           justify-content: space-between;
-
           gap: 12px;
-
           padding: 13px;
-
-          border:
-            1px solid
+          border: 1px solid
             rgba(255, 255, 255, 0.09);
-
           border-radius: 13px;
-
-          background:
-            rgba(5, 5, 5, 0.88);
-
+          background: rgba(5, 5, 5, 0.88);
           color: #fff;
-
           cursor: pointer;
-
           text-align: left;
-
           transition:
             transform 0.15s ease,
             border-color 0.15s ease,
@@ -411,17 +343,12 @@ export default function SausageManPage() {
 
         .sausage-offer:hover {
           transform: translateY(-1px);
-
-          border-color:
-            rgba(255, 48, 48, 0.65);
+          border-color: rgba(255, 48, 48, 0.65);
         }
 
         .sausage-offer.selected {
           border-color: #ff3030;
-
-          background:
-            rgba(90, 0, 0, 0.42);
-
+          background: rgba(90, 0, 0, 0.42);
           box-shadow:
             0 0 0 1px
             rgba(255, 48, 48, 0.2);
@@ -429,164 +356,125 @@ export default function SausageManPage() {
 
         .sausage-offer-left {
           display: flex;
-
           align-items: center;
-
           gap: 11px;
-
           min-width: 0;
         }
 
         .sausage-icon {
-          width: 38px;
-          height: 38px;
-
-          flex: 0 0 38px;
-
+          width: 40px;
+          height: 40px;
+          flex: 0 0 40px;
           display: grid;
-
           place-items: center;
-
           border-radius: 10px;
-
           background:
-            rgba(255, 255, 255, 0.08);
-
+            linear-gradient(
+              145deg,
+              rgba(255, 48, 48, 0.25),
+              rgba(255, 255, 255, 0.06)
+            );
+          border: 1px solid
+            rgba(255, 48, 48, 0.18);
           font-size: 19px;
         }
 
         .sausage-offer-name {
           font-size: 14px;
-
           font-weight: 900;
-
           line-height: 1.3;
+        }
+
+        .sausage-offer-description {
+          margin-top: 3px;
+          color: #aaa;
+          font-size: 11px;
         }
 
         .sausage-offer-price {
           flex-shrink: 0;
-
+          color: #fff;
           font-size: 15px;
-
           font-weight: 900;
         }
 
         .sausage-order {
           margin-top: 16px;
-
           padding: 16px;
-
           border-radius: 15px;
-
-          background:
-            rgba(0, 0, 0, 0.82);
-
-          border:
-            1px solid
+          background: rgba(0, 0, 0, 0.82);
+          border: 1px solid
             rgba(255, 255, 255, 0.1);
         }
 
         .sausage-section-title {
           margin: 0 0 12px;
-
           font-size: 17px;
-
           font-weight: 900;
         }
 
         .sausage-selected {
           margin-bottom: 14px;
-
           padding: 12px;
-
           border-radius: 12px;
-
-          background:
-            rgba(255, 255, 255, 0.06);
-
-          border:
-            1px solid
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid
             rgba(255, 255, 255, 0.08);
         }
 
         .sausage-selected-label {
           color: #999;
-
           font-size: 11px;
-
           text-transform: uppercase;
-
           letter-spacing: 0.6px;
         }
 
         .sausage-selected-row {
           margin-top: 5px;
-
           display: flex;
-
           align-items: center;
-
           justify-content: space-between;
-
           gap: 12px;
         }
 
         .sausage-selected-name {
           font-size: 14px;
-
           font-weight: 900;
         }
 
         .sausage-selected-price {
           color: #ff4b4b;
-
           font-weight: 900;
         }
 
         .sausage-form {
           display: flex;
-
           flex-direction: column;
-
           gap: 12px;
         }
 
         .sausage-label {
           color: #bbb;
-
           font-size: 12px;
-
           font-weight: 800;
         }
 
         .sausage-input {
           width: 100%;
-
           box-sizing: border-box;
-
           margin-top: 6px;
-
           padding: 13px 14px;
-
           border-radius: 11px;
-
-          border:
-            1px solid
+          border: 1px solid
             rgba(255, 255, 255, 0.12);
-
           outline: none;
-
-          background:
-            rgba(255, 255, 255, 0.06);
-
+          background: rgba(255, 255, 255, 0.06);
           color: #fff;
-
           font-size: 15px;
         }
 
         .sausage-input:focus {
           border-color: #ff3030;
-
           box-shadow:
             0 0 0 2px
             rgba(255, 48, 48, 0.12);
@@ -598,42 +486,25 @@ export default function SausageManPage() {
 
         .sausage-error {
           padding: 11px 12px;
-
           border-radius: 10px;
-
-          border:
-            1px solid
+          border: 1px solid
             rgba(255, 50, 50, 0.35);
-
-          background:
-            rgba(110, 0, 0, 0.3);
-
+          background: rgba(110, 0, 0, 0.3);
           color: #ff6868;
-
           font-size: 13px;
-
           font-weight: 800;
         }
 
         .sausage-create {
           width: 100%;
-
           padding: 14px;
-
           border: 0;
-
           border-radius: 12px;
-
           background: #e52525;
-
           color: #fff;
-
           font-size: 15px;
-
           font-weight: 900;
-
           cursor: pointer;
-
           transition:
             transform 0.15s ease,
             opacity 0.15s ease;
@@ -645,157 +516,109 @@ export default function SausageManPage() {
 
         .sausage-create:disabled {
           opacity: 0.55;
-
           cursor: not-allowed;
-
           transform: none;
         }
 
         .sausage-success {
           margin-top: 16px;
-
           padding: 18px 16px;
-
           border-radius: 15px;
-
-          background:
-            rgba(0, 45, 20, 0.82);
-
-          border:
-            1px solid
+          background: rgba(0, 45, 20, 0.82);
+          border: 1px solid
             rgba(57, 255, 130, 0.25);
-
           text-align: center;
         }
 
         .sausage-success-icon {
           width: 54px;
           height: 54px;
-
-          margin:
-            0 auto 10px;
-
+          margin: 0 auto 10px;
           display: grid;
-
           place-items: center;
-
           border-radius: 50%;
-
           background: #18a957;
-
           color: #fff;
-
           font-size: 27px;
-
           font-weight: 900;
         }
 
         .sausage-success-title {
           margin: 0;
-
           font-size: 20px;
-
           font-weight: 900;
         }
 
         .sausage-success-text {
           margin: 8px 0 0;
-
           color: #c9e8d5;
-
           font-size: 13px;
-
           line-height: 1.5;
         }
 
         .sausage-order-number {
-          margin-top: 12px;
-
+          margin-top: 10px;
           padding: 11px;
-
           border-radius: 10px;
-
-          background:
-            rgba(0, 0, 0, 0.35);
-
+          background: rgba(0, 0, 0, 0.35);
           font-weight: 900;
-
           word-break: break-word;
         }
 
         .sausage-actions {
           display: grid;
-
           grid-template-columns: 1fr 1fr;
-
           gap: 9px;
-
           margin-top: 13px;
         }
 
         .sausage-action {
           padding: 12px 10px;
-
           border: 0;
-
           border-radius: 10px;
-
           color: #fff;
-
-          background:
-            rgba(255, 255, 255, 0.1);
-
+          background: rgba(255, 255, 255, 0.1);
           font-size: 13px;
-
           font-weight: 900;
-
           cursor: pointer;
+        }
+
+        .sausage-action:hover {
+          background: rgba(255, 255, 255, 0.16);
         }
 
         .sausage-service {
           margin-top: 16px;
-
           padding: 15px;
-
           border-radius: 14px;
-
-          background:
-            rgba(0, 0, 0, 0.72);
-
-          border:
-            1px solid
+          background: rgba(0, 0, 0, 0.72);
+          border: 1px solid
             rgba(255, 255, 255, 0.08);
         }
 
         .sausage-service-title {
           margin: 0 0 9px;
-
           font-size: 14px;
-
           font-weight: 900;
         }
 
         .sausage-service-list {
           margin: 0;
-
           padding-left: 18px;
-
           color: #bbb;
-
           font-size: 12px;
-
           line-height: 1.7;
         }
 
         .sausage-footer {
-          padding:
-            24px 14px 0;
-
+          padding: 24px 14px 0;
           text-align: center;
-
           color: #777;
-
           font-size: 11px;
+        }
+
+        .sausage-footer strong {
+          color: #aaa;
         }
 
         @media (max-width: 480px) {
@@ -808,14 +631,16 @@ export default function SausageManPage() {
           }
 
           .sausage-container {
-            padding:
-              12px 10px 0;
+            padding: 12px 10px 0;
           }
 
           .sausage-banner {
             height: 175px;
-
             border-radius: 15px;
+          }
+
+          .sausage-banner-text strong {
+            font-size: 18px;
           }
 
           .sausage-offer {
@@ -824,6 +649,10 @@ export default function SausageManPage() {
 
           .sausage-offer-name {
             font-size: 13px;
+          }
+
+          .sausage-offer-description {
+            font-size: 10px;
           }
 
           .sausage-offer-price {
@@ -837,28 +666,44 @@ export default function SausageManPage() {
       `}</style>
 
       <header className="sausage-header">
+        <button
+          type="button"
+          className="sausage-back"
+          onClick={() => router.push("/top-up")}
+        >
+          ← Volver
+        </button>
+
         <h1 className="sausage-title">
-          Sausage Man
+          SAUSAGE MAN
         </h1>
 
         <button
           type="button"
           className="sausage-back"
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/orders")}
+          aria-label="Pedidos"
         >
-          ← Tienda
+          🛒
         </button>
       </header>
 
       <div className="sausage-container">
-        <div className="sausage-banner">
+        <section className="sausage-banner">
           <img
             src="/images/sausage-man.jpg"
             alt="Sausage Man"
           />
-        </div>
 
-        <div className="sausage-note">
+          <div className="sausage-banner-overlay">
+            <div className="sausage-banner-text">
+              <span>RECARGA</span>
+              <strong>SAUSAGE MAN</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="sausage-note">
           <strong>
             📌 Información del servicio
           </strong>
@@ -869,36 +714,38 @@ export default function SausageManPage() {
 
           <br />
 
-          Introduce tu ID de personaje antes
-          de realizar el pedido.
+          Introduce tu ID de personaje antes de
+          realizar el pedido.
 
           <br />
 
           El producto seleccionado se entrega
-          directamente a tu cuenta después
-          de realizar el pedido.
-        </div>
+          directamente a tu cuenta después de
+          realizar el pedido.
+        </section>
 
         <button
           type="button"
           className="sausage-toggle"
           onClick={() =>
-            setShowOffers(
-              (value) => !value
-            )
+            setShowOffers((value) => !value)
           }
         >
           <span>
-            ✏️ Presione para ver ofertas
+            ✏️ PRESIONE PARA VER OFERTAS
           </span>
 
           <span className="sausage-arrow">
-            {showOffers ? "▲" : "▼"}
+            {showOffers ? "⌃" : "⌄"}
           </span>
         </button>
 
         {showOffers && (
           <section className="sausage-offers">
+            <h2 className="sausage-heading">
+              SELECCIONA TU RECARGA
+            </h2>
+
             <div className="sausage-list">
               {SAUSAGE_MAN.offers.map(
                 (offer) => (
@@ -906,8 +753,7 @@ export default function SausageManPage() {
                     type="button"
                     key={offer.id}
                     className={`sausage-offer ${
-                      selectedOffer?.id ===
-                      offer.id
+                      selectedOffer?.id === offer.id
                         ? "selected"
                         : ""
                     }`}
@@ -923,6 +769,10 @@ export default function SausageManPage() {
                       <div>
                         <div className="sausage-offer-name">
                           {offer.name}
+                        </div>
+
+                        <div className="sausage-offer-description">
+                          Sausage Man
                         </div>
                       </div>
                     </div>
@@ -940,13 +790,13 @@ export default function SausageManPage() {
           </section>
         )}
 
-        {selectedOffer && (
+        {selectedOffer && !orderCreated && (
           <section
             id="order-section"
             className="sausage-order"
           >
             <h2 className="sausage-section-title">
-              Crear pedido
+              COMPLETA TU PEDIDO
             </h2>
 
             <div className="sausage-selected">
@@ -973,107 +823,103 @@ export default function SausageManPage() {
               onSubmit={handleSubmit}
             >
               <label className="sausage-label">
-                ID de personaje
+                ID DE PERSONAJE
 
                 <input
-                  className="sausage-input"
-                  type="text"
-                  inputMode="numeric"
-                  value={characterId}
-                  onChange={(event) =>
-                    setCharacterId(
-                      event.target.value.replace(
-                        /\D/g,
-                        ""
-                      )
-                    )
-                  }
-                  placeholder="Ingrese su ID de personaje"
-                  maxLength={20}
-                  disabled={processing}
-                />
-              </label>
+  className="sausage-input"
+  type="text"
+  inputMode="numeric"
+  value={characterId}
+  onChange={(event) => {
+    setCharacterId(
+      event.target.value.replace(/\D/g, "")
+    );
+    setError("");
+  }}
+  placeholder="Ingrese su ID de personaje"
+  maxLength={20}
+  autoComplete="off"
+  disabled={processing}
+/>
 
-              {error && (
-                <div className="sausage-error">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="sausage-create"
-                disabled={processing}
-              >
-                {processing
-                  ? "Procesando pedido..."
-                  : "Crear pedido"}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {orderCreated && (
-          <section
-            id="success-section"
-            className="sausage-success"
-          >
-            <div className="sausage-success-icon">
-              ✓
-            </div>
-
-            <h2 className="sausage-success-title">
-              ¡Orden creada!
-            </h2>
-
-            <p className="sausage-success-text">
-  Tu pedido fue registrado
-  correctamente.
-  El proveedor procesará
-  la recarga.
-</p>
-
-{orderNumber && (
-  <div className="sausage-order-number">
-    🧾 Orden: {orderNumber}
+{error && (
+  <div className="sausage-error">
+    {error}
   </div>
 )}
 
-{supplierOrderId && (
-  <div className="sausage-order-number">
-    Proveedor: {supplierOrderId}
-  </div>
-)}
-
-{orderStatus && (
-  <div className="sausage-order-number">
-    Estado: {orderStatus}
-  </div>
-)}
-
-<div className="sausage-actions">
-  <button
-    type="button"
-    className="sausage-action"
-    onClick={() => router.push("/orders")}
-  >
-    📋 Revisar orden
-  </button>
-
-  <button
-    type="button"
-    className="sausage-action"
-    onClick={() => router.push("/")}
-  >
-    🛒 Volver a la tienda
-  </button>
-</div>
+<button
+  type="submit"
+  className="sausage-create"
+  disabled={processing}
+>
+  {processing
+    ? "PROCESANDO PEDIDO..."
+    : "CREAR PEDIDO"}
+</button>
+</form>
 </section>
+)}
+
+{orderCreated && (
+  <section
+    id="success-section"
+    className="sausage-success"
+  >
+    <div className="sausage-success-icon">
+      ✓
+    </div>
+
+    <h2 className="sausage-success-title">
+      ¡ORDEN CREADA!
+    </h2>
+
+    <p className="sausage-success-text">
+      Tu pedido fue registrado correctamente.
+      El proveedor procesará la recarga.
+    </p>
+
+    {orderNumber && (
+      <div className="sausage-order-number">
+        🧾 Orden: {orderNumber}
+      </div>
+    )}
+
+    {supplierOrderId && (
+      <div className="sausage-order-number">
+        Proveedor: {supplierOrderId}
+      </div>
+    )}
+
+    {orderStatus && (
+      <div className="sausage-order-number">
+        Estado: {orderStatus}
+      </div>
+    )}
+
+    <div className="sausage-actions">
+      <button
+        type="button"
+        className="sausage-action"
+        onClick={() => router.push("/orders")}
+      >
+        📋 Revisar orden
+      </button>
+
+      <button
+        type="button"
+        className="sausage-action"
+        onClick={() => router.push("/top-up")}
+      >
+        🛒 Volver a la tienda
+      </button>
+    </div>
+  </section>
 )}
 
 <section className="sausage-service">
   <h3 className="sausage-service-title">
-    ⚡ Servicio de recarga
+    ⚡ SERVICIO DE RECARGA
   </h3>
 
   <ul className="sausage-service-list">
@@ -1082,25 +928,26 @@ export default function SausageManPage() {
     </li>
 
     <li>
-      Necesitas introducir tu Player ID.
+      Necesitas introducir tu ID de personaje.
     </li>
 
     <li>
-      Pedido procesado mediante FazerCards.
+      El producto seleccionado se procesa
+      directamente con el proveedor.
     </li>
 
     <li>
-      Revisa tu ID antes de confirmar el pedido.
+      Si tienes algún problema, contacta con soporte.
     </li>
   </ul>
 </section>
 
 <footer className="sausage-footer">
-  🛒STORE GAMING🎮
+  <strong>🛒STORE GAMING🎮</strong>
   <br />
-  Honor of Kings
+  Sausage Man
 </footer>
 </div>
 </main>
 );
-}
+        }
