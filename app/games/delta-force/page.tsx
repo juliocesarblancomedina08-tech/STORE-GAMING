@@ -15,7 +15,7 @@ type SupplierOffer = {
   price_usd: string | number;
 };
 
-type DeltaOffer = {
+type SausageOffer = {
   id: string;
   supplierOfferId: string;
   name: string;
@@ -30,7 +30,11 @@ const STORE_MARGIN = 0.2;
 function getIcon(name: string) {
   const lower = name.toLowerCase();
 
-  if (lower.includes("pass") || lower.includes("deluxe")) {
+  if (
+    lower.includes("pass") ||
+    lower.includes("membership") ||
+    lower.includes("member")
+  ) {
     return "🎟️";
   }
 
@@ -38,40 +42,26 @@ function getIcon(name: string) {
 }
 
 function getDisplay(name: string) {
-  const lower = name.toLowerCase();
-
-  if (lower.includes("season pass operations")) {
-    return "PASE OPERACIONES 🎟️";
-  }
-
-  if (lower.includes("season pass warfare")) {
-    return "PASE WARFARE 🎟️";
-  }
-
-  if (lower.includes("season pass delta force deluxe")) {
-    return "DELUXE 🎟️";
-  }
-
-  const match = name.match(/^(\d+)\s+Delta/i);
+  const match = name.match(/^(\d+)/);
 
   if (match) {
-    return `${match[1]}🪙`;
+    return `${match[1]} 🪙`;
   }
 
   return name;
 }
 
-export default function DeltaForcePage() {
+export default function SausageManPage() {
   const router = useRouter();
 
-  const [offers, setOffers] = useState<DeltaOffer[]>([]);
+  const [offers, setOffers] = useState<SausageOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(true);
   const [offersOpen, setOffersOpen] = useState(false);
 
   const [selectedOffer, setSelectedOffer] =
-    useState<DeltaOffer | null>(null);
+    useState<SausageOffer | null>(null);
 
-  const [playerId, setPlayerId] = useState("");
+  const [characterId, setCharacterId] = useState("");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
 
@@ -87,7 +77,7 @@ export default function DeltaForcePage() {
         setError("");
 
         const response = await fetch(
-          "/api/fazercards/topups?category_id=delta_force",
+          "/api/fazercards/topups?category_id=sausage_man",
           {
             cache: "no-store",
           }
@@ -97,19 +87,20 @@ export default function DeltaForcePage() {
 
         if (!response.ok || !data?.ok) {
           throw new Error(
-            data?.error || "No se pudo cargar el catálogo."
+            data?.error ||
+              "No se pudo cargar el catálogo."
           );
         }
 
-        const supplierOffers: SupplierOffer[] = Array.isArray(
-          data.offers
-        )
-          ? data.offers
-          : [];
+        const supplierOffers: SupplierOffer[] =
+          Array.isArray(data.offers)
+            ? data.offers
+            : [];
 
-        const normalized: DeltaOffer[] = supplierOffers.map(
-          (offer) => {
-            const supplierPrice = Number(offer.price_usd);
+        const normalized: SausageOffer[] =
+          supplierOffers.map((offer) => {
+            const supplierPrice =
+              Number(offer.price_usd);
 
             return {
               id: offer.offer_id,
@@ -123,8 +114,7 @@ export default function DeltaForcePage() {
                 ) / 10000,
               icon: getIcon(offer.name),
             };
-          }
-        );
+          });
 
         if (!cancelled) {
           setOffers(normalized);
@@ -153,8 +143,13 @@ export default function DeltaForcePage() {
     };
   }, []);
 
-  function handleSelectOffer(offer: DeltaOffer) {
-    if (!offer.supplierPrice || offer.supplierPrice <= 0) {
+  function handleSelectOffer(
+    offer: SausageOffer
+  ) {
+    if (
+      !offer.supplierPrice ||
+      offer.supplierPrice <= 0
+    ) {
       setError(
         "Esta oferta todavía no tiene un precio disponible."
       );
@@ -165,6 +160,15 @@ export default function DeltaForcePage() {
     setError("");
     setOrderCreated(false);
     setOrderNumber("");
+
+    setTimeout(() => {
+      document
+        .getElementById("sausage-order-form")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 100);
   }
 
   async function createOrder() {
@@ -173,25 +177,34 @@ export default function DeltaForcePage() {
       return;
     }
 
-    const cleanPlayerId = playerId.trim();
+    const cleanCharacterId =
+      characterId.trim();
 
-    if (!cleanPlayerId) {
-      setError("Introduce tu Player ID.");
+    if (!cleanCharacterId) {
+      setError(
+        "Introduce tu ID de personaje."
+      );
       return;
     }
 
-    if (!/^[0-9]+$/.test(cleanPlayerId)) {
-      setError("El Player ID solo puede contener números.");
+    if (!/^[0-9]+$/.test(cleanCharacterId)) {
+      setError(
+        "El ID de personaje solo puede contener números."
+      );
       return;
     }
 
-    if (cleanPlayerId.length < 4) {
-      setError("El Player ID debe tener al menos 4 números.");
+    if (cleanCharacterId.length < 4) {
+      setError(
+        "El ID de personaje debe tener al menos 4 números."
+      );
       return;
     }
 
-    if (cleanPlayerId.length > 32) {
-      setError("El Player ID no puede superar 32 números.");
+    if (cleanCharacterId.length > 20) {
+      setError(
+        "El ID de personaje no puede superar 20 números."
+      );
       return;
     }
 
@@ -219,7 +232,7 @@ export default function DeltaForcePage() {
       }
 
       const response = await fetch(
-        "/api/topups/delta-force",
+        "/api/topups/sausage-man",
         {
           method: "POST",
           headers: {
@@ -227,11 +240,13 @@ export default function DeltaForcePage() {
             Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            offerId: selectedOffer.supplierOfferId,
+            offerId:
+              selectedOffer.supplierOfferId,
             offerName: selectedOffer.name,
-            playerId: cleanPlayerId,
+            characterId: cleanCharacterId,
             retailPrice: selectedOffer.price,
-            idempotencyKey: crypto.randomUUID(),
+            idempotencyKey:
+              crypto.randomUUID(),
           }),
         }
       );
@@ -253,25 +268,34 @@ export default function DeltaForcePage() {
         data.order?.id ||
         "";
 
-      setOrderNumber(String(createdOrderNumber));
+      setOrderNumber(
+        String(createdOrderNumber)
+      );
+
       setOrderCreated(true);
       setSelectedOffer(null);
-      setPlayerId("");
+      setCharacterId("");
 
       try {
         localStorage.setItem(
-          "last_delta_force_order",
+          "last_sausage_man_order",
           JSON.stringify({
-            orderNumber: createdOrderNumber,
-            offerId: selectedOffer.supplierOfferId,
-            offerName: selectedOffer.name,
-            playerId: cleanPlayerId,
-            retailPrice: selectedOffer.price,
-            createdAt: new Date().toISOString(),
+            orderNumber:
+              createdOrderNumber,
+            offerId:
+              selectedOffer.supplierOfferId,
+            offerName:
+              selectedOffer.name,
+            characterId:
+              cleanCharacterId,
+            retailPrice:
+              selectedOffer.price,
+            createdAt:
+              new Date().toISOString(),
           })
         );
       } catch {
-        // No bloquear el pedido si localStorage no está disponible.
+        // No bloquear el pedido.
       }
     } catch (err) {
       console.error(err);
@@ -295,69 +319,83 @@ export default function DeltaForcePage() {
   }
 
   return (
-    <main className="delta-force-page">
-      <header className="delta-force-header">
+    <main className="sausage-man-page">
+      <header className="sausage-header">
         <button
           type="button"
-          className="delta-back-button"
+          className="sausage-back-button"
           onClick={() => router.push("/top-up")}
         >
           ←
         </button>
 
-        <h1>Delta Force</h1>
+        <h1>Sausage Man</h1>
 
-        <div className="delta-header-space" />
+        <div className="sausage-header-space" />
       </header>
 
-      <section className="delta-force-content">
-        <div className="delta-force-banner">
+      <section className="sausage-content">
+        <div className="sausage-banner">
           <img
-            src="/images/delta-force.jpg"
-            alt="Delta Force"
+            src="/images/sausage-man.jpg"
+            alt="Sausage Man"
           />
         </div>
 
-        <div className="delta-force-note">
-          <strong>🌎 Región Global</strong>
+        <div className="sausage-note">
+          <strong>
+            🌎 Región Global
+          </strong>
 
           <p>
-            Recarga de Delta Force. La moneda se entrega
-            directamente a tu cuenta después de realizar el pedido.
+            Recarga de Sausage Man. Introduce
+            tu ID de personaje antes de realizar
+            el pedido.
+          </p>
+
+          <p>
+            El producto seleccionado se entrega
+            directamente a tu cuenta después de
+            realizar el pedido.
           </p>
         </div>
 
         <button
           type="button"
-          className="delta-offers-toggle"
+          className="sausage-offers-toggle"
           onClick={() => {
-            setOffersOpen((value) => !value);
+            setOffersOpen(
+              (value) => !value
+            );
             setError("");
           }}
         >
-          <span>✏️ Presione para ver ofertas</span>
+          <span>
+            ✏️ Presione para ver ofertas
+          </span>
 
-          <span className="delta-offers-arrow">
+          <span className="sausage-offers-arrow">
             {offersOpen ? "▲" : "▼"}
           </span>
         </button>
 
         {offersOpen && (
-          <section className="delta-offers-section">
+          <section className="sausage-offers-section">
             {loadingOffers ? (
-              <div className="delta-loading">
+              <div className="sausage-loading">
                 Cargando ofertas...
               </div>
-            ) : error && offers.length === 0 ? (
-              <div className="delta-error">
+            ) : error &&
+              offers.length === 0 ? (
+              <div className="sausage-error">
                 {error}
               </div>
             ) : offers.length === 0 ? (
-              <div className="delta-error">
+              <div className="sausage-error">
                 No hay ofertas disponibles.
               </div>
             ) : (
-              <div className="delta-offers-list">
+              <div className="sausage-offers-list">
                 {offers.map((offer) => {
                   const unavailable =
                     !offer.supplierPrice ||
@@ -369,25 +407,37 @@ export default function DeltaForcePage() {
 
                   return (
                     <button
-                      key={offer.supplierOfferId}
+                      key={
+                        offer.supplierOfferId
+                      }
                       type="button"
-                      className={`delta-offer ${
-                        selected ? "selected" : ""
+                      className={`sausage-offer ${
+                        selected
+                          ? "selected"
+                          : ""
                       } ${
-                        unavailable ? "unavailable" : ""
+                        unavailable
+                          ? "unavailable"
+                          : ""
                       }`}
-                      disabled={unavailable}
+                      disabled={
+                        unavailable
+                      }
                       onClick={() =>
-                        handleSelectOffer(offer)
+                        handleSelectOffer(
+                          offer
+                        )
                       }
                     >
-                      <div className="delta-offer-left">
-                        <span className="delta-offer-icon">
+                      <div className="sausage-offer-left">
+                        <span className="sausage-offer-icon">
                           {offer.icon}
                         </span>
 
                         <div>
-                          <strong>{offer.display}</strong>
+                          <strong>
+                            {offer.display}
+                          </strong>
 
                           <small>
                             {offer.name}
@@ -395,10 +445,12 @@ export default function DeltaForcePage() {
                         </div>
                       </div>
 
-                      <div className="delta-offer-price">
+                      <div className="sausage-offer-price">
                         {unavailable
                           ? "NO DISPONIBLE"
-                          : `${offer.price.toFixed(4)}$`}
+                          : `${offer.price.toFixed(
+                              4
+                            )}$`}
                       </div>
                     </button>
                   );
@@ -408,96 +460,116 @@ export default function DeltaForcePage() {
           </section>
         )}
 
-        {selectedOffer && !orderCreated && (
-          <section
-            id="delta-order-form"
-            className="delta-order-section"
-          >
-            <div className="delta-selected-offer">
-              <span>
-                {selectedOffer.icon}
-              </span>
-
-              <div>
-                <strong>
-                  {selectedOffer.name}
-                </strong>
-
+        {selectedOffer &&
+          !orderCreated && (
+            <section
+              id="sausage-order-form"
+              className="sausage-order-section"
+            >
+              <div className="sausage-selected-offer">
                 <span>
-                  {selectedOffer.price.toFixed(4)}$
+                  {selectedOffer.icon}
                 </span>
-              </div>
-            </div>
 
-            <form onSubmit={handleSubmit}>
-              <label htmlFor="delta-player-id">
-                ID del jugador
-              </label>
+                <div>
+                  <strong>
+                    {selectedOffer.name}
+                  </strong>
 
-              <input
-                id="delta-player-id"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="Introduzca su Player ID"
-                value={playerId}
-                onChange={(event) =>
-                  setPlayerId(event.target.value)
-                }
-                disabled={processing}
-              />
-
-              {error && (
-                <div className="delta-form-error">
-                  {error}
+                  <span>
+                    {selectedOffer.price.toFixed(
+                      4
+                    )}
+                    $
+                  </span>
                 </div>
-              )}
+              </div>
 
-              <button
-                type="submit"
-                className="delta-create-order-button"
-                disabled={processing}
+              <form
+                onSubmit={handleSubmit}
               >
-                {processing
-                  ? "FINALIZANDO ORDEN..."
-                  : "FINALIZAR ORDEN"}
-              </button>
-            </form>
-          </section>
-        )}
+                <label htmlFor="sausage-character-id">
+                  ID del personaje
+                </label>
+
+                <input
+                  id="sausage-character-id"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="Introduzca su ID de personaje"
+                  value={characterId}
+                  onChange={(event) => {
+                    setCharacterId(
+                      event.target.value
+                    );
+                    setError("");
+                  }}
+                  disabled={processing}
+                />
+
+                {error && (
+                  <div className="sausage-form-error">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="sausage-create-order-button"
+                  disabled={processing}
+                >
+                  {processing
+                    ? "FINALIZANDO ORDEN..."
+                    : "FINALIZAR ORDEN"}
+                </button>
+              </form>
+            </section>
+          )}
 
         {orderCreated && (
-          <section className="delta-success-section">
-            <div className="delta-success-icon">
+          <section className="sausage-success-section">
+            <div className="sausage-success-icon">
               ✓
             </div>
 
-            <h2>Orden creada</h2>
+            <h2>
+              Orden creada
+            </h2>
 
             <p>
-              Tu pedido de Delta Force fue creado
-              correctamente.
+              Tu pedido de Sausage Man fue
+              creado correctamente.
             </p>
 
             {orderNumber && (
-              <div className="delta-order-number">
-                <span>Número de orden</span>
-                <strong>{orderNumber}</strong>
+              <div className="sausage-order-number">
+                <span>
+                  Número de orden
+                </span>
+
+                <strong>
+                  {orderNumber}
+                </strong>
               </div>
             )}
 
             <button
               type="button"
-              className="delta-review-button"
-              onClick={() => router.push("/orders")}
+              className="sausage-review-button"
+              onClick={() =>
+                router.push("/orders")
+              }
             >
               Revisar orden
             </button>
 
             <button
               type="button"
-              className="delta-store-button"
-              onClick={() => router.push("/top-up")}
+              className="sausage-store-button"
+              onClick={() =>
+                router.push("/top-up")
+              }
             >
               Volver a la tienda
             </button>
@@ -505,12 +577,12 @@ export default function DeltaForcePage() {
         )}
       </section>
 
-      <footer className="delta-force-footer">
+      <footer className="sausage-footer">
         🛒 STORE GAMING 🎮
       </footer>
 
       <style jsx>{`
-        .delta-force-page {
+        .sausage-man-page {
           min-height: 100vh;
           color: #fff;
           background:
@@ -523,7 +595,7 @@ export default function DeltaForcePage() {
           padding-bottom: 30px;
         }
 
-        .delta-force-header {
+        .sausage-header {
           position: sticky;
           top: 0;
           z-index: 20;
@@ -533,18 +605,19 @@ export default function DeltaForcePage() {
           min-height: 58px;
           padding: 8px 12px;
           background: rgba(0, 0, 0, 0.88);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          border-bottom: 1px solid
+            rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
         }
 
-        .delta-force-header h1 {
+        .sausage-header h1 {
           margin: 0;
           font-size: 19px;
           font-weight: 800;
           text-align: center;
         }
 
-        .delta-back-button {
+        .sausage-back-button {
           width: 40px;
           height: 40px;
           border: 0;
@@ -555,57 +628,59 @@ export default function DeltaForcePage() {
           cursor: pointer;
         }
 
-        .delta-header-space {
+        .sausage-header-space {
           width: 40px;
         }
 
-        .delta-force-content {
+        .sausage-content {
           width: min(100%, 680px);
           margin: 0 auto;
           padding: 0 12px 30px;
         }
 
-        .delta-force-banner {
+        .sausage-banner {
           width: calc(100% + 24px);
           margin-left: -12px;
           overflow: hidden;
         }
 
-        .delta-force-banner img {
+        .sausage-banner img {
           display: block;
           width: 100%;
           height: 210px;
           object-fit: cover;
         }
 
-        .delta-force-note {
+        .sausage-note {
           margin-top: 14px;
           padding: 14px;
           border-radius: 14px;
           background: rgba(0, 0, 0, 0.68);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
         }
 
-        .delta-force-note strong {
+        .sausage-note strong {
           color: #fff;
           font-size: 15px;
         }
 
-        .delta-force-note p {
+        .sausage-note p {
           margin: 7px 0 0;
           color: #d8d8d8;
           font-size: 13px;
           line-height: 1.5;
         }
 
-        .delta-offers-toggle {
+        .sausage-offers-toggle {
           width: 100%;
           margin-top: 14px;
           padding: 15px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid
+            rgba(255, 255, 255, 0.12);
           border-radius: 13px;
           background: rgba(0, 0, 0, 0.78);
           color: #fff;
@@ -614,21 +689,21 @@ export default function DeltaForcePage() {
           cursor: pointer;
         }
 
-        .delta-offers-arrow {
+        .sausage-offers-arrow {
           font-size: 12px;
         }
 
-        .delta-offers-section {
+        .sausage-offers-section {
           margin-top: 10px;
         }
 
-        .delta-offers-list {
+        .sausage-offers-list {
           display: flex;
           flex-direction: column;
           gap: 8px;
         }
 
-        .delta-offer {
+        .sausage-offer {
           width: 100%;
           min-height: 65px;
           padding: 10px 12px;
@@ -636,7 +711,8 @@ export default function DeltaForcePage() {
           align-items: center;
           justify-content: space-between;
           gap: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
           border-radius: 13px;
           background: rgba(0, 0, 0, 0.78);
           color: #fff;
@@ -645,28 +721,28 @@ export default function DeltaForcePage() {
           transition: 0.15s ease;
         }
 
-        .delta-offer:active {
+        .sausage-offer:active {
           transform: scale(0.98);
         }
 
-        .delta-offer.selected {
+        .sausage-offer.selected {
           border-color: rgba(255, 50, 50, 0.8);
           background: rgba(120, 0, 0, 0.3);
         }
 
-        .delta-offer.unavailable {
+        .sausage-offer.unavailable {
           opacity: 0.5;
           cursor: not-allowed;
         }
 
-        .delta-offer-left {
+        .sausage-offer-left {
           display: flex;
           align-items: center;
           gap: 10px;
           min-width: 0;
         }
 
-        .delta-offer-icon {
+        .sausage-offer-icon {
           width: 38px;
           height: 38px;
           flex: 0 0 38px;
@@ -678,27 +754,27 @@ export default function DeltaForcePage() {
           font-size: 21px;
         }
 
-        .delta-offer-left strong {
+        .sausage-offer-left strong {
           display: block;
           font-size: 14px;
         }
 
-        .delta-offer-left small {
+        .sausage-offer-left small {
           display: block;
           margin-top: 3px;
           color: #aaa;
           font-size: 11px;
         }
 
-        .delta-offer-price {
+        .sausage-offer-price {
           flex-shrink: 0;
           color: #fff;
           font-size: 14px;
           font-weight: 900;
         }
 
-        .delta-loading,
-        .delta-error {
+        .sausage-loading,
+        .sausage-error {
           padding: 18px;
           border-radius: 13px;
           background: rgba(0, 0, 0, 0.78);
@@ -706,20 +782,22 @@ export default function DeltaForcePage() {
           font-size: 14px;
         }
 
-        .delta-error {
+        .sausage-error {
           color: #ff8e8e;
-          border: 1px solid rgba(255, 70, 70, 0.35);
+          border: 1px solid
+            rgba(255, 70, 70, 0.35);
         }
 
-        .delta-order-section {
+        .sausage-order-section {
           margin-top: 16px;
           padding: 16px;
           border-radius: 15px;
           background: rgba(0, 0, 0, 0.82);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
         }
 
-        .delta-selected-offer {
+        .sausage-selected-offer {
           display: flex;
           align-items: center;
           gap: 11px;
@@ -729,11 +807,11 @@ export default function DeltaForcePage() {
           background: rgba(255, 255, 255, 0.06);
         }
 
-        .delta-selected-offer > span {
+        .sausage-selected-offer > span {
           font-size: 25px;
         }
 
-        .delta-selected-offer div {
+        .sausage-selected-offer div {
           flex: 1;
           display: flex;
           align-items: center;
@@ -741,31 +819,41 @@ export default function DeltaForcePage() {
           gap: 10px;
         }
 
-        .delta-selected-offer strong {
+                .sausage-selected-offer strong {
           font-size: 14px;
         }
 
-        .delta-selected-offer div span {
+        .sausage-selected-offer div span {
           font-weight: 900;
           white-space: nowrap;
         }
 
-        .delta-order-section form {
+        .sausage-order-section {
+          margin-top: 16px;
+          padding: 16px;
+          border-radius: 15px;
+          background: rgba(0, 0, 0, 0.82);
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
+        }
+
+        .sausage-order-section form {
           display: flex;
           flex-direction: column;
         }
 
-        .delta-order-section label {
+        .sausage-order-section label {
           margin-bottom: 7px;
           font-size: 13px;
           font-weight: 800;
         }
 
-        .delta-order-section input {
+        .sausage-order-section input {
           width: 100%;
           box-sizing: border-box;
           padding: 13px;
-          border: 1px solid rgba(255, 255, 255, 0.16);
+          border: 1px solid
+            rgba(255, 255, 255, 0.16);
           border-radius: 11px;
           outline: none;
           background: rgba(255, 255, 255, 0.07);
@@ -773,11 +861,11 @@ export default function DeltaForcePage() {
           font-size: 15px;
         }
 
-        .delta-order-section input::placeholder {
+        .sausage-order-section input::placeholder {
           color: #888;
         }
 
-        .delta-form-error {
+        .sausage-form-error {
           margin-top: 8px;
           padding: 9px;
           border-radius: 9px;
@@ -786,9 +874,9 @@ export default function DeltaForcePage() {
           font-size: 12px;
         }
 
-        .delta-create-order-button,
-        .delta-review-button,
-        .delta-store-button {
+        .sausage-create-order-button,
+        .sausage-review-button,
+        .sausage-store-button {
           width: 100%;
           margin-top: 12px;
           padding: 13px;
@@ -798,26 +886,27 @@ export default function DeltaForcePage() {
           cursor: pointer;
         }
 
-                .delta-create-order-button {
+        .sausage-create-order-button {
           background: #d71920;
           color: #fff;
         }
 
-        .delta-create-order-button:disabled {
+        .sausage-create-order-button:disabled {
           opacity: 0.6;
           cursor: wait;
         }
 
-        .delta-success-section {
+        .sausage-success-section {
           margin-top: 18px;
           padding: 22px 16px;
           border-radius: 16px;
           background: rgba(0, 0, 0, 0.84);
-          border: 1px solid rgba(50, 255, 100, 0.2);
+          border: 1px solid
+            rgba(50, 255, 100, 0.2);
           text-align: center;
         }
 
-        .delta-success-icon {
+        .sausage-success-icon {
           width: 58px;
           height: 58px;
           margin: 0 auto 10px;
@@ -831,47 +920,48 @@ export default function DeltaForcePage() {
           font-weight: 900;
         }
 
-        .delta-success-section h2 {
+        .sausage-success-section h2 {
           margin: 0;
           font-size: 21px;
         }
 
-        .delta-success-section p {
+        .sausage-success-section p {
           margin: 8px 0;
           color: #cfcfcf;
           font-size: 13px;
         }
 
-        .delta-order-number {
+        .sausage-order-number {
           margin-top: 13px;
           padding: 12px;
           border-radius: 10px;
           background: rgba(255, 255, 255, 0.06);
         }
 
-        .delta-order-number span {
+        .sausage-order-number span {
           display: block;
           color: #999;
           font-size: 11px;
         }
 
-        .delta-order-number strong {
+        .sausage-order-number strong {
           display: block;
           margin-top: 4px;
           font-size: 16px;
+          word-break: break-word;
         }
 
-        .delta-review-button {
+        .sausage-review-button {
           background: #19a957;
           color: #fff;
         }
 
-        .delta-store-button {
+        .sausage-store-button {
           background: rgba(255, 255, 255, 0.1);
           color: #fff;
         }
 
-        .delta-force-footer {
+        .sausage-footer {
           padding: 25px 12px 5px;
           color: #888;
           font-size: 12px;
@@ -879,16 +969,16 @@ export default function DeltaForcePage() {
         }
 
         @media (max-width: 480px) {
-          .delta-force-banner img {
+          .sausage-banner img {
             height: 185px;
           }
 
-          .delta-selected-offer div {
+          .sausage-selected-offer div {
             flex-direction: column;
             align-items: flex-start;
           }
 
-          .delta-offer-price {
+          .sausage-offer-price {
             font-size: 13px;
           }
         }
