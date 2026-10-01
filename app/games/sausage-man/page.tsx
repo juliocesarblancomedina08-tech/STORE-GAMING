@@ -12,6 +12,7 @@ export default function SausageManPage() {
   const router = useRouter();
 
   const [showOffers, setShowOffers] = useState(true);
+
   const [selectedOffer, setSelectedOffer] =
     useState<SausageManOffer | null>(null);
 
@@ -897,9 +898,7 @@ export default function SausageManPage() {
       <button
         type="button"
         className="sausage-action"
-        onClick={() =>
-          router.push("/orders")
-        }
+        onClick={() => router.push("/orders")}
       >
         📋 Revisar orden
       </button>
@@ -907,9 +906,7 @@ export default function SausageManPage() {
       <button
         type="button"
         className="sausage-action"
-        onClick={() =>
-          router.push("/top-up")
-        }
+        onClick={() => router.push("/top-up")}
       >
         🛒 Volver a la tienda
       </button>
