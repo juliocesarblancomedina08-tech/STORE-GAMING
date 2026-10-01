@@ -12,7 +12,6 @@ export default function SausageManPage() {
   const router = useRouter();
 
   const [showOffers, setShowOffers] = useState(true);
-
   const [selectedOffer, setSelectedOffer] =
     useState<SausageManOffer | null>(null);
 
@@ -273,12 +272,6 @@ export default function SausageManPage() {
 
         .sausage-note strong {
           color: #fff;
-        }
-
-        .sausage-note-warning {
-          margin-top: 8px;
-          color: #ff6b6b;
-          font-weight: 800;
         }
 
         .sausage-toggle {
@@ -832,7 +825,10 @@ export default function SausageManPage() {
   value={characterId}
   onChange={(event) => {
     setCharacterId(
-      event.target.value.replace(/\D/g, "")
+      event.target.value.replace(
+        /\D/g,
+        ""
+      )
     );
     setError("");
   }}
@@ -901,7 +897,9 @@ export default function SausageManPage() {
       <button
         type="button"
         className="sausage-action"
-        onClick={() => router.push("/orders")}
+        onClick={() =>
+          router.push("/orders")
+        }
       >
         📋 Revisar orden
       </button>
@@ -909,7 +907,9 @@ export default function SausageManPage() {
       <button
         type="button"
         className="sausage-action"
-        onClick={() => router.push("/top-up")}
+        onClick={() =>
+          router.push("/top-up")
+        }
       >
         🛒 Volver a la tienda
       </button>
@@ -928,7 +928,8 @@ export default function SausageManPage() {
     </li>
 
     <li>
-      Necesitas introducir tu ID de personaje.
+      Necesitas introducir tu ID de
+      personaje.
     </li>
 
     <li>
@@ -937,7 +938,8 @@ export default function SausageManPage() {
     </li>
 
     <li>
-      Si tienes algún problema, contacta con soporte.
+      Si tienes algún problema, contacta
+      con soporte.
     </li>
   </ul>
 </section>
