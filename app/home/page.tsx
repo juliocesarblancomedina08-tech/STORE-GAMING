@@ -390,6 +390,8 @@ export default function HomePage() {
 
             <nav className="side-menu-nav">
 
+              {/* HOGAR */}
+
               <button
                 type="button"
                 className="side-menu-item active"
@@ -398,15 +400,55 @@ export default function HomePage() {
                 }
               >
 
-                <span className="menu-icon home-icon">
-                  ⌂
+                <span
+                  className="menu-icon home-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M3 10.5L12 3l9 7.5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+
+                    <path
+                      d="M5.5 9.5V21h13V9.5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+
+                    <path
+                      d="M9.5 21v-6h5v6"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </span>
 
                 <span>
                   Hogar
                 </span>
 
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
               </button>
+
+
+              {/* ÓRDENES */}
 
               <button
                 type="button"
@@ -416,15 +458,53 @@ export default function HomePage() {
                 }
               >
 
-                <span className="menu-icon">
-                  ▣
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M6 7.5h12"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+
+                    <path
+                      d="M7 7.5l1 13h8l1-13"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+
+                    <path
+                      d="M9 4h6"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </span>
 
                 <span>
                   Órdenes
                 </span>
 
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
               </button>
+
+
+              {/* SERVICIOS */}
 
               <div className="side-menu-section-title">
 
@@ -436,6 +516,9 @@ export default function HomePage() {
 
               </div>
 
+
+              {/* TELEGRAM */}
+
               <button
                 type="button"
                 className="side-menu-item"
@@ -444,15 +527,39 @@ export default function HomePage() {
                 }
               >
 
-                <span className="menu-icon">
-                  ☆
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M21 4L3.8 10.6c-.9.35-.88.85-.16 1.08l4.4 1.37 1.68 5.1c.21.58.1.81.7.81.46 0 .66-.21.91-.46l2.13-2.07 4.43 3.27c.81.45 1.39.22 1.59-.75L21.8 5.05C22.1 3.85 21.63 3.47 21 4Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </span>
 
                 <span>
                   Estrellas de Telegram
                 </span>
 
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
               </button>
+
+
+              {/* TARJETAS */}
 
               <button
                 type="button"
@@ -462,15 +569,67 @@ export default function HomePage() {
                 }
               >
 
-                <span className="menu-icon gift-icon">
-                  ▱
+                <span
+                  className="menu-icon gift-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <rect
+                      x="3.5"
+                      y="8"
+                      width="17"
+                      height="12"
+                      rx="2"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                    />
+
+                    <path
+                      d="M3.5 11h17"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                    />
+
+                    <path
+                      d="M12 8v12"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                    />
+
+                    <path
+                      d="M12 8H8.5C7.4 8 6.5 7.1 6.5 6s.9-2 2-2c2 0 3.5 2.2 3.5 4Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinejoin="round"
+                    />
+
+                    <path
+                      d="M12 8h3.5c1.1 0 2-.9 2-2s-.9-2-2-2c-2 0-3.5 2.2-3.5 4Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </span>
 
                 <span>
                   Tarjetas de regalo
                 </span>
 
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
               </button>
+
+
+              {/* TOP UP */}
 
               <button
                 type="button"
@@ -480,15 +639,39 @@ export default function HomePage() {
                 }
               >
 
-                <span className="menu-icon">
-                  ◇
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M13.2 2.8L5 13h5l-1.2 8.2L17.8 11h-5l.4-8.2Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </span>
 
                 <span>
                   Recargas TOP UP
                 </span>
 
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
               </button>
+
+
+              {/* FINANZAS */}
 
               <div className="side-menu-section-title">
 
@@ -500,6 +683,9 @@ export default function HomePage() {
 
               </div>
 
+
+              {/* BILLETERA */}
+
               <button
                 type="button"
                 className="side-menu-item"
@@ -508,15 +694,56 @@ export default function HomePage() {
                 }
               >
 
-                <span className="menu-icon">
-                  ◉
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <rect
+                      x="3.5"
+                      y="6"
+                      width="17"
+                      height="13"
+                      rx="2.5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                    />
+
+                    <path
+                      d="M16 12h4.5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+
+                    <circle
+                      cx="16"
+                      cy="12"
+                      r="1.5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
                 </span>
 
                 <span>
                   Billetera
                 </span>
 
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
               </button>
+
+
+              {/* ESTADÍSTICAS */}
 
               <button
                 type="button"
@@ -526,15 +753,53 @@ export default function HomePage() {
                 }
               >
 
-                <span className="menu-icon">
-                  ▥
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M4 19V5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+
+                    <path
+                      d="M4 19h16"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+
+                    <path
+                      d="M7 15l3-4 3 2 5-6"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </span>
 
                 <span>
                   Estadísticas
                 </span>
 
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
               </button>
+
+
+              {/* CUENTA */}
 
               <div className="side-menu-section-title">
 
@@ -546,6 +811,9 @@ export default function HomePage() {
 
               </div>
 
+
+              {/* PERFIL */}
+
               <button
                 type="button"
                 className="side-menu-item"
@@ -554,434 +822,141 @@ export default function HomePage() {
                 }
               >
 
-                <span className="menu-icon">
-                  ♙
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      cx="12"
+                      cy="8"
+                      r="3.5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                    />
+
+                    <path
+                      d="M5 20c.8-3.5 3.1-5.5 7-5.5s6.2 2 7 5.5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </span>
 
                 <span>
                   Perfil
                 </span>
 
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
               </button>
+
+
+              {/* SOPORTE */}
 
               <button
-                type="button"
-                className="side-menu-item support-item"
-                onClick={() =>
-                  goTo("/support")
-                }
-              >
-
-                <span className="support-headset-icon">
-
-                  <span className="support-head" />
-
-                  <span className="support-headset" />
-
-                  <span className="support-mic" />
-
-                </span>
-
-                <span>
-                  Soporte
-                </span>
-
-              </button>
-
-              {/* =========================
-                  PANEL DEL ADMINISTRADOR
-              ========================== */}
-
-              {isAdmin && (
-                <>
-                  <div className="side-menu-section-title">
-
-                    <span />
-
-                    ADMINISTRACIÓN
-
-                    <span />
-
-                  </div>
-
-                  <button
-                    type="button"
-                    className="side-menu-item"
-                    onClick={() =>
-                      goTo("/admin")
-                    }
-                  >
-
-                    <span className="menu-icon">
-                      👑
-                    </span>
-
-                    <span>
-                      ADM PANEL
-                    </span>
-
-                  </button>
-                </>
-              )}
-
-            </nav>
-
-            <div className="side-menu-bottom">
-
-              <button
-                type="button"
-                className="side-menu-logout"
-                onClick={logout}
-              >
-
-                <span>
-                  ⇥
-                </span>
-
-                <strong>
-                  Cerrar sesión
-                </strong>
-
-              </button>
-
-            </div>
-
-          </aside>
-        </>
-      )}
-
-      {/* =========================
-          HEADER
-      ========================== */}
-
-      <header className="store-header">
-
-        <button
-          type="button"
-          className="menu-button"
-          onClick={() =>
-            setMenuOpen(true)
-          }
-          aria-label="Abrir menú"
-        >
-
-          <span />
-          <span />
-          <span />
-
-        </button>
-
-        <button
-          type="button"
-          className="store-logo"
-          onClick={() =>
-            router.push("/home")
-          }
-          aria-label="STORE GAMING"
-        >
-
-          <span className="store-logo-text">
-
-            <strong>
-              STORE
-            </strong>
-
-            <span
-              className="store-logo-cart"
-              aria-hidden="true"
-            >
-              🛒
-            </span>
-
-            <b>
-              GAMING
-            </b>
-
-          </span>
-
-        </button>
-
-        <div className="store-header-actions">
-        </div>
-
-      </header>
-
-      {/* =========================
-          BIENVENIDA
-      ========================== */}
-
-      <section className="store-hero">
-
-        <div className="hero-glow" />
-
-        <div className="hero-content">
-
-          <div className="hero-badge">
-            ⚡ STORE GAMING
-          </div>
-
-          <h1 className="hero-title">
-
-            <span className="hero-greeting">
-              HOLA
-            </span>
-
-            <span className="hero-username">
-              @{username}
-            </span>
-
-          </h1>
-
-          <p className="hero-text">
-
-            Bienvenido a STORE GAMING.
-            Selecciona un servicio para
-            comenzar.
-
-          </p>
-
-          {/* =========================
-              RESUMEN DE CUENTA
-          ========================== */}
-
-          <div className="hero-stats">
-
-            {/* DEPOSITADO */}
-
-            <div className="hero-stat-card">
-
-              <strong className="hero-stat-icon">
-                $
-              </strong>
-
-              <span className="hero-stat-label">
-                DEPOSITADO
-              </span>
-
-              <b className="hero-stat-value">
-                ${deposited.toFixed(2)}
-              </b>
-
-            </div>
-
-            {/* GASTO TOTAL */}
-
-            <div className="hero-stat-card">
-
-              <strong className="hero-stat-icon">
-                💳
-              </strong>
-
-              <span className="hero-stat-label">
-                GASTO TOTAL
-              </span>
-
-              <b className="hero-stat-value">
-                ${totalSpent.toFixed(2)}
-              </b>
-
-            </div>
-
-            {/* ÓRDENES */}
-
-            <div className="hero-stat-card">
-
-              <strong className="hero-stat-icon">
-                ▣
-              </strong>
-
-              <span className="hero-stat-label">
-                ÓRDENES
-              </span>
-
-              <b className="hero-stat-value">
-                {ordersCreated}
-              </b>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =========================
-          SERVICIOS
-      ========================== */}
-
-      <section className="services-section">
-
-        <div className="catalog-header">
-
-          <div>
-
-            <span>
-              STORE GAMING
-            </span>
-
-            <h2>
-              SERVICIOS
-            </h2>
-
-          </div>
-
-          <div className="catalog-decoration">
-
-            <i />
-            <i />
-            <i />
-
-          </div>
-
-        </div>
-
-        <div className="services-grid">
-
-          {services.map((service) => (
-
-            <button
-              key={service.name}
-              type="button"
-              className="service-card"
-              onClick={() =>
-                router.push(
-                  service.route
-                )
-              }
-            >
-
-              <div className="service-card-icon">
-                {service.icon}
-              </div>
-
-              <div className="service-card-tag">
-                {service.tag}
-              </div>
-
-              <div className="service-card-info">
-
-                <h3>
-                  {service.name}
-                </h3>
-
-                <p>
-                  {service.description}
-                </p>
-
-                <div className="service-card-bottom">
-
-                  <span>
-                    ENTRAR
-                  </span>
-
-                  <strong>
-                    →
-                  </strong>
-
-                </div>
-
-              </div>
-
-            </button>
-
-          ))}
-
-        </div>
-
-      </section>
-
-      {/* =========================
-          BENEFICIOS
-      ========================== */}
-
-      <section className="benefits-section">
-
-        <div className="benefit">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="benefit">
-
-          <span>
-            🛡️
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="benefit">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              SERVICIOS GAMING
-            </strong>
-
-            <p>
-              Todo lo que necesitas
-              en un solo lugar.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =========================
-          FOOTER
-      ========================== */}
-
-      <footer className="store-footer">
-
-        <div className="footer-brand">
-          STORE GAMING
-        </div>
-
-        <p>
-          TU MEJOR OPCIÓN PARA
-          RECARGAS GAMING
-        </p>
-
-        <small>
-          © 2026 STORE GAMING
-        </small>
-
-      </footer>
-
-    </main>
-  );
+  type="button"
+  className="side-menu-item support-item"
+  onClick={() =>
+    goTo("/support")
   }
+>
+
+  <span
+    className="menu-icon"
+    aria-hidden="true"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 13a8 8 0 0 1 16 0" />
+      <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Z" />
+      <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Z" />
+      <path d="M15 19c-.5 1-1.4 1.5-3 1.5" />
+    </svg>
+  </span>
+
+  <span>
+    Soporte
+  </span>
+
+  <span
+    className="menu-arrow"
+    aria-hidden="true"
+  >
+    ›
+  </span>
+
+</button>
+
+{/* =========================
+    PANEL DEL ADMINISTRADOR
+========================== */}
+
+{isAdmin && (
+  <>
+
+    <div className="side-menu-section-title">
+
+      <span />
+
+      ADMINISTRACIÓN
+
+      <span />
+
+    </div>
+
+    <button
+      type="button"
+      className="side-menu-item"
+      onClick={() =>
+        goTo("/admin")
+      }
+    >
+
+      <span
+        className="menu-icon"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+        </svg>
+      </span>
+
+      <span>
+        ADM PANEL
+      </span>
+
+      <span
+        className="menu-arrow"
+        aria-hidden="true"
+      >
+        ›
+      </span>
+
+    </button>
+
+  </>
+)}
