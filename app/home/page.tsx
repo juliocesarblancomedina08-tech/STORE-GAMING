@@ -153,21 +153,9 @@ export default function HomePage() {
     };
   }, [router]);
 
-  /*
-   * =========================
-   * ESTADÍSTICAS DEL CLIENTE
-   * =========================
-   */
-
   async function loadStatistics(
     userId: string
   ) {
-    /*
-     * =========================
-     * ÓRDENES
-     * =========================
-     */
-
     let orders: StoreOrder[] = [];
 
     try {
@@ -189,15 +177,6 @@ export default function HomePage() {
     }
 
     setOrdersCreated(orders.length);
-
-    /*
-     * =========================
-     * GASTO TOTAL
-     * =========================
-     *
-     * Solo contamos órdenes
-     * completadas o confirmadas.
-     */
 
     const completedStatuses = [
       "COMPLETADA",
@@ -232,17 +211,6 @@ export default function HomePage() {
 
     setTotalSpent(spent);
 
-    /*
-     * =========================
-     * DINERO DEPOSITADO
-     * =========================
-     *
-     * Por ahora se mantiene la
-     * misma fuente utilizada por
-     * el sistema actual: balance
-     * de la cuenta.
-     */
-
     try {
       const {
         data,
@@ -266,12 +234,6 @@ export default function HomePage() {
     }
   }
 
-  /*
-   * =========================
-   * CERRAR SESIÓN
-   * =========================
-   */
-
   async function logout() {
     setMenuOpen(false);
 
@@ -280,27 +242,14 @@ export default function HomePage() {
     router.replace("/");
   }
 
-  /*
-   * =========================
-   * NAVEGACIÓN
-   * =========================
-   */
-
   function goTo(path: string) {
     setMenuOpen(false);
     router.push(path);
   }
 
-  /*
-   * =========================
-   * LOADING
-   * =========================
-   */
-
   if (loading) {
     return (
       <main className="store-loading">
-
         <div className="loading-logo">
           STORE GAMING
         </div>
@@ -310,7 +259,6 @@ export default function HomePage() {
         <p>
           CARGANDO STORE GAMING...
         </p>
-
       </main>
     );
   }
@@ -342,7 +290,6 @@ export default function HomePage() {
                 <span className="side-brand-line" />
 
                 <div>
-
                   <small>
                     STORE
                   </small>
@@ -350,7 +297,6 @@ export default function HomePage() {
                   <strong>
                     GAMING
                   </strong>
-
                 </div>
 
               </div>
@@ -375,7 +321,6 @@ export default function HomePage() {
               </div>
 
               <div>
-
                 <small>
                   CUENTA
                 </small>
@@ -383,7 +328,6 @@ export default function HomePage() {
                 <strong>
                   @{username}
                 </strong>
-
               </div>
 
             </div>
@@ -399,38 +343,21 @@ export default function HomePage() {
                   goTo("/home")
                 }
               >
-
                 <span
-                  className="menu-icon home-icon"
+                  className="menu-icon"
                   aria-hidden="true"
                 >
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <path
-                      d="M3 10.5L12 3l9 7.5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-
-                    <path
-                      d="M5.5 9.5V21h13V9.5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-
-                    <path
-                      d="M9.5 21v-6h5v6"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M3 10.5 12 3l9 7.5" />
+                    <path d="M5 9.5V21h14V9.5" />
+                    <path d="M9 21v-6h6v6" />
                   </svg>
                 </span>
 
@@ -444,9 +371,7 @@ export default function HomePage() {
                 >
                   ›
                 </span>
-
               </button>
-
 
               {/* ÓRDENES */}
 
@@ -457,7 +382,6 @@ export default function HomePage() {
                   goTo("/orders")
                 }
               >
-
                 <span
                   className="menu-icon"
                   aria-hidden="true"
@@ -465,28 +389,16 @@ export default function HomePage() {
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <path
-                      d="M6 7.5h12"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-
-                    <path
-                      d="M7 7.5l1 13h8l1-13"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-
-                    <path
-                      d="M9 4h6"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
+                    <path d="M6 4h12" />
+                    <path d="M7 4v17h10V4" />
+                    <path d="M9 8h6" />
+                    <path d="M9 12h6" />
+                    <path d="M9 16h4" />
                   </svg>
                 </span>
 
@@ -500,22 +412,13 @@ export default function HomePage() {
                 >
                   ›
                 </span>
-
               </button>
 
-
-              {/* SERVICIOS */}
-
               <div className="side-menu-section-title">
-
                 <span />
-
                 SERVICIOS
-
                 <span />
-
               </div>
-
 
               {/* TELEGRAM */}
 
@@ -526,7 +429,6 @@ export default function HomePage() {
                   goTo("/telegram-stars")
                 }
               >
-
                 <span
                   className="menu-icon"
                   aria-hidden="true"
@@ -534,14 +436,13 @@ export default function HomePage() {
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <path
-                      d="M21 4L3.8 10.6c-.9.35-.88.85-.16 1.08l4.4 1.37 1.68 5.1c.21.58.1.81.7.81.46 0 .66-.21.91-.46l2.13-2.07 4.43 3.27c.81.45 1.39.22 1.59-.75L21.8 5.05C22.1 3.85 21.63 3.47 21 4Z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M21 3 3.7 10.1c-.8.3-.8 1.4 0 1.7l4.4 1.7 1.7 5.3c.2.7 1.1.9 1.6.3l2.5-3.1 4.6 3.4c.6.5 1.5.1 1.7-.6L21 3Z" />
+                    <path d="m8.1 13.5 9.5-7.2" />
                   </svg>
                 </span>
 
@@ -555,9 +456,7 @@ export default function HomePage() {
                 >
                   ›
                 </span>
-
               </button>
-
 
               {/* TARJETAS */}
 
@@ -568,50 +467,29 @@ export default function HomePage() {
                   goTo("/gift-cards")
                 }
               >
-
                 <span
-                  className="menu-icon gift-icon"
+                  className="menu-icon"
                   aria-hidden="true"
                 >
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
                     <rect
-                      x="3.5"
-                      y="8"
-                      width="17"
-                      height="12"
+                      x="3"
+                      y="6"
+                      width="18"
+                      height="13"
                       rx="2"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
                     />
-
-                    <path
-                      d="M3.5 11h17"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                    />
-
-                    <path
-                      d="M12 8v12"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                    />
-
-                    <path
-                      d="M12 8H8.5C7.4 8 6.5 7.1 6.5 6s.9-2 2-2c2 0 3.5 2.2 3.5 4Z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinejoin="round"
-                    />
-
-                    <path
-                      d="M12 8h3.5c1.1 0 2-.9 2-2s-.9-2-2-2c-2 0-3.5 2.2-3.5 4Z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M3 10h18" />
+                    <path d="M12 6v13" />
+                    <path d="M8.5 6c-1.4 0-2.5-.9-2.5-2s1.1-2 2.5-2c2 0 3.5 4 3.5 4" />
+                    <path d="M15.5 6c1.4 0 2.5-.9 2.5-2s-1.1-2-2.5-2c-2 0-3.5 4-3.5 4" />
                   </svg>
                 </span>
 
@@ -625,9 +503,7 @@ export default function HomePage() {
                 >
                   ›
                 </span>
-
               </button>
-
 
               {/* TOP UP */}
 
@@ -638,7 +514,6 @@ export default function HomePage() {
                   goTo("/top-up")
                 }
               >
-
                 <span
                   className="menu-icon"
                   aria-hidden="true"
@@ -646,14 +521,12 @@ export default function HomePage() {
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <path
-                      d="M13.2 2.8L5 13h5l-1.2 8.2L17.8 11h-5l.4-8.2Z"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M13 2 5 13h6l-1 9 8-11h-6l1-9Z" />
                   </svg>
                 </span>
 
@@ -667,22 +540,13 @@ export default function HomePage() {
                 >
                   ›
                 </span>
-
               </button>
 
-
-              {/* FINANZAS */}
-
               <div className="side-menu-section-title">
-
                 <span />
-
                 FINANZAS
-
                 <span />
-
               </div>
-
 
               {/* BILLETERA */}
 
@@ -693,7 +557,6 @@ export default function HomePage() {
                   goTo("/balance")
                 }
               >
-
                 <span
                   className="menu-icon"
                   aria-hidden="true"
@@ -701,30 +564,18 @@ export default function HomePage() {
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <rect
-                      x="3.5"
-                      y="6"
-                      width="17"
-                      height="13"
-                      rx="2.5"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                    />
-
-                    <path
-                      d="M16 12h4.5"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
-
+                    <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H19v14H5.5A2.5 2.5 0 0 1 3 16.5v-9Z" />
+                    <path d="M3 8h14" />
+                    <path d="M17 10h4v5h-4a2.5 2.5 0 0 1 0-5Z" />
                     <circle
-                      cx="16"
-                      cy="12"
-                      r="1.5"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
+                      cx="17"
+                      cy="12.5"
+                      r=".7"
                     />
                   </svg>
                 </span>
@@ -739,9 +590,7 @@ export default function HomePage() {
                 >
                   ›
                 </span>
-
               </button>
-
 
               {/* ESTADÍSTICAS */}
 
@@ -752,7 +601,6 @@ export default function HomePage() {
                   goTo("/statistics")
                 }
               >
-
                 <span
                   className="menu-icon"
                   aria-hidden="true"
@@ -760,28 +608,14 @@ export default function HomePage() {
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <path
-                      d="M4 19V5"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
-
-                    <path
-                      d="M4 19h16"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
-
-                    <path
-                      d="M7 15l3-4 3 2 5-6"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <path d="M4 19V5" />
+                    <path d="M4 19h17" />
+                    <path d="m7 15 4-4 3 2 5-6" />
                   </svg>
                 </span>
 
@@ -795,22 +629,13 @@ export default function HomePage() {
                 >
                   ›
                 </span>
-
               </button>
 
-
-              {/* CUENTA */}
-
               <div className="side-menu-section-title">
-
                 <span />
-
                 CUENTA
-
                 <span />
-
               </div>
-
 
               {/* PERFIL */}
 
@@ -821,7 +646,6 @@ export default function HomePage() {
                   goTo("/profile")
                 }
               >
-
                 <span
                   className="menu-icon"
                   aria-hidden="true"
@@ -829,21 +653,17 @@ export default function HomePage() {
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
                     <circle
                       cx="12"
                       cy="8"
                       r="3.5"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
                     />
-
-                    <path
-                      d="M5 20c.8-3.5 3.1-5.5 7-5.5s6.2 2 7 5.5"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
+                    <path d="M5 21c.7-4 3.1-6 7-6s6.3 2 7 6" />
                   </svg>
                 </span>
 
@@ -857,107 +677,442 @@ export default function HomePage() {
                 >
                   ›
                 </span>
-
               </button>
-
 
               {/* SOPORTE */}
 
               <button
-  type="button"
-  className="side-menu-item support-item"
-  onClick={() =>
-    goTo("/support")
-  }
->
+                type="button"
+                className="side-menu-item support-item"
+                onClick={() =>
+                  goTo("/support")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 13a8 8 0 0 1 16 0" />
+                    <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Z" />
+                    <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Z" />
+                    <path d="M15 19c-.5 1-1.4 1.5-3 1.5" />
+                  </svg>
+                </span>
 
-  <span
-    className="menu-icon"
-    aria-hidden="true"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 13a8 8 0 0 1 16 0" />
-      <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Z" />
-      <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Z" />
-      <path d="M15 19c-.5 1-1.4 1.5-3 1.5" />
-    </svg>
-  </span>
+                <span>
+                  Soporte
+                </span>
 
-  <span>
-    Soporte
-  </span>
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
 
-  <span
-    className="menu-arrow"
-    aria-hidden="true"
-  >
-    ›
-  </span>
+              {/* =========================
+                  PANEL DEL ADMINISTRADOR
+              ========================== */}
 
-</button>
+              {isAdmin && (
+                <>
+                  <div className="side-menu-section-title">
+                    <span />
+                    ADMINISTRACIÓN
+                    <span />
+                  </div>
 
-{/* =========================
-    PANEL DEL ADMINISTRADOR
-========================== */}
+                  <button
+                    type="button"
+                    className="side-menu-item"
+                    onClick={() =>
+                      goTo("/admin")
+                    }
+                  >
+                    <span
+                      className="menu-icon"
+                      aria-hidden="true"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="3"
+                        />
+                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+                      </svg>
+                    </span>
 
-{isAdmin && (
-  <>
+                    <span>
+                      ADM PANEL
+                    </span>
 
-    <div className="side-menu-section-title">
+                    <span
+                      className="menu-arrow"
+                      aria-hidden="true"
+                    >
+                      ›
+                    </span>
+                  </button>
+                </>
+              )}
 
-      <span />
+            </nav>
 
-      ADMINISTRACIÓN
+            <div className="side-menu-bottom">
 
-      <span />
+                            <button
+                type="button"
+                className="side-menu-logout"
+                onClick={logout}
+              >
+                <span>
+                  ⇥
+                </span>
 
-    </div>
+                <strong>
+                  Cerrar sesión
+                </strong>
+              </button>
 
-    <button
-      type="button"
-      className="side-menu-item"
-      onClick={() =>
-        goTo("/admin")
-      }
-    >
+            </div>
 
-      <span
-        className="menu-icon"
-        aria-hidden="true"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          </aside>
+        </>
+      )}
+
+      {/* =========================
+          HEADER
+      ========================== */}
+
+      <header className="store-header">
+
+        <button
+          type="button"
+          className="menu-button"
+          onClick={() =>
+            setMenuOpen(true)
+          }
+          aria-label="Abrir menú"
         >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
-        </svg>
-      </span>
+          <span />
+          <span />
+          <span />
+        </button>
 
-      <span>
-        ADM PANEL
-      </span>
+        <button
+          type="button"
+          className="store-logo"
+          onClick={() =>
+            router.push("/home")
+          }
+          aria-label="STORE GAMING"
+        >
+          <span className="store-logo-text">
 
-      <span
-        className="menu-arrow"
-        aria-hidden="true"
-      >
-        ›
-      </span>
+            <strong>
+              STORE
+            </strong>
 
-    </button>
+            <span
+              className="store-logo-cart"
+              aria-hidden="true"
+            >
+              🛒
+            </span>
 
-  </>
-)
-}
+            <b>
+              GAMING
+            </b>
+
+          </span>
+        </button>
+
+        <div className="store-header-actions">
+        </div>
+
+      </header>
+
+      {/* =========================
+          BIENVENIDA
+      ========================== */}
+
+      <section className="store-hero">
+
+        <div className="hero-glow" />
+
+        <div className="hero-content">
+
+          <div className="hero-badge">
+            ⚡ STORE GAMING
+          </div>
+
+          <h1 className="hero-title">
+
+            <span className="hero-greeting">
+              HOLA
+            </span>
+
+            <span className="hero-username">
+              @{username}
+            </span>
+
+          </h1>
+
+          <p className="hero-text">
+            Bienvenido a STORE GAMING.
+            Selecciona un servicio para
+            comenzar.
+          </p>
+
+          <div className="hero-stats">
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                $
+              </strong>
+
+              <span className="hero-stat-label">
+                DEPOSITADO
+              </span>
+
+              <b className="hero-stat-value">
+                ${deposited.toFixed(2)}
+              </b>
+
+            </div>
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                💳
+              </strong>
+
+              <span className="hero-stat-label">
+                GASTO TOTAL
+              </span>
+
+              <b className="hero-stat-value">
+                ${totalSpent.toFixed(2)}
+              </b>
+
+            </div>
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                ▣
+              </strong>
+
+              <span className="hero-stat-label">
+                ÓRDENES
+              </span>
+
+              <b className="hero-stat-value">
+                {ordersCreated}
+              </b>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* =========================
+          SERVICIOS
+      ========================== */}
+
+      <section className="services-section">
+
+        <div className="catalog-header">
+
+          <div>
+
+            <span>
+              STORE GAMING
+            </span>
+
+            <h2>
+              SERVICIOS
+            </h2>
+
+          </div>
+
+          <div className="catalog-decoration">
+
+            <i />
+            <i />
+            <i />
+
+          </div>
+
+        </div>
+
+        <div className="services-grid">
+
+          {services.map((service) => (
+
+            <button
+              key={service.name}
+              type="button"
+              className="service-card"
+              onClick={() =>
+                router.push(
+                  service.route
+                )
+              }
+            >
+
+              <div className="service-card-icon">
+                {service.icon}
+              </div>
+
+              <div className="service-card-tag">
+                {service.tag}
+              </div>
+
+              <div className="service-card-info">
+
+                <h3>
+                  {service.name}
+                </h3>
+
+                <p>
+                  {service.description}
+                </p>
+
+                <div className="service-card-bottom">
+
+                  <span>
+                    ENTRAR
+                  </span>
+
+                  <strong>
+                    →
+                  </strong>
+
+                </div>
+
+              </div>
+
+            </button>
+
+          ))}
+
+        </div>
+
+      </section>
+
+      {/* =========================
+          BENEFICIOS
+      ========================== */}
+
+      <section className="benefits-section">
+
+        <div className="benefit">
+
+          <span>
+            ⚡
+          </span>
+
+          <div>
+
+            <strong>
+              ENTREGA RÁPIDA
+            </strong>
+
+            <p>
+              Procesamos tus pedidos
+              rápidamente.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="benefit">
+
+          <span>
+            🛡️
+          </span>
+
+          <div>
+
+            <strong>
+              COMPRA SEGURA
+            </strong>
+
+            <p>
+              Tu pedido queda registrado.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="benefit">
+
+          <span>
+            🎮
+          </span>
+
+          <div>
+
+            <strong>
+              SERVICIOS GAMING
+            </strong>
+
+            <p>
+              Todo lo que necesitas
+              en un solo lugar.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* =========================
+          FOOTER
+      ========================== */}
+
+      <footer className="store-footer">
+
+        <div className="footer-brand">
+          STORE GAMING
+        </div>
+
+        <p>
+          TU MEJOR OPCIÓN PARA
+          RECARGAS GAMING
+        </p>
+
+        <small>
+          © 2026 STORE GAMING
+        </small>
+
+      </footer>
+
+    </main>
+  );
+                }
