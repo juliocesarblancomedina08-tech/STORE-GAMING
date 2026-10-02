@@ -1,77 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
-type Offer = {
-  id: string;
-  amount: string;
-  price: number;
-  supplierPrice: number;
-  icon: string;
-};
-
-const offers: Offer[] = [
-  {
-    id: "575_rp",
-    amount: "575 RP",
-    price: 3.30,
-    supplierPrice: 3.10,
-    icon: "◈",
-  },
-  {
-    id: "1380_rp",
-    amount: "1380 RP",
-    price: 7.57,
-    supplierPrice: 7.37,
-    icon: "◈",
-  },
-  {
-    id: "2800_rp",
-    amount: "2800 RP",
-    price: 15.03,
-    supplierPrice: 14.83,
-    icon: "◈",
-  },
-  {
-    id: "4500_rp",
-    amount: "4500 RP",
-    price: 23.56,
-    supplierPrice: 23.36,
-    icon: "◈",
-  },
-  {
-    id: "6500_rp",
-    amount: "6500 RP",
-    price: 33.17,
-    supplierPrice: 32.97,
-    icon: "◈",
-  },
-  {
-    id: "13500_rp",
-    amount: "13500 RP",
-    price: 64.10,
-    supplierPrice: 63.90,
-    icon: "◈",
-  },
-];
-
-const GAME_NAME = "LEAGUE OF LEGENDS (ID)";
-const GAME_IMAGE = "/images/league-of-legends.jpg";
-
-/*
- * Categoría preparada para la futura integración
- * con FazerCards.
- *
- * No se utiliza directamente desde el navegador.
- * La API del servidor será la encargada de comunicarse
- * con FazerCards.
- */
-const FAZERCARDS_CATEGORY_ID = "league_of_legends_id";
-
-const GAME_NOTE =
-  "Región: Indonesia. Recarga de League of Legends (PC). Introduce tu ID de Riot antes de realizar el pedido (formato: Nombre#ETIQUETA). Asegúrate de que tu cuenta de Riot esté registrada en la región de Indonesia; los códigos están restringidos por región. El producto seleccionado se entregará directamente a tu cuenta una vez realizado el pedido.";
+import {
+  LEAGUE_OF_LEGENDS_ID,
+  LeagueOfLegendsIdOffer,
+} from "../../../lib/games/league-of-legends-id";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,1081 +17,393 @@ const supabase = createClient(
 export default function LeagueOfLegendsIdPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(true);
-
   const [selectedOffer, setSelectedOffer] =
-    useState<Offer | null>(null);
+    useState<LeagueOfLegendsIdOffer | null>(null);
 
-  const [playerId, setPlayerId] = useState("");
+  const [riotId, setRiotId] = useState("");
+  const [processing, setProcessing] = useState(false);
 
-  const [quantity, setQuantity] = useState(1);
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [supplierOrderId, setSupplierOrderId] = useState("");
 
   const [error, setError] = useState("");
 
-  const [showConfirmation, setShowConfirmation] =
-    useState(false);
+  const formattedPrice = useMemo(() => {
+    if (!selectedOffer) return "0.00";
+    return selectedOffer.price.toFixed(2);
+  }, [selectedOffer]);
 
-  const [orderCreated, setOrderCreated] =
-    useState(false);
+  function validateRiotId(value: string) {
+    const clean = value.trim();
 
-  const [orderNumber, setOrderNumber] =
-    useState("");
-
-  const [supplierOrderId, setSupplierOrderId] =
-    useState("");
-
-  const [orderStatus, setOrderStatus] =
-    useState("");
-
-  const [processing, setProcessing] =
-    useState(false);
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  /*
-   * ============================================================
-   * SELECCIONAR OFERTA
-   * ============================================================
-   */
-
-  const selectOffer = (offer: Offer) => {
-    setSelectedOffer(offer);
-
-    setError("");
-
-    setShowConfirmation(false);
-
-    setOrderCreated(false);
-
-    setOrderNumber("");
-
-    setSupplierOrderId("");
-
-    setOrderStatus("");
-
-    setQuantity(1);
-
-    setTimeout(() => {
-      document
-        .getElementById("order-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  };
-
-  /*
-   * ============================================================
-   * CANTIDAD
-   * ============================================================
-   */
-
-  const increaseQuantity = () => {
-    setQuantity((current) =>
-      Math.min(current + 1, 99)
-    );
-  };
-
-  const decreaseQuantity = () => {
-    setQuantity((current) =>
-      Math.max(current - 1, 1)
-    );
-  };
-
-  /*
-   * ============================================================
-   * VALIDAR RIOT ID
-   * ============================================================
-   */
-
-  const validateRiotId = (
-    value: string
-  ): string => {
-    const cleanId = value.trim();
-
-    if (!cleanId) {
-      return "Introduzca su ID de Riot.";
+    if (!clean) {
+      return "Introduce tu Riot ID.";
     }
 
-    if (!cleanId.includes("#")) {
-      return (
-        "Introduzca su ID de Riot en formato Nombre#ETIQUETA."
-      );
+    if (!clean.includes("#")) {
+      return "El Riot ID debe tener el formato Nombre#TAG.";
     }
 
-    const parts = cleanId.split("#");
+    const parts = clean.split("#");
 
     if (parts.length !== 2) {
-      return (
-        "El Riot ID debe tener el formato Nombre#ETIQUETA."
-      );
+      return "El Riot ID debe tener el formato Nombre#TAG.";
     }
 
     const name = parts[0].trim();
-
     const tag = parts[1].trim();
 
     if (!name || !tag) {
-      return (
-        "El Riot ID debe tener el formato Nombre#ETIQUETA."
-      );
+      return "El Riot ID debe tener el formato Nombre#TAG.";
     }
 
-    if (cleanId.length > 50) {
-      return "El Riot ID es demasiado largo.";
+    if (name.length > 32 || tag.length > 16) {
+      return "El Riot ID introducido es demasiado largo.";
     }
 
     return "";
-  };
+  }
 
-  /*
-   * ============================================================
-   * CONTINUAR AL PASO DE CONFIRMACIÓN
-   * ============================================================
-   */
-
-  const handleFinishPurchase = () => {
-    if (!selectedOffer) {
-      setError("Seleccione un producto.");
-      return;
-    }
-
-    const riotError =
-      validateRiotId(playerId);
-
-    if (riotError) {
-      setError(riotError);
-      return;
-    }
+  async function createOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
     setError("");
 
-    setShowConfirmation(true);
-
-    setTimeout(() => {
-      document
-        .getElementById("confirmation-section")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-    }, 100);
-  };
-
-  /*
-   * ============================================================
-   * CREAR PEDIDO REAL
-   * ============================================================
-   */
-
-  const createOrder = async () => {
     if (!selectedOffer) {
-      setError("Seleccione un producto.");
+      setError("Selecciona una oferta.");
       return;
     }
 
-    const cleanPlayerId =
-      playerId.trim();
+    const riotIdClean = riotId.trim();
 
-    const riotError =
-      validateRiotId(cleanPlayerId);
+    const riotError = validateRiotId(riotIdClean);
 
     if (riotError) {
       setError(riotError);
-      return;
-    }
-
-    if (processing) {
       return;
     }
 
     setProcessing(true);
 
-    setError("");
-
     try {
-      /*
-       * Obtener sesión actual de Supabase.
-       */
-
       const {
         data: { session },
-        error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError) {
-        throw new Error(
-          "No se pudo comprobar la sesión."
-        );
-      }
-
       if (!session?.access_token) {
+        setError("Tu sesión ha expirado. Inicia sesión nuevamente.");
+        router.push("/login");
+        return;
+      }
+
+      const idempotencyKey = crypto.randomUUID();
+
+      const response = await fetch("/api/topups/league-of-legends-id", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          offerId: selectedOffer.id,
+          riotId: riotIdClean,
+          idempotencyKey,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
         throw new Error(
-          "Debes iniciar sesión para realizar el pedido."
+          data?.error ||
+            data?.message ||
+            "No se pudo crear la orden."
         );
       }
-
-      /*
-       * Crear una clave de idempotencia.
-       *
-       * Evita que una doble pulsación pueda crear
-       * accidentalmente dos pedidos.
-       */
-
-      let idempotencyKey = "";
-
-      if (
-        typeof crypto !== "undefined" &&
-        typeof crypto.randomUUID === "function"
-      ) {
-        idempotencyKey =
-          crypto.randomUUID();
-      } else {
-        idempotencyKey =
-          `lol-${Date.now()}-${Math.random()
-            .toString(36)
-            .slice(2)}`;
-      }
-
-      /*
-       * Calcular total.
-       */
-
-      const totalPrice = Number(
-        (
-          selectedOffer.price *
-          quantity
-        ).toFixed(2)
-      );
-
-      /*
-       * Enviar pedido a nuestra API.
-       */
-
-      const response = await fetch(
-        "/api/topups/league-of-legends",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              `Bearer ${session.access_token}`,
-          },
-
-          body: JSON.stringify({
-            categoryId:
-              FAZERCARDS_CATEGORY_ID,
-
-            offerId:
-              selectedOffer.id,
-
-            playerId:
-              cleanPlayerId,
-
-            quantity,
-
-            idempotencyKey,
-
-            retailPrice:
-              selectedOffer.price,
-
-            totalPrice,
-          }),
-        }
-      );
-
-      let result: any = null;
-
-      try {
-        result = await response.json();
-      } catch {
-        result = null;
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          result?.error ||
-            result?.message ||
-            "No se pudo crear el pedido."
-        );
-      }
-
-      /*
-       * Número de pedido interno.
-       */
-
-      const returnedOrderNumber =
-        result?.orderNumber ||
-        result?.order?.order_number ||
-        result?.order?.id ||
-        `LOL-${Date.now()
-          .toString()
-          .slice(-8)}`;
-
-      /*
-       * ID del pedido del proveedor.
-       */
-
-      const returnedSupplierOrderId =
-        result?.supplierOrderId ||
-        result?.order?.supplier_order_id ||
-        "";
-
-      /*
-       * Estado recibido.
-       */
-
-      const returnedStatus =
-        result?.status ||
-        result?.order?.status ||
-        "PENDING";
-
-      setOrderNumber(
-        returnedOrderNumber
-      );
-
-      setSupplierOrderId(
-        returnedSupplierOrderId
-      );
-
-      setOrderStatus(
-        returnedStatus
-      );
-
-      setShowConfirmation(false);
 
       setOrderCreated(true);
 
-      setTimeout(() => {
-        document
-          .getElementById(
-            "order-success-section"
-          )
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-      }, 100);
-    } catch (orderError) {
-      console.error(
-        "Error creando pedido:",
-        orderError
+      setOrderNumber(
+        data.orderNumber ||
+          data.order?.order_number ||
+          data.order?.id ||
+          ""
       );
 
-      const message =
-        orderError instanceof Error
-          ? orderError.message
-          : "No se pudo crear el pedido.";
+      setSupplierOrderId(
+        data.supplierOrderId ||
+          data.order?.supplier_order_id ||
+          ""
+      );
+    } catch (err) {
+      console.error(err);
 
-      setError(message);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la orden."
+      );
     } finally {
       setProcessing(false);
     }
-  };
+  }
 
-  /*
-   * ============================================================
-   * IR A PEDIDOS
-   * ============================================================
-   */
-
-  const goToOrders = () => {
-    router.push("/orders");
-  };
-
-  /*
-   * ============================================================
-   * PRECIO TOTAL
-   * ============================================================
-   */
-
-  const totalPrice = selectedOffer
-    ? Number(
-        (
-          selectedOffer.price *
-          quantity
-        ).toFixed(2)
-      )
-    : 0;
-
-  /*
-   * ============================================================
-   * RENDER
-   * ============================================================
-   */
-
-  return (
-    <main className="game-service-page">
-
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
-
-      <header className="game-service-header">
-
-        <button
-          type="button"
-          className="game-back-button"
-          onClick={() =>
-            router.push("/top-up")
-          }
-          aria-label="Volver"
-        >
-          ←
-        </button>
-
-        <div className="game-header-title">
-          {GAME_NAME}
-        </div>
-
-        <button
-          type="button"
-          className="game-cart-button"
-          onClick={() =>
-            router.push("/orders")
-          }
-          aria-label="Pedidos"
-        >
-          🛒
-        </button>
-
-      </header>
-
-      {/* ======================================================
-          IMAGEN DEL JUEGO
-      ====================================================== */}
-
-      <section className="free-fire-main-image">
-
-        <img
-          src={GAME_IMAGE}
-          alt={GAME_NAME}
-        />
-
-        <div className="free-fire-main-overlay">
-
-          <div className="free-fire-main-text">
-
-            <span>
-              RECARGA
-            </span>
-
-            <strong>
-              LEAGUE OF LEGENDS
-            </strong>
-
+  if (orderCreated) {
+    return (
+      <main className="min-h-screen bg-black text-white px-4 py-8">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => router.push("/top-up")}
+              className="text-sm text-white/70 hover:text-white"
+            >
+              ← Volver a la tienda
+            </button>
           </div>
 
-        </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center shadow-xl">
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/20">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-3xl text-black">
+                ✓
+              </div>
+            </div>
 
-      </section>
+            <h1 className="text-2xl font-bold">
+              Orden creada
+            </h1>
 
-      {/* ======================================================
-          BOTÓN OFERTAS
-      ====================================================== */}
+            <p className="mt-2 text-sm text-white/60">
+              Tu pedido de League of Legends (ID) fue creado correctamente.
+            </p>
 
-      <button
-        type="button"
-        className="offers-toggle"
-        onClick={() =>
-          setShowOffers(
-            (value) => !value
-          )
-        }
-      >
+            {orderNumber && (
+              <div className="mt-5 rounded-xl bg-black/40 p-4">
+                <p className="text-xs uppercase tracking-wide text-white/40">
+                  Número de orden
+                </p>
 
-        <span className="offers-toggle-text">
-          OFERTAS DISPONIBLES
-        </span>
-
-        <span className="offers-toggle-pencil">
-          {showOffers
-            ? "⌃"
-            : "⌄"}
-        </span>
-
-      </button>
-
-      {/* ======================================================
-          OFERTAS
-      ====================================================== */}
-
-      {showOffers && (
-        <section className="offers-section">
-
-          <h2 className="offers-heading">
-            SELECCIONA TU RECARGA
-          </h2>
-
-          <div className="offers-list">
-
-            {offers.map(
-              (offer) => {
-
-                const isSelected =
-                  selectedOffer?.id ===
-                  offer.id;
-
-                return (
-                  <button
-                    key={offer.id}
-                    type="button"
-                    className={
-                      `offer-card ${
-                        isSelected
-                          ? "selected"
-                          : ""
-                      }`
-                    }
-                    onClick={() =>
-                      selectOffer(
-                        offer
-                      )
-                    }
-                    disabled={processing}
-                  >
-
-                    <div className="offer-left">
-
-                      <div className="diamond-icon">
-                        {offer.icon}
-                      </div>
-
-                      <div className="offer-info">
-
-                        <strong>
-                          {offer.amount}
-                        </strong>
-
-                        <span>
-                          League of Legends
-                        </span>
-
-                      </div>
-
-                    </div>
-
-                    <div className="offer-right">
-
-                      <strong>
-                        {offer.price.toFixed(
-                          2
-                        )}
-                        $
-                      </strong>
-
-                      <span>
-                        Comprar
-                      </span>
-
-                    </div>
-
-                  </button>
-                );
-              }
+                <p className="mt-1 break-all text-lg font-bold">
+                  {orderNumber}
+                </p>
+              </div>
             )}
 
-          </div>
+            {supplierOrderId && (
+              <div className="mt-3 rounded-xl bg-black/40 p-4">
+                <p className="text-xs uppercase tracking-wide text-white/40">
+                  ID del proveedor
+                </p>
 
-        </section>
-      )}
-
-      {/* ======================================================
-          INFORMACIÓN
-      ====================================================== */}
-
-      <section className="game-note">
-
-        <div className="game-note-icon">
-          !
-        </div>
-
-        <div className="game-note-content">
-          {GAME_NOTE}
-        </div>
-
-      </section>
-
-      {/* ======================================================
-          FORMULARIO DEL PEDIDO
-      ====================================================== */}
-
-      {selectedOffer &&
-        !orderCreated && (
-          <section
-            id="order-section"
-            className="order-section"
-          >
-
-            <h2 className="section-title">
-              COMPLETA TU PEDIDO
-            </h2>
-
-            {/* PRODUCTO SELECCIONADO */}
-
-            <div className="selected-order-card">
-
-              <div className="selected-order-icon">
-
-                <img
-                  src={GAME_IMAGE}
-                  alt=""
-                />
-
+                <p className="mt-1 break-all text-sm text-white/70">
+                  {supplierOrderId}
+                </p>
               </div>
+            )}
 
-              <div className="selected-order-info">
-
-                <strong>
-                  {selectedOffer.amount}
-                </strong>
-
-                <span>
-                  {GAME_NAME}
-                </span>
-
-              </div>
-
-              <div className="selected-order-price">
-
-                {selectedOffer.price.toFixed(
-                  2
-                )}
-                $
-
-              </div>
-
-            </div>
-
-            {/* INFORMACIÓN */}
-
-            <div className="game-note game-note-order">
-
-              <div className="game-note-icon">
-                !
-              </div>
-
-              <div className="game-note-content">
-                {GAME_NOTE}
-              </div>
-
-            </div>
-
-            {/* CANTIDAD */}
-
-            <div className="quantity-section">
-
-              <span>
-                CANTIDAD
-              </span>
-
-              <div className="quantity-control">
-
-                <button
-                  type="button"
-                  onClick={
-                    decreaseQuantity
-                  }
-                  disabled={
-                    quantity <= 1 ||
-                    processing
-                  }
-                >
-                  −
-                </button>
-
-                <strong>
-                  {quantity}
-                </strong>
-
-                <button
-                  type="button"
-                  onClick={
-                    increaseQuantity
-                  }
-                  disabled={
-                    quantity >= 99 ||
-                    processing
-                  }
-                >
-                  +
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* RIOT ID */}
-
-            <div className="order-form">
-
-              <label className="player-id-label">
-                ID DE RIOT
-              </label>
-
-              <p className="player-id-description">
-
-                Introduce tu Riot ID
-                exactamente como aparece
-                en tu cuenta.
-
-                <br />
-
-                Formato:
-
-                {" "}
-
-                <strong>
-                  Nombre#ETIQUETA
-                </strong>
-
-              </p>
-
-              <div className="player-id-input-wrapper">
-
-                <input
-                  type="text"
-                  value={playerId}
-                  onChange={(event) => {
-                    setPlayerId(
-                      event.target.value
-                    );
-
-                    setError("");
-                  }}
-                  placeholder="Nombre#ETIQUETA"
-                  maxLength={50}
-                  autoComplete="off"
-                  disabled={processing}
-                />
-
-              </div>
-
-              {error && (
-                <div className="order-error">
-                  {error}
-                </div>
-              )}
-
-              {/* TOTAL */}
-
-              <div className="order-total-preview">
-
-                <span>
-                  TOTAL
-                </span>
-
-                <strong>
-                  {totalPrice.toFixed(
-                    2
-                  )}
-                  $
-                </strong>
-
-              </div>
+            <div className="mt-6 grid gap-3">
+              <button
+                type="button"
+                onClick={() => router.push("/orders")}
+                className="gaming-button w-full rounded-xl px-5 py-3 font-bold"
+              >
+                Revisar orden
+              </button>
 
               <button
                 type="button"
-                className="finish-order-button"
-                onClick={
-                  handleFinishPurchase
-                }
-                disabled={processing}
+                onClick={() => router.push("/top-up")}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white"
               >
-                CONTINUAR
+                Volver a la tienda
               </button>
-
             </div>
-
-          </section>
-        )}
-
-      {/* ======================================================
-          CONFIRMACIÓN
-      ====================================================== */}
-
-      {showConfirmation &&
-        selectedOffer && (
-          <section
-            id="confirmation-section"
-            className="confirmation-section"
-          >
-
-            <h2 className="section-title">
-              CONFIRMA TU PEDIDO
-            </h2>
-
-            <div className="confirmation-card">
-
-              <div className="confirmation-row">
-
-                <span>
-                  Juego
-                </span>
-
-                <strong>
-                  {GAME_NAME}
-                </strong>
-
-              </div>
-
-              <div className="confirmation-row">
-
-                <span>
-                  Producto
-                </span>
-
-                <strong>
-                  {selectedOffer.amount}
-                </strong>
-
-              </div>
-
-              <div className="confirmation-row">
-
-                <span>
-                  Cantidad
-                </span>
-
-                <strong>
-                  {quantity}
-                </strong>
-
-              </div>
-
-                            <div className="confirmation-row">
-
-                <span>
-                  ID de Riot
-                </span>
-
-                <strong>
-                  {playerId.trim()}
-                </strong>
-
-              </div>
-
-              <div className="confirmation-row">
-
-                <span>
-                  Total
-                </span>
-
-                <strong>
-                  {totalPrice.toFixed(
-                    2
-                  )}
-                  $
-                </strong>
-
-              </div>
-
-              <div className="confirmation-warning">
-
-                ⚠️ Verifica que tu Riot ID
-                y la región de tu cuenta
-                sean correctos antes de
-                confirmar.
-
-              </div>
-
-              {error && (
-                <div className="order-error">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="confirm-final-button"
-                onClick={
-                  createOrder
-                }
-                disabled={
-                  processing
-                }
-              >
-
-                {processing
-                  ? "PROCESANDO..."
-                  : "CONFIRMAR PEDIDO"}
-
-              </button>
-
-            </div>
-
-          </section>
-        )}
-
-      {/* ======================================================
-          PEDIDO CREADO
-      ====================================================== */}
-
-      {orderCreated && (
-        <section
-          id="order-success-section"
-          className="order-success-section"
-        >
-
-          <div className="success-circle">
-            ✓
           </div>
+        </div>
+      </main>
+    );
+  }
 
-          <h2>
-            PEDIDO CREADO
-          </h2>
+  return (
+    <main className="min-h-screen bg-black text-white">
+      <div className="relative min-h-screen overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-25"
+          style={{
+            backgroundImage:
+              "url('/images/battle-royale-bg.jpg')",
+          }}
+        />
 
-          <p>
-            Tu pedido fue registrado
-            correctamente.
-          </p>
+        <div className="absolute inset-0 bg-black/70" />
 
-          <div className="success-order-number">
-
-            <span>
-              NÚMERO DE PEDIDO
-            </span>
-
-            <strong>
-              {orderNumber}
-            </strong>
-
-          </div>
-
-          {supplierOrderId && (
-            <div className="success-order-number">
-
-              <span>
-                ID DEL PROVEEDOR
-              </span>
-
-              <strong>
-                {supplierOrderId}
-              </strong>
-
-            </div>
-          )}
-
-          {orderStatus && (
-            <div className="success-order-number">
-
-              <span>
-                ESTADO
-              </span>
-
-              <strong>
-                {orderStatus}
-              </strong>
-
-            </div>
-          )}
-
+        <div className="relative mx-auto w-full max-w-md px-4 py-6">
           <button
             type="button"
-            className="view-orders-button"
-            onClick={
-              goToOrders
-            }
+            onClick={() => router.push("/top-up")}
+            className="mb-5 text-sm text-white/70 hover:text-white"
           >
-            VER MIS PEDIDOS
+            ← Volver a la tienda
           </button>
 
-        </section>
-      )}
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/80 shadow-2xl backdrop-blur">
+            <div className="relative h-48 w-full overflow-hidden">
+              <img
+                src={LEAGUE_OF_LEGENDS_ID.image}
+                alt="League of Legends"
+                className="h-full w-full object-cover"
+              />
 
-      {/* ======================================================
-          INFORMACIÓN DEL SERVICIO
-      ====================================================== */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
-      <section className="service-info">
+              <div className="absolute bottom-4 left-4">
+                <h1 className="text-2xl font-black">
+                  LEAGUE OF LEGENDS
+                </h1>
 
-        <div className="service-info-item">
+                <p className="text-sm font-semibold text-red-400">
+                  INDONESIA
+                </p>
+              </div>
+            </div>
 
-          <span>
-            ⚡
-          </span>
+            <div className="p-4">
+              <div className="mb-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                <span className="text-lg">✏️</span>
 
-          <div>
+                <p className="text-sm font-semibold text-white/80">
+                  Presione para ver ofertas
+                </p>
+              </div>
 
-            <strong>
-              ENTREGA DIRECTA
-            </strong>
+              <div className="grid gap-2">
+                {LEAGUE_OF_LEGENDS_ID.offers.map((offer) => {
+                  const active =
+                    selectedOffer?.id === offer.id;
 
-            <p>
-              El producto se entrega
-              directamente en tu cuenta.
-            </p>
+                  return (
+                    <button
+                      key={offer.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedOffer(offer);
+                        setError("");
+                      }}
+                      className={[
+                        "flex w-full items-center justify-between rounded-xl border p-4 text-left transition",
+                        active
+                          ? "border-red-500 bg-red-500/10"
+                          : "border-white/10 bg-white/[0.03] hover:border-white/20",
+                      ].join(" ")}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">
+                          {offer.icon}
+                        </span>
 
+                        <div>
+                          <p className="font-bold">
+                            {offer.name}
+                          </p>
+
+                          <p className="text-xs text-white/40">
+                            Riot Points
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="font-black text-white">
+                          ${offer.price.toFixed(2)}
+                        </p>
+
+                        {active && (
+                          <p className="text-xs text-red-400">
+                            Seleccionado
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedOffer && (
+                <form
+                  onSubmit={createOrder}
+                  className="mt-5"
+                >
+                  <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-white/40">
+                          Oferta seleccionada
+                        </p>
+
+                        <p className="mt-1 font-bold">
+                          {selectedOffer.name}
+                        </p>
+                      </div>
+
+                      <p className="text-xl font-black">
+                        ${formattedPrice}
+                      </p>
+                    </div>
+                  </div>
+
+                  <label
+                    htmlFor="riotId"
+                    className="mb-2 block text-sm font-semibold"
+                  >
+                    Riot ID
+                  </label>
+
+                  <input
+                    id="riotId"
+                    type="text"
+                    value={riotId}
+                    onChange={(event) => {
+                      setRiotId(event.target.value);
+                      setError("");
+                    }}
+                    placeholder="Nombre#TAG"
+                    autoComplete="off"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white outline-none placeholder:text-white/30 focus:border-red-500"
+                  />
+
+                  <p className="mt-2 text-xs leading-5 text-white/45">
+                    Región: Indonesia. Introduce tu Riot ID exactamente
+                    como aparece en tu cuenta.
+                  </p>
+
+                  {error && (
+                    <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={processing}
+                    className="gaming-button mt-5 w-full rounded-xl px-5 py-4 font-black disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {processing
+                      ? "CREANDO ORDEN..."
+                      : `COMPRAR POR $${formattedPrice}`}
+                  </button>
+                </form>
+              )}
+
+              {!selectedOffer && (
+                <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center text-sm text-white/50">
+                  Selecciona una oferta para continuar.
+                </div>
+              )}
+            </div>
           </div>
-
         </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🔒
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              de forma segura.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="service-info-item">
-
-          <span>
-            🎧
-          </span>
-
-          <div>
-
-            <strong>
-              SOPORTE
-            </strong>
-
-            <p>
-              Si tienes algún problema,
-              puedes contactar con soporte.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* ======================================================
-          FOOTER
-      ====================================================== */}
-
-      <footer className="game-service-footer">
-
-        <strong>
-          STORE GAMING
-        </strong>
-
-        <span>
-          © {new Date().getFullYear()}
-        </span>
-
-      </footer>
-
+      </div>
     </main>
   );
-}
+          }
