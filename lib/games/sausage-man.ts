@@ -18,72 +18,65 @@ export const SAUSAGE_MAN = {
 
   field: {
     key: "character_id",
-    label: "ID de personaje",
+    label: "Character ID",
     type: "text",
   },
 
   offers: [
     {
       id: "61_candies",
-      name: "61 Caramelos",
-      price: 0.5909,
-      supplierPrice: 0.3909,
+      name: "61 Candies",
+      price: 0.5798,
+      supplierPrice: 0.3798,
       icon: "🍬",
     },
-
     {
       id: "186_candies",
-      name: "186 Caramelos",
-      price: 1.3717,
-      supplierPrice: 1.1717,
+      name: "186 Candies",
+      price: 1.3616,
+      supplierPrice: 1.1616,
       icon: "🍬",
     },
-
     {
       id: "318_candies",
-      name: "318 Caramelos",
-      price: 2.1525,
-      supplierPrice: 1.9525,
+      name: "318 Candies",
+      price: 2.1425,
+      supplierPrice: 1.9425,
       icon: "🍬",
     },
-
     {
       id: "686_candies",
-      name: "686 Caramelos",
-      price: 4.1051,
-      supplierPrice: 3.9051,
+      name: "686 Candies",
+      price: 4.095,
+      supplierPrice: 3.895,
       icon: "🍬",
     },
-
     {
       id: "1378_candies",
-      name: "1378 Caramelos",
-      price: 7.6092,
-      supplierPrice: 7.4092,
+      name: "1378 Candies",
+      price: 7.589,
+      supplierPrice: 7.389,
       icon: "🍬",
     },
-
     {
-      id: "2118_caramelos",
-      name: "2118 Caramelos",
-      price: 11.5142,
-      supplierPrice: 11.3142,
+      id: "2118_candies",
+      name: "2118 Candies",
+      price: 11.484,
+      supplierPrice: 11.284,
       icon: "🍬",
     },
-
     {
-      id: "3548_caramelos",
-      name: "3548 Caramelos",
-      price: 19.7153,
-      supplierPrice: 19.5153,
+      id: "3548_candies",
+      name: "3548 Candies",
+      price: 19.6538,
+      supplierPrice: 19.4538,
       icon: "🍬",
     },
-
     {
-      id: "7108_caramelos",
-      name: "7108 Caramelos",
-      price: 39.2195,
-      supplierPrice: 39.0195,
+      id: "7108_candies",
+      name: "7108 Candies",
+      price: 39.1167,
+      supplierPrice: 38.9167,
       icon: "🍬",
     },
   ] satisfies SausageManOffer[],
