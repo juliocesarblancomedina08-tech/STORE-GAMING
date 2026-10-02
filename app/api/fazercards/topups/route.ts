@@ -20,35 +20,56 @@ function getErrorMessage(error: unknown): string {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     if (!API_KEY) {
       return NextResponse.json(
         {
           ok: false,
-          step: "config",
           error: "Falta FAZERCARDS_API_KEY.",
         },
         { status: 500 }
       );
     }
 
-    const response = await fetch(
-      `${FAZERCARDS_API}/topups`,
-      {
-        method: "GET",
-        headers: {
-          "X-API-Key": API_KEY,
-          Accept: "application/json",
-          "User-Agent": "STORE-GAMING/1.0",
+    const { searchParams } = new URL(request.url);
+
+    const categoryId = searchParams.get("category_id");
+
+    if (!categoryId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Falta category_id.",
+          ejemplo:
+            "/api/fazercards/topups?category_id=lol_id",
         },
-        cache: "no-store",
-      }
+        { status: 400 }
+      );
+    }
+
+    const supplierUrl =
+      `${FAZERCARDS_API}/topups/offers?category_id=` +
+      encodeURIComponent(categoryId);
+
+    console.log(
+      "[FazerCards Offers]",
+      supplierUrl.replace(API_KEY, "***")
     );
+
+    const response = await fetch(supplierUrl, {
+      method: "GET",
+      headers: {
+        "X-API-Key": API_KEY,
+        Accept: "application/json",
+        "User-Agent": "STORE-GAMING/1.0",
+      },
+      cache: "no-store",
+    });
 
     const text = await response.text();
 
-    let data: unknown = null;
+    let data: unknown;
 
     try {
       data = JSON.parse(text);
@@ -60,10 +81,10 @@ export async function GET() {
       return NextResponse.json(
         {
           ok: false,
-          step: "supplier",
           supplier: "FazerCards",
+          category_id: categoryId,
           status: response.status,
-          error: data ?? text.slice(0, 3000),
+          error: data ?? text.slice(0, 5000),
         },
         { status: 502 }
       );
@@ -73,11 +94,11 @@ export async function GET() {
       return NextResponse.json(
         {
           ok: false,
-          step: "parse",
           supplier: "FazerCards",
+          category_id: categoryId,
           status: response.status,
           error: "FazerCards no devolvió JSON válido.",
-          raw: text.slice(0, 3000),
+          raw: text.slice(0, 5000),
         },
         { status: 502 }
       );
@@ -86,19 +107,19 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       supplier: "FazerCards",
+      category_id: categoryId,
       catalog: data,
     });
   } catch (error) {
-    console.error("[FazerCards Catalog]", error);
+    console.error("[FazerCards Offers]", error);
 
     return NextResponse.json(
       {
         ok: false,
-        step: "server",
         supplier: "FazerCards",
         error: getErrorMessage(error),
       },
       { status: 500 }
     );
   }
-  }
+}
