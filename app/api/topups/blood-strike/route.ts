@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 
-import { BLOOD_STRIKE } from "../../../../lib/games/blood-strike";
+import { SAUSAGE_MAN } from "../../../../lib/games/sausage-man";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ const FAZERCARDS_API_KEY =
   process.env.FAZERCARDS_API_KEY || "";
 
 const CATEGORY_ID =
-  BLOOD_STRIKE.categoryId;
+  SAUSAGE_MAN.categoryId;
 
 const REQUEST_TIMEOUT = 30000;
 
@@ -109,7 +109,7 @@ function normalizeString(
   return value.trim();
 }
 
-function normalizePlayerId(
+function normalizeCharacterId(
   value: unknown
 ): string {
   return normalizeString(
@@ -125,10 +125,10 @@ function normalizeIdempotencyKey(
   );
 }
 
-function isValidPlayerId(
+function isValidCharacterId(
   value: string
 ): boolean {
-  return /^[A-Za-z0-9_-]{4,32}$/.test(
+  return /^\d{4,20}$/.test(
     value
   );
 }
@@ -201,10 +201,13 @@ function extractSupplierOrder(
   ) {
     return {
       id: data.id,
+
       order_id:
         data.order_id,
+
       status:
         data.status,
+
       state:
         data.state,
     };
@@ -273,8 +276,10 @@ async function fetchWithTimeout(
       url,
       {
         ...options,
+
         signal:
           controller.signal,
+
         cache: "no-store",
       }
     );
@@ -378,7 +383,7 @@ async function refundOrder(
 
     if (error) {
       console.error(
-        "BLOOD STRIKE REFUND ERROR:",
+        "SAUSAGE MAN REFUND ERROR:",
         error
       );
 
@@ -388,7 +393,7 @@ async function refundOrder(
     return true;
   } catch (error) {
     console.error(
-      "BLOOD STRIKE REFUND EXCEPTION:",
+      "SAUSAGE MAN REFUND EXCEPTION:",
       error
     );
 
@@ -407,49 +412,46 @@ export async function GET() {
     return jsonSuccess({
       category: {
         id:
-          BLOOD_STRIKE.categoryId,
+          SAUSAGE_MAN.categoryId,
 
         name:
-          BLOOD_STRIKE.name,
+          SAUSAGE_MAN.name,
 
         note:
-          BLOOD_STRIKE.note,
+          SAUSAGE_MAN.note,
       },
 
       fields: [
         {
           key:
-            BLOOD_STRIKE.playerField.name,
+            SAUSAGE_MAN.field.key,
 
           label:
-            BLOOD_STRIKE.playerField.label,
+            SAUSAGE_MAN.field.label,
 
           type:
-            BLOOD_STRIKE.playerField.type,
+            SAUSAGE_MAN.field.type,
         },
       ],
 
       offers:
-        BLOOD_STRIKE.offers.map(
+        SAUSAGE_MAN.offers.map(
           (offer) => ({
             id:
               offer.id,
 
             offer_id:
-              offer.supplierOfferId,
+              offer.id,
 
             name:
               offer.name,
-
-            displayName:
-              offer.displayName,
 
             price:
               offer.price,
 
             price_usd:
               offer.price.toFixed(
-                2
+                4
               ),
 
             supplier_price:
@@ -459,7 +461,7 @@ export async function GET() {
     });
   } catch (error: any) {
     console.error(
-      "BLOOD STRIKE GET ERROR:",
+      "SAUSAGE MAN GET ERROR:",
       error
     );
 
@@ -547,9 +549,9 @@ export async function POST(
         body?.offerId
       );
 
-    const playerId =
-      normalizePlayerId(
-        body?.playerId
+    const characterId =
+      normalizeCharacterId(
+        body?.characterId
       );
 
     const idempotencyKey =
@@ -570,7 +572,7 @@ export async function POST(
     }
 
     const selectedOffer =
-      BLOOD_STRIKE.offers.find(
+      SAUSAGE_MAN.offers.find(
         (offer) =>
           offer.id ===
           offerId
@@ -585,23 +587,23 @@ export async function POST(
 
     /*
      * --------------------------------------------------------------
-     * 5. VALIDAR PLAYER ID
+     * 5. VALIDAR CHARACTER ID
      * --------------------------------------------------------------
      */
 
-    if (!playerId) {
+    if (!characterId) {
       return jsonError(
-        "Falta el Player ID."
+        "Falta el Character ID."
       );
     }
 
     if (
-      !isValidPlayerId(
-        playerId
+      !isValidCharacterId(
+        characterId
       )
     ) {
       return jsonError(
-        "El Player ID debe tener entre 4 y 32 caracteres y solo puede contener letras, números, guion o guion bajo."
+        "El Character ID debe contener entre 4 y 20 números."
       );
     }
 
@@ -623,7 +625,7 @@ export async function POST(
 
     /*
      * --------------------------------------------------------------
-     * 7. PRECIO
+     * 7. PRECIOS
      * --------------------------------------------------------------
      */
 
@@ -678,7 +680,7 @@ export async function POST(
       existingOrderError
     ) {
       console.error(
-        "CHECK EXISTING BLOOD STRIKE ORDER ERROR:",
+        "CHECK EXISTING SAUSAGE MAN ORDER ERROR:",
         existingOrderError
       );
 
@@ -712,12 +714,6 @@ export async function POST(
      * --------------------------------------------------------------
      * 9. DATOS DEL USUARIO
      * --------------------------------------------------------------
-     *
-     * No consultamos profiles.
-     *
-     * El saldo será controlado mediante
-     * store_gaming_reserve_balance.
-     * --------------------------------------------------------------
      */
 
     const username =
@@ -736,8 +732,8 @@ export async function POST(
      */
 
     const supplierFields = {
-      player_id:
-        playerId,
+      character_id:
+        characterId,
     };
 
     const {
@@ -756,7 +752,7 @@ export async function POST(
           email,
 
           game:
-            BLOOD_STRIKE.name,
+            SAUSAGE_MAN.name,
 
           category_id:
             CATEGORY_ID,
@@ -768,7 +764,7 @@ export async function POST(
             selectedOffer.name,
 
           player_id:
-            playerId,
+            characterId,
 
           retail_price:
             retailPrice,
@@ -802,12 +798,13 @@ export async function POST(
       !insertedOrder
     ) {
       console.error(
-        "INSERT BLOOD STRIKE TOPUP ORDER ERROR:",
+        "INSERT SAUSAGE MAN TOPUP ORDER ERROR:",
         insertOrderError
       );
 
       return jsonError(
-        "No se pudo crear la orden.",
+        insertOrderError?.message ||
+          "No se pudo crear la orden.",
         500
       );
     }
@@ -839,7 +836,7 @@ export async function POST(
 
     if (reserveError) {
       console.error(
-        "BLOOD STRIKE RESERVE BALANCE ERROR:",
+        "SAUSAGE MAN RESERVE BALANCE ERROR:",
         reserveError
       );
 
@@ -858,7 +855,8 @@ export async function POST(
         );
 
       return jsonError(
-        "No tienes saldo suficiente para realizar esta compra.",
+        reserveError.message ||
+          "No tienes saldo suficiente para realizar esta compra.",
         400
       );
     }
@@ -935,26 +933,26 @@ export async function POST(
         CATEGORY_ID,
 
       offer_id:
-        selectedOffer.supplierOfferId,
+        selectedOffer.id,
 
       fields: {
-        player_id:
-          playerId,
+        character_id:
+          characterId,
       },
     };
 
     console.log(
-      "BLOOD STRIKE → FAZERCARDS:",
+      "SAUSAGE MAN → FAZERCARDS:",
       {
         category_id:
           CATEGORY_ID,
 
         offer_id:
-          selectedOffer.supplierOfferId,
+          selectedOffer.id,
 
         fields: {
-          player_id:
-            playerId,
+          character_id:
+            characterId,
         },
       }
     );
@@ -1008,7 +1006,7 @@ export async function POST(
         await supplierResponse.text();
 
       console.log(
-        "FAZERCARDS BLOOD STRIKE RESPONSE:",
+        "FAZERCARDS SAUSAGE MAN RESPONSE:",
         {
           status:
             supplierResponse.status,
@@ -1036,20 +1034,15 @@ export async function POST(
       }
     } catch (error) {
       console.error(
-        "FAZERCARDS BLOOD STRIKE REQUEST ERROR:",
+        "FAZERCARDS SAUSAGE MAN REQUEST ERROR:",
         error
       );
 
       /*
-       * No sabemos si FazerCards recibió
-       * la solicitud.
+       * No sabemos si FazerCards
+       * recibió la solicitud.
        *
-       * Por seguridad no reenviamos ni
-       * liberamos inmediatamente el saldo.
-       *
-       * La orden queda pendiente para
-       * evitar cobrar y posteriormente
-       * ejecutar una segunda recarga.
+       * La orden queda pendiente.
        */
 
       await supabaseAdmin
@@ -1104,7 +1097,7 @@ export async function POST(
         insertedOrderId
       );
 
-     /*
+    /*
      * --------------------------------------------------------------
      * 14. ERROR DEL PROVEEDOR
      * --------------------------------------------------------------
@@ -1116,7 +1109,7 @@ export async function POST(
         false
     ) {
       console.error(
-        "FAZERCARDS BLOOD STRIKE ERROR:",
+        "FAZERCARDS SAUSAGE MAN ERROR:",
         {
           status:
             supplierResponse.status,
@@ -1195,7 +1188,7 @@ export async function POST(
      * --------------------------------------------------------------
      * 16. ESTADOS
      * --------------------------------------------------------------
-     */
+ */
 
     const completedStatuses = [
       "completed",
@@ -1247,7 +1240,7 @@ export async function POST(
 
         if (completeError) {
           console.error(
-            "BLOOD STRIKE COMPLETE ORDER ERROR:",
+            "SAUSAGE MAN COMPLETE ORDER ERROR:",
             completeError
           );
         }
@@ -1386,7 +1379,7 @@ export async function POST(
       updateOrderError
     ) {
       console.error(
-        "UPDATE BLOOD STRIKE ORDER ERROR:",
+        "UPDATE SAUSAGE MAN ORDER ERROR:",
         updateOrderError
       );
 
@@ -1394,7 +1387,7 @@ export async function POST(
        * FazerCards ya recibió
        * la orden.
        *
-       * NO volver a enviarla.
+       * No volvemos a enviarla.
        */
 
       return jsonSuccess({
@@ -1431,8 +1424,8 @@ export async function POST(
     return jsonSuccess({
       message:
         isCompleted
-          ? "Orden de Blood Strike completada correctamente."
-          : "Orden de Blood Strike procesada.",
+          ? "Orden de Sausage Man completada correctamente."
+          : "Orden de Sausage Man procesada.",
 
       order: {
         ...updatedOrder,
@@ -1449,17 +1442,13 @@ export async function POST(
     });
   } catch (error: any) {
     console.error(
-      "BLOOD STRIKE TOPUP ERROR:",
+      "SAUSAGE MAN TOPUP ERROR:",
       error
     );
 
     /*
-     * Solo hacemos reembolso en un error
-     * inesperado si todavía sabemos que
-     * el saldo fue reservado.
-     *
-     * Si FazerCards ya pudo haber recibido
-     * la orden, evitamos reenviarla.
+     * Solo reembolsamos si todavía
+     * sabemos que el saldo fue reservado.
      */
 
     if (
@@ -1486,7 +1475,7 @@ export async function POST(
           );
       } catch (updateError) {
         console.error(
-          "BLOOD STRIKE FINAL ORDER UPDATE ERROR:",
+          "SAUSAGE MAN FINAL ORDER UPDATE ERROR:",
           updateError
         );
       }
@@ -1498,4 +1487,4 @@ export async function POST(
       500
     );
   }
-}
+        }
