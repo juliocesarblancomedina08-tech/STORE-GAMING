@@ -1,27 +1,36 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
-import {
-  LEAGUE_OF_LEGENDS_ID,
-  LeagueOfLegendsIdOffer,
-} from "../../../lib/games/league-of-legends-id";
+import { LEAGUE_OF_LEGENDS_ID } from "../../../lib/games/league-of-legends-id";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+type LeagueOffer = {
+  id: string;
+  name: string;
+  price: number;
+  supplierPrice: number;
+  icon: string;
+};
+
 export default function LeagueOfLegendsIdPage() {
   const router = useRouter();
 
-  const [selectedOffer, setSelectedOffer] =
-    useState<LeagueOfLegendsIdOffer | null>(null);
+  const [showOffers, setShowOffers] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<LeagueOffer | null>(
+    null
+  );
 
   const [riotId, setRiotId] = useState("");
-  const [processing, setProcessing] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState(false);
 
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
@@ -29,23 +38,64 @@ export default function LeagueOfLegendsIdPage() {
 
   const [error, setError] = useState("");
 
-  const formattedPrice = useMemo(() => {
-    if (!selectedOffer) return "0.00";
-    return selectedOffer.price.toFixed(2);
-  }, [selectedOffer]);
+  useEffect(() => {
+    const savedOrder = localStorage.getItem(
+      "store_gaming_last_league_of_legends_id_order"
+    );
+
+    if (!savedOrder) return;
+
+    try {
+      const parsed = JSON.parse(savedOrder);
+
+      if (parsed?.orderNumber) {
+        setOrderNumber(parsed.orderNumber);
+      }
+
+      if (parsed?.supplierOrderId) {
+        setSupplierOrderId(parsed.supplierOrderId);
+      }
+    } catch {
+      // Ignorar datos corruptos del localStorage
+    }
+  }, []);
+
+  const offers = LEAGUE_OF_LEGENDS_ID.offers as readonly LeagueOffer[];
+
+  function formatPrice(price: number) {
+    return `$${price.toFixed(2)}`;
+  }
+
+  function handleSelectOffer(offer: LeagueOffer) {
+    setSelectedOffer(offer);
+    setError("");
+
+    setTimeout(() => {
+      document
+        .getElementById("league-order-form")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  }
 
   function validateRiotId(value: string) {
-    const clean = value.trim();
+    /*
+     * Riot ID:
+     * Nombre#TAG
+     *
+     * Ejemplo:
+     * Player123#LAS
+     */
+    const trimmed = value.trim();
 
-    if (!clean) {
+    if (!trimmed) {
       return "Introduce tu Riot ID.";
     }
 
-    if (!clean.includes("#")) {
+    if (!trimmed.includes("#")) {
       return "El Riot ID debe tener el formato Nombre#TAG.";
     }
 
-    const parts = clean.split("#");
+    const parts = trimmed.split("#");
 
     if (parts.length !== 2) {
       return "El Riot ID debe tener el formato Nombre#TAG.";
@@ -58,14 +108,18 @@ export default function LeagueOfLegendsIdPage() {
       return "El Riot ID debe tener el formato Nombre#TAG.";
     }
 
-    if (name.length > 32 || tag.length > 16) {
-      return "El Riot ID introducido es demasiado largo.";
+    if (name.length > 32) {
+      return "El nombre del Riot ID es demasiado largo.";
+    }
+
+    if (tag.length > 10) {
+      return "El TAG del Riot ID es demasiado largo.";
     }
 
     return "";
   }
 
-  async function createOrder(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
@@ -75,16 +129,16 @@ export default function LeagueOfLegendsIdPage() {
       return;
     }
 
-    const riotIdClean = riotId.trim();
+    const normalizedRiotId = riotId.trim();
 
-    const riotError = validateRiotId(riotIdClean);
+    const riotIdError = validateRiotId(normalizedRiotId);
 
-    if (riotError) {
-      setError(riotError);
+    if (riotIdError) {
+      setError(riotIdError);
       return;
     }
 
-    setProcessing(true);
+    setLoading(true);
 
     try {
       const {
@@ -93,26 +147,40 @@ export default function LeagueOfLegendsIdPage() {
 
       if (!session?.access_token) {
         setError("Tu sesión ha expirado. Inicia sesión nuevamente.");
-        router.push("/login");
+        setLoading(false);
         return;
       }
 
-      const idempotencyKey = crypto.randomUUID();
+      /*
+       * Generamos una clave única para evitar
+       * que una misma orden se cree dos veces.
+       */
+      const idempotencyKey =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-      const response = await fetch("/api/topups/league-of-legends-id", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          offerId: selectedOffer.id,
-          riotId: riotIdClean,
-          idempotencyKey,
-        }),
-      });
+      setValidating(true);
 
-      const data = await response.json();
+      const response = await fetch(
+        "/api/topups/league-of-legends-id",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            offerId: selectedOffer.id,
+            riotId: normalizedRiotId,
+            idempotencyKey,
+          }),
+        }
+      );
+
+      setValidating(false);
+
+      const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
         throw new Error(
@@ -122,22 +190,36 @@ export default function LeagueOfLegendsIdPage() {
         );
       }
 
+      const newOrderNumber =
+        data.orderNumber ||
+        data.order_number ||
+        data.orderId ||
+        data.order_id ||
+        "";
+
+      const newSupplierOrderId =
+        data.supplierOrderId ||
+        data.supplier_order_id ||
+        "";
+
+      setOrderNumber(newOrderNumber);
+      setSupplierOrderId(newSupplierOrderId);
       setOrderCreated(true);
 
-      setOrderNumber(
-        data.orderNumber ||
-          data.order?.order_number ||
-          data.order?.id ||
-          ""
-      );
-
-      setSupplierOrderId(
-        data.supplierOrderId ||
-          data.order?.supplier_order_id ||
-          ""
+      localStorage.setItem(
+        "store_gaming_last_league_of_legends_id_order",
+        JSON.stringify({
+          orderNumber: newOrderNumber,
+          supplierOrderId: newSupplierOrderId,
+          riotId: normalizedRiotId,
+          offerId: selectedOffer.id,
+          offerName: selectedOffer.name,
+          price: selectedOffer.price,
+          createdAt: new Date().toISOString(),
+        })
       );
     } catch (err) {
-      console.error(err);
+      setValidating(false);
 
       setError(
         err instanceof Error
@@ -145,68 +227,63 @@ export default function LeagueOfLegendsIdPage() {
           : "No se pudo crear la orden."
       );
     } finally {
-      setProcessing(false);
+      setLoading(false);
     }
   }
 
+  /*
+   * Pantalla después de crear la orden.
+   * Mantiene el mismo concepto visual de Sausage Man.
+   */
   if (orderCreated) {
     return (
-      <main className="min-h-screen bg-black text-white px-4 py-8">
+      <main className="min-h-screen bg-transparent text-white px-4 py-6">
         <div className="mx-auto w-full max-w-md">
-          <div className="mb-6">
-            <button
-              type="button"
-              onClick={() => router.push("/top-up")}
-              className="text-sm text-white/70 hover:text-white"
-            >
-              ← Volver a la tienda
-            </button>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center shadow-xl">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/20">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-3xl text-black">
-                ✓
+          <div className="rounded-2xl border border-white/10 bg-black/70 backdrop-blur-md p-6 shadow-2xl">
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/15 border border-green-500/30">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-black text-3xl font-black">
+                  ✓
+                </div>
               </div>
-            </div>
 
-            <h1 className="text-2xl font-bold">
-              Orden creada
-            </h1>
+              <h1 className="text-2xl font-black uppercase tracking-wide">
+                ORDEN CREADA
+              </h1>
 
-            <p className="mt-2 text-sm text-white/60">
-              Tu pedido de League of Legends (ID) fue creado correctamente.
-            </p>
+              <p className="mt-2 text-sm text-white/65">
+                Tu pedido de League of Legends (ID) fue creado
+                correctamente.
+              </p>
 
-            {orderNumber && (
-              <div className="mt-5 rounded-xl bg-black/40 p-4">
-                <p className="text-xs uppercase tracking-wide text-white/40">
-                  Número de orden
-                </p>
+              {orderNumber && (
+                <div className="mt-6 w-full rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-wider text-white/45">
+                    Número de orden
+                  </p>
 
-                <p className="mt-1 break-all text-lg font-bold">
-                  {orderNumber}
-                </p>
-              </div>
-            )}
+                  <p className="mt-1 break-all text-lg font-bold">
+                    {orderNumber}
+                  </p>
+                </div>
+              )}
 
-            {supplierOrderId && (
-              <div className="mt-3 rounded-xl bg-black/40 p-4">
-                <p className="text-xs uppercase tracking-wide text-white/40">
-                  ID del proveedor
-                </p>
+              {supplierOrderId && (
+                <div className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-wider text-white/45">
+                    Orden del proveedor
+                  </p>
 
-                <p className="mt-1 break-all text-sm text-white/70">
-                  {supplierOrderId}
-                </p>
-              </div>
-            )}
+                  <p className="mt-1 break-all text-sm font-semibold text-white/80">
+                    {supplierOrderId}
+                  </p>
+                </div>
+              )}
 
-            <div className="mt-6 grid gap-3">
               <button
                 type="button"
                 onClick={() => router.push("/orders")}
-                className="gaming-button w-full rounded-xl px-5 py-3 font-bold"
+                className="mt-6 w-full rounded-xl bg-red-600 px-5 py-4 text-sm font-black uppercase tracking-wide text-white transition active:scale-[0.98] hover:bg-red-500"
               >
                 Revisar orden
               </button>
@@ -214,7 +291,7 @@ export default function LeagueOfLegendsIdPage() {
               <button
                 type="button"
                 onClick={() => router.push("/top-up")}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-semibold text-white"
+                className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-bold text-white/80 transition active:scale-[0.98] hover:bg-white/10"
               >
                 Volver a la tienda
               </button>
@@ -226,100 +303,117 @@ export default function LeagueOfLegendsIdPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="relative min-h-screen overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-25"
-          style={{
-            backgroundImage:
-              "url('/images/battle-royale-bg.jpg')",
-          }}
-        />
+    <main className="min-h-screen bg-transparent text-white">
+      <div className="mx-auto w-full max-w-5xl px-3 pb-10 pt-4 sm:px-5">
+        {/* BOTÓN VOLVER */}
+        <button
+          type="button"
+          onClick={() => router.push("/top-up")}
+          className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-black/50 px-4 py-2.5 text-sm font-semibold text-white/80 backdrop-blur-md transition active:scale-[0.98] hover:bg-white/10"
+        >
+          <span className="text-lg">‹</span>
+          Volver
+        </button>
 
-        <div className="absolute inset-0 bg-black/70" />
+        {/* HEADER / IMAGEN */}
+        <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/60 shadow-2xl backdrop-blur-md">
+          <div className="relative w-full overflow-hidden">
+            <img
+              src={LEAGUE_OF_LEGENDS_ID.image}
+              alt="League of Legends"
+              className="block h-auto max-h-[260px] w-full object-cover sm:max-h-[340px]"
+            />
 
-        <div className="relative mx-auto w-full max-w-md px-4 py-6">
-          <button
-            type="button"
-            onClick={() => router.push("/top-up")}
-            className="mb-5 text-sm text-white/70 hover:text-white"
-          >
-            ← Volver a la tienda
-          </button>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/80 shadow-2xl backdrop-blur">
-            <div className="relative h-48 w-full overflow-hidden">
-              <img
-                src={LEAGUE_OF_LEGENDS_ID.image}
-                alt="League of Legends"
-                className="h-full w-full object-cover"
-              />
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
+              <h1 className="text-2xl font-black uppercase tracking-wide drop-shadow-lg sm:text-3xl">
+                {LEAGUE_OF_LEGENDS_ID.name}
+              </h1>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+              <p className="mt-1 text-xs text-white/70 sm:text-sm">
+                Recarga de RP · Región Indonesia
+              </p>
+            </div>
+          </div>
 
-              <div className="absolute bottom-4 left-4">
-                <h1 className="text-2xl font-black">
-                  LEAGUE OF LEGENDS
-                </h1>
-
-                <p className="text-sm font-semibold text-red-400">
-                  INDONESIA
-                </p>
-              </div>
+          {/* INFORMACIÓN */}
+          <div className="p-4 sm:p-5">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm leading-6 text-white/75">
+                {LEAGUE_OF_LEGENDS_ID.note}
+              </p>
             </div>
 
-            <div className="p-4">
-              <div className="mb-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+            {/* BOTÓN PARA MOSTRAR OFERTAS */}
+            <button
+              type="button"
+              onClick={() => setShowOffers((value) => !value)}
+              className="mt-4 flex w-full items-center justify-between rounded-xl border border-red-500/30 bg-red-600/10 px-4 py-4 text-left transition active:scale-[0.99] hover:bg-red-600/15"
+            >
+              <div className="flex items-center gap-3">
                 <span className="text-lg">✏️</span>
 
-                <p className="text-sm font-semibold text-white/80">
-                  Presione para ver ofertas
-                </p>
+                <div>
+                  <p className="text-sm font-black uppercase tracking-wide">
+                    Presione para ver ofertas
+                  </p>
+
+                  <p className="mt-0.5 text-xs text-white/45">
+                    Selecciona la cantidad de RP
+                  </p>
+                </div>
               </div>
 
-              <div className="grid gap-2">
-                {LEAGUE_OF_LEGENDS_ID.offers.map((offer) => {
-                  const active =
-                    selectedOffer?.id === offer.id;
+              <span
+                className={`text-xl transition-transform ${
+                  showOffers ? "rotate-180" : ""
+                }`}
+              >
+               ⌄
+              </span>
+            </button>
+
+            {/* OFERTAS */}
+            {showOffers && (
+              <div className="mt-3 space-y-2">
+                {offers.map((offer) => {
+                  const isSelected = selectedOffer?.id === offer.id;
 
                   return (
                     <button
-                      key={offer.id}
                       type="button"
-                      onClick={() => {
-                        setSelectedOffer(offer);
-                        setError("");
-                      }}
-                      className={[
-                        "flex w-full items-center justify-between rounded-xl border p-4 text-left transition",
-                        active
-                          ? "border-red-500 bg-red-500/10"
-                          : "border-white/10 bg-white/[0.03] hover:border-white/20",
-                      ].join(" ")}
+                      key={offer.id}
+                      onClick={() => handleSelectOffer(offer)}
+                      className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition active:scale-[0.99] ${
+                        isSelected
+                          ? "border-red-500 bg-red-600/15"
+                          : "border-white/10 bg-black/40 hover:bg-white/5"
+                      }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-xl">
                           {offer.icon}
-                        </span>
+                        </div>
 
-                        <div>
-                          <p className="font-bold">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black">
                             {offer.name}
                           </p>
 
-                          <p className="text-xs text-white/40">
-                            Riot Points
+                          <p className="mt-0.5 text-xs text-white/40">
+                            League of Legends · Indonesia
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-right">
-                        <p className="font-black text-white">
-                          ${offer.price.toFixed(2)}
+                      <div className="ml-3 shrink-0 text-right">
+                        <p className="text-base font-black">
+                          {formatPrice(offer.price)}
                         </p>
 
-                        {active && (
-                          <p className="text-xs text-red-400">
+                        {isSelected && (
+                          <p className="mt-0.5 text-[10px] font-bold uppercase text-red-400">
                             Seleccionado
                           </p>
                         )}
@@ -328,82 +422,92 @@ export default function LeagueOfLegendsIdPage() {
                   );
                 })}
               </div>
+            )}
 
-              {selectedOffer && (
-                <form
-                  onSubmit={createOrder}
-                  className="mt-5"
-                >
-                  <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-white/40">
-                          Oferta seleccionada
-                        </p>
-
-                        <p className="mt-1 font-bold">
-                          {selectedOffer.name}
-                        </p>
-                      </div>
-
-                      <p className="text-xl font-black">
-                        ${formattedPrice}
-                      </p>
-                    </div>
-                  </div>
-
-                  <label
-                    htmlFor="riotId"
-                    className="mb-2 block text-sm font-semibold"
-                  >
-                    Riot ID
-                  </label>
-
-                  <input
-                    id="riotId"
-                    type="text"
-                    value={riotId}
-                    onChange={(event) => {
-                      setRiotId(event.target.value);
-                      setError("");
-                    }}
-                    placeholder="Nombre#TAG"
-                    autoComplete="off"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white outline-none placeholder:text-white/30 focus:border-red-500"
-                  />
-
-                  <p className="mt-2 text-xs leading-5 text-white/45">
-                    Región: Indonesia. Introduce tu Riot ID exactamente
-                    como aparece en tu cuenta.
+            {/* FORMULARIO */}
+            {selectedOffer && (
+              <form
+                id="league-order-form"
+                onSubmit={handleSubmit}
+                className="mt-5 rounded-2xl border border-white/10 bg-black/50 p-4 sm:p-5"
+              >
+                <div className="mb-5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">
+                    Oferta seleccionada
                   </p>
 
-                  {error && (
-                    <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-                      {error}
+                  <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-white/5 p-4">
+                    <div>
+                      <p className="font-black">
+                        {selectedOffer.name}
+                      </p>
+
+                      <p className="mt-1 text-xs text-white/40">
+                        Región Indonesia
+                      </p>
                     </div>
-                  )}
 
-                  <button
-                    type="submit"
-                    disabled={processing}
-                    className="gaming-button mt-5 w-full rounded-xl px-5 py-4 font-black disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {processing
-                      ? "CREANDO ORDEN..."
-                      : `COMPRAR POR $${formattedPrice}`}
-                  </button>
-                </form>
-              )}
-
-              {!selectedOffer && (
-                <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center text-sm text-white/50">
-                  Selecciona una oferta para continuar.
+                    <p className="text-xl font-black">
+                      {formatPrice(selectedOffer.price)}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <label
+                  htmlFor="riot-id"
+                  className="mb-2 block text-sm font-black"
+                >
+                  Riot ID
+                </label>
+
+                <input
+                  id="riot-id"
+                  type="text"
+                  value={riotId}
+                  onChange={(event) => {
+                    setRiotId(event.target.value);
+                    setError("");
+                  }}
+                  placeholder="Nombre#TAG"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={43}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-base font-semibold text-white outline-none placeholder:text-white/25 focus:border-red-500/60 focus:bg-white/[0.07]"
+                />
+
+                <div className="mt-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
+                  <p className="text-xs leading-5 text-yellow-200/70">
+                    ⚠️ Escribe tu Riot ID exactamente como aparece en tu
+                    cuenta. Debe tener el formato{" "}
+                    <strong className="text-yellow-200">
+                      Nombre#TAG
+                    </strong>
+                    .
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
+                    <p className="text-sm font-semibold text-red-300">
+                      {error}
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || validating}
+                  className="mt-5 flex w-full items-center justify-center rounded-xl bg-red-600 px-5 py-4 text-sm font-black uppercase tracking-wide text-white transition active:scale-[0.98] hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading || validating
+                    ? "Procesando..."
+                    : `Comprar ${formatPrice(selectedOffer.price)}`}
+                </button>
+              </form>
+            )}
           </div>
-        </div>
+        </section>
       </div>
     </main>
   );
-          }
+  }
