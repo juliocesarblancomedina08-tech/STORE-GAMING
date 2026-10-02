@@ -1,513 +1,1216 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
-import { LEAGUE_OF_LEGENDS_ID } from "../../../lib/games/league-of-legends-id";
+import {
+  LEAGUE_OF_LEGENDS_ID,
+  LeagueOfLegendsIdOffer,
+} from "../../../lib/games/league-of-legends-id";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-type LeagueOffer = {
-  id: string;
-  name: string;
-  price: number;
-  supplierPrice: number;
-  icon: string;
-};
-
 export default function LeagueOfLegendsIdPage() {
   const router = useRouter();
 
-  const [showOffers, setShowOffers] = useState(false);
-  const [selectedOffer, setSelectedOffer] = useState<LeagueOffer | null>(
-    null
-  );
+  const [showOffers, setShowOffers] =
+    useState(true);
 
-  const [riotId, setRiotId] = useState("");
+  const [selectedOffer, setSelectedOffer] =
+    useState<LeagueOfLegendsIdOffer | null>(null);
 
-  const [loading, setLoading] = useState(false);
-  const [validating, setValidating] = useState(false);
+  const [riotId, setRiotId] =
+    useState("");
 
-  const [orderCreated, setOrderCreated] = useState(false);
-  const [orderNumber, setOrderNumber] = useState("");
-  const [supplierOrderId, setSupplierOrderId] = useState("");
+  const [error, setError] =
+    useState("");
 
-  const [error, setError] = useState("");
+  const [orderCreated, setOrderCreated] =
+    useState(false);
+
+  const [orderNumber, setOrderNumber] =
+    useState("");
+
+  const [supplierOrderId, setSupplierOrderId] =
+    useState("");
+
+  const [orderStatus, setOrderStatus] =
+    useState("");
+
+  const [processing, setProcessing] =
+    useState(false);
 
   useEffect(() => {
-    const savedOrder = localStorage.getItem(
-      "store_gaming_last_league_of_legends_id_order"
-    );
-
-    if (!savedOrder) return;
-
-    try {
-      const parsed = JSON.parse(savedOrder);
-
-      if (parsed?.orderNumber) {
-        setOrderNumber(parsed.orderNumber);
-      }
-
-      if (parsed?.supplierOrderId) {
-        setSupplierOrderId(parsed.supplierOrderId);
-      }
-    } catch {
-      // Ignorar datos corruptos del localStorage
+    if (orderCreated) {
+      setTimeout(() => {
+        document
+          .getElementById("success-section")
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      }, 100);
     }
-  }, []);
+  }, [orderCreated]);
 
-  const offers = LEAGUE_OF_LEGENDS_ID.offers as readonly LeagueOffer[];
-
-  function formatPrice(price: number) {
-    return `$${price.toFixed(2)}`;
-  }
-
-  function handleSelectOffer(offer: LeagueOffer) {
+  function handleSelectOffer(
+    offer: LeagueOfLegendsIdOffer
+  ) {
     setSelectedOffer(offer);
     setError("");
+    setOrderCreated(false);
 
     setTimeout(() => {
       document
-        .getElementById("league-order-form")
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 50);
+        .getElementById("order-section")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 100);
   }
 
-  function validateRiotId(value: string) {
+  async function createOrder() {
+    if (!selectedOffer) {
+      setError(
+        "Seleccione una oferta antes de continuar."
+      );
+      return;
+    }
+
+    const cleanRiotId = riotId.trim();
+
     /*
      * Riot ID:
      * Nombre#TAG
-     *
-     * Ejemplo:
-     * Player123#LAS
      */
-    const trimmed = value.trim();
+    const riotParts = cleanRiotId.split("#");
 
-    if (!trimmed) {
-      return "Introduce tu Riot ID.";
+    if (
+      riotParts.length !== 2 ||
+      !riotParts[0].trim() ||
+      !riotParts[1].trim()
+    ) {
+      setError(
+        "El Riot ID debe tener el formato Nombre#TAG."
+      );
+      return;
     }
 
-    if (!trimmed.includes("#")) {
-      return "El Riot ID debe tener el formato Nombre#TAG.";
+    if (
+      cleanRiotId.length < 3 ||
+      cleanRiotId.length > 43
+    ) {
+      setError(
+        "Introduce un Riot ID válido."
+      );
+      return;
     }
 
-    const parts = trimmed.split("#");
-
-    if (parts.length !== 2) {
-      return "El Riot ID debe tener el formato Nombre#TAG.";
-    }
-
-    const name = parts[0].trim();
-    const tag = parts[1].trim();
-
-    if (!name || !tag) {
-      return "El Riot ID debe tener el formato Nombre#TAG.";
-    }
-
-    if (name.length > 32) {
-      return "El nombre del Riot ID es demasiado largo.";
-    }
-
-    if (tag.length > 10) {
-      return "El TAG del Riot ID es demasiado largo.";
-    }
-
-    return "";
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+    setProcessing(true);
     setError("");
-
-    if (!selectedOffer) {
-      setError("Selecciona una oferta.");
-      return;
-    }
-
-    const normalizedRiotId = riotId.trim();
-
-    const riotIdError = validateRiotId(normalizedRiotId);
-
-    if (riotIdError) {
-      setError(riotIdError);
-      return;
-    }
-
-    setLoading(true);
 
     try {
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } =
+        await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        setError("Tu sesión ha expirado. Inicia sesión nuevamente.");
-        setLoading(false);
+        setError(
+          "Debes iniciar sesión para realizar una compra."
+        );
         return;
       }
 
-      /*
-       * Generamos una clave única para evitar
-       * que una misma orden se cree dos veces.
-       */
       const idempotencyKey =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        crypto.randomUUID();
 
-      setValidating(true);
+      const response =
+        await fetch(
+          "/api/topups/league-of-legends-id",
+          {
+            method: "POST",
 
-      const response = await fetch(
-        "/api/topups/league-of-legends-id",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            offerId: selectedOffer.id,
-            riotId: normalizedRiotId,
-            idempotencyKey,
-          }),
-        }
-      );
+            headers: {
+              "Content-Type":
+                "application/json",
 
-      setValidating(false);
+              Authorization:
+                `Bearer ${session.access_token}`,
+            },
 
-      const data = await response.json().catch(() => null);
+            body: JSON.stringify({
+              offerId:
+                selectedOffer.id,
 
-      if (!response.ok || !data?.ok) {
+              offerName:
+                selectedOffer.name,
+
+              riotId:
+                cleanRiotId,
+
+              retailPrice:
+                selectedOffer.price,
+
+              idempotencyKey,
+            }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        const provider =
+          data?.providerResponse;
+
+        const providerMessage =
+          provider?.error ||
+          provider?.message ||
+          provider?.detail;
+
         throw new Error(
-          data?.error ||
-            data?.message ||
-            "No se pudo crear la orden."
+          providerMessage ||
+            data?.error ||
+            "No se pudo realizar la orden."
         );
       }
 
-      const newOrderNumber =
-        data.orderNumber ||
-        data.order_number ||
-        data.orderId ||
-        data.order_id ||
-        "";
+      setOrderNumber(
+        String(
+          data.orderNumber ||
+            "Pendiente"
+        )
+      );
 
-      const newSupplierOrderId =
-        data.supplierOrderId ||
-        data.supplier_order_id ||
-        "";
+      setSupplierOrderId(
+        String(
+          data.supplierOrderId ||
+            ""
+        )
+      );
 
-      setOrderNumber(newOrderNumber);
-      setSupplierOrderId(newSupplierOrderId);
+      setOrderStatus(
+        String(
+          data.orderStatus ||
+            "SUPPLIER_PENDING"
+        )
+      );
+
       setOrderCreated(true);
 
       localStorage.setItem(
-        "store_gaming_last_league_of_legends_id_order",
+        "last_league_of_legends_id_order",
         JSON.stringify({
-          orderNumber: newOrderNumber,
-          supplierOrderId: newSupplierOrderId,
-          riotId: normalizedRiotId,
-          offerId: selectedOffer.id,
-          offerName: selectedOffer.name,
-          price: selectedOffer.price,
-          createdAt: new Date().toISOString(),
+          orderNumber:
+            data.orderNumber || "",
+
+          supplierOrderId:
+            data.supplierOrderId || "",
+
+          status:
+            data.orderStatus ||
+            "SUPPLIER_PENDING",
         })
       );
-    } catch (err) {
-      setValidating(false);
 
+      setSelectedOffer(null);
+      setRiotId("");
+    } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudo crear la orden."
+          : "No se pudo realizar la orden."
       );
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   }
 
-  /*
-   * Pantalla después de crear la orden.
-   * Mantiene el mismo concepto visual de Sausage Man.
-   */
-  if (orderCreated) {
-    return (
-      <main className="min-h-screen bg-transparent text-white px-4 py-6">
-        <div className="mx-auto w-full max-w-md">
-          <div className="rounded-2xl border border-white/10 bg-black/70 backdrop-blur-md p-6 shadow-2xl">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/15 border border-green-500/30">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-black text-3xl font-black">
-                  ✓
-                </div>
-              </div>
+  function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+    void createOrder();
+  }
 
-              <h1 className="text-2xl font-black uppercase tracking-wide">
-                ORDEN CREADA
-              </h1>
+  function goToOrders() {
+    router.push("/orders");
+  }
 
-              <p className="mt-2 text-sm text-white/65">
-                Tu pedido de League of Legends (ID) fue creado
-                correctamente.
-              </p>
-
-              {orderNumber && (
-                <div className="mt-6 w-full rounded-xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-wider text-white/45">
-                    Número de orden
-                  </p>
-
-                  <p className="mt-1 break-all text-lg font-bold">
-                    {orderNumber}
-                  </p>
-                </div>
-              )}
-
-              {supplierOrderId && (
-                <div className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-wider text-white/45">
-                    Orden del proveedor
-                  </p>
-
-                  <p className="mt-1 break-all text-sm font-semibold text-white/80">
-                    {supplierOrderId}
-                  </p>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => router.push("/orders")}
-                className="mt-6 w-full rounded-xl bg-red-600 px-5 py-4 text-sm font-black uppercase tracking-wide text-white transition active:scale-[0.98] hover:bg-red-500"
-              >
-                Revisar orden
-              </button>
-
-              <button
-                type="button"
-                onClick={() => router.push("/top-up")}
-                className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-bold text-white/80 transition active:scale-[0.98] hover:bg-white/10"
-              >
-                Volver a la tienda
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
+  function goToTopUp() {
+    router.push("/top-up");
   }
 
   return (
-    <main className="min-h-screen bg-transparent text-white">
-      <div className="mx-auto w-full max-w-5xl px-3 pb-10 pt-4 sm:px-5">
-        {/* BOTÓN VOLVER */}
+    <main className="sausage-man-page">
+
+      <div className="sausage-man-background" />
+
+      <header className="sausage-man-header">
+
         <button
           type="button"
-          onClick={() => router.push("/top-up")}
-          className="mb-4 flex items-center gap-2 rounded-xl border border-white/10 bg-black/50 px-4 py-2.5 text-sm font-semibold text-white/80 backdrop-blur-md transition active:scale-[0.98] hover:bg-white/10"
+          className="sausage-man-back"
+          onClick={() => router.back()}
         >
-          <span className="text-lg">‹</span>
-          Volver
+          ← Volver
         </button>
 
-        {/* HEADER / IMAGEN */}
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-black/60 shadow-2xl backdrop-blur-md">
-          <div className="relative w-full overflow-hidden">
-            <img
-              src={LEAGUE_OF_LEGENDS_ID.image}
-              alt="League of Legends"
-              className="block h-auto max-h-[260px] w-full object-cover sm:max-h-[340px]"
-            />
+        <div className="sausage-man-header-title">
+          🛒 STORE GAMING 🎮
+        </div>
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+        <button
+          type="button"
+          className="sausage-man-cart"
+          onClick={goToOrders}
+          aria-label="Pedidos"
+        >
+          🛍️
+        </button>
 
-            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
-              <h1 className="text-2xl font-black uppercase tracking-wide drop-shadow-lg sm:text-3xl">
-                {LEAGUE_OF_LEGENDS_ID.name}
-              </h1>
+      </header>
 
-              <p className="mt-1 text-xs text-white/70 sm:text-sm">
-                Recarga de RP · Región Indonesia
-              </p>
+      <section className="sausage-man-container">
+
+        <div className="sausage-man-banner">
+
+          <img
+            src={LEAGUE_OF_LEGENDS_ID.image}
+            alt="League of Legends"
+          />
+
+          <div className="sausage-man-banner-overlay">
+
+            <div className="sausage-man-banner-small">
+              RECARGA
             </div>
+
+            <h1>
+              LEAGUE OF LEGENDS
+            </h1>
+
+            <p>
+              RP · INDONESIA
+            </p>
+
           </div>
 
-          {/* INFORMACIÓN */}
-          <div className="p-4 sm:p-5">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-sm leading-6 text-white/75">
-                {LEAGUE_OF_LEGENDS_ID.note}
-              </p>
-            </div>
+        </div>
 
-            {/* BOTÓN PARA MOSTRAR OFERTAS */}
-            <button
-              type="button"
-              onClick={() => setShowOffers((value) => !value)}
-              className="mt-4 flex w-full items-center justify-between rounded-xl border border-red-500/30 bg-red-600/10 px-4 py-4 text-left transition active:scale-[0.99] hover:bg-red-600/15"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">✏️</span>
+        <div className="sausage-man-note">
 
-                <div>
-                  <p className="text-sm font-black uppercase tracking-wide">
-                    Presione para ver ofertas
-                  </p>
+          <span>🎮</span>
 
-                  <p className="mt-0.5 text-xs text-white/45">
-                    Selecciona la cantidad de RP
-                  </p>
-                </div>
-              </div>
+          <p>
+            {LEAGUE_OF_LEGENDS_ID.note}
+          </p>
 
-              <span
-                className={`text-xl transition-transform ${
-                  showOffers ? "rotate-180" : ""
-                }`}
-              >
-               ⌄
-              </span>
-            </button>
+        </div>
 
-            {/* OFERTAS */}
-            {showOffers && (
-              <div className="mt-3 space-y-2">
-                {offers.map((offer) => {
-                  const isSelected = selectedOffer?.id === offer.id;
+        <button
+          type="button"
+          className="sausage-man-offers-toggle"
+          onClick={() =>
+            setShowOffers(
+              !showOffers
+            )
+          }
+        >
 
-                  return (
-                    <button
-                      type="button"
-                      key={offer.id}
-                      onClick={() => handleSelectOffer(offer)}
-                      className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition active:scale-[0.99] ${
-                        isSelected
-                          ? "border-red-500 bg-red-600/15"
-                          : "border-white/10 bg-black/40 hover:bg-white/5"
-                      }`}
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-xl">
-                          {offer.icon}
-                        </div>
+          <span>
+            ✏️ Presione para ver ofertas
+          </span>
 
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-black">
-                            {offer.name}
-                          </p>
+          <span
+            className={
+              showOffers
+                ? "sausage-man-arrow open"
+                : "sausage-man-arrow"
+            }
+          >
+            ▼
+          </span>
 
-                          <p className="mt-0.5 text-xs text-white/40">
-                            League of Legends · Indonesia
-                          </p>
-                        </div>
-                      </div>
+        </button>
 
-                      <div className="ml-3 shrink-0 text-right">
-                        <p className="text-base font-black">
-                          {formatPrice(offer.price)}
-                        </p>
+        {showOffers && (
 
-                        {isSelected && (
-                          <p className="mt-0.5 text-[10px] font-bold uppercase text-red-400">
-                            Seleccionado
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+          <section className="sausage-man-offers">
 
-            {/* FORMULARIO */}
-            {selectedOffer && (
-              <form
-                id="league-order-form"
-                onSubmit={handleSubmit}
-                className="mt-5 rounded-2xl border border-white/10 bg-black/50 p-4 sm:p-5"
-              >
-                <div className="mb-5">
-                  <p className="text-xs font-bold uppercase tracking-wider text-white/40">
-                    Oferta seleccionada
-                  </p>
-
-                  <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-white/5 p-4">
-                    <div>
-                      <p className="font-black">
-                        {selectedOffer.name}
-                      </p>
-
-                      <p className="mt-1 text-xs text-white/40">
-                        Región Indonesia
-                      </p>
-                    </div>
-
-                    <p className="text-xl font-black">
-                      {formatPrice(selectedOffer.price)}
-                    </p>
-                  </div>
-                </div>
-
-                <label
-                  htmlFor="riot-id"
-                  className="mb-2 block text-sm font-black"
-                >
-                  Riot ID
-                </label>
-
-                <input
-                  id="riot-id"
-                  type="text"
-                  value={riotId}
-                  onChange={(event) => {
-                    setRiotId(event.target.value);
-                    setError("");
-                  }}
-                  placeholder="Nombre#TAG"
-                  autoComplete="off"
-                  spellCheck={false}
-                  maxLength={43}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-base font-semibold text-white outline-none placeholder:text-white/25 focus:border-red-500/60 focus:bg-white/[0.07]"
-                />
-
-                <div className="mt-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3">
-                  <p className="text-xs leading-5 text-yellow-200/70">
-                    ⚠️ Escribe tu Riot ID exactamente como aparece en tu
-                    cuenta. Debe tener el formato{" "}
-                    <strong className="text-yellow-200">
-                      Nombre#TAG
-                    </strong>
-                    .
-                  </p>
-                </div>
-
-                {error && (
-                  <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
-                    <p className="text-sm font-semibold text-red-300">
-                      {error}
-                    </p>
-                  </div>
-                )}
+            {LEAGUE_OF_LEGENDS_ID.offers.map(
+              (offer) => (
 
                 <button
-                  type="submit"
-                  disabled={loading || validating}
-                  className="mt-5 flex w-full items-center justify-center rounded-xl bg-red-600 px-5 py-4 text-sm font-black uppercase tracking-wide text-white transition active:scale-[0.98] hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  type="button"
+                  key={offer.id}
+                  className={
+                    selectedOffer?.id ===
+                    offer.id
+                      ? "sausage-man-offer selected"
+                      : "sausage-man-offer"
+                  }
+                  onClick={() =>
+                    handleSelectOffer(
+                      offer
+                    )
+                  }
                 >
-                  {loading || validating
-                    ? "Procesando..."
-                    : `Comprar ${formatPrice(selectedOffer.price)}`}
+
+                  <div className="sausage-man-offer-left">
+
+                    <div className="sausage-man-offer-icon">
+                      {offer.icon}
+                    </div>
+
+                    <div className="sausage-man-offer-text">
+
+                      <strong>
+                        {offer.name}
+                      </strong>
+
+                      <span>
+                        Recarga directa
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                  <div className="sausage-man-offer-price">
+                    $
+                    {Number(
+                      offer.price
+                    ).toFixed(4)}
+                  </div>
+
                 </button>
-              </form>
+
+              )
             )}
+
+          </section>
+
+        )}
+
+        {selectedOffer &&
+          !orderCreated && (
+
+          <section
+            id="order-section"
+            className="sausage-man-order"
+          >
+
+            <div className="sausage-man-order-title">
+
+              <div>
+
+                <span>
+                  Oferta seleccionada
+                </span>
+
+                <strong>
+                  {selectedOffer.name}
+                </strong>
+
+              </div>
+
+              <div className="sausage-man-selected-price">
+                $
+                {Number(
+                  selectedOffer.price
+                ).toFixed(4)}
+              </div>
+
+            </div>
+
+            <form
+              onSubmit={handleSubmit}
+              className="sausage-man-form"
+            >
+
+              <label>
+                Riot ID
+              </label>
+
+              <input
+                type="text"
+                autoComplete="off"
+                placeholder="Nombre#TAG"
+                value={riotId}
+                onChange={(event) =>
+                  setRiotId(
+                    event.target.value
+                  )
+                }
+                maxLength={43}
+              />
+
+              <p className="sausage-man-input-help">
+                Introduce tu Riot ID con el formato
+                Nombre#TAG. La cuenta debe pertenecer
+                a la región de Indonesia.
+              </p>
+
+              {error && (
+                <div className="sausage-man-error">
+                  ⚠️ {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="sausage-man-buy"
+                disabled={processing}
+              >
+                {processing
+                  ? "PROCESANDO..."
+                  : `COMPRAR POR $${Number(
+                      selectedOffer.price
+                    ).toFixed(4)}`}
+              </button>
+
+            </form>
+
+          </section>
+
+        )}
+
+        {orderCreated && (
+
+          <section
+            id="success-section"
+            className="sausage-man-success"
+          >
+
+            <div className="sausage-man-success-icon">
+              ✓
+            </div>
+
+            <h2>
+              ORDEN CREADA
+            </h2>
+
+            <p>
+              Tu pedido fue enviado
+              correctamente.
+            </p>
+
+            <div className="sausage-man-order-info">
+
+              <div>
+
+                <span>
+                  Número de orden
+                </span>
+
+                <strong>
+                  {orderNumber}
+                </strong>
+
+              </div>
+
+              {supplierOrderId && (
+
+                <div>
+
+                  <span>
+                    ID del proveedor
+                  </span>
+
+                  <strong>
+                    {supplierOrderId}
+                  </strong>
+
+                </div>
+
+              )}
+
+              <div>
+
+                <span>
+                  Estado
+                </span>
+
+                <strong>
+                  {orderStatus}
+                </strong>
+
+              </div>
+
+            </div>
+
+            <div className="sausage-man-success-buttons">
+
+              <button
+                type="button"
+                onClick={goToOrders}
+              >
+                REVISAR ORDEN
+              </button>
+
+              <button
+                type="button"
+                onClick={goToTopUp}
+              >
+                VOLVER A LA TIENDA
+              </button>
+
+            </div>
+
+          </section>
+
+        )}
+
+        <section className="sausage-man-service">
+
+          <h2>
+            ⚡ Servicio automático
+          </h2>
+
+          <p>
+            Tu recarga será procesada
+            automáticamente después de
+            confirmar el pedido.
+          </p>
+
+          <div className="sausage-man-service-grid">
+
+            <div>
+              <span>⚡</span>
+              <strong>
+                ENTREGA RÁPIDA
+              </strong>
+            </div>
+
+            <div>
+              <span>🔒</span>
+              <strong>
+                PAGO SEGURO
+              </strong>
+            </div>
+
+            <div>
+              <span>🎮</span>
+              <strong>
+                ENTREGA DIRECTA
+              </strong>
+            </div>
+
           </div>
+
         </section>
-      </div>
+
+      </section>
+
+      <footer className="sausage-man-footer">
+
+        <div>
+          🛒 STORE GAMING 🎮
+        </div>
+
+        <div>
+          Recargas digitales
+          automáticas y seguras.
+        </div>
+
+      </footer>
+
+      <style jsx>{`
+
+        .sausage-man-page {
+          position: relative;
+          min-height: 100vh;
+          background: #050505;
+          color: #fff;
+          overflow-x: hidden;
+        }
+
+        .sausage-man-background {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+          background-image:
+            linear-gradient(
+              rgba(0, 0, 0, 0.78),
+              rgba(0, 0, 0, 0.9)
+            ),
+            url("/images/battle-royale-bg.jpg");
+          background-size: cover;
+          background-position: center;
+          pointer-events: none;
+        }
+
+        .sausage-man-header {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          height: 58px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 12px;
+          background: rgba(5, 5, 5, 0.96);
+          border-bottom:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(10px);
+        }
+
+        .sausage-man-header-title {
+          font-size: 14px;
+          font-weight: 900;
+          letter-spacing: 0.3px;
+          white-space: nowrap;
+        }
+
+        .sausage-man-back,
+        .sausage-man-cart {
+          border: 0;
+          background: transparent;
+          color: #fff;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 800;
+        }
+
+        .sausage-man-cart {
+          font-size: 20px;
+        }
+
+        .sausage-man-container {
+          position: relative;
+          z-index: 2;
+          width: 100%;
+          max-width: 620px;
+          margin: 0 auto;
+          padding: 0 12px 30px;
+        }
+
+        .sausage-man-banner {
+          position: relative;
+          width: 100%;
+          height: 235px;
+          overflow: hidden;
+          border-radius: 0 0 16px 16px;
+          background: #111;
+        }
+
+        .sausage-man-banner img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .sausage-man-banner::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(
+              to top,
+              rgba(0, 0, 0, 0.9),
+              rgba(0, 0, 0, 0.08)
+            );
+        }
+
+        .sausage-man-banner-overlay {
+          position: absolute;
+          z-index: 2;
+          left: 18px;
+          right: 18px;
+          bottom: 18px;
+        }
+
+        .sausage-man-banner-small {
+          color: #ff3333;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 2px;
+        }
+
+        .sausage-man-banner-overlay h1 {
+          margin: 3px 0 0;
+          font-size: 29px;
+          line-height: 1;
+          font-weight: 1000;
+          text-shadow:
+            0 2px 8px
+            rgba(0, 0, 0, 0.8);
+        }
+
+        .sausage-man-banner-overlay p {
+          margin: 7px 0 0;
+          color: #ddd;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 2px;
+        }
+
+        .sausage-man-note {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          margin-top: 12px;
+          padding: 13px;
+          border-radius: 11px;
+          background:
+            rgba(255, 255, 255, 0.045);
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.07);
+        }
+
+        .sausage-man-note span {
+          font-size: 18px;
+        }
+
+        .sausage-man-note p {
+          margin: 0;
+          color: #aaa;
+          font-size: 12px;
+          line-height: 1.5;
+          white-space: pre-line;
+        }
+
+        .sausage-man-offers-toggle {
+          width: 100%;
+          margin-top: 12px;
+          padding: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border: 1px solid
+            rgba(255, 255, 255, 0.08);
+          border-radius: 11px;
+          background:
+            rgba(15, 15, 15, 0.95);
+          color: #fff;
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .sausage-man-arrow {
+          transition:
+            transform 0.2s ease;
+          color: #ff2b2b;
+        }
+
+        .sausage-man-arrow.open {
+          transform: rotate(180deg);
+        }
+
+        .sausage-man-offers {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-top: 8px;
+        }
+
+        .sausage-man-offer {
+          width: 100%;
+          min-height: 66px;
+          padding: 10px 12px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.07);
+          border-radius: 11px;
+          background:
+            rgba(13, 13, 13, 0.95);
+          color: #fff;
+          cursor: pointer;
+          text-align: left;
+          transition:
+            transform 0.15s ease,
+            border-color 0.15s ease,
+            background 0.15s ease;
+        }
+
+        .sausage-man-offer:active {
+          transform: scale(0.985);
+        }
+
+        .sausage-man-offer.selected {
+          border-color: #e50909;
+          background:
+            rgba(229, 9, 9, 0.09);
+        }
+
+        .sausage-man-offer-left {
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .sausage-man-offer-icon {
+          width: 40px;
+          height: 40px;
+          flex: 0 0 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 10px;
+          background:
+            rgba(255, 255, 255, 0.07);
+          font-size: 22px;
+        }
+
+        .sausage-man-offer-text {
+          min-width: 0;
+        }
+
+        .sausage-man-offer-text strong {
+          display: block;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 900;
+        }
+
+        .sausage-man-offer-text span {
+          display: block;
+          margin-top: 3px;
+          color: #777;
+          font-size: 10px;
+        }
+
+        .sausage-man-offer-price {
+          flex-shrink: 0;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 1000;
+        }
+
+        .sausage-man-order {
+          margin-top: 12px;
+          padding: 15px;
+          border-radius: 13px;
+          background:
+            rgba(10, 10, 10, 0.97);
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+        }
+
+        .sausage-man-order-title {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 15px;
+          margin-bottom: 16px;
+        }
+
+        .sausage-man-order-title span {
+          display: block;
+          color: #777;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.7px;
+        }
+
+                .sausage-man-order-title strong {
+          display: block;
+          margin-top: 4px;
+          font-size: 15px;
+        }
+
+        .sausage-man-selected-price {
+          color: #ff3333;
+          font-size: 17px;
+          font-weight: 1000;
+          white-space: nowrap;
+        }
+
+        .sausage-man-form {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .sausage-man-form label {
+          margin-bottom: 7px;
+          color: #ddd;
+          font-size: 12px;
+          font-weight: 800;
+        }
+
+        .sausage-man-form input {
+          width: 100%;
+          box-sizing: border-box;
+          min-height: 47px;
+          padding: 0 13px;
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
+          border-radius: 9px;
+          outline: none;
+          background: #151515;
+          color: #fff;
+          font-size: 14px;
+        }
+
+        .sausage-man-form input:focus {
+          border-color: #e50909;
+          box-shadow:
+            0 0 0 2px
+            rgba(229, 9, 9, 0.1);
+        }
+
+        .sausage-man-form input::placeholder {
+          color: #666;
+        }
+
+        .sausage-man-input-help {
+          margin: 7px 0 0;
+          color: #777;
+          font-size: 10px;
+          line-height: 1.4;
+        }
+
+        .sausage-man-error {
+          margin-top: 12px;
+          padding: 11px;
+          border-radius: 8px;
+          background:
+            rgba(220, 0, 0, 0.12);
+          border:
+            1px solid
+            rgba(255, 50, 50, 0.3);
+          color: #ff4d4d;
+          font-size: 12px;
+          line-height: 1.4;
+        }
+
+        .sausage-man-buy {
+          width: 100%;
+          min-height: 48px;
+          margin-top: 14px;
+          border: 0;
+          border-radius: 9px;
+          background: #e50909;
+          color: #fff;
+          font-size: 13px;
+          font-weight: 1000;
+          cursor: pointer;
+          transition:
+            transform 0.15s ease,
+            opacity 0.15s ease;
+        }
+
+        .sausage-man-buy:active {
+          transform: scale(0.985);
+        }
+
+        .sausage-man-buy:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+
+        .sausage-man-success {
+          margin-top: 12px;
+          padding: 20px 15px;
+          border-radius: 13px;
+          background:
+            rgba(10, 10, 10, 0.97);
+          border:
+            1px solid
+            rgba(50, 220, 100, 0.2);
+          text-align: center;
+        }
+
+        .sausage-man-success-icon {
+          width: 58px;
+          height: 58px;
+          margin: 0 auto 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: #19a94b;
+          color: #fff;
+          font-size: 32px;
+          font-weight: 900;
+        }
+
+        .sausage-man-success h2 {
+          margin: 0;
+          font-size: 19px;
+          font-weight: 1000;
+        }
+
+        .sausage-man-success p {
+          margin: 8px 0 0;
+          color: #aaa;
+          font-size: 13px;
+        }
+
+        .sausage-man-order-info {
+          margin-top: 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 9px;
+        }
+
+        .sausage-man-order-info div {
+          padding: 12px;
+          border-radius: 9px;
+          background:
+            rgba(255, 255, 255, 0.05);
+          text-align: left;
+        }
+
+        .sausage-man-order-info span {
+          display: block;
+          color: #888;
+          font-size: 11px;
+        }
+
+        .sausage-man-order-info strong {
+          display: block;
+          margin-top: 4px;
+          color: #fff;
+          font-size: 13px;
+          word-break: break-word;
+        }
+
+        .sausage-man-success-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 9px;
+          margin-top: 18px;
+        }
+
+        .sausage-man-success-buttons button {
+          width: 100%;
+          min-height: 45px;
+          padding: 13px;
+          border: 0;
+          border-radius: 10px;
+          background: #e50909;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .sausage-man-success-buttons button:active {
+          transform: scale(0.985);
+        }
+
+        .sausage-man-success-buttons button:last-child {
+          background: #222;
+        }
+
+        .sausage-man-service {
+          margin-top: 12px;
+          padding: 18px;
+          border-radius: 14px;
+          background:
+            rgba(15, 15, 15, 0.94);
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.07);
+        }
+
+        .sausage-man-service h2 {
+          margin: 0;
+          color: #fff;
+          font-size: 17px;
+          font-weight: 900;
+        }
+
+        .sausage-man-service p {
+          margin: 8px 0 0;
+          color: #999;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+
+        .sausage-man-service-grid {
+          display: grid;
+          grid-template-columns:
+            repeat(3, 1fr);
+          gap: 8px;
+          margin-top: 14px;
+        }
+
+        .sausage-man-service-grid div {
+          padding: 12px 7px;
+          text-align: center;
+          border-radius: 10px;
+          background:
+            rgba(255, 255, 255, 0.04);
+        }
+
+        .sausage-man-service-grid span {
+          display: block;
+          font-size: 20px;
+        }
+
+        .sausage-man-service-grid strong {
+          display: block;
+          margin-top: 5px;
+          color: #ccc;
+          font-size: 9px;
+        }
+
+        .sausage-man-footer {
+          position: relative;
+          z-index: 2;
+          padding: 25px 15px;
+          text-align: center;
+          color: #777;
+          font-size: 11px;
+          line-height: 1.6;
+          border-top:
+            1px solid
+            rgba(255, 255, 255, 0.06);
+        }
+
+        @media (max-width: 480px) {
+
+          .sausage-man-header-title {
+            font-size: 13px;
+          }
+
+          .sausage-man-banner {
+            height: 215px;
+          }
+
+          .sausage-man-banner-overlay h1 {
+            font-size: 25px;
+          }
+
+          .sausage-man-service-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .sausage-man-order-title {
+            align-items: flex-start;
+          }
+
+          .sausage-man-selected-price {
+            font-size: 15px;
+          }
+
+        }
+
+      `}</style>
+
     </main>
   );
-  }
+}
