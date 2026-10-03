@@ -6,16 +6,17 @@ import { supabase } from "../../../../lib/supabase";
 
 type ClientBalance = {
   id: string;
-  email: string | null;
-  balance: number | string | null;
+  email: string;
+  balance: number;
 };
 
 const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
-export default function AdminBalanceDetailPage() {
+export default function ClientBalancePage() {
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const clientId = params.id;
+  const params = useParams();
+  const rawId = params.id;
+  const userId = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [client, setClient] = useState<ClientBalance | null>(null);
   const [amount, setAmount] = useState("");
@@ -24,17 +25,8 @@ export default function AdminBalanceDetailPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const formatMoney = (value: number | string | null | undefined) => {
-    const number = Number(value ?? 0);
-
-    return `$${(Number.isFinite(number) ? number : 0).toLocaleString(
-      "en-US",
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    )}`;
-  };
+  const formatBalance = (value: number) =>
+    (Number(value) || 0).toFixed(2);
 
   const loadClient = useCallback(async () => {
     setLoading(true);
@@ -46,21 +38,14 @@ export default function AdminBalanceDetailPage() {
         error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError) throw sessionError;
-
-      if (!session?.access_token) {
+      if (sessionError || !session?.access_token) {
         router.replace("/login");
         return;
       }
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-
-      if (user?.email?.toLowerCase() !== ADMIN_EMAIL) {
+      if (
+        session.user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()
+      ) {
         router.replace("/");
         return;
       }
@@ -76,64 +61,68 @@ export default function AdminBalanceDetailPage() {
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        throw new Error(data.error || "No se pudieron cargar los datos.");
+        throw new Error(
+          data.error || "No se pudieron cargar los datos del cliente."
+        );
       }
 
-      const selected = (data.balances ?? []).find(
-        (item: ClientBalance) => item.id === clientId
+      const balances: ClientBalance[] = Array.isArray(data.balances)
+        ? data.balances
+        : [];
+
+      const foundClient = balances.find(
+        (item) => item.id === userId
       );
 
-      if (!selected) {
-        throw new Error("No se encontró el cliente seleccionado.");
+      if (!foundClient) {
+        setClient(null);
+        setError("No se encontró este cliente.");
+        return;
       }
 
-      setClient(selected);
+      setClient(foundClient);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Ocurrió un error inesperado."
+          : "Ocurrió un error al cargar el cliente."
       );
     } finally {
       setLoading(false);
     }
-  }, [clientId, router]);
+  }, [router, userId]);
 
   useEffect(() => {
-    void loadClient();
-  }, [loadClient]);
+    if (userId) {
+      void loadClient();
+    }
+  }, [userId, loadClient]);
 
-  async function adjustBalance(action: "ADD" | "SUBTRACT") {
+  const adjustBalance = async (action: "ADD" | "SUBTRACT") => {
     setError("");
     setMessage("");
 
-    const value = Number(amount);
+    const numericAmount = Number(amount);
 
-    if (!amount.trim() || !Number.isFinite(value) || value <= 0) {
-      setError("Introduce un monto válido mayor que cero.");
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      setError("Introduce una cantidad válida mayor que 0.");
       return;
     }
 
-    if (Math.round(value * 100) / 100 !== value) {
-      setError("El monto debe tener como máximo dos decimales.");
+    if (!client) {
+      setError("No se encontró el cliente.");
       return;
     }
 
     if (
       action === "SUBTRACT" &&
-      value > Number(client?.balance ?? 0)
+      numericAmount > Number(client.balance)
     ) {
-      setError("El saldo del cliente es insuficiente para esta operación.");
+      setError(
+        "El cliente no tiene saldo suficiente para restar esa cantidad."
+      );
       return;
     }
-
-    const confirmed = window.confirm(
-      `${action === "ADD" ? "¿Sumar" : "¿Restar"} ${formatMoney(value)} ${
-        action === "ADD" ? "al saldo de" : "del saldo de"
-      } ${client?.email || "este cliente"}?`
-    );
-
-    if (!confirmed) return;
 
     setProcessing(true);
 
@@ -143,9 +132,7 @@ export default function AdminBalanceDetailPage() {
         error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError) throw sessionError;
-
-      if (!session?.access_token) {
+      if (sessionError || !session?.access_token) {
         router.replace("/login");
         return;
       }
@@ -157,8 +144,8 @@ export default function AdminBalanceDetailPage() {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          userId: clientId,
-          amount: value,
+          userId: client.id,
+          amount: numericAmount,
           action,
         }),
       });
@@ -166,299 +153,362 @@ export default function AdminBalanceDetailPage() {
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        throw new Error(data.error || "No se pudo modificar el saldo.");
+        throw new Error(
+          data.error || "No se pudo actualizar el balance."
+        );
       }
 
       setMessage(
         action === "ADD"
-          ? "El saldo se sumó correctamente."
-          : "El saldo se restó correctamente."
+          ? `Se agregaron ${formatBalance(numericAmount)} al balance.`
+          : `Se restaron ${formatBalance(numericAmount)} del balance.`
       );
 
       setAmount("");
-
-      if (data.client) {
-        setClient(data.client);
-      } else {
-        await loadClient();
-      }
+      await loadClient();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Ocurrió un error inesperado."
+          : "Ocurrió un error al modificar el balance."
       );
     } finally {
       setProcessing(false);
     }
-  }
+  };
 
   return (
-    <main className="balance-detail min-h-screen bg-[#080808] text-white">
-      <style jsx global>{`
-        .balance-detail {
+    <main className="balance-detail-page">
+      <style jsx>{`
+        .balance-detail-page {
+          min-height: 100vh;
+          padding: 22px 16px 40px;
+          color: #fff;
           background:
             radial-gradient(
-              ellipse at top,
-              rgba(237, 28, 36, 0.09),
-              transparent 48%
+              circle at 50% 0%,
+              rgba(229, 9, 20, 0.17),
+              transparent 40%
             ),
             #080808;
         }
 
-        .balance-detail * {
+        .container {
+          width: 100%;
+          max-width: 560px;
+          margin: 0 auto;
+        }
+
+        .back-button {
+          min-height: 44px;
+          padding: 11px 17px;
+          margin-bottom: 24px;
+          border: 1px solid #e50914;
+          border-radius: 10px;
+          background: #151515;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .back-button:hover {
+          background: #e50914;
+        }
+
+        .client-card {
+          position: relative;
+          overflow: hidden;
+          padding: 24px 20px;
+          margin-bottom: 22px;
+          border: 1px solid #e50914;
+          border-radius: 17px;
+          background: linear-gradient(
+            135deg,
+            rgba(229, 9, 20, 0.2),
+            #111 58%,
+            #0b0b0b
+          );
+          box-shadow: 0 8px 28px rgba(229, 9, 20, 0.1);
+        }
+
+        .client-card::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 4px;
+          background: #e50914;
+        }
+
+        .card-heading {
+          margin: 0 0 23px;
+          color: #fff;
+          font-size: 21px;
+          font-weight: 900;
+        }
+
+        .data-group {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          min-width: 0;
+          margin-bottom: 21px;
+        }
+
+        .data-group:last-child {
+          margin-bottom: 0;
+        }
+
+        .label {
+          color: #c7c7c7;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.7px;
+          text-transform: uppercase;
+        }
+
+        .username {
+          color: #fff !important;
+          -webkit-text-fill-color: #fff;
+          overflow-wrap: anywhere;
+          font-size: 16px;
+          font-weight: 800;
+        }
+
+        .current-balance {
+          color: #43f28a;
+          font-size: clamp(30px, 7vw, 38px);
+          font-weight: 900;
+          line-height: 1.2;
+          overflow-wrap: anywhere;
+        }
+
+        .form-card {
+          padding: 22px 18px;
+          border: 1px solid #303030;
+          border-radius: 16px;
+          background: #111;
+        }
+
+        .form-heading {
+          margin: 0 0 17px;
+          color: #fff;
+          font-size: 18px;
+          font-weight: 900;
+        }
+
+        .amount-input {
+          display: block;
+          width: 100%;
+          min-height: 52px;
+          padding: 13px 15px;
+          margin: 8px 0 17px;
+          border: 1px solid #454545;
+          border-radius: 10px;
+          outline: none;
+          background: #080808;
+          color: #fff;
+          font-size: 18px;
+          font-weight: 700;
           box-sizing: border-box;
         }
 
-        .balance-detail button,
-        .balance-detail input {
-          touch-action: manipulation;
+        .amount-input::placeholder {
+          color: #888;
+          font-size: 15px;
+          font-weight: 500;
         }
 
-        .balance-detail .detail-panel {
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: linear-gradient(145deg, #151515, #0e0e0e);
+        .amount-input:focus {
+          border-color: #e50914;
+          box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.13);
         }
 
-        .balance-detail .amount-input {
+        .buttons-row {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .action-button {
+          min-height: 49px;
+          padding: 12px 8px;
+          border: 0;
+          border-radius: 10px;
+          color: #fff;
+          font-size: 15px;
+          font-weight: 900;
+          cursor: pointer;
+          transition:
+            filter 0.2s ease,
+            transform 0.2s ease;
+        }
+
+        .action-button:hover {
+          filter: brightness(1.12);
+        }
+
+        .action-button:active {
+          transform: scale(0.98);
+        }
+
+        .action-button:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+
+        .add-button {
+          background: #16863d;
+          border: 1px solid #39d76a;
+        }
+
+        .subtract-button {
+          background: #c90019;
+          border: 1px solid #ff3446;
+        }
+
+        .notice {
+          padding: 13px 14px;
+          margin-bottom: 15px;
+          border: 1px solid;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 700;
+          overflow-wrap: anywhere;
+        }
+
+        .success {
+          border-color: #258a4a;
+          background: rgba(22, 134, 61, 0.12);
+          color: #61f18b;
+        }
+
+        .error {
+          border-color: #e50914;
+          background: rgba(229, 9, 20, 0.1);
+          color: #ff858b;
+        }
+
+        .status {
+          padding: 20px;
           border: 1px solid #303030;
-          background: #090909;
-          outline: none;
+          border-radius: 12px;
+          background: #111;
+          color: #ddd;
+          text-align: center;
         }
 
-        .balance-detail .amount-input:focus {
-          border-color: #ed1c24;
-        }
+        @media (max-width: 360px) {
+          .client-card {
+            padding: 22px 15px;
+          }
 
-        .balance-detail .red-button {
-          background: #ed1c24;
-          transition: background 180ms ease;
-        }
+          .form-card {
+            padding: 19px 13px;
+          }
 
-        .balance-detail .red-button:hover {
-          background: #ff3038;
-        }
+          .buttons-row {
+            gap: 8px;
+          }
 
-        @media (prefers-reduced-motion: reduce) {
-          .balance-detail * {
-            animation: none !important;
-            transition: none !important;
+          .action-button {
+            font-size: 14px;
           }
         }
       `}</style>
 
-      <header className="sticky top-0 z-20 border-b border-white/[0.08] bg-[#080808]/95 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-[72px] max-w-4xl items-center justify-between gap-3 px-4 sm:px-6">
-          <button
-            type="button"
-            onClick={() => router.push("/admin")}
-            className="flex items-center gap-3 text-left"
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 text-xl">
-              🛒
-            </span>
-
-            <span>
-              <span className="block font-black tracking-wide">
-                STORE <span className="text-[#ed1c24]">GAMING</span>
-              </span>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                Administración
-              </span>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => router.push("/admin/balances")}
-            className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-white/70 hover:border-red-500/50 sm:text-sm"
-          >
-            ← Clientes
-          </button>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-2xl px-4 pb-12 pt-7 sm:px-6 sm:pt-10">
-        <div className="mb-6">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#ed1c24]">
-            Gestión de cuenta
-          </p>
-
-          <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-            Administrar saldo
-          </h1>
-
-          <p className="mt-2 text-sm leading-6 text-white/50">
-            Consulta el balance del cliente y realiza ajustes desde el panel
-            administrativo.
-          </p>
-        </div>
+      <div className="container">
+        <button
+          type="button"
+          className="back-button"
+          onClick={() => router.push("/admin/balances")}
+        >
+          ← Regresar a clientes
+        </button>
 
         {loading ? (
-          <div className="detail-panel rounded-2xl p-10 text-center">
-            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-[#ed1c24]" />
-            <p className="mt-4 text-sm text-white/60">
-              Cargando información del cliente...
-            </p>
-          </div>
-        ) : error && !client ? (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.06] p-6 text-center">
-            <p className="text-lg font-bold text-red-300">
-              No se pudo abrir la cuenta
-            </p>
-            <p className="mt-2 break-words text-sm text-white/60">
-              {error}
-            </p>
-            <button
-              type="button"
-              onClick={() => void loadClient()}
-              className="red-button mt-5 rounded-xl px-5 py-3 text-sm font-bold"
-            >
-              Intentar de nuevo
-            </button>
-          </div>
+          <div className="status">Cargando datos del cliente...</div>
         ) : client ? (
           <>
-            <section className="detail-panel relative mb-5 overflow-hidden rounded-2xl p-5 sm:p-6">
-              <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-red-500/[0.07] blur-3xl" />
+            <section className="client-card">
+              <h1 className="card-heading">Datos del cliente</h1>
 
-              <div className="relative flex items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-2xl font-black text-[#ed1c24]">
-                  {(client.email || "U").charAt(0).toUpperCase()}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Cliente seleccionado
-                  </p>
-
-                  <h2 className="mt-2 break-all text-base font-bold sm:text-lg">
-                    {client.email || "Sin correo"}
-                  </h2>
-
-                  <p className="mt-2 break-all text-[11px] text-white/35">
-                    ID: {client.id}
-                  </p>
-                </div>
+              <div className="data-group">
+                <span className="label">Usuario</span>
+                <span className="username">
+                  {client.email || "Sin correo"}
+                </span>
               </div>
 
-              <div className="relative mt-7 rounded-xl border border-green-500/15 bg-green-500/[0.05] p-5">
-                <p className="text-sm font-medium text-white/50">
-                  Saldo actual
-                </p>
-
-                <p className="mt-2 break-words text-4xl font-black tracking-tight text-[#35d07f] sm:text-5xl">
-                  {formatMoney(client.balance)}
-                </p>
-
-                <p className="mt-3 text-xs text-white/35">
-                  Balance registrado en la cuenta
-                </p>
+              <div className="data-group">
+                <span className="label">Balance actual</span>
+                <strong className="current-balance">
+                  {formatBalance(client.balance)}
+                </strong>
               </div>
             </section>
 
-            <section className="detail-panel rounded-2xl p-5 sm:p-6">
-              <div className="mb-5">
-                <h2 className="text-xl font-black">
-                  Ajustar balance
-                </h2>
-                <p className="mt-1 text-sm text-white/45">
-                  Introduce el importe que deseas modificar.
-                </p>
-              </div>
-
-              <label
-                htmlFor="balance-amount"
-                className="mb-2 block text-sm font-semibold text-white/75"
-              >
-                Importe en USD
-              </label>
-
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-white/40">
-                  $
-                </span>
-
-                <input
-                  id="balance-amount"
-                  type="number"
-                  inputMode="decimal"
-                  min="0.01"
-                  step="0.01"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                  placeholder="0.00"
-                  disabled={processing}
-                  className="amount-input min-h-14 w-full rounded-xl py-3 pl-10 pr-4 text-lg font-semibold text-white placeholder:text-white/25 disabled:opacity-50"
-                />
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {[1, 5, 10, 20, 50].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    disabled={processing}
-                    onClick={() => setAmount(String(preset))}
-                    className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-white/65 transition hover:border-red-500/50 hover:text-white disabled:opacity-50"
-                  >
-                    ${preset}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  disabled={processing || !amount}
-                  onClick={() => void adjustBalance("ADD")}
-                  className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#169b55] px-4 py-3 font-bold text-white transition hover:bg-[#1bb866] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <span className="text-xl">＋</span>
-                  {processing ? "Procesando..." : "Sumar saldo"}
-                </button>
-
-                <button
-                  type="button"
-                  disabled={processing || !amount}
-                  onClick={() => void adjustBalance("SUBTRACT")}
-                  className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#ed1c24] px-4 py-3 font-bold text-white transition hover:bg-[#ff3038] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <span className="text-xl">−</span>
-                  {processing ? "Procesando..." : "Restar saldo"}
-                </button>
-              </div>
-
-              {message && (
-                <div
-                  role="status"
-                  className="mt-5 rounded-xl border border-green-500/20 bg-green-500/[0.07] p-4 text-sm text-green-300"
-                >
-                  ✓ {message}
-                </div>
-              )}
+            <section className="form-card">
+              <h2 className="form-heading">Modificar balance</h2>
 
               {error && (
-                <div
-                  role="alert"
-                  className="mt-5 rounded-xl border border-red-500/20 bg-red-500/[0.07] p-4 text-sm text-red-300"
-                >
+                <div className="notice error" role="alert">
                   {error}
                 </div>
               )}
 
-              <p className="mt-5 text-center text-[11px] leading-5 text-white/30">
-                Las operaciones requieren autorización administrativa y
-                confirmación antes de aplicarse.
-              </p>
+              {message && (
+                <div className="notice success" role="status">
+                  {message}
+                </div>
+              )}
+
+              <label className="label" htmlFor="balance-amount">
+                Cantidad
+              </label>
+
+              <input
+                id="balance-amount"
+                className="amount-input"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                placeholder="Escribe la cantidad..."
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                disabled={processing}
+              />
+
+              <div className="buttons-row">
+                <button
+                  type="button"
+                  className="action-button add-button"
+                  onClick={() => void adjustBalance("ADD")}
+                  disabled={processing || loading}
+                >
+                  {processing ? "Procesando..." : "Agregar +"}
+                </button>
+
+                <button
+                  type="button"
+                  className="action-button subtract-button"
+                  onClick={() => void adjustBalance("SUBTRACT")}
+                  disabled={processing || loading}
+                >
+                  {processing ? "Procesando..." : "Restar -"}
+                </button>
+              </div>
             </section>
           </>
-        ) : null}
-
-        <footer className="mt-8 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">
-          STORE GAMING · Panel administrativo
-        </footer>
+        ) : (
+          <div className="status">
+            {error || "No se encontró el cliente."}
+          </div>
+        )}
       </div>
     </main>
   );
-}
+    }
