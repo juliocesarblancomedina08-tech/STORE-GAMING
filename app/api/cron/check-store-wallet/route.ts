@@ -4,10 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// ======================================================
-// CONFIGURACIÓN
-// ======================================================
-
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
@@ -20,142 +16,231 @@ const ANKR_API_KEY =
 const CRON_SECRET =
   process.env.CRON_SECRET || "";
 
-const BSC_RPC_URL =
-  `https://rpc.ankr.com/bsc/${ANKR_API_KEY}`;
+const BSC_RPC = ANKR_API_KEY
+  ? `https://rpc.ankr.com/bsc/${ANKR_API_KEY}`
+  : "https://bsc-dataseed.binance.org/";
 
-// ======================================================
-// WALLET STORE GAMING
-// ======================================================
-
-const RECEIVING_WALLET =
+const STORE_WALLET =
   "0xdcdEe992E26cDBe1b024e171a3a980078BeaAC77";
-
-// ======================================================
-// CONTRATO USDT BEP20
-// ======================================================
 
 const USDT_CONTRACT =
   "0x55d398326f99059fF775485246999027B3197955";
 
-// ======================================================
-// USDT
-// ======================================================
-
 const USDT_DECIMALS = 18;
-
-// ======================================================
-// CONFIRMACIONES MÍNIMAS
-// ======================================================
-
 const MIN_CONFIRMATIONS = 2;
-
-// ======================================================
-// BLOQUES A REVISAR
-// ======================================================
-
 const BLOCK_LOOKBACK = 800;
-
-// ======================================================
-// EVENT Transfer(address,address,uint256)
-// ======================================================
 
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-// ======================================================
-// SUPABASE ADMIN
-// ======================================================
+const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+);
 
-const supabaseAdmin =
-  createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
-
-// ======================================================
-// TIPOS
-// ======================================================
+type RpcLog = {
+  address?: string;
+  topics?: string[];
+  data?: string;
+  transactionHash?: string;
+  blockNumber?: string;
+};
 
 type RpcResponse<T> = {
-  jsonrpc: string;
-  id: number;
   result?: T;
   error?: {
-    code: number;
-    message: string;
+    message?: string;
+    code?: number;
   };
 };
 
-type RpcLog = {
-  address: string;
-  topics: string[];
-  data: string;
-  blockNumber: string;
-  transactionHash: string;
-  transactionIndex?: string;
-  logIndex?: string;
-  removed?: boolean;
-};
+function jsonError(message: string, status = 500) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+    },
+    { status }
+  );
+}
 
-type BlockData = {
-  timestamp: string;
-};
+function isAuthorized(request: NextRequest) {
+  if (!CRON_SECRET) {
+    return false;
+  }
 
-type TransactionReceipt = {
-  status?: string;
-  blockNumber?: string;
-  transactionHash?: string;
-};
+  const authorization =
+    request.headers.get("authorization") || "";
 
-type CustomerDeposit = {
-  id: string;
-  user_id: string;
-  amount: number | string;
-  currency?: string | null;
-  network?: string | null;
-  wallet_address?: string | null;
-  status?: string | null;
-  created_at: string;
-  expires_at?: string | null;
-};
+  const bearerToken = authorization
+    .replace(/^Bearer\s+/i, "")
+    .trim();
 
-type Bep20Transfer = {
-  hash: string;
-  contractAddress: string;
-  from: string;
-  to: string;
-  rawValue: string;
-  amount: string;
-  blockNumber: number;
-  timestamp: number;
-  confirmations: number;
-  successful: boolean;
-};
+  const cronHeader =
+    request.headers.get("x-cron-secret") || "";
 
-type ProcessedResult = {
-  tx_hash: string;
-  amount?: string;
-  status:
-    | "PROCESSED"
-    | "ALREADY_PROCESSED"
-    | "WAITING"
-    | "ERROR";
-  customer_deposit_id?: string | null;
-  customer_credited?: boolean;
-  recharge_created?: boolean;
-  recharge_id?: string | null;
-  error?: string;
-};
+  return (
+    bearerToken === CRON_SECRET ||
+    cronHeader === CRON_SECRET
+  );
+}
 
-// ======================================================
-// NORMALIZAR DIRECCIÓN
-// ======================================================
+async function rpc<T>(
+  method: string,
+  params: unknown[]
+): Promise<T> {
+  const response = await fetch(BSC_RPC, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Error RPC BSC: HTTP ${response.status}`
+    );
+  }
+
+  const data =
+    (await response.json()) as RpcResponse<T>;
+
+  if (data.error) {
+    throw new Error(
+      data.error.message || "Error consultando BSC."
+    );
+  }
+
+  if (data.result === undefined) {
+    throw new Error(
+      `La respuesta RPC de ${method} no contiene result.`
+    );
+  }
+
+  return data.result;
+}
+
+/*
+ * Convierte un número hexadecimal a decimal sin BigInt.
+ * Evita el error de TypeScript causado por los literales 10n.
+ */
+function hexToDecimalString(hex: string): string {
+  const clean = hex
+    .toLowerCase()
+    .replace(/^0x/, "");
+
+  if (!clean || !/^[0-9a-f]+$/.test(clean)) {
+    return "0";
+  }
+
+  let decimal = "0";
+
+  for (const character of clean) {
+    const digit = parseInt(character, 16);
+
+    let carry = digit;
+    let output = "";
+
+    for (
+      let index = decimal.length - 1;
+      index >= 0;
+      index--
+    ) {
+      const value =
+        Number(decimal[index]) * 16 + carry;
+
+      output = String(value % 10) + output;
+      carry = Math.floor(value / 10);
+    }
+
+    while (carry > 0) {
+      output =
+        String(carry % 10) + output;
+
+      carry = Math.floor(carry / 10);
+    }
+
+    decimal = output.replace(/^0+(?=\d)/, "");
+  }
+
+  return decimal || "0";
+}
+
+/*
+ * Convierte la cantidad mínima de USDT a formato decimal.
+ * La cantidad original se conserva sin redondeos de Number.
+ */
+function rawToUsdt(rawHex: string): string {
+  const raw = hexToDecimalString(rawHex);
+
+  const padded = raw.padStart(
+    USDT_DECIMALS + 1,
+    "0"
+  );
+
+  const splitAt =
+    padded.length - USDT_DECIMALS;
+
+  const whole = padded.slice(0, splitAt);
+  const fraction = padded
+    .slice(splitAt)
+    .replace(/0+$/, "");
+
+  return fraction
+    ? `${whole}.${fraction}`
+    : whole;
+}
+
+/*
+ * Convierte una cantidad decimal a unidades mínimas
+ * como texto, sin utilizar BigInt ni números flotantes.
+ */
+function usdtToRaw(amount: string | number): string {
+  const value = String(amount).trim();
+
+  if (!/^\d+(\.\d+)?$/.test(value)) {
+    throw new Error("Cantidad USDT inválida.");
+  }
+
+  const [wholePart, fractionPart = ""] =
+    value.split(".");
+
+  if (fractionPart.length > USDT_DECIMALS) {
+    throw new Error(
+      "La cantidad supera los decimales permitidos."
+    );
+  }
+
+  const fraction = fractionPart.padEnd(
+    USDT_DECIMALS,
+    "0"
+  );
+
+  const raw =
+    `${wholePart}${fraction}`.replace(
+      /^0+(?=\d)/,
+      ""
+    );
+
+  return raw || "0";
+}
+
+function topicAddress(topic: string): string {
+  return `0x${topic.slice(-40)}`.toLowerCase();
+}
 
 function normalizeAddress(
   address: string | null | undefined
@@ -165,1111 +250,337 @@ function normalizeAddress(
     .toLowerCase();
 }
 
-// ======================================================
-// CONVERTIR DIRECCIÓN A TOPIC
-// ======================================================
+function parseBlockNumber(
+  value: string | undefined
+): number {
+  if (!value) return 0;
 
-function addressToTopic(
-  address: string
-): string {
-  return (
-    "0x" +
-    normalizeAddress(address)
-      .replace(/^0x/, "")
-      .padStart(64, "0")
-  );
+  const parsed = Number.parseInt(value, 16);
+
+  return Number.isSafeInteger(parsed)
+    ? parsed
+    : 0;
 }
 
-// ======================================================
-// RPC
-// ======================================================
+async function findCustomerDeposit(
+  amount: string
+): Promise<string | null> {
+  /*
+   * Busca un depósito pendiente que coincida con:
+   * - red BEP20
+   * - moneda USDT
+   * - dirección de la tienda
+   * - importe exacto
+   * - fecha de expiración no vencida
+   *
+   * Si hay varios depósitos del mismo importe, no elige
+   * automáticamente uno para evitar asignarlo al cliente
+   * equivocado.
+   */
+  const now = new Date().toISOString();
 
-async function rpcCall<T>(
-  method: string,
-  params: unknown[]
-): Promise<T> {
-  const response =
-    await fetch(
-      BSC_RPC_URL,
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method,
-          params,
-        }),
-
-        cache: "no-store",
-      }
-    );
-
-  if (!response.ok) {
-    throw new Error(
-      `RPC HTTP ${response.status}`
-    );
-  }
-
-  const json =
-    (await response.json()) as RpcResponse<T>;
-
-  if (json.error) {
-    throw new Error(
-      `RPC ${method}: ${json.error.message}`
-    );
-  }
-
-  if (
-    json.result === undefined
-  ) {
-    throw new Error(
-      `RPC ${method}: RESPUESTA VACÍA`
-    );
-  }
-
-  return json.result;
-}
-
-// ======================================================
-// ÚLTIMO BLOQUE
-// ======================================================
-
-async function getLatestBlockNumber(): Promise<number> {
-  const result =
-    await rpcCall<string>(
-      "eth_blockNumber",
-      []
-    );
-
-  return Number(
-    BigInt(result)
-  );
-}
-
-// ======================================================
-// BLOQUE
-// ======================================================
-
-async function getBlockByNumber(
-  blockNumber: number
-): Promise<BlockData> {
-  const hex =
-    "0x" +
-    blockNumber.toString(16);
-
-  return rpcCall<BlockData>(
-    "eth_getBlockByNumber",
-    [
-      hex,
-      false,
-    ]
-  );
-}
-
-// ======================================================
-// RECEIPT
-// ======================================================
-
-async function getTransactionReceipt(
-  txHash: string
-): Promise<TransactionReceipt | null> {
-  return rpcCall<TransactionReceipt | null>(
-    "eth_getTransactionReceipt",
-    [txHash]
-  );
-}
-
-// ======================================================
-// CONVERTIR RAW USDT A DECIMAL
-// ======================================================
-
-function rawToUsdt(
-  rawValue: string
-): string {
-  const raw =
-    BigInt(rawValue);
-
-  const base =
-    10n ** BigInt(USDT_DECIMALS);
-
-  const whole =
-    raw / base;
-
-  const decimals =
-    raw % base;
-
-  if (decimals === 0n) {
-    return whole.toString();
-  }
-
-  let decimalText =
-    decimals
-      .toString()
-      .padStart(
-        USDT_DECIMALS,
-        "0"
-      );
-
-  decimalText =
-    decimalText.replace(
-      /0+$/,
-      ""
-    );
-
-  return `${whole.toString()}.${decimalText}`;
-}
-
-// ======================================================
-// USDT DECIMAL A RAW
-// ======================================================
-
-function usdtToRaw(
-  amount: number | string
-): string {
-  const text =
-    String(amount)
-      .trim();
-
-  if (
-    !/^\d+(\.\d+)?$/.test(
-      text
+  const { data, error } = await supabase
+    .from("deposits")
+    .select(
+      "id, amount, network, currency, wallet_address, status, expires_at"
     )
-  ) {
+    .eq("network", "BEP20")
+    .eq("currency", "USDT")
+    .in("status", ["PENDING", "PENDIENTE"])
+    .eq("amount", amount)
+    .gt("expires_at", now)
+    .limit(3);
+
+  if (error) {
     throw new Error(
-      `MONTO USDT INVÁLIDO: ${text}`
+      `No se pudieron consultar los depósitos: ${error.message}`
     );
   }
 
-  const [
-    wholePart,
-    decimalPart = "",
-  ] =
-    text.split(".");
+  const matches = (data || []).filter(
+    (deposit) =>
+      normalizeAddress(deposit.wallet_address) ===
+      normalizeAddress(STORE_WALLET)
+  );
 
-  const decimals =
-    decimalPart
-      .padEnd(
-        USDT_DECIMALS,
-        "0"
-      )
-      .slice(
-        0,
-        USDT_DECIMALS
-      );
-
-  return (
-    BigInt(wholePart) *
-      10n **
-        BigInt(USDT_DECIMALS) +
-    BigInt(decimals || "0")
-  ).toString();
-}
-
-// ======================================================
-// OBTENER LOGS USDT
-// ======================================================
-
-async function getBep20Logs(): Promise<RpcLog[]> {
-  const latestBlock =
-    await getLatestBlockNumber();
-
-  const fromBlock =
-    Math.max(
-      0,
-      latestBlock -
-        BLOCK_LOOKBACK
-    );
-
-  const params = [
-    {
-      address:
-        USDT_CONTRACT,
-
-      fromBlock:
-        "0x" +
-        fromBlock.toString(16),
-
-      toBlock:
-        "0x" +
-        latestBlock.toString(16),
-
-      topics: [
-        TRANSFER_TOPIC,
-
-        null,
-
-        addressToTopic(
-          RECEIVING_WALLET
-        ),
-      ],
-    },
-  ];
-
-  const logs =
-    await rpcCall<RpcLog[]>(
-      "eth_getLogs",
-      params
-    );
-
-  return logs;
-}
-
-// ======================================================
-// CONVERTIR LOG A TRANSFERENCIA
-// ======================================================
-
-async function parseTransfer(
-  log: RpcLog,
-  latestBlock: number
-): Promise<Bep20Transfer | null> {
-  try {
-    if (
-      !log.topics ||
-      log.topics.length < 3
-    ) {
-      return null;
-    }
-
-    if (
-      normalizeAddress(
-        log.address
-      ) !==
-      normalizeAddress(
-        USDT_CONTRACT
-      )
-    ) {
-      return null;
-    }
-
-    if (
-      !log.transactionHash
-    ) {
-      return null;
-    }
-
-    const from =
-      "0x" +
-      log.topics[1]
-        .replace(/^0x/, "")
-        .slice(-40);
-
-    const to =
-      "0x" +
-      log.topics[2]
-        .replace(/^0x/, "")
-        .slice(-40);
-
-    if (
-      normalizeAddress(to) !==
-      normalizeAddress(
-        RECEIVING_WALLET
-      )
-    ) {
-      return null;
-    }
-
-    const rawValue =
-      BigInt(
-        log.data
-      ).toString();
-
-    if (
-      rawValue === "0"
-    ) {
-      return null;
-    }
-
-    const blockNumber =
-      Number(
-        BigInt(
-          log.blockNumber
-        )
-      );
-
-    const block =
-      await getBlockByNumber(
-        blockNumber
-      );
-
-    const timestamp =
-      Number(
-        BigInt(
-          block.timestamp
-        )
-      ) *
-      1000;
-
-    const receipt =
-      await getTransactionReceipt(
-        log.transactionHash
-      );
-
-    if (!receipt) {
-      return null;
-    }
-
-    const successful =
-      receipt.status ===
-      "0x1";
-
-    if (
-      !successful
-    ) {
-      return null;
-    }
-
-    const confirmations =
-      Math.max(
-        0,
-        latestBlock -
-          blockNumber +
-          1
-      );
-
-    return {
-      hash:
-        log.transactionHash,
-
-      contractAddress:
-        log.address,
-
-      from,
-
-      to,
-
-      rawValue,
-
-      amount:
-        rawToUsdt(
-          rawValue
-        ),
-
-      blockNumber,
-
-      timestamp,
-
-      confirmations,
-
-      successful,
-    };
-
-  } catch (error) {
-    console.error(
-      "ERROR PARSEANDO TRANSFERENCIA:",
-      error
-    );
-
+  if (matches.length !== 1) {
     return null;
   }
+
+  return matches[0].id as string;
 }
-
-// ======================================================
-// OBTENER TRANSFERENCIAS VÁLIDAS
-// ======================================================
-
-async function getBep20Transfers(): Promise<Bep20Transfer[]> {
-  const latestBlock =
-    await getLatestBlockNumber();
-
-  const logs =
-    await getBep20Logs();
-
-  const transfers:
-    Bep20Transfer[] = [];
-
-  for (
-    const log of logs
-  ) {
-    const transfer =
-      await parseTransfer(
-        log,
-        latestBlock
-      );
-
-    if (!transfer) {
-      continue;
-    }
-
-    if (
-      transfer.confirmations <
-      MIN_CONFIRMATIONS
-    ) {
-      continue;
-    }
-
-    transfers.push(
-      transfer
-    );
-  }
-
-  return transfers;
-}
-
-// ======================================================
-// OBTENER DEPÓSITOS DE CLIENTES PENDIENTES
-// ======================================================
-
-async function getPendingCustomerDeposits(): Promise<
-  CustomerDeposit[]
-> {
-  const {
-    data,
-    error,
-  } =
-    await supabaseAdmin
-      .from("deposits")
-      .select(
-        `
-        id,
-        user_id,
-        amount,
-        currency,
-        network,
-        wallet_address,
-        status,
-        created_at,
-        expires_at
-        `
-      )
-      .eq(
-        "status",
-        "PENDING"
-      )
-      .eq(
-        "network",
-        "BEP20"
-      )
-      .order(
-        "created_at",
-        {
-          ascending: true,
-        }
-      );
-
-  if (error) {
-    throw new Error(
-      `ERROR OBTENIENDO DEPÓSITOS DE CLIENTES: ${error.message}`
-    );
-  }
-
-  return (
-    (data || []) as CustomerDeposit[]
-  );
-}
-
-// ======================================================
-// BUSCAR DEPÓSITO DE CLIENTE PARA UNA TX
-// ======================================================
-
-function findCustomerDeposit(
-  transfer: Bep20Transfer,
-  deposits: CustomerDeposit[]
-): CustomerDeposit | null {
-  const transferTime =
-    transfer.timestamp;
-
-  const transferRaw =
-    transfer.rawValue;
-
-  for (
-    const deposit of deposits
-  ) {
-    if (
-      normalizeAddress(
-        deposit.wallet_address
-      ) !==
-      normalizeAddress(
-        RECEIVING_WALLET
-      )
-    ) {
-      continue;
-    }
-
-    if (
-      String(
-        deposit.currency ||
-          "USDT"
-      ).toUpperCase() !==
-      "USDT"
-    ) {
-      continue;
-    }
-
-    let expectedRaw: string;
-
-    try {
-      expectedRaw =
-        usdtToRaw(
-          deposit.amount
-        );
-    } catch {
-      continue;
-    }
-
-    if (
-      expectedRaw !==
-      transferRaw
-    ) {
-      continue;
-    }
-
-    const createdAt =
-      new Date(
-        deposit.created_at
-      ).getTime();
-
-    if (
-      !Number.isFinite(
-        createdAt
-      )
-    ) {
-      continue;
-    }
-
-    const expiresAt =
-      deposit.expires_at
-        ? new Date(
-            deposit.expires_at
-          ).getTime()
-        : createdAt +
-          10 * 60 * 1000;
-
-    if (
-      !Number.isFinite(
-        expiresAt
-      )
-    ) {
-      continue;
-    }
-
-    if (
-      transferTime <
-        createdAt ||
-      transferTime >
-        expiresAt
-    ) {
-      continue;
-    }
-
-    return deposit;
-  }
-
-  return null;
-}
-
-// ======================================================
-// COMPROBAR SI TX YA ESTÁ REGISTRADA
-// ======================================================
-
-async function isAlreadyProcessed(
-  txHash: string
-): Promise<boolean> {
-  const {
-    data,
-    error,
-  } =
-    await supabaseAdmin
-      .from(
-        "store_wallet_deposits"
-      )
-      .select("id")
-      .eq(
-        "tx_hash",
-        txHash.toLowerCase()
-      )
-      .maybeSingle();
-
-  if (error) {
-    throw new Error(
-      `ERROR COMPROBANDO TX EXISTENTE: ${error.message}`
-    );
-  }
-
-  return !!data;
-}
-
-// ======================================================
-// PROCESAR UNA TRANSFERENCIA
-// ======================================================
 
 async function processTransfer(
-  transfer: Bep20Transfer,
-  customerDeposits: CustomerDeposit[]
-): Promise<ProcessedResult> {
-  const txHash =
-    transfer.hash.toLowerCase();
+  log: RpcLog,
+  currentBlock: number
+) {
+  const txHash = log.transactionHash;
 
-  try {
-    // --------------------------------------------------
-    // SEGURIDAD
-    // --------------------------------------------------
-
-    if (
-      !transfer.successful
-    ) {
-      return {
-        tx_hash:
-          txHash,
-
-        status:
-          "ERROR",
-
-        error:
-          "TRANSFERENCIA FALLIDA",
-      };
-    }
-
-    if (
-      normalizeAddress(
-        transfer.to
-      ) !==
-      normalizeAddress(
-        RECEIVING_WALLET
-      )
-    ) {
-      return {
-        tx_hash:
-          txHash,
-
-        status:
-          "ERROR",
-
-        error:
-          "DESTINO INCORRECTO",
-      };
-    }
-
-    if (
-      normalizeAddress(
-        transfer.contractAddress
-      ) !==
-      normalizeAddress(
-        USDT_CONTRACT
-      )
-    ) {
-      return {
-        tx_hash:
-          txHash,
-
-        status:
-          "ERROR",
-
-        error:
-          "CONTRATO USDT INCORRECTO",
-      };
-    }
-
-    if (
-      transfer.confirmations <
-      MIN_CONFIRMATIONS
-    ) {
-      return {
-        tx_hash:
-          txHash,
-
-        status:
-          "WAITING",
-
-        amount:
-          transfer.amount,
-      };
-    }
-
-    // --------------------------------------------------
-    // EVITAR DUPLICADOS
-    // --------------------------------------------------
-
-    if (
-      await isAlreadyProcessed(
-        txHash
-      )
-    ) {
-      return {
-        tx_hash:
-          txHash,
-
-        status:
-          "ALREADY_PROCESSED",
-
-        amount:
-          transfer.amount,
-      };
-    }
-
-    // --------------------------------------------------
-    // BUSCAR SI PERTENECE A CLIENTE
-    // --------------------------------------------------
-
-    const customerDeposit =
-      findCustomerDeposit(
-        transfer,
-        customerDeposits
-      );
-
-    // --------------------------------------------------
-    // LLAMAR FUNCIÓN ATÓMICA
-    // --------------------------------------------------
-
-    const {
-      data,
-      error,
-    } =
-      await supabaseAdmin.rpc(
-        "process_store_wallet_transfer",
-        {
-          p_network:
-            "BEP20",
-
-          p_token:
-            "USDT",
-
-          p_wallet_address:
-            RECEIVING_WALLET,
-
-          p_amount:
-            transfer.amount,
-
-          p_tx_hash:
-            txHash,
-
-          p_block_number:
-            transfer.blockNumber,
-
-          p_from_address:
-            transfer.from,
-
-          p_to_address:
-            transfer.to,
-
-          p_confirmations:
-            transfer.confirmations,
-
-          p_customer_deposit_id:
-            customerDeposit?.id ??
-            null,
-        }
-      );
-
-    if (error) {
-      throw new Error(
-        error.message
-      );
-    }
-
-    const result =
-      data as {
-        ok?: boolean;
-        already_processed?: boolean;
-        customer_credited?: boolean;
-        recharge_created?: boolean;
-        recharge_id?: string | null;
-        customer_deposit_id?: string | null;
-      };
-
+  if (!txHash) {
     return {
-      tx_hash:
-        txHash,
-
-      amount:
-        transfer.amount,
-
-      status:
-        result?.already_processed
-          ? "ALREADY_PROCESSED"
-          : "PROCESSED",
-
-      customer_deposit_id:
-        result
-          ?.customer_deposit_id ??
-        customerDeposit?.id ??
-        null,
-
-      customer_credited:
-        Boolean(
-          result?.customer_credited
-        ),
-
-      recharge_created:
-        Boolean(
-          result?.recharge_created
-        ),
-
-      recharge_id:
-        result?.recharge_id ??
-        null,
-    };
-
-  } catch (error) {
-    console.error(
-      `ERROR PROCESANDO ${txHash}:`,
-      error
-    );
-
-    return {
-      tx_hash:
-        txHash,
-
-      amount:
-        transfer.amount,
-
-      status:
-        "ERROR",
-
-      error:
-        error instanceof Error
-          ? error.message
-          : "ERROR PROCESANDO TRANSFERENCIA",
+      processed: false,
+      reason: "missing_tx_hash",
     };
   }
-}
 
-// ======================================================
-// AUTORIZACIÓN CRON
-// ======================================================
+  const blockNumber =
+    parseBlockNumber(log.blockNumber);
 
-function isAuthorized(
-  request: NextRequest
-): boolean {
-  if (!CRON_SECRET) {
-    console.error(
-      "CRON_SECRET NO CONFIGURADO"
-    );
-
-    return false;
-  }
-
-  const authorization =
-    request.headers.get(
-      "authorization"
-    );
-
-  if (!authorization) {
-    return false;
-  }
-
-  const [
-    scheme,
-    token,
-  ] =
-    authorization.split(" ");
+  const confirmations = Math.max(
+    0,
+    currentBlock - blockNumber + 1
+  );
 
   if (
-    scheme !==
-    "Bearer"
+    confirmations < MIN_CONFIRMATIONS
   ) {
-    return false;
+    return {
+      processed: false,
+      reason: "insufficient_confirmations",
+    };
   }
 
-  return token ===
-    CRON_SECRET;
+  const topics = log.topics || [];
+
+  if (topics.length < 3 || !log.data) {
+    return {
+      processed: false,
+      reason: "invalid_transfer_log",
+    };
+  }
+
+  const fromAddress =
+    topicAddress(topics[1]);
+
+  const toAddress =
+    topicAddress(topics[2]);
+
+  if (
+    toAddress !==
+    normalizeAddress(STORE_WALLET)
+  ) {
+    return {
+      processed: false,
+      reason: "different_destination",
+    };
+  }
+
+  const amount = rawToUsdt(log.data);
+
+  if (
+    !/^\d+(\.\d+)?$/.test(amount) ||
+    Number(amount) <= 0
+  ) {
+    return {
+      processed: false,
+      reason: "invalid_amount",
+    };
+  }
+
+  /*
+   * La restricción UNIQUE(tx_hash) y la función SQL
+   * deben garantizar que una transferencia no se procese
+   * dos veces.
+   */
+  const { data: existing, error: existingError } =
+    await supabase
+      .from("store_wallet_deposits")
+      .select("id, status")
+      .eq("tx_hash", txHash)
+      .maybeSingle();
+
+  if (existingError) {
+    throw new Error(
+      `Error comprobando TX existente: ${existingError.message}`
+    );
+  }
+
+  if (existing) {
+    return {
+      processed: false,
+      reason: "already_processed",
+      txHash,
+    };
+  }
+
+  const customerDepositId =
+    await findCustomerDeposit(amount);
+
+  /*
+   * IMPORTANTE:
+   * Estos nombres de parámetros deben coincidir con la
+   * firma de public.process_store_wallet_transfer(...)
+   * que tienes instalada en Supabase.
+   */
+  const { data, error } = await supabase.rpc(
+    "process_store_wallet_transfer",
+    {
+      p_network: "BEP20",
+      p_token: "USDT",
+      p_wallet_address: STORE_WALLET,
+      p_amount: amount,
+      p_tx_hash: txHash,
+      p_block_number: blockNumber,
+      p_from_address: fromAddress,
+      p_to_address: toAddress,
+      p_confirmations: confirmations,
+      p_deposit_id: customerDepositId,
+    }
+  );
+
+  if (error) {
+    /*
+     * Si otro proceso registró la misma TX entre la
+     * comprobación y el RPC, la función SQL debe manejar
+     * la duplicación mediante UNIQUE(tx_hash).
+     */
+    throw new Error(
+      `Error procesando transferencia ${txHash}: ${error.message}`
+    );
+  }
+
+  return {
+    processed: true,
+    txHash,
+    amount,
+    confirmations,
+    customerDepositId,
+    result: data,
+  };
 }
 
-// ======================================================
-// GET
-// ======================================================
+export async function GET(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return jsonError("No autorizado.", 401);
+  }
 
-export async function GET(
-  request: NextRequest
-) {
+  if (
+    !SUPABASE_URL ||
+    !SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    return jsonError(
+      "Falta configurar Supabase en las variables de entorno.",
+      500
+    );
+  }
+
   try {
-    // ==================================================
-    // AUTORIZACIÓN
-    // ==================================================
+    /*
+     * 1. Obtener el bloque actual de BSC.
+     */
+    const latestBlockHex =
+      await rpc<string>(
+        "eth_blockNumber",
+        []
+      );
 
-    if (
-      !isAuthorized(
-        request
-      )
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
+    const currentBlock =
+      parseBlockNumber(latestBlockHex);
 
-          error:
-            "NO AUTORIZADO",
-        },
-        {
-          status: 401,
-        }
+    if (!currentBlock) {
+      throw new Error(
+        "No se pudo determinar el bloque actual de BSC."
       );
     }
 
-    // ==================================================
-    // CONFIGURACIÓN
-    // ==================================================
+    /*
+     * 2. Calcular el bloque inicial del escaneo.
+     */
+    const fromBlock = Math.max(
+      0,
+      currentBlock - BLOCK_LOOKBACK + 1
+    );
 
-    if (
-      !SUPABASE_URL ||
-      !SUPABASE_SERVICE_ROLE_KEY
-    ) {
-      return NextResponse.json(
+    const fromBlockHex =
+      `0x${fromBlock.toString(16)}`;
+
+    /*
+     * 3. Preparar el topic de destino.
+     */
+    const destinationTopic =
+      `0x${normalizeAddress(STORE_WALLET).slice(2).padStart(64, "0")}`;
+
+    /*
+     * 4. Obtener transferencias USDT hacia la tienda.
+     */
+    const logs = await rpc<RpcLog[]>(
+      "eth_getLogs",
+      [
         {
-          ok: false,
-
-          error:
-            "FALTAN VARIABLES DE SUPABASE",
+          fromBlock: fromBlockHex,
+          toBlock: latestBlockHex,
+          address: USDT_CONTRACT,
+          topics: [
+            TRANSFER_TOPIC,
+            null,
+            destinationTopic,
+          ],
         },
-        {
-          status: 500,
-        }
-      );
-    }
+      ]
+    );
 
-    if (
-      !ANKR_API_KEY
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
+    const results: Array<
+      Record<string, unknown>
+    > = [];
 
-          error:
-            "FALTA ANKR_API_KEY",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
+    let processed = 0;
+    let skipped = 0;
+    let failed = 0;
 
-    // ==================================================
-    // OBTENER DEPÓSITOS DE CLIENTES
-    // ==================================================
-
-    const customerDeposits =
-      await getPendingCustomerDeposits();
-
-    // ==================================================
-    // BUSCAR TODAS LAS TRANSFERENCIAS USDT
-    // ==================================================
-
-    const transfers =
-      await getBep20Transfers();
-
-    // ==================================================
-    // PROCESAR
-    // ==================================================
-
-    const results:
-      ProcessedResult[] = [];
-
-    for (
-      const transfer of transfers
-    ) {
-      const result =
-        await processTransfer(
-          transfer,
-          customerDeposits
+    /*
+     * 5. Procesar las transferencias una por una.
+     */
+    for (const log of logs) {
+      try {
+        const result = await processTransfer(
+          log,
+          currentBlock
         );
 
-      results.push(
-        result
-      );
+        results.push(result);
+
+        if (result.processed) {
+          processed++;
+        } else {
+          skipped++;
+        }
+      } catch (error) {
+        failed++;
+
+        results.push({
+          processed: false,
+          txHash: log.transactionHash || null,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Error desconocido.",
+        });
+      }
     }
 
-    // ==================================================
-    // ESTADÍSTICAS
-    // ==================================================
-
-    const processed =
-      results.filter(
-        (item) =>
-          item.status ===
-          "PROCESSED"
-      ).length;
-
-    const alreadyProcessed =
-      results.filter(
-        (item) =>
-          item.status ===
-          "ALREADY_PROCESSED"
-      ).length;
-
-    const errors =
-      results.filter(
-        (item) =>
-          item.status ===
-          "ERROR"
-      ).length;
-
-    const customerCredits =
-      results.filter(
-        (item) =>
-          item.customer_credited ===
-          true
-      ).length;
-
-    const rechargesCreated =
-      results.filter(
-        (item) =>
-          item.recharge_created ===
-          true
-      ).length;
-
-    // ==================================================
-    // RESPUESTA
-    // ==================================================
-
     return NextResponse.json({
-      ok: true,
-
-      wallet:
-        RECEIVING_WALLET,
-
-      network:
-        "BEP20",
-
-      token:
-        "USDT",
-
-      confirmations_required:
-        MIN_CONFIRMATIONS,
-
-      block_lookback:
-        BLOCK_LOOKBACK,
-
-      transfers_found:
-        transfers.length,
-
+      ok: failed === 0,
+      network: "BEP20",
+      token: "USDT",
+      wallet: STORE_WALLET,
+      currentBlock,
+      fromBlock,
+      scanned: logs.length,
       processed,
-
-      already_processed:
-        alreadyProcessed,
-
-      customer_credits:
-        customerCredits,
-
-      recharges_created:
-        rechargesCreated,
-
-      errors,
-
+      skipped,
+      failed,
       results,
     });
-
   } catch (error) {
     console.error(
-      "CHECK STORE WALLET ERROR:",
+      "[check-store-wallet]",
       error
     );
 
-    return NextResponse.json(
-      {
-        ok: false,
-
-        error:
-          error instanceof Error
-            ? error.message
-            : "ERROR INTERNO",
-      },
-      {
-        status: 500,
-      }
+    return jsonError(
+      error instanceof Error
+        ? error.message
+        : "Error revisando la wallet."
     );
   }
-}
+      }
