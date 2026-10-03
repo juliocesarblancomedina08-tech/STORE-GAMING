@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
 
@@ -17,11 +18,10 @@ function jsonError(message: string, status: number) {
 
 export async function POST(request: Request) {
   try {
-    // Verificar el token de sesión.
-    const authorization = request.headers.get("authorization");
-    const token = authorization?.startsWith("Bearer ")
-      ? authorization.slice(7).trim()
-      : "";
+    // 1. Validar la sesión.
+    const authorization = request.headers.get("authorization") || "";
+    const match = authorization.match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim();
 
     if (!token) {
       return jsonError("Debes iniciar sesión como administrador.", 401);
@@ -40,11 +40,11 @@ export async function POST(request: Request) {
       return jsonError("No tienes permiso para modificar saldos.", 403);
     }
 
-    // Validar los datos recibidos.
+    // 2. Leer y validar los datos.
     let body: {
-      userId?: string;
-      amount?: number;
-      action?: string;
+      userId?: unknown;
+      amount?: unknown;
+      action?: unknown;
     };
 
     try {
@@ -53,93 +53,97 @@ export async function POST(request: Request) {
       return jsonError("Los datos enviados no son JSON válido.", 400);
     }
 
-    const userId = body.userId;
-    const amount = Number(body.amount);
-    const action = body.action;
-
     if (
-      typeof userId !== "string" ||
-      !userId.trim() ||
-      userId.length > 100
+      typeof body.userId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        body.userId
+      )
     ) {
       return jsonError("El usuario indicado no es válido.", 400);
     }
 
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0 ||
-      Math.round(amount * 100) !== amount * 100
-    ) {
+    if (body.action !== "ADD" && body.action !== "SUBTRACT") {
+      return jsonError("La operación solicitada no es válida.", 400);
+    }
+
+    // Aceptar hasta cuatro decimales.
+    const amountText =
+      typeof body.amount === "number" && Number.isFinite(body.amount)
+        ? String(body.amount)
+        : typeof body.amount === "string"
+          ? body.amount.trim()
+          : "";
+
+    if (!/^\d+(?:\.\d{1,4})?$/.test(amountText)) {
       return jsonError(
-        "Introduce una cantidad válida con un máximo de dos decimales.",
+        "Introduce una cantidad positiva con un máximo de 4 decimales.",
         400
       );
     }
 
-    if (action !== "ADD" && action !== "SUBTRACT") {
-      return jsonError("La operación solicitada no es válida.", 400);
+    if (!/[1-9]/.test(amountText)) {
+      return jsonError("La cantidad debe ser mayor que cero.", 400);
     }
 
-    // Consultar el saldo actual.
-    const {
-      data: profile,
-      error: profileError,
-    } = await supabaseAdmin
-      .from("profiles")
-      .select("id, balance")
-      .eq("id", userId)
-      .maybeSingle();
+    // 3. Ejecutar la función transaccional de Supabase.
+    const { data, error } = await supabaseAdmin.rpc(
+      "store_gaming_admin_adjust_balance",
+      {
+        p_user_id: body.userId,
+        p_amount: amountText,
+        p_action: body.action,
+      }
+    );
 
-    if (profileError) {
-      console.error("Error consultando el perfil:", profileError);
-      return jsonError("No se pudo consultar el saldo del usuario.", 500);
+    if (error) {
+      console.error("ERROR AJUSTANDO SALDO:", error);
+
+      const message = error.message || "";
+
+      if (message.includes("No se encontró el usuario")) {
+        return jsonError("No se encontró el usuario.", 404);
+      }
+
+      if (message.includes("no tiene saldo suficiente")) {
+        return jsonError("El usuario no tiene saldo suficiente.", 400);
+      }
+
+      if (
+        message.includes("Operación no válida") ||
+        message.includes("como máximo 4 decimales") ||
+        message.includes("no es válido")
+      ) {
+        return jsonError(message, 400);
+      }
+
+      return jsonError(
+        "No se pudo completar el ajuste. Revisa los registros del servidor.",
+        500
+      );
     }
 
-    if (!profile) {
-      return jsonError("No se encontró el usuario.", 404);
+    if (!data || data.ok !== true) {
+      console.error("RESPUESTA SQL INESPERADA:", data);
+      return jsonError("La base de datos no confirmó el ajuste.", 500);
     }
 
-    const currentBalance = Number(profile.balance ?? 0);
-
-    if (!Number.isFinite(currentBalance) || currentBalance < 0) {
-      return jsonError("El saldo actual del usuario no es válido.", 500);
-    }
-
-    const newBalance =
-      action === "ADD"
-        ? currentBalance + amount
-        : currentBalance - amount;
-
-    if (newBalance < 0) {
-      return jsonError("El usuario no tiene saldo suficiente.", 400);
-    }
-
-    // Guardar el saldo actualizado.
-    const {
-      data: updatedProfile,
-      error: updateError,
-    } = await supabaseAdmin
-      .from("profiles")
-      .update({ balance: Number(newBalance.toFixed(2)) })
-      .eq("id", userId)
-      .select("id, balance")
-      .single();
-
-    if (updateError || !updatedProfile) {
-      console.error("Error actualizando el saldo:", updateError);
-      return jsonError("No se pudo guardar el nuevo saldo.", 500);
-    }
-
+    // 4. Devolver el resultado al navegador.
     return NextResponse.json(
       {
         ok: true,
         message:
-          action === "ADD"
+          body.action === "ADD"
             ? "Saldo agregado correctamente."
             : "Saldo restado correctamente.",
         client: {
-          id: updatedProfile.id,
-          balance: Number(updatedProfile.balance),
+          id: data.userId,
+          balance: data.balanceAfter,
+        },
+        transaction: {
+          type: body.action === "ADD" ? "ADMIN_ADD" : "ADMIN_SUBTRACT",
+          amount: data.amount,
+          balanceBefore: data.balanceBefore,
+          balanceAfter: data.balanceAfter,
         },
       },
       {
@@ -148,7 +152,7 @@ export async function POST(request: Request) {
       }
     );
   } catch (error) {
-    console.error("Error inesperado al ajustar el saldo:", error);
+    console.error("ERROR INESPERADO AJUSTANDO SALDO:", error);
 
     return jsonError("Ocurrió un error interno al modificar el saldo.", 500);
   }
