@@ -1,13 +1,8 @@
+
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
 import { supabase } from "../../../lib/supabase";
 
 type Order = {
@@ -15,34 +10,21 @@ type Order = {
   user_id: string;
   username: string | null;
   email: string | null;
-
   game: string;
   category_id: string;
   offer_id: string;
   offer_name: string;
-
   player_id: string;
-
   retail_price: number | string;
   supplier_price: number | string;
   currency: string;
-
   status: string;
-
   supplier_order_id: string | null;
-
-  supplier_fields:
-    | Record<string, unknown>
-    | null;
-
-  supplier_response:
-    | Record<string, unknown>
-    | null;
-
+  supplier_fields: Record<string, unknown> | null;
+  supplier_response: Record<string, unknown> | null;
   refunded_at: string | null;
   completed_at: string | null;
   failed_at: string | null;
-
   created_at: string;
   updated_at: string;
 };
@@ -61,139 +43,892 @@ type ApiResponse = {
   error?: string;
 };
 
-const ADMIN_EMAIL =
-  "juliocesarblancomedina08@gmail.com";
+const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
-/* =========================================================
-   IMÁGENES DE LOS JUEGOS
-   ========================================================= */
-
-const GAME_IMAGES: Record<
-  string,
-  string
-> = {
-  free_fire_latam:
-    "/images/free-fire-latam.jpg",
-
-  mobile_legends_united_states:
-    "/images/mobile-legends.jpg",
-
-  delta_force:
-    "/images/delta-force.jpg",
-
-  eafc_mobile_id:
-    "/images/fc-mobile.jpg",
-
-  call_of_duty_mobile:
-    "/images/call-of-duty.jpg",
-
-  telegram_stars:
-    "/images/telegram-stars.jpg",
+const GAME_IMAGES: Record<string, string> = {
+  free_fire_latam: "/images/free-fire-latam.jpg",
+  mobile_legends_united_states: "/images/mobile-legends.jpg",
+  delta_force: "/images/delta-force.jpg",
+  eafc_mobile_id: "/images/fc-mobile.jpg",
+  call_of_duty_mobile: "/images/call-of-duty.jpg",
+  telegram_stars: "/images/telegram-stars.jpg",
 };
 
-const DEFAULT_GAME_IMAGE =
-  "/images/battle-royale-bg.jpg";
+const DEFAULT_GAME_IMAGE = "/images/battle-royale-bg.jpg";
 
-/* =========================================================
-   OBTENER IMAGEN DEL JUEGO
-   ========================================================= */
+function getGameImage(categoryId: string, game: string) {
+  if (GAME_IMAGES[categoryId]) return GAME_IMAGES[categoryId];
 
-function getGameImage(
-  categoryId: string,
-  game: string
-) {
-  const direct =
-    GAME_IMAGES[categoryId];
+  const normalized = game.toLowerCase();
 
-  if (direct) {
-    return direct;
-  }
-
-  const normalized =
-    game.toLowerCase();
-
-  if (
-    normalized.includes("free") &&
-    normalized.includes("fire")
-  ) {
+  if (normalized.includes("free") && normalized.includes("fire")) {
     return "/images/free-fire-latam.jpg";
   }
-
-  if (
-    normalized.includes(
-      "mobile legends"
-    )
-  ) {
+  if (normalized.includes("mobile legends")) {
     return "/images/mobile-legends.jpg";
   }
-
-  if (
-    normalized.includes("delta")
-  ) {
+  if (normalized.includes("delta")) {
     return "/images/delta-force.jpg";
   }
-
-  if (
-    normalized.includes("ea") ||
-    normalized.includes("fc mobile")
-  ) {
+  if (normalized.includes("ea") || normalized.includes("fc mobile")) {
     return "/images/fc-mobile.jpg";
   }
-
-  if (
-    normalized.includes("call") ||
-    normalized.includes("cod")
-  ) {
+  if (normalized.includes("call") || normalized.includes("cod")) {
     return "/images/call-of-duty.jpg";
   }
-
-  if (
-    normalized.includes("telegram")
-  ) {
+  if (normalized.includes("telegram")) {
     return "/images/telegram-stars.jpg";
   }
 
   return DEFAULT_GAME_IMAGE;
 }
 
-/* =========================================================
-   PÁGINA
-   ========================================================= */
+/* Estilos integrados en este mismo archivo */
+function AdminOrdersStyles() {
+  return (
+    <style jsx global>{`
+      .admin-page {
+        min-height: 100vh;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 22px 16px 34px;
+        color: #f5f5f5;
+        background:
+          radial-gradient(ellipse at 50% 0%, rgba(229, 9, 20, 0.13), transparent 42%),
+          #090909;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .admin-page * {
+        box-sizing: border-box;
+      }
+
+      .admin-header {
+        width: 100%;
+        max-width: 1050px;
+        min-height: 76px;
+        margin: 0 auto 24px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: #111;
+        border: 1px solid #292929;
+        border-bottom: 2px solid #e50914;
+        border-radius: 16px;
+      }
+
+      .admin-header-title {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .admin-header-icon {
+        width: 46px;
+        height: 46px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        background: #e50914;
+        border-radius: 13px;
+        font-size: 23px;
+      }
+
+      .admin-header-title span {
+        display: block;
+        margin-bottom: 4px;
+        color: #aaa;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 2px;
+      }
+
+      .admin-header-title h1 {
+        margin: 0;
+        color: #fff;
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: 1px;
+      }
+
+      .admin-back-button,
+      .admin-logout-button {
+        width: 43px;
+        height: 43px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        border: 1px solid #363636;
+        border-radius: 12px;
+        color: #fff;
+        background: #1b1b1b;
+        font-size: 24px;
+        cursor: pointer;
+      }
+
+      .admin-back-button:hover,
+      .admin-logout-button:hover {
+        border-color: #e50914;
+        background: #251012;
+      }
+
+      .admin-logout-button:disabled {
+        opacity: .5;
+        cursor: wait;
+      }
+
+      .admin-order-summary {
+        width: 100%;
+        max-width: 1050px;
+        margin: 0 auto 24px;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .admin-order-summary > div {
+        min-width: 0;
+        padding: 17px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        background: linear-gradient(145deg, #171717, #101010);
+        border: 1px solid #2b2b2b;
+        border-radius: 14px;
+      }
+
+      .admin-order-summary > div > span {
+        font-size: 21px;
+      }
+
+      .admin-order-summary strong {
+        overflow-wrap: anywhere;
+        color: #fff;
+        font-size: 22px;
+        font-weight: 900;
+      }
+
+      .admin-order-summary small {
+        color: #999;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 1px;
+      }
+
+      .admin-intro,
+      .admin-orders-search,
+      .admin-orders-filters,
+      .admin-orders-list,
+      .admin-error-card,
+      .admin-security-card,
+      .admin-footer,
+      .admin-order-detail {
+        width: 100%;
+        max-width: 1050px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .admin-intro {
+        margin-bottom: 20px;
+      }
+
+      .admin-intro > span {
+        color: #ff333d;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 2px;
+      }
+
+      .admin-intro h2 {
+        margin: 7px 0;
+        color: #fff;
+        font-size: 28px;
+        font-weight: 900;
+      }
+
+      .admin-intro p {
+        margin: 0;
+        color: #999;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .admin-orders-search {
+        min-height: 54px;
+        margin-bottom: 14px;
+        padding: 0 15px;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        background: #141414;
+        border: 1px solid #303030;
+        border-radius: 13px;
+      }
+
+      .admin-orders-search > span {
+        font-size: 19px;
+      }
+
+      .admin-orders-search input {
+        width: 100%;
+        min-width: 0;
+        padding: 16px 0;
+        outline: none;
+        border: 0;
+        color: #fff;
+        background: transparent;
+        font-size: 13px;
+      }
+
+      .admin-orders-search input::placeholder {
+        color: #777;
+      }
+
+      .admin-orders-search:focus-within {
+        border-color: #e50914;
+        box-shadow: 0 0 0 2px rgba(229, 9, 20, .12);
+      }
+
+      .admin-orders-filters {
+        margin-bottom: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .admin-orders-filters button {
+        min-height: 39px;
+        padding: 10px 15px;
+        border: 1px solid #303030;
+        border-radius: 10px;
+        color: #aaa;
+        background: #151515;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .5px;
+        cursor: pointer;
+      }
+
+      .admin-orders-filters button.active {
+        color: #fff;
+        background: #e50914;
+        border-color: #e50914;
+      }
+
+      .admin-orders-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .admin-order-card {
+        width: 100%;
+        min-width: 0;
+        padding: 13px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-align: left;
+        color: #fff;
+        background: linear-gradient(135deg, #171717, #101010);
+        border: 1px solid #292929;
+        border-radius: 15px;
+        cursor: pointer;
+      }
+
+      .admin-order-card:hover {
+        border-color: #e50914;
+        background: linear-gradient(135deg, #211113, #111);
+      }
+
+      .admin-order-image {
+        width: 83px;
+        height: 83px;
+        flex-shrink: 0;
+        overflow: hidden;
+        background: #222;
+        border-radius: 11px;
+        border: 1px solid #343434;
+      }
+
+      .admin-order-image img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+
+      .admin-order-card-content {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+      }
+
+      .admin-order-card-content strong {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .admin-order-card-content > span {
+        color: #ff424b;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .admin-order-card-content small {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        color: #999;
+        font-size: 10px;
+      }
+
+      .admin-order-card-right {
+        flex-shrink: 0;
+        display: flex;
+        align-items: flex-end;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .admin-order-card-right > strong {
+        color: #fff;
+        font-size: 17px;
+        font-weight: 900;
+      }
+
+      .admin-order-card-right > b {
+        color: #e50914;
+        font-size: 21px;
+      }
+
+      .status-completed,
+      .status-cancelled,
+      .status-pending {
+        display: inline-flex;
+        max-width: 100%;
+        padding: 6px 9px;
+        align-items: center;
+        justify-content: center;
+        overflow-wrap: anywhere;
+        border-radius: 7px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: .3px;
+      }
+
+      .status-completed {
+        color: #5ff0a0;
+        background: rgba(20, 150, 80, .13);
+        border: 1px solid rgba(60, 220, 130, .25);
+      }
+
+      .status-cancelled {
+        color: #ff6b72;
+        background: rgba(229, 9, 20, .12);
+        border: 1px solid rgba(229, 9, 20, .25);
+      }
+
+      .status-pending {
+        color: #ffd36a;
+        background: rgba(220, 155, 25, .12);
+        border: 1px solid rgba(220, 155, 25, .25);
+      }
+
+      .admin-loading,
+      .admin-loading-card,
+      .admin-empty-card {
+        padding: 35px 20px;
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        justify-content: center;
+        gap: 12px;
+        text-align: center;
+        background: #121212;
+        border: 1px solid #292929;
+        border-radius: 16px;
+      }
+
+      .admin-loading {
+        min-height: 65vh;
+        border: 0;
+        background: transparent;
+      }
+
+      .admin-loading-icon,
+      .admin-loading-card > div,
+      .admin-empty-card > div {
+        font-size: 35px;
+      }
+
+      .admin-loading p,
+      .admin-loading-card span {
+        color: #aaa;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+      }
+
+      .admin-empty-card strong {
+        color: #fff;
+        font-size: 14px;
+      }
+
+      .admin-empty-card span {
+        color: #999;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .admin-error-card {
+        margin-bottom: 16px;
+        padding: 17px;
+        background: #211012;
+        border: 1px solid #7d1b22;
+        border-radius: 13px;
+      }
+
+      .admin-error-card strong {
+        color: #ff626a;
+      }
+
+      .admin-error-card p {
+        color: #ddd;
+        font-size: 13px;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+      }
+
+      .admin-error-card button {
+        padding: 10px 15px;
+        border: 0;
+        border-radius: 9px;
+        color: white;
+        background: #e50914;
+        font-size: 11px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .admin-security-card {
+        margin-top: 25px;
+        padding: 18px;
+        display: flex;
+        align-items: flex-start;
+        gap: 13px;
+        background: #121212;
+        border: 1px solid #292929;
+        border-radius: 14px;
+      }
+
+      .admin-security-icon {
+        font-size: 24px;
+      }
+
+      .admin-security-card strong {
+        color: #fff;
+        font-size: 11px;
+        letter-spacing: .7px;
+      }
+
+      .admin-security-card p {
+        margin: 7px 0 0;
+        color: #999;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .admin-footer {
+        padding: 28px 0 0;
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        gap: 7px;
+        text-align: center;
+      }
+
+      .admin-footer strong {
+        color: #fff;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 2px;
+      }
+
+      .admin-footer span {
+        color: #e50914;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+      }
+
+      .admin-footer small {
+        color: #666;
+        font-size: 10px;
+      }
+
+      .admin-order-detail {
+        padding: 18px;
+        background: #111;
+        border: 1px solid #292929;
+        border-radius: 17px;
+      }
+
+      .admin-order-detail-game {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 17px;
+      }
+
+      .admin-order-detail-game img {
+        width: 100px;
+        height: 100px;
+        flex-shrink: 0;
+        object-fit: cover;
+        background: #222;
+        border: 1px solid #333;
+        border-radius: 13px;
+      }
+
+      .admin-order-detail-game > div {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+
+      .admin-order-detail-game span {
+        color: #e50914;
+        font-size: 10px;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+
+      .admin-order-detail-game strong {
+        color: #fff;
+        font-size: 19px;
+        overflow-wrap: anywhere;
+      }
+
+      .admin-order-detail-game small {
+        color: #aaa;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .admin-order-status-box {
+        margin-bottom: 18px;
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        background: #191919;
+        border: 1px solid #303030;
+        border-radius: 11px;
+      }
+
+      .admin-order-status-box > span {
+        color: #aaa;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 1px;
+      }
+
+      .admin-order-detail-section,
+      .admin-order-json-section {
+        margin-top: 15px;
+        padding: 16px;
+        background: #151515;
+        border: 1px solid #292929;
+        border-radius: 12px;
+      }
+
+      .admin-order-detail-title {
+        margin-bottom: 13px;
+        padding-bottom: 10px;
+        color: #ff3a44;
+        border-bottom: 1px solid #303030;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 1.3px;
+      }
+
+      .admin-order-detail-row {
+        min-width: 0;
+        padding: 11px 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 15px;
+        border-bottom: 1px solid #262626;
+      }
+
+      .admin-order-detail-row:last-child {
+        border-bottom: 0;
+      }
+
+      .admin-order-detail-row > span {
+        flex-shrink: 0;
+        color: #999;
+        font-size: 12px;
+      }
+
+      .admin-order-detail-row > strong {
+        max-width: 65%;
+        color: #f5f5f5;
+        font-size: 12px;
+        text-align: right;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .admin-order-json-section pre {
+        max-width: 100%;
+        margin: 0;
+        padding: 13px;
+        overflow-x: auto;
+        color: #e8e8e8;
+        background: #090909;
+        border: 1px solid #292929;
+        border-radius: 9px;
+        font-family: monospace;
+        font-size: 11px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .admin-order-return {
+        width: 100%;
+        min-height: 48px;
+        margin-top: 18px;
+        border: 0;
+        border-radius: 11px;
+        color: #fff;
+        background: #e50914;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .8px;
+        cursor: pointer;
+      }
+
+      .admin-order-return:hover {
+        background: #bd0710;
+      }
+
+      @media (max-width: 700px) {
+        .admin-page {
+          padding: 12px 10px 25px;
+        }
+
+        .admin-header {
+          min-height: 67px;
+          margin-bottom: 17px;
+          padding: 10px;
+          gap: 8px;
+          border-radius: 13px;
+        }
+
+        .admin-header-icon {
+          width: 38px;
+          height: 38px;
+          font-size: 19px;
+          border-radius: 10px;
+        }
+
+        .admin-header-title {
+          gap: 8px;
+        }
+
+        .admin-header-title span {
+          font-size: 8px;
+          letter-spacing: 1.3px;
+        }
+
+        .admin-header-title h1 {
+          font-size: 18px;
+        }
+
+        .admin-back-button,
+        .admin-logout-button {
+          width: 37px;
+          height: 37px;
+          font-size: 21px;
+        }
+
+        .admin-order-summary {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+          margin-bottom: 21px;
+        }
+
+        .admin-order-summary > div {
+          padding: 12px;
+          gap: 6px;
+        }
+
+        .admin-order-summary > div:last-child {
+          grid-column: 1 / -1;
+        }
+
+        .admin-order-summary strong {
+          font-size: 20px;
+        }
+
+        .admin-order-summary small {
+          font-size: 9px;
+        }
+
+        .admin-intro h2 {
+          font-size: 24px;
+        }
+
+        .admin-orders-filters {
+          gap: 6px;
+        }
+
+        .admin-orders-filters button {
+          flex: 1 1 auto;
+          padding: 10px;
+          font-size: 9px;
+        }
+
+        .admin-order-card {
+          padding: 10px;
+          gap: 9px;
+          border-radius: 12px;
+        }
+
+        .admin-order-image {
+          width: 62px;
+          height: 68px;
+          border-radius: 8px;
+        }
+
+        .admin-order-card-content {
+          gap: 5px;
+        }
+
+        .admin-order-card-content strong {
+          font-size: 12px;
+        }
+
+        .admin-order-card-content > span {
+          font-size: 10px;
+        }
+
+        .admin-order-card-content small {
+          font-size: 9px;
+        }
+
+        .admin-order-card-right {
+          gap: 7px;
+        }
+
+        .admin-order-card-right > strong {
+          font-size: 14px;
+        }
+
+        .admin-order-card-right > b {
+          font-size: 17px;
+        }
+
+        .status-completed,
+        .status-cancelled,
+        .status-pending {
+          padding: 5px 6px;
+          font-size: 8px;
+        }
+
+        .admin-order-detail {
+          padding: 11px;
+        }
+
+        .admin-order-detail-game img {
+          width: 76px;
+          height: 82px;
+        }
+
+        .admin-order-detail-game strong {
+          font-size: 16px;
+        }
+
+        .admin-order-detail-section,
+        .admin-order-json-section {
+          padding: 12px;
+        }
+
+        .admin-order-detail-row {
+          gap: 10px;
+        }
+
+        .admin-order-detail-row > span,
+        .admin-order-detail-row > strong {
+          font-size: 11px;
+        }
+      }
+
+      @media (max-width: 370px) {
+        .admin-order-image {
+          width: 50px;
+          height: 58px;
+        }
+
+        .admin-order-card {
+          gap: 7px;
+          padding: 8px;
+        }
+
+        
+.admin-order-card-content small {
+  font-size: 8px;
+}
+
+.admin-order-card-right > strong {
+  font-size: 12px;
+}
+
+.admin-order-summary strong {
+  font-size: 18px;
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page *,
+  .admin-page *::before,
+  .admin-page *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+`}</style>
+);
+}
 
 export default function AdminOrdersPage() {
   const router = useRouter();
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [
-    loadingOrders,
-    setLoadingOrders,
-  ] = useState(false);
-
-  const [authorized, setAuthorized] =
-    useState(false);
-
-  const [orders, setOrders] =
-    useState<Order[]>([]);
-
-  const [
-    selectedOrder,
-    setSelectedOrder,
-  ] = useState<Order | null>(null);
-
-  const [filter, setFilter] =
-    useState<Filter>("TODAS");
-
-  const [search, setSearch] =
-    useState("");
-
-  const [error, setError] =
-    useState("");
-
-  /* =========================================================
-     VERIFICAR ADMIN
-     ========================================================= */
+  const [loading, setLoading] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [filter, setFilter] = useState<Filter>("TODAS");
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -203,49 +938,28 @@ export default function AdminOrdersPage() {
         const {
           data: { session },
           error: sessionError,
-        } =
-          await supabase.auth.getSession();
+        } = await supabase.auth.getSession();
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
-        if (
-          sessionError ||
-          !session?.user
-        ) {
+        if (sessionError || !session?.user) {
           router.replace("/login");
           return;
         }
 
-        const email =
-          session.user.email
-            ?.trim()
-            .toLowerCase() || "";
+        const email = session.user.email?.trim().toLowerCase() || "";
 
-        if (
-          email !==
-          ADMIN_EMAIL.toLowerCase()
-        ) {
+        if (email !== ADMIN_EMAIL.toLowerCase()) {
           router.replace("/home");
           return;
         }
 
         setAuthorized(true);
         setLoading(false);
-
-        await loadOrders(
-          session.access_token
-        );
-      } catch (error) {
-        console.error(
-          "ERROR VERIFICANDO ADMIN:",
-          error
-        );
-
-        if (mounted) {
-          router.replace("/login");
-        }
+        await loadOrders(session.access_token);
+      } catch (err) {
+        console.error("ERROR VERIFICANDO ADMIN:", err);
+        if (mounted) router.replace("/login");
       }
     }
 
@@ -256,28 +970,19 @@ export default function AdminOrdersPage() {
     };
   }, [router]);
 
-  /* =========================================================
-     CARGAR ÓRDENES
-     ========================================================= */
-
-  async function loadOrders(
-    accessToken?: string
-  ) {
+  async function loadOrders(accessToken?: string) {
     setLoadingOrders(true);
     setError("");
 
     try {
-      let token =
-        accessToken;
+      let token = accessToken;
 
       if (!token) {
         const {
           data: { session },
-        } =
-          await supabase.auth.getSession();
+        } = await supabase.auth.getSession();
 
-        token =
-          session?.access_token;
+        token = session?.access_token;
       }
 
       if (!token) {
@@ -285,44 +990,29 @@ export default function AdminOrdersPage() {
         return;
       }
 
-      const response =
-        await fetch(
-          "/api/admin/orders",
-          {
-            method: "GET",
+      const response = await fetch("/api/admin/orders", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
 
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-
-            cache: "no-store",
-          }
-        );
-
-      const data =
-        (await response.json()) as
-          ApiResponse;
+      const data = (await response.json()) as ApiResponse;
 
       if (!response.ok) {
         throw new Error(
-          data.error ||
-            "No se pudieron cargar las órdenes."
+          data.error || "No se pudieron cargar las órdenes."
         );
       }
 
-      setOrders(
-        data.orders || []
-      );
-    } catch (error) {
-      console.error(
-        "ERROR CARGANDO ÓRDENES ADMIN:",
-        error
-      );
+      setOrders(data.orders || []);
+    } catch (err) {
+      console.error("ERROR CARGANDO ÓRDENES ADMIN:", err);
 
       setError(
-        error instanceof Error
-          ? error.message
+        err instanceof Error
+          ? err.message
           : "No se pudieron cargar las órdenes."
       );
     } finally {
@@ -330,29 +1020,15 @@ export default function AdminOrdersPage() {
     }
   }
 
-  /* =========================================================
-     NAVEGACIÓN
-     ========================================================= */
-
   function goBack() {
     router.push("/admin");
   }
 
-  /* =========================================================
-     FORMATO DE FECHA
-     ========================================================= */
-
-  function formatDate(
-    value: string | null
-  ) {
-    if (!value) {
-      return "—";
-    }
+  function formatDate(value: string | null) {
+    if (!value) return "—";
 
     try {
-      return new Date(
-        value
-      ).toLocaleString("es-ES", {
+      return new Date(value).toLocaleString("es-ES", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
@@ -364,169 +1040,75 @@ export default function AdminOrdersPage() {
     }
   }
 
-  /* =========================================================
-     FORMATO DE DINERO
-     ========================================================= */
-
-  function formatMoney(
-    value: number | string
-  ) {
-    return (
-      Number(value) || 0
-    ).toFixed(2);
+  function formatMoney(value: number | string) {
+    return (Number(value) || 0).toFixed(2);
   }
 
-  /* =========================================================
-     ESTADOS
-     ========================================================= */
-
-  function isCompleted(
-    status: string
-  ) {
-    const normalized =
-      status.toUpperCase();
-
-    return (
-      normalized ===
-        "COMPLETED" ||
-      normalized ===
-        "COMPLETADA" ||
-      normalized ===
-        "CONFIRMADO" ||
-      normalized ===
-        "CONFIRMADA" ||
-      normalized ===
-        "SUCCESS" ||
-      normalized ===
-        "SUCCESSFUL"
-    );
+  function isCompleted(status: string) {
+    return [
+      "COMPLETED",
+      "COMPLETADA",
+      "CONFIRMADO",
+      "CONFIRMADA",
+      "SUCCESS",
+      "SUCCESSFUL",
+    ].includes(status.toUpperCase());
   }
 
-  function isCancelled(
-    status: string
-  ) {
-    const normalized =
-      status.toUpperCase();
-
-    return (
-      normalized ===
-        "CANCELLED" ||
-      normalized ===
-        "CANCELED" ||
-      normalized ===
-        "CANCELADA" ||
-      normalized ===
-        "FAILED" ||
-      normalized ===
-        "REFUNDED"
-    );
+  function isCancelled(status: string) {
+    return [
+      "CANCELLED",
+      "CANCELED",
+      "CANCELADA",
+      "FAILED",
+      "REFUNDED",
+    ].includes(status.toUpperCase());
   }
 
-  function isPending(
-    status: string
-  ) {
-    const normalized =
-      status.toUpperCase();
-
-    return (
-      normalized ===
-        "RESERVED" ||
-      normalized ===
-        "SUPPLIER_PENDING" ||
-      normalized ===
-        "REFUND_PENDING" ||
-      normalized ===
-        "PENDING" ||
-      normalized ===
-        "PROCESSING" ||
-      normalized ===
-        "PENDIENTE"
-    );
+  function isPending(status: string) {
+    return [
+      "RESERVED",
+      "SUPPLIER_PENDING",
+      "REFUND_PENDING",
+      "PENDING",
+      "PROCESSING",
+      "PENDIENTE",
+    ].includes(status.toUpperCase());
   }
 
-  function getStatusText(
-    status: string
-  ) {
-    if (isCompleted(status)) {
-      return "COMPLETADA";
-    }
+  function getStatusText(status: string) {
+    const normalized = status.toUpperCase();
 
-    if (isCancelled(status)) {
-      if (
-        status.toUpperCase() ===
-        "REFUNDED"
-      ) {
-        return "REEMBOLSADA";
-      }
-
-      return "CANCELADA";
-    }
-
-    if (
-      status.toUpperCase() ===
-      "SUPPLIER_PENDING"
-    ) {
-      return "PROCESANDO";
-    }
-
-    if (
-      status.toUpperCase() ===
-      "REFUND_PENDING"
-    ) {
-      return "REEMBOLSO PENDIENTE";
-    }
+    if (isCompleted(status)) return "COMPLETADA";
+    if (normalized === "REFUNDED") return "REEMBOLSADA";
+    if (isCancelled(status)) return "CANCELADA";
+    if (normalized === "SUPPLIER_PENDING") return "PROCESANDO";
+    if (normalized === "REFUND_PENDING") return "REEMBOLSO PENDIENTE";
 
     return "PENDIENTE";
   }
 
-  function getStatusClass(
-    status: string
-  ) {
-    if (isCompleted(status)) {
-      return "status-completed";
-    }
-
-    if (isCancelled(status)) {
-      return "status-cancelled";
-    }
-
+  function getStatusClass(status: string) {
+    if (isCompleted(status)) return "status-completed";
+    if (isCancelled(status)) return "status-cancelled";
     return "status-pending";
   }
 
-  /* =========================================================
-     SERVIDOR
-     ========================================================= */
-
-  function getServerId(
-    order: Order
-  ) {
-    const fields =
-      order.supplier_fields ||
-      {};
-
+  function getServerId(order: Order) {
+    const fields = order.supplier_fields || {};
     const value =
       fields.server_id ??
       fields.id_servidor ??
       fields.serverId;
 
-    if (
-      value === undefined ||
-      value === null ||
-      value === ""
-    ) {
+    if (value === undefined || value === null || value === "") {
       return null;
     }
 
     return String(value);
   }
 
-  /* =========================================================
-     BÚSQUEDA
-     ========================================================= */
-
-  function getSearchText(
-    order: Order
-  ) {
+  function getSearchText(order: Order) {
     return [
       order.id,
       order.user_id,
@@ -544,536 +1126,255 @@ export default function AdminOrdersPage() {
       .toLowerCase();
   }
 
-  /* =========================================================
-     FILTROS
-     ========================================================= */
+  const filteredOrders = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-  const filteredOrders =
-    useMemo(() => {
-      const query =
-        search
-          .trim()
-          .toLowerCase();
+    return orders.filter((order) => {
+      let matchesFilter = true;
 
-      return orders.filter(
-        (order) => {
-          let matchesFilter = true;
+      if (filter === "PENDIENTES") {
+        matchesFilter = isPending(order.status);
+      }
 
-          if (
-            filter ===
-            "PENDIENTES"
-          ) {
-            matchesFilter =
-              isPending(
-                order.status
-              );
-          }
+      if (filter === "COMPLETADAS") {
+        matchesFilter = isCompleted(order.status);
+      }
 
-          if (
-            filter ===
-            "COMPLETADAS"
-          ) {
-            matchesFilter =
-              isCompleted(
-                order.status
-              );
-          }
+      if (filter === "CANCELADAS") {
+        matchesFilter = isCancelled(order.status);
+      }
 
-          if (
-            filter ===
-            "CANCELADAS"
-          ) {
-            matchesFilter =
-              isCancelled(
-                order.status
-              );
-          }
+      if (!matchesFilter) return false;
+      if (!query) return true;
 
-          if (!matchesFilter) {
-            return false;
-          }
+      return getSearchText(order).includes(query);
+    });
+  }, [orders, filter, search]);
 
-          if (!query) {
-            return true;
-          }
+  const totalOrders = orders.length;
 
-          return getSearchText(
-            order
-          ).includes(query);
-        }
-      );
-    }, [
-      orders,
-      filter,
-      search,
-    ]);
+  const totalAmount = orders.reduce(
+    (total, order) => total + (Number(order.retail_price) || 0),
+    0
+  );
 
-  /* =========================================================
-     CONTADORES
-     ========================================================= */
+  const pendingOrders = orders.filter((order) =>
+    isPending(order.status)
+  ).length;
 
-  const totalOrders =
-    orders.length;
+  const completedOrders = orders.filter((order) =>
+    isCompleted(order.status)
+  ).length;
 
-  const totalAmount =
-    orders.reduce(
-      (total, order) =>
-        total +
-        (Number(
-          order.retail_price
-        ) || 0),
-      0
-    );
-
-  const pendingOrders =
-    orders.filter((order) =>
-      isPending(order.status)
-    ).length;
-
-  const completedOrders =
-    orders.filter((order) =>
-      isCompleted(order.status)
-    ).length;
-
-  const cancelledOrders =
-    orders.filter((order) =>
-      isCancelled(order.status)
-    ).length;
-
-  /* =========================================================
-     LOADING
-     ========================================================= */
+  const cancelledOrders = orders.filter((order) =>
+    isCancelled(order.status)
+  ).length;
 
   if (loading) {
     return (
       <main className="admin-page">
+        <AdminOrdersStyles />
 
         <div className="admin-loading">
-
-          <div className="admin-loading-icon">
-            👑
-          </div>
-
-          <p>
-            VERIFICANDO ACCESO...
-          </p>
-
+          <div className="admin-loading-icon">👑</div>
+          <p>VERIFICANDO ACCESO...</p>
         </div>
-
       </main>
     );
   }
 
-  if (!authorized) {
-    return null;
-  }
-
-  /* =========================================================
-     DETALLE DE ORDEN
-     ========================================================= */
+  if (!authorized) return null;
 
   if (selectedOrder) {
+    const serverId = getServerId(selectedOrder);
 
-    const serverId =
-      getServerId(
-        selectedOrder
-      );
-
-    const image =
-      getGameImage(
-        selectedOrder.category_id,
-        selectedOrder.game
-      );
+    const image = getGameImage(
+      selectedOrder.category_id,
+      selectedOrder.game
+    );
 
     return (
       <main className="admin-page">
+        <AdminOrdersStyles />
 
         <header className="admin-header">
-
           <button
             type="button"
             className="admin-back-button"
-            onClick={() =>
-              setSelectedOrder(null)
-            }
-            aria-label="Volver"
+            onClick={() => setSelectedOrder(null)}
+            aria-label="Volver a órdenes"
           >
             ←
           </button>
 
           <div className="admin-header-title">
-
-            <div className="admin-header-icon">
-              🛒
-            </div>
-
+            <div className="admin-header-icon">🛒</div>
             <div>
-
-              <span>
-                STORE GAMING
-              </span>
-
-              <h1>
-                ORDEN
-              </h1>
-
+              <span>STORE GAMING</span>
+              <h1>ORDEN</h1>
             </div>
-
           </div>
 
           <div />
-
         </header>
 
         <section className="admin-order-detail">
-
           <div className="admin-order-detail-game">
-
             <img
               src={image}
-              alt={
-                selectedOrder.game
-              }
+              alt={selectedOrder.game}
               onError={(event) => {
-                event.currentTarget.src =
-                  DEFAULT_GAME_IMAGE;
+                event.currentTarget.src = DEFAULT_GAME_IMAGE;
               }}
             />
 
             <div>
-
-              <span>
-                ORDEN #{selectedOrder.id}
-              </span>
-
-              <strong>
-                {selectedOrder.game}
-              </strong>
-
-              <small>
-                {selectedOrder.offer_name}
-              </small>
-
+              <span>ORDEN #{selectedOrder.id}</span>
+              <strong>{selectedOrder.game}</strong>
+              <small>{selectedOrder.offer_name}</small>
             </div>
-
           </div>
 
           <div className="admin-order-status-box">
-
-            <span>
-              ESTADO
-            </span>
-
-            <strong
-              className={
-                getStatusClass(
-                  selectedOrder.status
-                )
-              }
-            >
-              {getStatusText(
-                selectedOrder.status
-              )}
+            <span>ESTADO</span>
+            <strong className={getStatusClass(selectedOrder.status)}>
+              {getStatusText(selectedOrder.status)}
             </strong>
-
           </div>
 
           <div className="admin-order-detail-section">
+            <div className="admin-order-detail-title">CLIENTE</div>
 
-            <div className="admin-order-detail-title">
-              CLIENTE
+            <div className="admin-order-detail-row">
+              <span>👤 Correo</span>
+              <strong>{selectedOrder.email || "Sin correo"}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                👤 Correo
-              </span>
-
-              <strong>
-                {selectedOrder.email ||
-                  "Sin correo"}
-              </strong>
-
+              <span>🏷️ Usuario</span>
+              <strong>{selectedOrder.username || "Sin usuario"}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                🏷️ Usuario
-              </span>
-
-              <strong>
-                {selectedOrder.username ||
-                  "Sin usuario"}
-              </strong>
-
+              <span>🆔 ID usuario</span>
+              <strong>{selectedOrder.user_id}</strong>
             </div>
-
-            <div className="admin-order-detail-row">
-
-              <span>
-                🆔 ID usuario
-              </span>
-
-              <strong>
-                {selectedOrder.user_id}
-              </strong>
-
-            </div>
-
           </div>
 
           <div className="admin-order-detail-section">
+            <div className="admin-order-detail-title">COMPRA</div>
 
-            <div className="admin-order-detail-title">
-              COMPRA
+            <div className="admin-order-detail-row">
+              <span>🎮 Juego</span>
+              <strong>{selectedOrder.game}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                🎮 Juego
-              </span>
-
-              <strong>
-                {selectedOrder.game}
-              </strong>
-
+              <span>📦 Producto</span>
+              <strong>{selectedOrder.offer_name}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                📦 Producto
-              </span>
-
-              <strong>
-                {selectedOrder.offer_name}
-              </strong>
-
-            </div>
-
-            <div className="admin-order-detail-row">
-
-              <span>
-                🆔 ID jugador
-              </span>
-
-              <strong>
-                {selectedOrder.player_id}
-              </strong>
-
+              <span>🆔 ID jugador</span>
+              <strong>{selectedOrder.player_id}</strong>
             </div>
 
             {serverId && (
               <div className="admin-order-detail-row">
-
-                <span>
-                  🌐 Servidor
-                </span>
-
-                <strong>
-                  {serverId}
-                </strong>
-
+                <span>🌐 Servidor</span>
+                <strong>{serverId}</strong>
               </div>
             )}
 
             <div className="admin-order-detail-row">
-
-              <span>
-                💵 Precio cliente
-              </span>
-
-              <strong>
-                $
-                {formatMoney(
-                  selectedOrder.retail_price
-                )}
-              </strong>
-
+              <span>💵 Precio cliente</span>
+              <strong>${formatMoney(selectedOrder.retail_price)}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                ⚙️ Precio proveedor
-              </span>
-
-              <strong>
-                $
-                {formatMoney(
-                  selectedOrder.supplier_price
-                )}
-              </strong>
-
+              <span>⚙️ Precio proveedor</span>
+              <strong>${formatMoney(selectedOrder.supplier_price)}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                💳 Moneda
-              </span>
-
-              <strong>
-                {selectedOrder.currency}
-              </strong>
-
+              <span>💳 Moneda</span>
+              <strong>{selectedOrder.currency}</strong>
             </div>
-
           </div>
 
           <div className="admin-order-detail-section">
+            <div className="admin-order-detail-title">PROVEEDOR</div>
 
-            <div className="admin-order-detail-title">
-              PROVEEDOR
+            <div className="admin-order-detail-row">
+              <span>🔢 Orden proveedor</span>
+              <strong>
+                {selectedOrder.supplier_order_id || "No disponible"}
+              </strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                🔢 Orden proveedor
-              </span>
-
-              <strong>
-                {selectedOrder.supplier_order_id ||
-                  "No disponible"}
-              </strong>
-
+              <span>📅 Creada</span>
+              <strong>{formatDate(selectedOrder.created_at)}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                📅 Creada
-              </span>
-
-              <strong>
-                {formatDate(
-                  selectedOrder.created_at
-                )}
-              </strong>
-
+              <span>🔄 Actualizada</span>
+              <strong>{formatDate(selectedOrder.updated_at)}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                🔄 Actualizada
-              </span>
-
-              <strong>
-                {formatDate(
-                  selectedOrder.updated_at
-                )}
-              </strong>
-
+              <span>✅ Completada</span>
+              <strong>{formatDate(selectedOrder.completed_at)}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                ✅ Completada
-              </span>
-
-              <strong>
-                {formatDate(
-                  selectedOrder.completed_at
-                )}
-              </strong>
-
+              <span>❌ Fallida</span>
+              <strong>{formatDate(selectedOrder.failed_at)}</strong>
             </div>
 
             <div className="admin-order-detail-row">
-
-              <span>
-                ❌ Fallida
-              </span>
-
-              <strong>
-                {formatDate(
-                  selectedOrder.failed_at
-                )}
-              </strong>
-
+              <span>💸 Reembolsada</span>
+              <strong>{formatDate(selectedOrder.refunded_at)}</strong>
             </div>
-
-            <div className="admin-order-detail-row">
-
-              <span>
-                💸 Reembolsada
-              </span>
-
-              <strong>
-                {formatDate(
-                  selectedOrder.refunded_at
-                )}
-              </strong>
-
-            </div>
-
           </div>
 
           <div className="admin-order-json-section">
-
             <div className="admin-order-detail-title">
               DATOS ENVIADOS AL PROVEEDOR
             </div>
 
             <pre>
-              {JSON.stringify(
-                selectedOrder.supplier_fields ||
-                  {},
-                null,
-                2
-              )}
+              {JSON.stringify(selectedOrder.supplier_fields || {}, null, 2)}
             </pre>
-
           </div>
 
           <div className="admin-order-json-section">
-
             <div className="admin-order-detail-title">
               RESPUESTA DEL PROVEEDOR
             </div>
 
             <pre>
-                            {JSON.stringify(
-                selectedOrder.supplier_response ||
-                  {},
-                null,
-                2
-              )}
+              {JSON.stringify(selectedOrder.supplier_response || {}, null, 2)}
             </pre>
-
           </div>
 
           <button
             type="button"
             className="admin-order-return"
-            onClick={() =>
-              setSelectedOrder(null)
-            }
+            onClick={() => setSelectedOrder(null)}
           >
             ← VOLVER A ÓRDENES
           </button>
-
         </section>
-
       </main>
     );
   }
 
-  /* =========================================================
-     LISTADO DE ÓRDENES
-     ========================================================= */
-
   return (
     <main className="admin-page">
+      <AdminOrdersStyles />
 
       <header className="admin-header">
-
         <button
           type="button"
           className="admin-back-button"
@@ -1084,161 +1385,73 @@ export default function AdminOrdersPage() {
         </button>
 
         <div className="admin-header-title">
-
-          <div className="admin-header-icon">
-            🛒
-          </div>
-
+          <div className="admin-header-icon">🛒</div>
           <div>
-
-            <span>
-              STORE GAMING
-            </span>
-
-            <h1>
-              ÓRDENES
-            </h1>
-
+            <span>STORE GAMING</span>
+            <h1>ÓRDENES</h1>
           </div>
-
         </div>
 
         <button
           type="button"
           className="admin-logout-button"
-          onClick={() =>
-            loadOrders()
-          }
+          onClick={() => loadOrders()}
           disabled={loadingOrders}
-          aria-label="Actualizar"
+          aria-label="Actualizar órdenes"
         >
           ↻
         </button>
-
       </header>
 
       <section className="admin-order-summary">
-
         <div>
-
-          <span>
-            📦
-          </span>
-
-          <strong>
-            {totalOrders}
-          </strong>
-
-          <small>
-            ÓRDENES
-          </small>
-
+          <span>📦</span>
+          <strong>{totalOrders}</strong>
+          <small>ÓRDENES</small>
         </div>
 
         <div>
-
-          <span>
-            💵
-          </span>
-
-          <strong>
-            ${totalAmount.toFixed(2)}
-          </strong>
-
-          <small>
-            VENTAS
-          </small>
-
+          <span>💵</span>
+          <strong>${totalAmount.toFixed(2)}</strong>
+          <small>VENTAS</small>
         </div>
 
         <div>
-
-          <span>
-            ⏳
-          </span>
-
-          <strong>
-            {pendingOrders}
-          </strong>
-
-          <small>
-            PENDIENTES
-          </small>
-
+          <span>⏳</span>
+          <strong>{pendingOrders}</strong>
+          <small>PENDIENTES</small>
         </div>
 
         <div>
-
-          <span>
-            ✅
-          </span>
-
-          <strong>
-            {completedOrders}
-          </strong>
-
-          <small>
-            COMPLETADAS
-          </small>
-
+          <span>✅</span>
+          <strong>{completedOrders}</strong>
+          <small>COMPLETADAS</small>
         </div>
 
         <div>
-
-          <span>
-            ❌
-          </span>
-
-          <strong>
-            {cancelledOrders}
-          </strong>
-
-          <small>
-            CANCELADAS
-          </small>
-
+          <span>❌</span>
+          <strong>{cancelledOrders}</strong>
+          <small>CANCELADAS</small>
         </div>
-
       </section>
 
       <section className="admin-intro">
-
-        <span>
-          CONTROL DE PEDIDOS
-        </span>
-
-        <h2>
-          ÓRDENES
-        </h2>
-
-        <p>
-          Revisa las compras realizadas
-          por todos los clientes.
-        </p>
-
+        <span>CONTROL DE PEDIDOS</span>
+        <h2>ÓRDENES</h2>
+        <p>Revisa las compras realizadas por todos los clientes.</p>
       </section>
 
       <section className="admin-orders-search">
-
-        <span>
-          🔎
-        </span>
-
+        <span>🔎</span>
         <input
           type="text"
           value={search}
-          onChange={(event) =>
-            setSearch(
-              event.target.value
-            )
-          }
+          onChange={(event) => setSearch(event.target.value)}
           placeholder="Buscar cliente, orden, juego o ID..."
         />
-
       </section>
 
       <section className="admin-orders-filters">
-
         {(
           [
             "TODAS",
@@ -1247,222 +1460,102 @@ export default function AdminOrdersPage() {
             "CANCELADAS",
           ] as Filter[]
         ).map((item) => (
-
           <button
             key={item}
             type="button"
-            className={
-              filter === item
-                ? "active"
-                : ""
-            }
-            onClick={() =>
-              setFilter(item)
-            }
+            className={filter === item ? "active" : ""}
+            onClick={() => setFilter(item)}
           >
             {item}
           </button>
-
         ))}
-
       </section>
 
       {error && (
-
         <section className="admin-error-card">
-
-          <strong>
-            ⚠️ ERROR
-          </strong>
-
-          <p>
-            {error}
-          </p>
-
-          <button
-            type="button"
-            onClick={() =>
-              loadOrders()
-            }
-          >
+          <strong>⚠️ ERROR</strong>
+          <p>{error}</p>
+          <button type="button" onClick={() => loadOrders()}>
             REINTENTAR
           </button>
-
         </section>
-
       )}
 
       <section className="admin-orders-list">
-
         {loadingOrders && (
-
           <div className="admin-loading-card">
-
-            <div>
-              ↻
-            </div>
-
-            <span>
-              CARGANDO ÓRDENES...
-            </span>
-
+            <div>↻</div>
+            <span>CARGANDO ÓRDENES...</span>
           </div>
+        )}
 
+        {!loadingOrders && !error && filteredOrders.length === 0 && (
+          <div className="admin-empty-card">
+            <div>📭</div>
+            <strong>NO HAY ÓRDENES</strong>
+            <span>
+              No se encontraron órdenes con los filtros actuales.
+            </span>
+          </div>
         )}
 
         {!loadingOrders &&
-          !error &&
-          filteredOrders.length === 0 && (
-
-            <div className="admin-empty-card">
-
-              <div>
-                📭
+          filteredOrders.map((order) => (
+            <button
+              key={order.id}
+              type="button"
+              className="admin-order-card"
+              onClick={() => setSelectedOrder(order)}
+            >
+              <div className="admin-order-image">
+                <img
+                  src={getGameImage(order.category_id, order.game)}
+                  alt={order.game}
+                  loading="lazy"
+                  onError={(event) => {
+                    event.currentTarget.src = DEFAULT_GAME_IMAGE;
+                  }}
+                />
               </div>
 
-              <strong>
-                NO HAY ÓRDENES
-              </strong>
+              <div className="admin-order-card-content">
+                <strong>{order.offer_name}</strong>
+                <span>{order.game}</span>
+                <small>👤 {order.email || "Sin correo"}</small>
+                <small>🆔 {order.player_id}</small>
+                <small>#{order.id}</small>
+              </div>
 
-              <span>
-                No se encontraron órdenes
-                con los filtros actuales.
-              </span>
+              <div className="admin-order-card-right">
+                <strong>${formatMoney(order.retail_price)}</strong>
 
-            </div>
+                <span className={getStatusClass(order.status)}>
+                  {getStatusText(order.status)}
+                </span>
 
-        )}
-
-        {!loadingOrders &&
-          filteredOrders.map(
-            (order) => (
-
-              <button
-                key={order.id}
-                type="button"
-                className="admin-order-card"
-                onClick={() =>
-                  setSelectedOrder(
-                    order
-                  )
-                }
-              >
-
-                <div className="admin-order-image">
-
-                  <img
-                    src={getGameImage(
-                      order.category_id,
-                      order.game
-                    )}
-                    alt={order.game}
-                    loading="lazy"
-                    onError={(event) => {
-                      event.currentTarget.src =
-                        DEFAULT_GAME_IMAGE;
-                    }}
-                  />
-
-                </div>
-
-                <div className="admin-order-card-content">
-
-                  <strong>
-                    {order.offer_name}
-                  </strong>
-
-                  <span>
-                    {order.game}
-                  </span>
-
-                  <small>
-                    👤{" "}
-                    {order.email ||
-                      "Sin correo"}
-                  </small>
-
-                  <small>
-                    🆔{" "}
-                    {order.player_id}
-                  </small>
-
-                  <small>
-                    #{order.id}
-                  </small>
-
-                </div>
-
-                <div className="admin-order-card-right">
-
-                  <strong>
-                    $
-                    {formatMoney(
-                      order.retail_price
-                    )}
-                  </strong>
-
-                  <span
-                    className={getStatusClass(
-                      order.status
-                    )}
-                  >
-                    {getStatusText(
-                      order.status
-                    )}
-                  </span>
-
-                  <b>
-                    →
-                  </b>
-
-                </div>
-
-              </button>
-
-            )
-          )}
-
+                <b>→</b>
+              </div>
+            </button>
+          ))}
       </section>
 
       <section className="admin-security-card">
-
-        <div className="admin-security-icon">
-          🔐
-        </div>
-
+        <div className="admin-security-icon">🔐</div>
         <div>
-
-          <strong>
-            ÓRDENES PROTEGIDAS
-          </strong>
-
+          <strong>ÓRDENES PROTEGIDAS</strong>
           <p>
-            La información de las compras
-            solo está disponible para la
-            cuenta administradora.
+            La información de las compras solo está disponible para
+            la cuenta administradora.
           </p>
-
         </div>
-
       </section>
 
       <footer className="admin-footer">
-
-        <strong>
-          STORE GAMING
-        </strong>
-
-        <span>
-          CONTROL DE ÓRDENES
-        </span>
-
-        <small>
-          © 2026 STORE GAMING
-        </small>
-
+        <strong>STORE GAMING</strong>
+        <span>CONTROL DE ÓRDENES</span>
+        <small>© 2026 STORE GAMING</small>
       </footer>
-
     </main>
   );
-}
-    
+    }
+          
