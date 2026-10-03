@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useState,
-  type FormEvent,
-} from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
@@ -22,43 +18,38 @@ type BalancesResponse = {
   error?: string;
 };
 
-type AdjustmentMode = "ADD" | "SUBTRACT";
+type AdjustmentAction = "ADD" | "SUBTRACT";
 
-const ADMIN_EMAIL =
-  "juliocesarblancomedina08@gmail.com";
+type AdjustmentResponse = {
+  ok?: boolean;
+  error?: string;
+  message?: string;
+  balance?: number;
+};
+
+const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
 export default function AdminBalancesPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [loadingBalances, setLoadingBalances] =
-    useState(false);
+  const [loadingBalances, setLoadingBalances] = useState(false);
   const [authorized, setAuthorized] = useState(false);
 
-  const [clients, setClients] =
-    useState<BalanceClient[]>([]);
+  const [clients, setClients] = useState<BalanceClient[]>([]);
   const [totalBalance, setTotalBalance] = useState(0);
 
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
-  const [expandedClientId, setExpandedClientId] =
-    useState<string | null>(null);
-
+  const [expandedClientId, setExpandedClientId] = useState("");
+  const [adjustmentAmount, setAdjustmentAmount] = useState("");
   const [adjustmentMode, setAdjustmentMode] =
-    useState<AdjustmentMode>("ADD");
+    useState<AdjustmentAction>("ADD");
 
-  const [adjustmentAmount, setAdjustmentAmount] =
-    useState("");
-
-  const [adjustingClientId, setAdjustingClientId] =
-    useState<string | null>(null);
-
-  const [adjustmentError, setAdjustmentError] =
-    useState("");
-
-  const [adjustmentSuccess, setAdjustmentSuccess] =
-    useState("");
+  const [adjustingClientId, setAdjustingClientId] = useState("");
+  const [adjustmentError, setAdjustmentError] = useState("");
+  const [adjustmentSuccess, setAdjustmentSuccess] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -77,8 +68,7 @@ export default function AdminBalancesPage() {
           return;
         }
 
-        const email =
-          session.user.email?.trim().toLowerCase() || "";
+        const email = session.user.email?.trim().toLowerCase() || "";
 
         if (email !== ADMIN_EMAIL.toLowerCase()) {
           router.replace("/home");
@@ -98,27 +88,27 @@ export default function AdminBalancesPage() {
       }
     }
 
-    verifyAdmin();
+    void verifyAdmin();
 
     return () => {
       mounted = false;
     };
   }, [router]);
 
-  async function getAccessToken() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    return session?.access_token || "";
-  }
-
   async function loadBalances(accessToken?: string) {
     setLoadingBalances(true);
     setError("");
 
     try {
-      const token = accessToken || await getAccessToken();
+      let token = accessToken;
+
+      if (!token) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        token = session?.access_token;
+      }
 
       if (!token) {
         router.replace("/login");
@@ -133,8 +123,7 @@ export default function AdminBalancesPage() {
         cache: "no-store",
       });
 
-      const data =
-        (await response.json()) as BalancesResponse;
+      const data = (await response.json()) as BalancesResponse;
 
       if (!response.ok) {
         throw new Error(
@@ -168,129 +157,119 @@ export default function AdminBalancesPage() {
     });
   }
 
-  function toggleAdjustment(clientId: string) {
-    setExpandedClientId((current) =>
-      current === clientId ? null : clientId
-    );
+  function toggleAdjustment(client: BalanceClient) {
+    if (expandedClientId === client.id) {
+      setExpandedClientId("");
+      setAdjustmentAmount("");
+      setAdjustmentError("");
+      setAdjustmentSuccess("");
+      return;
+    }
 
+    setExpandedClientId(client.id);
     setAdjustmentAmount("");
     setAdjustmentMode("ADD");
     setAdjustmentError("");
     setAdjustmentSuccess("");
   }
 
-  function selectMode(mode: AdjustmentMode) {
+  function selectMode(mode: AdjustmentAction) {
     setAdjustmentMode(mode);
     setAdjustmentError("");
     setAdjustmentSuccess("");
   }
 
   async function submitAdjustment(
-    event: FormEvent<HTMLFormElement>,
-    client: BalanceClient
+    client: BalanceClient,
+    action: AdjustmentAction
   ) {
-    event.preventDefault();
-
-    setAdjustmentError("");
-    setAdjustmentSuccess("");
+    if (adjustingClientId) return;
 
     const amount = Number(adjustmentAmount);
 
     if (
-      !adjustmentAmount.trim() ||
       !Number.isFinite(amount) ||
-      amount <= 0
+      amount <= 0 ||
+      amount > 1_000_000_000
     ) {
+      setAdjustmentError("Introduce una cantidad válida mayor que cero.");
+      return;
+    }
+
+    if (Math.round(amount * 100) !== amount * 100) {
+      setAdjustmentError("La cantidad solo puede tener dos decimales.");
+      return;
+    }
+
+    if (action === "SUBTRACT" && amount > Number(client.balance)) {
       setAdjustmentError(
-        "Introduce una cantidad válida mayor que cero."
+        "No puedes restar más saldo del que tiene el cliente."
       );
       return;
     }
 
-    if (amount > 1_000_000_000) {
-      setAdjustmentError(
-        "La cantidad introducida es demasiado grande."
-      );
-      return;
-    }
-
-    if (
-      adjustmentMode === "SUBTRACT" &&
-      amount > Number(client.balance)
-    ) {
-      setAdjustmentError(
-        "El descuento no puede superar el saldo actual."
-      );
-      return;
-    }
+    const actionText = action === "ADD" ? "añadir" : "restar";
 
     const confirmed = window.confirm(
-      adjustmentMode === "ADD"
-        ? `¿Confirmas sumar $${formatBalance(amount)} al saldo de ${client.email}?`
-        : `¿Confirmas restar $${formatBalance(amount)} del saldo de ${client.email}?`
+      `¿Confirmas ${actionText} $${formatBalance(amount)} USDT a ${client.email}?`
     );
 
     if (!confirmed) return;
 
     setAdjustingClientId(client.id);
+    setAdjustmentError("");
+    setAdjustmentSuccess("");
 
     try {
-      const token = await getAccessToken();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (!token) {
+      if (sessionError || !session?.access_token) {
         router.replace("/login");
         return;
       }
 
-      const response = await fetch(
-        "/api/admin/balances/adjust",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            userId: client.id,
-            amount,
-            action: adjustmentMode,
-          }),
-        }
-      );
+      const response = await fetch("/api/admin/balances/adjust", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          userId: client.id,
+          amount,
+          action,
+        }),
+      });
 
-      const data = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        balance?: number;
-      };
+      const data = (await response.json()) as AdjustmentResponse;
 
-      if (!response.ok || data.ok !== true) {
+      if (!response.ok || !data.ok) {
         throw new Error(
-          data.error ||
-            "No se pudo actualizar el crédito."
+          data.error || "No se pudo modificar el saldo."
         );
       }
 
       setAdjustmentSuccess(
-        adjustmentMode === "ADD"
-          ? `Se sumaron $${formatBalance(amount)} correctamente.`
-          : `Se restaron $${formatBalance(amount)} correctamente.`
+        data.message ||
+          `Saldo actualizado correctamente para ${client.email}.`
       );
 
       setAdjustmentAmount("");
 
-      // Recargar los datos confirmados por el servidor.
-      await loadBalances(token);
+      await loadBalances(session.access_token);
     } catch (err) {
-      console.error("ERROR AJUSTANDO CRÉDITO:", err);
+      console.error("ERROR MODIFICANDO SALDO:", err);
 
       setAdjustmentError(
         err instanceof Error
           ? err.message
-          : "No se pudo actualizar el crédito."
+          : "Ocurrió un error al modificar el saldo."
       );
     } finally {
-      setAdjustingClientId(null);
+      setAdjustingClientId("");
     }
   }
 
@@ -320,7 +299,6 @@ export default function AdminBalancesPage() {
 
   return (
     <main className="admin-page">
-      {/* ENCABEZADO */}
       <header className="admin-header">
         <button
           type="button"
@@ -333,7 +311,6 @@ export default function AdminBalancesPage() {
 
         <div className="admin-header-title">
           <div className="admin-header-icon">💰</div>
-
           <div>
             <span>STORE GAMING</span>
             <h1>BALANCES</h1>
@@ -343,15 +320,14 @@ export default function AdminBalancesPage() {
         <button
           type="button"
           className="admin-logout-button"
-          onClick={() => loadBalances()}
-          aria-label="Actualizar"
+          onClick={() => void loadBalances()}
+          aria-label="Actualizar balances"
           disabled={loadingBalances}
         >
           ↻
         </button>
       </header>
 
-      {/* RESUMEN */}
       <section className="admin-account-card">
         <div className="admin-account-icon">💰</div>
 
@@ -366,20 +342,17 @@ export default function AdminBalancesPage() {
         </div>
       </section>
 
-      {/* INTRODUCCIÓN */}
       <section className="admin-intro">
         <span>CONTROL FINANCIERO</span>
         <h2>BALANCES</h2>
         <p>
-          Consulta y administra el crédito disponible
-          de cada cliente registrado.
+          Consulta y administra el saldo disponible de cada cliente
+          registrado.
         </p>
       </section>
 
-      {/* BUSCADOR */}
       <section className="admin-balances-search">
         <span>🔎</span>
-
         <input
           type="text"
           value={search}
@@ -389,22 +362,19 @@ export default function AdminBalancesPage() {
         />
       </section>
 
-      {/* ERROR GENERAL */}
       {error && (
         <section className="admin-error-card">
           <strong>⚠️ ERROR</strong>
           <p>{error}</p>
-
           <button
             type="button"
-            onClick={() => loadBalances()}
+            onClick={() => void loadBalances()}
           >
             REINTENTAR
           </button>
         </section>
       )}
 
-      {/* LISTA DE CLIENTES */}
       <section className="admin-services">
         {loadingBalances && (
           <div className="admin-loading-card">
@@ -426,375 +396,289 @@ export default function AdminBalancesPage() {
           )}
 
         {!loadingBalances &&
-          filteredClients.map((client) => {
-            const isExpanded =
-              expandedClientId === client.id;
-
-            const isAdjusting =
-              adjustingClientId === client.id;
-
-            return (
-              <article
-                key={client.id}
-                className="admin-service-card admin-balance-client-card"
+          filteredClients.map((client) => (
+            <div
+              key={client.id}
+              className="admin-service-card admin-balance-client-card"
+              style={{
+                display: "block",
+                padding: "16px",
+              }}
+            >
+              <div
                 style={{
                   display: "flex",
-                  flexWrap: "wrap",
                   alignItems: "center",
-                  cursor: "default",
                   gap: "12px",
+                  width: "100%",
                 }}
               >
-                <div className="admin-service-icon">
-                  👤
-                </div>
+                <div className="admin-service-icon">👤</div>
 
                 <div
                   className="admin-service-content"
                   style={{
-                    flex: "1 1 145px",
+                    flex: 1,
                     minWidth: 0,
+                    overflowWrap: "anywhere",
                   }}
                 >
-                  <strong
-                    style={{
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {client.email || "Usuario sin correo"}
-                  </strong>
-
-                  <span
-                    style={{
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    ID: {client.id}
-                  </span>
-
+                  <strong>{client.email}</strong>
+                  <span>ID: {client.id}</span>
                   <small>SALDO DISPONIBLE</small>
                 </div>
 
-                {/* TOCAR EL SALDO ABRE EL PANEL */}
                 <button
                   type="button"
-                  onClick={() => toggleAdjustment(client.id)}
-                  aria-expanded={isExpanded}
-                  aria-label={`Gestionar crédito de ${client.email}`}
+                  onClick={() => toggleAdjustment(client)}
+                  aria-expanded={expandedClientId === client.id}
+                  aria-controls={`adjustment-panel-${client.id}`}
+                  aria-label={`Administrar saldo de ${client.email}`}
                   style={{
-                    border: "1px solid rgba(229,9,20,.35)",
-                    borderRadius: "12px",
-                    padding: "10px 12px",
-                    background: isExpanded
-                      ? "rgba(229,9,20,.15)"
-                      : "rgba(255,255,255,.035)",
-                    color: "#fff",
+                    border: "1px solid #ef4444",
+                    borderRadius: "10px",
+                    padding: "10px",
+                    background: "rgba(239, 68, 68, 0.08)",
+                    color: "#ffffff",
                     cursor: "pointer",
                     textAlign: "right",
-                    minWidth: "105px",
+                    flexShrink: 0,
                   }}
                 >
                   <strong
                     style={{
                       display: "block",
-                      fontSize: "17px",
-                      fontWeight: 900,
+                      color: "#f87171",
+                      fontSize: "16px",
                     }}
                   >
                     ${formatBalance(client.balance)}
                   </strong>
-
                   <span
                     style={{
                       display: "block",
-                      marginTop: "4px",
-                      color: "#aaa",
-                      fontSize: "10px",
+                      fontSize: "11px",
+                      marginTop: "3px",
                     }}
                   >
-                    USDT {isExpanded ? "▲" : "＋"}
+                    USDT {expandedClientId === client.id ? "▲" : "✎"}
                   </span>
                 </button>
+              </div>
 
-                {/* PANEL DESPLEGABLE */}
-                {isExpanded && (
+              {expandedClientId === client.id && (
+                <div
+                  id={`adjustment-panel-${client.id}`}
+                  style={{
+                    marginTop: "18px",
+                    padding: "16px",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                    background: "rgba(0, 0, 0, 0.25)",
+                    width: "100%",
+                    boxSizing: "border-box",
+                  }}
+                >
                   <div
                     style={{
-                      flex: "1 0 100%",
-                      width: "100%",
-                      boxSizing: "border-box",
-                      padding: "16px",
-                      marginTop: "4px",
-                      borderRadius: "14px",
-                      background:
-                        "linear-gradient(145deg,#151515,#090909)",
-                      border: "1px solid rgba(229,9,20,.28)",
+                      marginBottom: "14px",
                     }}
                   >
-                    <div
+                    <strong
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "10px",
-                        marginBottom: "7px",
+                        display: "block",
+                        color: "#ffffff",
+                        fontSize: "15px",
                       }}
                     >
-                      <strong
-                        style={{
-                          color: "#fff",
-                          fontSize: "12px",
-                        }}
-                      >
-                        ⚙️ AJUSTAR CRÉDITO
-                      </strong>
+                      💰 ADMINISTRAR SALDO
+                    </strong>
 
-                      <button
-                        type="button"
-                        onClick={() => toggleAdjustment(client.id)}
-                        aria-label="Cerrar ajustes"
-                        style={{
-                          border: 0,
-                          background: "transparent",
-                          color: "#aaa",
-                          fontSize: "20px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-
-                    <p
+                    <span
                       style={{
-                        margin: "0 0 14px",
-                        color: "#999",
-                        fontSize: "11px",
+                        display: "block",
+                        color: "#a3a3a3",
+                        fontSize: "12px",
+                        marginTop: "5px",
                         overflowWrap: "anywhere",
                       }}
                     >
                       Cliente: {client.email}
-                    </p>
+                    </span>
 
-                    <div
+                    <span
                       style={{
-                        padding: "11px",
-                        borderRadius: "10px",
-                        background: "#0b0b0b",
-                        border: "1px solid #292929",
-                        marginBottom: "14px",
+                        display: "block",
+                        color: "#d4d4d4",
+                        fontSize: "13px",
+                        marginTop: "8px",
                       }}
                     >
-                      <span
-                        style={{
-                          display: "block",
-                          color: "#888",
-                          fontSize: "10px",
-                          marginBottom: "5px",
-                        }}
-                      >
-                        SALDO ACTUAL
-                      </span>
-
-                      <strong
-                        style={{
-                          color: "#fff",
-                          fontSize: "23px",
-                        }}
-                      >
-                        ${formatBalance(client.balance)}
+                      Saldo actual:{" "}
+                      <strong>
+                        ${formatBalance(client.balance)} USDT
                       </strong>
-                      <span
-                        style={{
-                          marginLeft: "7px",
-                          color: "#999",
-                          fontSize: "10px",
-                        }}
-                      >
-                        USDT
-                      </span>
-                    </div>
+                    </span>
+                  </div>
 
-                    <div
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "10px",
+                      marginBottom: "16px",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => selectMode("ADD")}
+                      aria-pressed={adjustmentMode === "ADD"}
                       style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(2,minmax(0,1fr))",
-                        gap: "9px",
-                        marginBottom: "14px",
+                        padding: "12px 8px",
+                        borderRadius: "9px",
+                        border:
+                          adjustmentMode === "ADD"
+                            ? "2px solid #22c55e"
+                            : "1px solid #404040",
+                        background:
+                          adjustmentMode === "ADD"
+                            ? "rgba(34, 197, 94, 0.16)"
+                            : "#171717",
+                        color:
+                          adjustmentMode === "ADD"
+                            ? "#4ade80"
+                            : "#d4d4d4",
+                        fontWeight: 800,
+                        cursor: "pointer",
                       }}
                     >
-                      <button
-                        type="button"
-                        onClick={() => selectMode("ADD")}
-                        aria-pressed={adjustmentMode === "ADD"}
-                        style={{
-                          minHeight: "46px",
-                          borderRadius: "10px",
-                          border:
-                            adjustmentMode === "ADD"
-                              ? "1px solid #2fbd70"
-                              : "1px solid #28533b",
-                          background:
-                            adjustmentMode === "ADD"
-                              ? "rgba(37,180,100,.17)"
-                              : "#101a13",
-                          color: "#45dc88",
-                          fontSize: "11px",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        ＋ SUMAR
-                      </button>
+                      ＋ AÑADIR
+                    </button>
 
-                      <button
-                        type="button"
-                        onClick={() => selectMode("SUBTRACT")}
-                        aria-pressed={
+                    <button
+                      type="button"
+                      onClick={() => selectMode("SUBTRACT")}
+                      aria-pressed={adjustmentMode === "SUBTRACT"}
+                      style={{
+                        padding: "12px 8px",
+                        borderRadius: "9px",
+                        border:
                           adjustmentMode === "SUBTRACT"
-                        }
-                        style={{
-                          minHeight: "46px",
-                          borderRadius: "10px",
-                          border:
-                            adjustmentMode === "SUBTRACT"
-                              ? "1px solid #e34450"
-                              : "1px solid #653038",
-                          background:
-                            adjustmentMode === "SUBTRACT"
-                              ? "rgba(229,9,20,.18)"
-                              : "#1a1011",
-                          color: "#ff5964",
-                          fontSize: "11px",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        − RESTAR
-                      </button>
-                    </div>
-
-                    <form
-                      onSubmit={(event) =>
-                        submitAdjustment(event, client)
-                      }
+                            ? "2px solid #ef4444"
+                            : "1px solid #404040",
+                        background:
+                          adjustmentMode === "SUBTRACT"
+                            ? "rgba(239, 68, 68, 0.16)"
+                            : "#171717",
+                        color:
+                          adjustmentMode === "SUBTRACT"
+                            ? "#f87171"
+                            : "#d4d4d4",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
                     >
-                      <label
-                        htmlFor={`adjustment-${client.id}`}
-                        style={{
-                          display: "block",
-                          color: "#bbb",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          marginBottom: "7px",
-                        }}
-                      >
-                        CANTIDAD EN USDT
-                      </label>
+                      − RESTAR
+                    </button>
+                  </div>
 
-                      <input
-  id={`adjustment-${client.id}`}
-  type="number"
-  inputMode="decimal"
-  min="0.01"
-  max="1000000000"
-  step="0.01"
-  required
-  value={adjustmentAmount}
-  onChange={(event) => {
-    setAdjustmentAmount(event.target.value);
-    setAdjustmentError("");
-    setAdjustmentSuccess("");
-  }}
-  placeholder="Ejemplo: 5.00"
-/>
+                  <label
+                    htmlFor={`adjustment-${client.id}`}
+                    style={{
+                      display: "block",
+                      color: "#d4d4d4",
+                      fontSize: "13px",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    Cantidad en USDT
+                  </label>
 
-<div
-  style={{
-    display: "flex",
-    gap: "10px",
-    marginTop: "14px",
-    flexWrap: "wrap",
-  }}
->
-  <button
-    type="button"
-    onClick={() => submitAdjustment(client, "ADD")}
-    disabled={adjustingClientId === client.id}
-    style={{
-      flex: "1",
-      minWidth: "120px",
-      padding: "13px 16px",
-      border: "none",
-      borderRadius: "10px",
-      background: "#16a34a",
-      color: "#ffffff",
-      fontWeight: 800,
-      cursor:
-        adjustingClientId === client.id
-          ? "not-allowed"
-          : "pointer",
-      opacity:
-        adjustingClientId === client.id
-          ? 0.6
-          : 1,
-    }}
-  >
-    {adjustingClientId === client.id
-      ? "PROCESANDO..."
-      : "＋ AÑADIR SALDO"}
-  </button>
+                  <input
+                    id={`adjustment-${client.id}`}
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    max="1000000000"
+                    step="0.01"
+                    required
+                    value={adjustmentAmount}
+                    onChange={(event) => {
+                      setAdjustmentAmount(event.target.value);
+                      setAdjustmentError("");
+                      setAdjustmentSuccess("");
+                    }}
+                    placeholder="Ejemplo: 5.00"
+                    disabled={adjustingClientId !== ""}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: "13px",
+                      borderRadius: "9px",
+                      border: "1px solid #404040",
+                      background: "#111111",
+                      color: "#ffffff",
+                      fontSize: "16px",
+                      outline: "none",
+                    }}
+                  />
 
-  <button
-    type="button"
-    onClick={() =>
-      submitAdjustment(client, "SUBTRACT")
-    }
-    disabled={adjustingClientId === client.id}
-    style={{
-      flex: "1",
-      minWidth: "120px",
-      padding: "13px 16px",
-      border: "none",
-      borderRadius: "10px",
-      background: "#dc2626",
-      color: "#ffffff",
-      fontWeight: 800,
-      cursor:
-        adjustingClientId === client.id
-          ? "not-allowed"
-          : "pointer",
-      opacity:
-        adjustingClientId === client.id
-          ? 0.6
-          : 1,
-    }}
-  >
-    {adjustingClientId === client.id
-      ? "PROCESANDO..."
-      : "− RESTAR SALDO"}
-  </button>
-</div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void submitAdjustment(client, adjustmentMode)
+                    }
+                    disabled={
+                      adjustingClientId !== "" ||
+                      adjustmentAmount.trim() === ""
+                    }
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      marginTop: "14px",
+                      padding: "14px",
+                      border: "none",
+                      borderRadius: "9px",
+                      background:
+                        adjustmentMode === "ADD"
+                          ? "#16a34a"
+                          : "#dc2626",
+                      color: "#ffffff",
+                      fontWeight: 800,
+                      cursor:
+                        adjustingClientId !== ""
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity:
+                        adjustingClientId !== "" ? 0.6 : 1,
+                    }}
+                  >
+                    {adjustingClientId === client.id
+                      ? "PROCESANDO..."
+                      : adjustmentMode === "ADD"
+                        ? "＋ CONFIRMAR Y AÑADIR SALDO"
+                        : "− CONFIRMAR Y RESTAR SALDO"}
+                  </button>
 
-{adjustmentError && (
-  <p
-    role="alert"
-    style={{
-      marginTop: "12px",
-      padding: "10px",
-      borderRadius: "8px",
-      background: "rgba(220, 38, 38, 0.12)",
-      color: "#f87171",
-      fontSize: "13px",
-      overflowWrap: "anywhere",
-    }}
-  >
-    ⚠️ {adjustmentError}
-  </p>
-)}
+                  {adjustmentError && (
+                    <p
+                      role="alert"
+                      style={{
+                        marginTop: "12px",
+                        padding: "10px",
+                        borderRadius: "8px",
+                        background: "rgba(220, 38, 38, 0.12)",
+                        color: "#f87171",
+                        fontSize: "13px",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      ⚠️ {adjustmentError}
+                    </p>
+                  )}
 
-{adjustmentSuccess && (
+                  {adjustmentSuccess && (
   <p
     role="status"
     style={{
@@ -810,3 +694,46 @@ export default function AdminBalancesPage() {
     ✅ {adjustmentSuccess}
   </p>
 )}
+
+<button
+  type="button"
+  onClick={() => toggleAdjustment(client)}
+  disabled={adjustingClientId !== ""}
+  style={{
+    width: "100%",
+    marginTop: "10px",
+    padding: "11px",
+    border: "1px solid #404040",
+    borderRadius: "9px",
+    background: "transparent",
+    color: "#d4d4d4",
+    cursor: "pointer",
+  }}
+>
+  CERRAR
+</button>
+</div>
+)}
+</div>
+))}
+</section>
+
+<section className="admin-security-card">
+  <div className="admin-security-icon">🔐</div>
+  <div>
+    <strong>INFORMACIÓN PROTEGIDA</strong>
+    <p>
+      Los balances mostrados pertenecen exclusivamente al panel
+      administrativo.
+    </p>
+  </div>
+</section>
+
+<footer className="admin-footer">
+  <strong>STORE GAMING</strong>
+  <span>CONTROL DE BALANCES</span>
+  <small>© 2026 STORE GAMING</small>
+</footer>
+</main>
+);
+}
