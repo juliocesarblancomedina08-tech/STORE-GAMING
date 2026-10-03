@@ -1,194 +1,155 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
-import { isAdminUser } from "../../../../../lib/admin";
 
 export const dynamic = "force-dynamic";
 
-function getBearerToken(request: NextRequest) {
-  const authorization = request.headers.get("authorization") || "";
+const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
-  if (!authorization.toLowerCase().startsWith("bearer ")) {
-    return null;
-  }
-
-  return authorization.slice(7).trim() || null;
+function jsonError(message: string, status: number) {
+  return NextResponse.json(
+    { ok: false, error: message },
+    {
+      status,
+      headers: { "Cache-Control": "no-store" },
+    }
+  );
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // Verificar token de sesión
-    const accessToken = getBearerToken(request);
+    // Verificar el token de sesión.
+    const authorization = request.headers.get("authorization");
+    const token = authorization?.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
 
-    if (!accessToken) {
-      return NextResponse.json(
-        { ok: false, error: "No autorizado." },
-        { status: 401 }
-      );
+    if (!token) {
+      return jsonError("Debes iniciar sesión como administrador.", 401);
     }
 
-    // Verificar que el usuario sea administrador
-    const authorized = await isAdminUser(accessToken);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(token);
 
-    if (!authorized) {
-      return NextResponse.json(
-        { ok: false, error: "Acceso denegado." },
-        { status: 403 }
-      );
+    if (authError || !user) {
+      return jsonError("La sesión no es válida o ha caducado.", 401);
     }
 
-    // Leer y validar los datos
-    const body = await request.json();
+    if (user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      return jsonError("No tienes permiso para modificar saldos.", 403);
+    }
 
-    const userId =
-      typeof body.userId === "string" ? body.userId.trim() : "";
+    // Validar los datos recibidos.
+    let body: {
+      userId?: string;
+      amount?: number;
+      action?: string;
+    };
 
+    try {
+      body = await request.json();
+    } catch {
+      return jsonError("Los datos enviados no son JSON válido.", 400);
+    }
+
+    const userId = body.userId;
     const amount = Number(body.amount);
     const action = body.action;
 
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-    if (!uuidRegex.test(userId)) {
-      return NextResponse.json(
-        { ok: false, error: "El ID del cliente no es válido." },
-        { status: 400 }
-      );
+    if (
+      typeof userId !== "string" ||
+      !userId.trim() ||
+      userId.length > 100
+    ) {
+      return jsonError("El usuario indicado no es válido.", 400);
     }
 
     if (
       !Number.isFinite(amount) ||
       amount <= 0 ||
-      !Number.isSafeInteger(Math.round(amount * 100)) ||
-      Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001
+      Math.round(amount * 100) !== amount * 100
     ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "El monto debe ser positivo y tener como máximo dos decimales.",
-        },
-        { status: 400 }
+      return jsonError(
+        "Introduce una cantidad válida con un máximo de dos decimales.",
+        400
       );
     }
 
     if (action !== "ADD" && action !== "SUBTRACT") {
-      return NextResponse.json(
-        { ok: false, error: "La operación no es válida." },
-        { status: 400 }
-      );
+      return jsonError("La operación solicitada no es válida.", 400);
     }
 
-    // Consultar el saldo actual del cliente
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // Consultar el saldo actual.
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabaseAdmin
       .from("profiles")
-      .select("id,balance")
+      .select("id, balance")
       .eq("id", userId)
       .maybeSingle();
 
     if (profileError) {
-      console.error("ERROR CONSULTANDO PERFIL:", profileError);
-
-      return NextResponse.json(
-        { ok: false, error: "No se pudo consultar el saldo del cliente." },
-        { status: 500 }
-      );
+      console.error("Error consultando el perfil:", profileError);
+      return jsonError("No se pudo consultar el saldo del usuario.", 500);
     }
 
     if (!profile) {
-      return NextResponse.json(
-        { ok: false, error: "No se encontró el cliente." },
-        { status: 404 }
-      );
+      return jsonError("No se encontró el usuario.", 404);
     }
 
     const currentBalance = Number(profile.balance ?? 0);
 
-    if (!Number.isFinite(currentBalance)) {
-      return NextResponse.json(
-        { ok: false, error: "El saldo actual no es válido." },
-        { status: 500 }
-      );
+    if (!Number.isFinite(currentBalance) || currentBalance < 0) {
+      return jsonError("El saldo actual del usuario no es válido.", 500);
     }
 
-    const amountInCents = Math.round(amount * 100);
-    const currentBalanceInCents = Math.round(currentBalance * 100);
-
-    if (
-      action === "SUBTRACT" &&
-      amountInCents > currentBalanceInCents
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "El cliente no tiene saldo suficiente para esta operación.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const newBalanceInCents =
+    const newBalance =
       action === "ADD"
-        ? currentBalanceInCents + amountInCents
-        : currentBalanceInCents - amountInCents;
+        ? currentBalance + amount
+        : currentBalance - amount;
 
-    if (!Number.isSafeInteger(newBalanceInCents)) {
-      return NextResponse.json(
-        { ok: false, error: "El saldo resultante es demasiado grande." },
-        { status: 400 }
-      );
+    if (newBalance < 0) {
+      return jsonError("El usuario no tiene saldo suficiente.", 400);
     }
 
-    const newBalance = newBalanceInCents / 100;
+    // Guardar el saldo actualizado.
+    const {
+      data: updatedProfile,
+      error: updateError,
+    } = await supabaseAdmin
+      .from("profiles")
+      .update({ balance: Number(newBalance.toFixed(2)) })
+      .eq("id", userId)
+      .select("id, balance")
+      .single();
 
-    // Guardar el nuevo saldo
-    const { data: updatedProfile, error: updateError } =
-      await supabaseAdmin
-        .from("profiles")
-        .update({ balance: newBalance })
-        .eq("id", userId)
-        .select("id,email,balance")
-        .maybeSingle();
-
-    if (updateError) {
-      console.error("ERROR ACTUALIZANDO BALANCE:", updateError);
-
-      return NextResponse.json(
-        { ok: false, error: "No se pudo actualizar el saldo." },
-        { status: 500 }
-      );
+    if (updateError || !updatedProfile) {
+      console.error("Error actualizando el saldo:", updateError);
+      return jsonError("No se pudo guardar el nuevo saldo.", 500);
     }
-
-    if (!updatedProfile) {
-      return NextResponse.json(
-        { ok: false, error: "No se pudo confirmar la actualización del saldo." },
-        { status: 500 }
-      );
-    }
-
-    console.log("BALANCE MODIFICADO POR ADMIN:", {
-      adminAction: action,
-      userId,
-      amount,
-      newBalance,
-    });
-
-    return NextResponse.json({
-      ok: true,
-      message:
-        action === "ADD"
-          ? "Saldo sumado correctamente."
-          : "Saldo restado correctamente.",
-      client: {
-        id: updatedProfile.id,
-        email: updatedProfile.email,
-        balance: Number(updatedProfile.balance ?? 0),
-      },
-    });
-  } catch (error) {
-    console.error("ERROR API ADJUST BALANCE:", error);
 
     return NextResponse.json(
-      { ok: false, error: "Error interno del servidor." },
-      { status: 500 }
+      {
+        ok: true,
+        message:
+          action === "ADD"
+            ? "Saldo agregado correctamente."
+            : "Saldo restado correctamente.",
+        client: {
+          id: updatedProfile.id,
+          balance: Number(updatedProfile.balance),
+        },
+      },
+      {
+        status: 200,
+        headers: { "Cache-Control": "no-store" },
+      }
     );
+  } catch (error) {
+    console.error("Error inesperado al ajustar el saldo:", error);
+
+    return jsonError("Ocurrió un error interno al modificar el saldo.", 500);
   }
 }
