@@ -1,0 +1,292 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "../../../../lib/supabase";
+
+type ClientBalance = {
+  id: string;
+  email: string | null;
+  balance: number | string | null;
+};
+
+export default function AdminBalanceDetailPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const clientId = params.id;
+
+  const [client, setClient] = useState<ClientBalance | null>(null);
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadClient() {
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) throw sessionError;
+
+        if (!session?.access_token) {
+          router.replace("/login");
+          return;
+        }
+
+        const { data: userData } = await supabase.auth.getUser();
+
+        if (
+          userData.user?.email?.toLowerCase() !==
+          "juliocesarblancomedina08@gmail.com"
+        ) {
+          router.replace("/");
+          return;
+        }
+
+        const response = await fetch("/api/admin/balances", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          cache: "no-store",
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "No se pudieron cargar los datos.");
+        }
+
+        const selectedClient = (data.balances ?? []).find(
+          (item: ClientBalance) => item.id === clientId
+        );
+
+        if (!selectedClient) {
+          throw new Error("No se encontró el cliente seleccionado.");
+        }
+
+        if (active) setClient(selectedClient);
+      } catch (err) {
+        if (active) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Ocurrió un error inesperado."
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadClient();
+
+    return () => {
+      active = false;
+    };
+  }, [clientId, router]);
+
+  async function adjustBalance(action: "ADD" | "SUBTRACT") {
+    setError("");
+    setMessage("");
+
+    const numericAmount = Number(amount);
+
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      setError("Introduce un monto válido mayor que cero.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `${action === "ADD" ? "Sumar" : "Restar"} $${numericAmount.toFixed(
+        2
+      )} ${action === "ADD" ? "al" : "del"} saldo de ${
+        client?.email || "este cliente"
+      }?`
+    );
+
+    if (!confirmed) return;
+
+    setProcessing(true);
+
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+
+      if (!session?.access_token) {
+        router.replace("/login");
+        return;
+      }
+
+      const response = await fetch("/api/admin/balances/adjust", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          userId: clientId,
+          amount: numericAmount,
+          action,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "No se pudo modificar el saldo.");
+      }
+
+      setMessage(
+        action === "ADD"
+          ? "Saldo sumado correctamente."
+          : "Saldo restado correctamente."
+      );
+      setAmount("");
+
+      const refreshResponse = await fetch("/api/admin/balances", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        cache: "no-store",
+      });
+
+      const refreshData = await refreshResponse.json();
+
+      if (refreshResponse.ok && refreshData.ok) {
+        const updatedClient = (refreshData.balances ?? []).find(
+          (item: ClientBalance) => item.id === clientId
+        );
+
+        if (updatedClient) setClient(updatedClient);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error inesperado."
+      );
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#080808] px-4 py-6 text-white sm:px-6">
+      <div className="mx-auto max-w-xl">
+        <button
+          type="button"
+          onClick={() => router.push("/admin/balances")}
+          className="mb-5 rounded-lg border border-white/15 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10"
+        >
+          ← Volver a los saldos
+        </button>
+
+        <header className="mb-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-500">
+            Store Gaming
+          </p>
+          <h1 className="mt-2 text-3xl font-black">
+            Administrar saldo
+          </h1>
+          <p className="mt-2 text-sm text-white/60">
+            Consulta el saldo y realiza ajustes para este cliente.
+          </p>
+        </header>
+
+        {loading ? (
+          <div className="rounded-2xl border border-white/10 bg-[#121212] p-8 text-center text-white/60">
+            Cargando cliente...
+          </div>
+        ) : error && !client ? (
+          <div className="rounded-2xl border border-red-500/30 bg-red-950/20 p-5 text-red-300">
+            {error}
+          </div>
+        ) : client ? (
+          <>
+            <section className="mb-5 rounded-2xl border border-white/10 bg-[#121212] p-5">
+              <p className="text-sm text-white/50">Correo del cliente</p>
+              <p className="mt-1 break-all font-semibold">
+                {client.email || "Sin correo"}
+              </p>
+
+              <p className="mt-5 text-sm text-white/50">Saldo actual</p>
+              <p className="mt-1 text-4xl font-black text-green-400">
+                ${Number(client.balance ?? 0).toFixed(2)}
+              </p>
+
+              <p className="mt-3 break-all text-xs text-white/40">
+                ID: {client.id}
+              </p>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-[#121212] p-5">
+              <label
+                htmlFor="amount"
+                className="mb-2 block text-sm font-medium text-white/80"
+              >
+                Monto en USD
+              </label>
+
+              <input
+                id="amount"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                placeholder="Ejemplo: 10.00"
+                disabled={processing}
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-red-500 disabled:opacity-50"
+              />
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => adjustBalance("ADD")}
+                  disabled={processing}
+                  className="rounded-xl bg-green-600 px-4 py-3 font-bold text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {processing ? "Procesando..." : "+ Sumar saldo"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => adjustBalance("SUBTRACT")}
+                  disabled={processing}
+                  className="rounded-xl bg-red-600 px-4 py-3 font-bold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {processing ? "Procesando..." : "− Restar saldo"}
+                </button>
+              </div>
+
+              {message && (
+                <p className="mt-4 rounded-xl border border-green-500/30 bg-green-950/20 p-3 text-sm text-green-300">
+                  {message}
+                </p>
+              )}
+
+              {error && (
+                <p className="mt-4 rounded-xl border border-red-500/30 bg-red-950/20 p-3 text-sm text-red-300">
+                  {error}
+                </p>
+              )}
+            </section>
+          </>
+        ) : null}
+      </div>
+    </main>
+  );
+}
