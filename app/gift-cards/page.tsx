@@ -166,10 +166,7 @@ export default function GiftCardsPage() {
   return (
     <main className="gift-cards-page">
 
-      {/* =========================
-          HEADER
-      ========================== */}
-
+      {/* HEADER */}
       <header className="gift-cards-header">
 
         <button
@@ -200,11 +197,7 @@ export default function GiftCardsPage() {
 
       </header>
 
-
-      {/* =========================
-          TITLE
-      ========================== */}
-
+      {/* TITLE */}
       <section className="gift-cards-title-section">
 
         <span className="gift-cards-title-decoration">
@@ -224,11 +217,7 @@ export default function GiftCardsPage() {
 
       </section>
 
-
-      {/* =========================
-          CATALOG
-      ========================== */}
-
+      {/* CATALOG */}
       <section className="gift-cards-catalog">
 
         <div className="gift-cards-catalog-heading">
@@ -243,11 +232,7 @@ export default function GiftCardsPage() {
 
         </div>
 
-
-        {/* =========================
-            BUSCADOR
-        ========================== */}
-
+        {/* BUSCADOR */}
         <div className="gift-cards-search-wrapper">
 
           <span
@@ -282,11 +267,7 @@ export default function GiftCardsPage() {
 
         </div>
 
-
-        {/* =========================
-            RESULTADOS
-        ========================== */}
-
+        {/* RESULTADOS */}
         {filteredGiftCards.length > 0 ? (
 
           <div className="gift-cards-grid">
@@ -314,7 +295,6 @@ export default function GiftCardsPage() {
                   </div>
 
                 </div>
-
 
                 <div className="gift-card-info">
 
@@ -371,11 +351,7 @@ export default function GiftCardsPage() {
 
       </section>
 
-
-      {/* =========================
-          INFO
-      ========================== */}
-
+      {/* INFO */}
       <section className="gift-cards-info">
 
         <div className="gift-cards-info-item">
@@ -397,7 +373,6 @@ export default function GiftCardsPage() {
 
         </div>
 
-
         <div className="gift-cards-info-item">
 
           <span>🔒</span>
@@ -415,7 +390,6 @@ export default function GiftCardsPage() {
           </div>
 
         </div>
-
 
         <div className="gift-cards-info-item">
 
@@ -438,11 +412,7 @@ export default function GiftCardsPage() {
 
       </section>
 
-
-      {/* =========================
-          FOOTER
-      ========================== */}
-
+      {/* FOOTER */}
       <footer className="gift-cards-footer">
 
         <strong>
@@ -457,4 +427,20 @@ export default function GiftCardsPage() {
 
     </main>
   );
-              }
+}
+
+Importante: este archivo controla la estructura, pero el número de tarjetas por fila se determina en tu CSS. Para que el cambio funcione, en el CSS de esta página ".gift-cards-grid" debe tener:
+
+.gift-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.gift-card-item {
+  width: 100%;
+  min-width: 0;
+}
+
+Con eso tendrás 2 tarjetas exactamente por fila.
