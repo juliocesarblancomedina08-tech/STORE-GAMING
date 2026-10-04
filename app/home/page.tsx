@@ -729,9 +729,7 @@ export default function HomePage() {
                 </span>
               </button>
 
-              {/* =========================
-                  PANEL DEL ADMINISTRADOR
-              ========================== */}
+              {/* ADMINISTRACIÓN */}
 
               {isAdmin && (
                 <>
@@ -788,260 +786,91 @@ export default function HomePage() {
             <div className="side-menu-bottom">
 
               <button
-                type="button"
-                className="side-menu-logout"
-                onClick={logout}
-              >
-                <span>
-                  ⇥
-                </span>
+  type="button"
+  className="side-menu-logout"
+  onClick={logout}
+>
+  <span>
+    ⇥
+  </span>
 
-                <strong>
-                  Cerrar sesión
-                </strong>
-              </button>
+  <strong>
+    Cerrar sesión
+  </strong>
+</button>
 
-            </div>
+</div>
 
-          </aside>
-        </>
+</aside>
+</>
+)}
+
+{/* =========================
+    HEADER
+========================== */}
+
+<header className="store-header">
+
+  <button
+    type="button"
+    className="menu-button"
+    onClick={() =>
+      setMenuOpen(true)
+    }
+    aria-label="Abrir menú"
+  >
+    <span />
+    <span />
+    <span />
+  </button>
+
+  {/* LOGO DEL HEADER OCULTO
+      PARA DEJAR SOLO LA CAMPANITA */}
+
+  <div
+    className="store-logo-hidden"
+    aria-hidden="true"
+  />
+
+  <div className="store-header-actions">
+
+    <button
+      type="button"
+      className="notification-button"
+      onClick={() =>
+        setNotificationsOpen(
+          !notificationsOpen
+        )
+      }
+      aria-label="Notificaciones"
+    >
+
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+        <path d="M10 21h4" />
+      </svg>
+
+      {notificationCount > 0 && (
+        <span className="notification-badge">
+          {notificationCount > 99
+            ? "99+"
+            : notificationCount}
+        </span>
       )}
 
-      {/* =========================
-          HEADER
-      ========================== */}
+    </button>
 
-      <header className="store-header">
+    {notificationsOpen && (
+      <div className="notification-panel">
 
-        <button
-          type="button"
-          className="menu-button"
-          onClick={() =>
-            setMenuOpen(true)
-          }
-          aria-label="Abrir menú"
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-
-        <button
-          type="button"
-          className="store-logo"
-          onClick={() =>
-            router.push("/home")
-          }
-          aria-label="STORE GAMING"
-        >
-          <span className="store-logo-text">
-
-            <strong>
-              STORE
-            </strong>
-
-            <span
-              className="store-logo-cart"
-              aria-hidden="true"
-            >
-              🛒
-            </span>
-
-            <b>
-              GAMING
-            </b>
-
-          </span>
-        </button>
-
-        <div className="store-header-actions">
-
-          <button
-            type="button"
-            className="notification-button"
-            onClick={() =>
-              setNotificationsOpen(
-                !notificationsOpen
-              )
-            }
-            aria-label="Notificaciones"
-          >
-
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-              <path d="M10 21h4" />
-            </svg>
-
-            {notificationCount > 0 && (
-              <span className="notification-badge">
-                {notificationCount > 99
-                  ? "99+"
-                  : notificationCount}
-              </span>
-            )}
-
-          </button>
-
-          {notificationsOpen && (
-            <div className="notification-panel">
-
-              <div className="notification-panel-header">
-
-                <div>
-
-                  <span>
-                    STORE GAMING
-                  </span>
-
-                  <strong>
-                    NOTIFICACIONES
-                  </strong>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setNotificationsOpen(false)
-                  }
-                  aria-label="Cerrar notificaciones"
-                >
-                  ×
-                </button>
-
-              </div>
-
-              <div className="notification-empty">
-
-                <div className="notification-empty-icon">
-                  🔔
-                </div>
-
-                <strong>
-                  No tienes notificaciones
-                </strong>
-
-                <p>
-                  Aquí aparecerán las
-                  novedades de tus pedidos
-                  y movimientos de saldo.
-                </p>
-
-              </div>
-
-            </div>
-          )}
-
-        </div>
-
-      </header>
-
-      {/* =========================
-          BIENVENIDA
-      ========================== */}
-
-      <section className="store-hero">
-
-        <div className="hero-glow" />
-
-        <div className="hero-content">
-
-          <div className="hero-badge">
-            ⚡ STORE GAMING
-          </div>
-
-          <h1 className="hero-title">
-
-            <span className="hero-greeting">
-              BIENVENIDO A
-            </span>
-
-            <span className="hero-store-name">
-              STORE GAMING
-            </span>
-
-            <span className="hero-username">
-              USUARIO: @{username}
-            </span>
-
-          </h1>
-
-          <p className="hero-text">
-            Nos alegra tenerte aquí.
-            Selecciona un servicio para
-            comenzar.
-          </p>
-
-          <div className="hero-stats">
-
-            <div className="hero-stat-card">
-
-              <strong className="hero-stat-icon">
-                $
-              </strong>
-
-              <span className="hero-stat-label">
-                DEPOSITADO
-              </span>
-
-              <b className="hero-stat-value">
-                ${deposited.toFixed(2)}
-              </b>
-
-            </div>
-
-            <div className="hero-stat-card">
-
-              <strong className="hero-stat-icon">
-                💳
-              </strong>
-
-              <span className="hero-stat-label">
-                GASTO TOTAL
-              </span>
-
-              <b className="hero-stat-value">
-                ${totalSpent.toFixed(2)}
-              </b>
-
-            </div>
-
-            <div className="hero-stat-card">
-
-              <strong className="hero-stat-icon">
-                ▣
-              </strong>
-
-              <span className="hero-stat-label">
-                ÓRDENES
-              </span>
-
-              <b className="hero-stat-value">
-                {ordersCreated}
-              </b>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =========================
-          SERVICIOS
-      ========================== */}
-
-      <section className="services-section">
-
-        <div className="catalog-header">
+        <div className="notification-panel-header">
 
           <div>
 
@@ -1049,168 +878,317 @@ export default function HomePage() {
               STORE GAMING
             </span>
 
-            <h2>
-              SERVICIOS
-            </h2>
-
-          </div>
-
-          <div className="catalog-decoration">
-
-            <i />
-            <i />
-            <i />
-
-          </div>
-
-        </div>
-
-        <div className="services-grid">
-
-          {services.map((service) => (
-
-            <button
-              key={service.name}
-              type="button"
-              className="service-card"
-              onClick={() =>
-                router.push(
-                  service.route
-                )
-              }
-            >
-
-              <div className="service-card-icon">
-                {service.icon}
-              </div>
-
-              <div className="service-card-tag">
-                {service.tag}
-              </div>
-
-              <div className="service-card-info">
-
-                <h3>
-                  {service.name}
-                </h3>
-
-                <p>
-                  {service.description}
-                </p>
-
-                <div className="service-card-bottom">
-
-                  <span>
-                    ENTRAR
-                  </span>
-
-                  <strong>
-                    →
-                  </strong>
-
-                </div>
-
-              </div>
-
-            </button>
-
-          ))}
-
-        </div>
-
-      </section>
-
-      {/* =========================
-          BENEFICIOS
-      ========================== */}
-
-      <section className="benefits-section">
-
-        <div className="benefit">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
             <strong>
-              ENTREGA RÁPIDA
+              NOTIFICACIONES
             </strong>
 
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
           </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setNotificationsOpen(false)
+            }
+            aria-label="Cerrar notificaciones"
+          >
+            ×
+          </button>
 
         </div>
 
-        <div className="benefit">
+        <div className="notification-empty">
 
-          <span>
-            🛡️
-          </span>
+          <div className="notification-empty-icon">
+            🔔
+          </div>
 
-          <div>
+          <strong>
+            No tienes notificaciones
+          </strong>
+
+          <p>
+            Aquí aparecerán las
+            novedades de tus pedidos
+            y movimientos de saldo.
+          </p>
+
+        </div>
+
+      </div>
+    )}
+
+  </div>
+
+</header>
+
+{/* =========================
+    BIENVENIDA
+========================== */}
+
+<section className="store-hero">
+
+  <div className="hero-glow" />
+
+  <div className="hero-content">
+
+    <div className="hero-badge">
+      ⚡ STORE GAMING
+    </div>
+
+    <h1 className="hero-title">
+
+      <span className="hero-greeting">
+        BIENVENIDO A
+      </span>
+
+      <span className="hero-store-name">
+        STORE GAMING
+      </span>
+
+      <span className="hero-username">
+        USUARIO: @{username}
+      </span>
+
+    </h1>
+
+    <p className="hero-text">
+      Nos alegra tenerte aquí.
+      Selecciona un servicio para
+      comenzar.
+    </p>
+
+    <div className="hero-stats">
+
+      <div className="hero-stat-card">
+
+        <strong className="hero-stat-icon">
+          $
+        </strong>
+
+        <span className="hero-stat-label">
+          DEPOSITADO
+        </span>
+
+        <b className="hero-stat-value">
+          ${deposited.toFixed(2)}
+        </b>
+
+      </div>
+
+      <div className="hero-stat-card">
+
+        <strong className="hero-stat-icon">
+          💳
+        </strong>
+
+        <span className="hero-stat-label">
+          GASTO TOTAL
+        </span>
+
+        <b className="hero-stat-value">
+          ${totalSpent.toFixed(2)}
+        </b>
+
+      </div>
+
+      <div className="hero-stat-card">
+
+        <strong className="hero-stat-icon">
+          ▣
+        </strong>
+
+        <span className="hero-stat-label">
+          ÓRDENES
+        </span>
+
+        <b className="hero-stat-value">
+          {ordersCreated}
+        </b>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+{/* =========================
+    SERVICIOS
+========================== */}
+
+<section className="services-section">
+
+  <div className="catalog-header">
+
+    <div>
+
+      <span>
+        STORE GAMING
+      </span>
+
+      <h2>
+        SERVICIOS
+      </h2>
+
+    </div>
+
+    <div className="catalog-decoration">
+
+      <i />
+      <i />
+      <i />
+
+    </div>
+
+  </div>
+
+  <div className="services-grid">
+
+    {services.map((service) => (
+
+      <button
+        key={service.name}
+        type="button"
+        className="service-card"
+        onClick={() =>
+          router.push(
+            service.route
+          )
+        }
+      >
+
+        <div className="service-card-icon">
+          {service.icon}
+        </div>
+
+        <div className="service-card-tag">
+          {service.tag}
+        </div>
+
+        <div className="service-card-info">
+
+          <h3>
+            {service.name}
+          </h3>
+
+          <p>
+            {service.description}
+          </p>
+
+          <div className="service-card-bottom">
+
+            <span>
+              ENTRAR
+            </span>
 
             <strong>
-              COMPRA SEGURA
+              →
             </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
 
           </div>
 
         </div>
 
-        <div className="benefit">
+      </button>
 
-          <span>
-            🎮
-          </span>
+    ))}
 
-          <div>
+  </div>
 
-            <strong>
-              SERVICIOS GAMING
-            </strong>
+</section>
 
-            <p>
-              Todo lo que necesitas
-              en un solo lugar.
-            </p>
+{/* =========================
+    BENEFICIOS
+========================== */}
 
-          </div>
+<section className="benefits-section">
 
-        </div>
+  <div className="benefit">
 
-      </section>
+    <span>
+      ⚡
+    </span>
 
-      {/* =========================
-          FOOTER
-      ========================== */}
+    <div>
 
-      <footer className="store-footer">
+      <strong>
+        ENTREGA RÁPIDA
+      </strong>
 
-        <div className="footer-brand">
-          STORE GAMING
-        </div>
+      <p>
+        Procesamos tus pedidos
+        rápidamente.
+      </p>
 
-        <p>
-          TU MEJOR OPCIÓN PARA
-          RECARGAS GAMING
-        </p>
+    </div>
 
-        <small>
-          © 2026 STORE GAMING
-        </small>
+  </div>
 
-      </footer>
+  <div className="benefit">
 
-    </main>
-  );
-      }
+    <span>
+      🛡️
+    </span>
+
+    <div>
+
+      <strong>
+        COMPRA SEGURA
+      </strong>
+
+      <p>
+        Tu pedido queda registrado.
+      </p>
+
+    </div>
+
+  </div>
+
+  <div className="benefit">
+
+    <span>
+      🎮
+    </span>
+
+    <div>
+
+      <strong>
+        SERVICIOS GAMING
+      </strong>
+
+      <p>
+        Todo lo que necesitas
+        en un solo lugar.
+      </p>
+
+    </div>
+
+  </div>
+
+</section>
+
+{/* =========================
+    FOOTER
+========================== */}
+
+<footer className="store-footer">
+
+  <div className="footer-brand">
+    STORE GAMING
+  </div>
+
+  <p>
+    TU MEJOR OPCIÓN PARA
+    RECARGAS GAMING
+  </p>
+
+  <small>
+    © 2026 STORE GAMING
+  </small>
+
+</footer>
+
+</main>
+);
+  }
