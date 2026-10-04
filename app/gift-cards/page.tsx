@@ -428,19 +428,3 @@ export default function GiftCardsPage() {
     </main>
   );
 }
-
-Importante: este archivo controla la estructura, pero el número de tarjetas por fila se determina en tu CSS. Para que el cambio funcione, en el CSS de esta página ".gift-cards-grid" debe tener:
-
-.gift-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  width: 100%;
-}
-
-.gift-card-item {
-  width: 100%;
-  min-width: 0;
-}
-
-Con eso tendrás 2 tarjetas exactamente por fila.
