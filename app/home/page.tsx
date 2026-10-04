@@ -79,6 +79,16 @@ export default function HomePage() {
   const [deposited, setDeposited] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
 
+  /* =========================
+     NOTIFICACIONES
+  ========================== */
+
+  const [notificationsOpen, setNotificationsOpen] =
+    useState(false);
+
+  const [notificationCount, setNotificationCount] =
+    useState(0);
+
   useEffect(() => {
     let mounted = true;
 
@@ -489,7 +499,7 @@ export default function HomePage() {
                     <path d="M3 10h18" />
                     <path d="M12 6v13" />
                     <path d="M8.5 6c-1.4 0-2.5-.9-2.5-2s1.1-2 2.5-2c2 0 3.5 4 3.5 4" />
-                    <path d="M15.5 6c1.4 0 2.5-.9 2.5-2s-1.1-2-2.5-2c-2 0-3.5 4-3.5 4" />
+                    <path d="M15.5 6c1.4 0 2.5-.9 2.5-2s1.1-2 2.5-2c2 0 3.5 4 3.5 4" />
                   </svg>
                 </span>
 
@@ -777,7 +787,7 @@ export default function HomePage() {
 
             <div className="side-menu-bottom">
 
-                            <button
+              <button
                 type="button"
                 className="side-menu-logout"
                 onClick={logout}
@@ -845,6 +855,90 @@ export default function HomePage() {
         </button>
 
         <div className="store-header-actions">
+
+          <button
+            type="button"
+            className="notification-button"
+            onClick={() =>
+              setNotificationsOpen(
+                !notificationsOpen
+              )
+            }
+            aria-label="Notificaciones"
+          >
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+              <path d="M10 21h4" />
+            </svg>
+
+            {notificationCount > 0 && (
+              <span className="notification-badge">
+                {notificationCount > 99
+                  ? "99+"
+                  : notificationCount}
+              </span>
+            )}
+
+          </button>
+
+          {notificationsOpen && (
+            <div className="notification-panel">
+
+              <div className="notification-panel-header">
+
+                <div>
+
+                  <span>
+                    STORE GAMING
+                  </span>
+
+                  <strong>
+                    NOTIFICACIONES
+                  </strong>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setNotificationsOpen(false)
+                  }
+                  aria-label="Cerrar notificaciones"
+                >
+                  ×
+                </button>
+
+              </div>
+
+              <div className="notification-empty">
+
+                <div className="notification-empty-icon">
+                  🔔
+                </div>
+
+                <strong>
+                  No tienes notificaciones
+                </strong>
+
+                <p>
+                  Aquí aparecerán las
+                  novedades de tus pedidos
+                  y movimientos de saldo.
+                </p>
+
+              </div>
+
+            </div>
+          )}
+
         </div>
 
       </header>
@@ -866,17 +960,21 @@ export default function HomePage() {
           <h1 className="hero-title">
 
             <span className="hero-greeting">
-              HOLA
+              BIENVENIDO A
+            </span>
+
+            <span className="hero-store-name">
+              STORE GAMING
             </span>
 
             <span className="hero-username">
-              @{username}
+              USUARIO: @{username}
             </span>
 
           </h1>
 
           <p className="hero-text">
-            Bienvenido a STORE GAMING.
+            Nos alegra tenerte aquí.
             Selecciona un servicio para
             comenzar.
           </p>
@@ -1115,4 +1213,4 @@ export default function HomePage() {
 
     </main>
   );
-                }
+      }
