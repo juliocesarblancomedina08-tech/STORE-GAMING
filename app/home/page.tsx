@@ -290,10 +290,6 @@ export default function HomePage() {
 
       /*
        * NOTIFICACIONES EN TIEMPO REAL
-       *
-       * Cada vez que se cree, modifique o elimine
-       * una notificación perteneciente a este usuario,
-       * volvemos a cargar sus notificaciones.
        */
 
       notificationChannel =
@@ -764,147 +760,6 @@ export default function HomePage() {
                   aria-hidden="true"
                 >
                   ›
-                </span>
-              </button>
-
-
-              {/* =========================
-                  VENTA DE SALDO MÓVIL
-              ========================== */}
-
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() =>
-                  setMenuOpen(false)
-                }
-                style={{
-                  position: "relative",
-                  overflow: "hidden",
-                  paddingRight: "10px",
-                }}
-              >
-                <span
-                  className="menu-icon"
-                  aria-hidden="true"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect
-                      x="6"
-                      y="3"
-                      width="12"
-                      height="18"
-                      rx="2"
-                    />
-                    <path d="M9 7h6" />
-                    <path d="M10 17h4" />
-                  </svg>
-                </span>
-
-                <span
-                  style={{
-                    flex: 1,
-                    textAlign: "left",
-                    fontSize: "13px",
-                  }}
-                >
-                  Venta de saldo móvil
-                </span>
-
-                <span
-                  style={{
-                    flexShrink: 0,
-                    marginLeft: "5px",
-                    padding: "3px 6px",
-                    borderRadius: "5px",
-                    background:
-                      "linear-gradient(135deg,#e50914,#9d0000)",
-                    color: "#fff",
-                    fontSize: "7px",
-                    fontWeight: 900,
-                    letterSpacing: ".3px",
-                    lineHeight: 1,
-                    boxShadow:
-                      "0 0 8px rgba(229,9,20,.35)",
-                  }}
-                >
-                  PRÓXIMAMENTE
-                </span>
-              </button>
-
-              {/* =========================
-              {/* COMPRA Y VENTA DE CRIPTO */}
-
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() =>
-                  setMenuOpen(false)
-                }
-                style={{
-                  position: "relative",
-                  overflow: "hidden",
-                  paddingRight: "10px",
-                }}
-              >
-                <span
-                  className="menu-icon"
-                  aria-hidden="true"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="8"
-                    />
-                    <path d="M12 7v10" />
-                    <path d="M9 9.5h4.5a2 2 0 0 1 0 4H9" />
-                    <path d="M9 12h5" />
-                  </svg>
-                </span>
-
-                <span
-                  style={{
-                    flex: 1,
-                    textAlign: "left",
-                    fontSize: "13px",
-                  }}
-                >
-                  Compra y venta de cripto
-                </span>
-
-                <span
-                  style={{
-                    flexShrink: 0,
-                    marginLeft: "5px",
-                    padding: "3px 6px",
-                    borderRadius: "5px",
-                    background:
-                      "linear-gradient(135deg,#e50914,#9d0000)",
-                    color: "#fff",
-                    fontSize: "7px",
-                    fontWeight: 900,
-                    letterSpacing: ".3px",
-                    lineHeight: 1,
-                    boxShadow:
-                      "0 0 8px rgba(229,9,20,.35)",
-                  }}
-                >
-                  PRÓXIMAMENTE
                 </span>
               </button>
 
@@ -1501,141 +1356,142 @@ export default function HomePage() {
 
           ))}
 
+          {/* VENTA DE SALDO MÓVIL */}
 
-            {/* VENTA DE SALDO MÓVIL */}
+          <div
+            className="service-card"
+            style={{
+              position: "relative",
+              overflow: "hidden",
+              cursor: "default",
+            }}
+          >
 
             <div
-              className="service-card"
               style={{
-                position: "relative",
-                overflow: "hidden",
-                cursor: "default",
+                position: "absolute",
+                top: "12px",
+                right: "-38px",
+                background:
+                  "linear-gradient(135deg,#e50914,#9d0000)",
+                color: "#fff",
+                padding: "5px 45px",
+                fontSize: "11px",
+                fontWeight: 800,
+                transform: "rotate(45deg)",
+                zIndex: 2,
+                boxShadow:
+                  "0 0 12px rgba(229,9,20,.35)",
               }}
             >
+              PRÓXIMAMENTE
+            </div>
 
-              <div
-                style={{
-                  position: "absolute",
-                  top: "12px",
-                  right: "-38px",
-                  background:
-                    "linear-gradient(135deg,#e50914,#9d0000)",
-                  color: "#fff",
-                  padding: "5px 45px",
-                  fontSize: "11px",
-                  fontWeight: 800,
-                  transform: "rotate(45deg)",
-                  zIndex: 2,
-                  boxShadow:
-                    "0 0 12px rgba(229,9,20,.35)",
-                }}
-              >
-                PRÓXIMAMENTE
-              </div>
+            <div className="service-card-icon">
+              📱
+            </div>
 
-              <div className="service-card-icon">
-                📱
-              </div>
+            <div className="service-card-tag">
+              SERVICIOS
+            </div>
 
-              <div className="service-card-tag">
-                SERVICIOS
-              </div>
+            <div className="service-card-info">
 
-              <div className="service-card-info">
+              <h3>
+                Venta de saldo móvil
+              </h3>
 
-                <h3>
-                  Venta de saldo móvil
-                </h3>
+              <p>
+                Compra y venta de saldo móvil
+                de forma rápida y segura.
+              </p>
 
-                <p>
-                  Compra y venta de saldo móvil
-                  de forma rápida y segura.
-                </p>
+              <div className="service-card-bottom">
 
-                <div className="service-card-bottom">
+                <span>
+                  PRÓXIMAMENTE
+                </span>
 
-                  <span>
-                    PRÓXIMAMENTE
-                  </span>
-
-                  <strong>
-                    🔒
-                  </strong>
-
-                </div>
+                <strong>
+                  🔒
+                </strong>
 
               </div>
 
             </div>
 
-            {/* COMPRA Y VENTA DE CRIPTO */}
+          </div>
+
+          {/* COMPRA Y VENTA DE CRIPTO */}
+
+          <div
+            className="service-card"
+            style={{
+              position: "relative",
+              overflow: "hidden",
+              cursor: "default",
+            }}
+          >
 
             <div
-              className="service-card"
               style={{
-                position: "relative",
-                overflow: "hidden",
-                cursor: "default",
+                position: "absolute",
+                top: "12px",
+                right: "-38px",
+                background:
+                  "linear-gradient(135deg,#e50914,#9d0000)",
+                color: "#fff",
+                padding: "5px 45px",
+                fontSize: "11px",
+                fontWeight: 800,
+                transform: "rotate(45deg)",
+                zIndex: 2,
+                boxShadow:
+                  "0 0 12px rgba(229,9,20,.35)",
               }}
             >
+              PRÓXIMAMENTE
+            </div>
 
-              <div
-                style={{
-                  position: "absolute",
-                  top: "12px",
-                  right: "-38px",
-                  background:
-                    "linear-gradient(135deg,#e50914,#9d0000)",
-                  color: "#fff",
-                  padding: "5px 45px",
-                  fontSize: "11px",
-                  fontWeight: 800,
-                  transform: "rotate(45deg)",
-                  zIndex: 2,
-                  boxShadow:
-                    "0 0 12px rgba(229,9,20,.35)",
-                }}
-              >
-                PRÓXIMAMENTE
-              </div>
+            <div className="service-card-icon">
+              🪙
+            </div>
 
-              <div className="service-card-icon">
-                🪙
-              </div>
+            <div className="service-card-tag">
+              CRIPTO
+            </div>
 
-              <div className="service-card-tag">
-                CRIPTO
-              </div>
+            <div className="service-card-info">
 
-              <div className="service-card-info">
+              <h3>
+                Compra y venta de cripto
+              </h3>
 
-                <h3>
-                  Compra y venta de cripto
-                </h3>
+              <p>
+                Compra y venta de
+                criptomonedas de forma
+                rápida y segura.
+              </p>
 
-                <p>
-                  Compra y venta de
-                  criptomonedas de forma
-                  rápida y segura.
-                </p>
+              <div className="service-card-bottom">
 
-                <div className="service-card-bottom">
+                <span>
+                  PRÓXIMAMENTE
+                </span>
 
-                  <span>
-                    PRÓXIMAMENTE
-                  </span>
-
-                  <strong>
-                    🔒
-                  </strong>
-
-                </div>
+                <strong>
+                  🔒
+                </strong>
 
               </div>
 
             </div>
+
+          </div>
 
         </div>
+
+      </section>
 
       {/* =========================
           BENEFICIOS
@@ -1730,4 +1586,4 @@ export default function HomePage() {
 
     </main>
   );
-        }
+                } 
