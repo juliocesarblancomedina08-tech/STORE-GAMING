@@ -290,6 +290,10 @@ export default function HomePage() {
 
       /*
        * NOTIFICACIONES EN TIEMPO REAL
+       *
+       * Cada vez que se cree, modifique o elimine
+       * una notificación perteneciente a este usuario,
+       * volvemos a cargar sus notificaciones.
        */
 
       notificationChannel =
@@ -763,6 +767,147 @@ export default function HomePage() {
                 </span>
               </button>
 
+              {/* =========================
+                  VENTA DE SALDO MÓVIL
+              ========================== */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  paddingRight: "10px",
+                }}
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect
+                      x="6"
+                      y="3"
+                      width="12"
+                      height="18"
+                      rx="2"
+                    />
+                    <path d="M9 7h6" />
+                    <path d="M10 17h4" />
+                  </svg>
+                </span>
+
+                <span
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  Venta de saldo móvil
+                </span>
+
+                <span
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: "5px",
+                    padding: "3px 6px",
+                    borderRadius: "5px",
+                    background:
+                      "linear-gradient(135deg,#e50914,#9d0000)",
+                    color: "#fff",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    letterSpacing: ".3px",
+                    lineHeight: 1,
+                    boxShadow:
+                      "0 0 8px rgba(229,9,20,.35)",
+                  }}
+                >
+                  PRÓXIMAMENTE
+                </span>
+              </button>
+
+              {/* =========================
+                  COMPRA Y VENTA DE CRIPTO
+              ========================== */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  paddingRight: "10px",
+                }}
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="8"
+                    />
+                    <path d="M12 7v10" />
+                    <path d="M9 9.5h4.5a2 2 0 0 1 0 4H9" />
+                    <path d="M9 12h5" />
+                  </svg>
+                </span>
+
+                <span
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  Compra y venta de cripto
+                </span>
+
+                <span
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: "5px",
+                    padding: "3px 6px",
+                    borderRadius: "5px",
+                    background:
+                      "linear-gradient(135deg,#e50914,#9d0000)",
+                    color: "#fff",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    letterSpacing: ".3px",
+                    lineHeight: 1,
+                    boxShadow:
+                      "0 0 8px rgba(229,9,20,.35)",
+                  }}
+                >
+                  PRÓXIMAMENTE
+                </span>
+              </button>
+
               {/* ESTADÍSTICAS */}
 
               <button
@@ -924,7 +1069,7 @@ export default function HomePage() {
                           cy="12"
                           r="3"
                         />
-                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9-.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
                       </svg>
                     </span>
 
@@ -1451,139 +1596,4 @@ export default function HomePage() {
               }}
             >
               PRÓXIMAMENTE
-            </div>
-
-            <div className="service-card-icon">
-              🪙
-            </div>
-
-            <div className="service-card-tag">
-              CRIPTO
-            </div>
-
-            <div className="service-card-info">
-
-              <h3>
-                Compra y venta de cripto
-              </h3>
-
-              <p>
-                Compra y venta de
-                criptomonedas de forma
-                rápida y segura.
-              </p>
-
-              <div className="service-card-bottom">
-
-                <span>
-                  PRÓXIMAMENTE
-                </span>
-
-                <strong>
-                  🔒
-                </strong>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =========================
-          BENEFICIOS
-      ========================== */}
-
-      <section className="benefits-section">
-
-        <div className="benefit">
-
-          <span>
-            ⚡
-          </span>
-
-          <div>
-
-            <strong>
-              ENTREGA RÁPIDA
-            </strong>
-
-            <p>
-              Procesamos tus pedidos
-              rápidamente.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="benefit">
-
-          <span>
-            🛡️
-          </span>
-
-          <div>
-
-            <strong>
-              COMPRA SEGURA
-            </strong>
-
-            <p>
-              Tu pedido queda registrado.
-            </p>
-
-          </div>
-
-        </div>
-
-        <div className="benefit">
-
-          <span>
-            🎮
-          </span>
-
-          <div>
-
-            <strong>
-              SERVICIOS GAMING
-            </strong>
-
-            <p>
-              Todo lo que necesitas
-              en un solo lugar.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =========================
-          FOOTER
-      ========================== */}
-
-      <footer className="store-footer">
-
-        <div className="footer-brand">
-          STORE GAMING
-        </div>
-
-        <p>
-          TU MEJOR OPCIÓN PARA
-          RECARGAS GAMING
-        </p>
-
-        <small>
-          © 2026 STORE GAMING
-        </small>
-
-      </footer>
-
-    </main>
-  );
-                } 
+          </
