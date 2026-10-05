@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { deltaForceGame } from "../../../lib/delta-force";
+import { deltaForceGame } from "../../../lib/game/delta-forces";
 
 type Offer = (typeof deltaForceGame.offers)[number];
 
@@ -43,7 +43,9 @@ export default function DeltaForcePage() {
   const handleContinue = () => {
     setError("");
 
-    if (!validatePlayerId()) return;
+    if (!validatePlayerId()) {
+      return;
+    }
 
     if (!selectedOffer) {
       setError("Selecciona una oferta.");
@@ -61,7 +63,9 @@ export default function DeltaForcePage() {
       return;
     }
 
-    if (!validatePlayerId()) return;
+    if (!validatePlayerId()) {
+      return;
+    }
 
     setLoading(true);
 
@@ -94,7 +98,13 @@ export default function DeltaForcePage() {
         );
       }
 
-      setOrderId(data?.data?.orderId || data?.orderId || "");
+      setOrderId(
+        data?.data?.orderId ||
+          data?.orderId ||
+          data?.data?.id ||
+          ""
+      );
+
       setStep("success");
     } catch (err) {
       setError(
@@ -125,6 +135,7 @@ export default function DeltaForcePage() {
       <div className="special-forces-background" />
 
       <div className="special-forces-container">
+        {/* HEADER */}
         <header className="special-forces-header">
           <a href="/top-up" className="special-forces-back">
             ← Volver
@@ -136,6 +147,7 @@ export default function DeltaForcePage() {
           </div>
         </header>
 
+        {/* BANNER */}
         <section className="special-forces-hero">
           <div className="special-forces-banner">
             <img
@@ -146,7 +158,9 @@ export default function DeltaForcePage() {
 
             <div className="special-forces-banner-overlay">
               <span>RECARGAS GAMING</span>
+
               <h1>DELTA FORCE</h1>
+
               <p>
                 Recarga Delta Coins de forma rápida y segura.
               </p>
@@ -154,8 +168,10 @@ export default function DeltaForcePage() {
           </div>
         </section>
 
+        {/* FORMULARIO */}
         {step === "form" && (
           <>
+            {/* INFORMACIÓN */}
             <section className="special-forces-card">
               <div className="special-forces-info">
                 <div className="special-forces-info-icon">
@@ -164,17 +180,23 @@ export default function DeltaForcePage() {
 
                 <div>
                   <h2>{deltaForceGame.name}</h2>
-                  <p>Recarga directamente a tu cuenta.</p>
+
+                  <p>
+                    Recarga directamente a tu cuenta.
+                  </p>
                 </div>
               </div>
 
               <div className="special-forces-note">
                 <span>ℹ️</span>
 
-                <p>{deltaForceGame.note}</p>
+                <p>
+                  {deltaForceGame.note}
+                </p>
               </div>
             </section>
 
+            {/* PLAYER ID */}
             <section className="special-forces-section">
               <div className="special-forces-section-header">
                 <div>
@@ -188,7 +210,8 @@ export default function DeltaForcePage() {
                     </h2>
 
                     <p>
-                      Introduce el ID de tu cuenta de Delta Force.
+                      Introduce el ID de tu cuenta de Delta
+                      Force.
                     </p>
                   </div>
                 </div>
@@ -214,11 +237,13 @@ export default function DeltaForcePage() {
                 />
 
                 <small>
-                  Introduce únicamente los números de tu Player ID.
+                  Introduce únicamente los números de tu
+                  Player ID.
                 </small>
               </div>
             </section>
 
+            {/* OFERTAS */}
             <section className="special-forces-section">
               <div className="special-forces-section-header">
                 <div>
@@ -230,7 +255,8 @@ export default function DeltaForcePage() {
                     <h2>Selecciona tu recarga</h2>
 
                     <p>
-                      Elige la cantidad de Delta Coins que deseas.
+                      Elige la cantidad de Delta Coins que
+                      deseas.
                     </p>
                   </div>
                 </div>
@@ -259,11 +285,13 @@ export default function DeltaForcePage() {
 
                       <div className="special-forces-offer-info">
                         <strong>{offer.display}</strong>
+
                         <span>{offer.name}</span>
                       </div>
 
                       <div className="special-forces-offer-price">
                         ${Number(offer.price).toFixed(2)}
+
                         <small>USDT</small>
                       </div>
 
@@ -278,6 +306,7 @@ export default function DeltaForcePage() {
               </div>
             </section>
 
+            {/* OFERTA SELECCIONADA */}
             {selectedOffer && (
               <section className="special-forces-selected">
                 <div>
@@ -290,17 +319,21 @@ export default function DeltaForcePage() {
                 </div>
 
                 <div className="special-forces-selected-price">
-                  ${Number(selectedOffer.price).toFixed(2)} USDT
+                  $
+                  {Number(selectedOffer.price).toFixed(2)}{" "}
+                  USDT
                 </div>
               </section>
             )}
 
+            {/* ERROR */}
             {error && (
               <div className="special-forces-error">
                 ⚠️ {error}
               </div>
             )}
 
+            {/* CONTINUAR */}
             <button
               type="button"
               className="special-forces-primary-button"
@@ -308,11 +341,13 @@ export default function DeltaForcePage() {
               disabled={!selectedOffer}
             >
               CONTINUAR
+
               <span>→</span>
             </button>
           </>
         )}
 
+        {/* CONFIRMACIÓN */}
         {step === "confirm" && selectedOffer && (
           <section className="special-forces-confirmation">
             <div className="special-forces-confirmation-header">
@@ -322,7 +357,8 @@ export default function DeltaForcePage() {
                 <h2>Confirma tu pedido</h2>
 
                 <p>
-                  Revisa los datos antes de realizar la recarga.
+                  Revisa los datos antes de realizar la
+                  recarga.
                 </p>
               </div>
             </div>
@@ -330,11 +366,15 @@ export default function DeltaForcePage() {
             <div className="special-forces-confirm-card">
               <div className="special-forces-confirm-row">
                 <span>Juego</span>
-                <strong>{deltaForceGame.name}</strong>
+
+                <strong>
+                  {deltaForceGame.name}
+                </strong>
               </div>
 
               <div className="special-forces-confirm-row">
                 <span>Player ID</span>
+
                 <strong>{playerId}</strong>
               </div>
 
@@ -351,7 +391,11 @@ export default function DeltaForcePage() {
                 <span>Total</span>
 
                 <strong>
-                  ${Number(selectedOffer.price).toFixed(2)} USDT
+                  $
+                  {Number(
+                    selectedOffer.price
+                  ).toFixed(2)}{" "}
+                  USDT
                 </strong>
               </div>
             </div>
@@ -360,8 +404,8 @@ export default function DeltaForcePage() {
               <span>⚠️</span>
 
               <p>
-                Verifica que el Player ID sea correcto antes de
-                confirmar el pedido.
+                Verifica que el Player ID sea correcto
+                antes de confirmar el pedido.
               </p>
             </div>
 
@@ -395,6 +439,7 @@ export default function DeltaForcePage() {
           </section>
         )}
 
+        {/* ÉXITO */}
         {step === "success" && (
           <section className="special-forces-success">
             <div className="special-forces-success-icon">
@@ -404,12 +449,14 @@ export default function DeltaForcePage() {
             <h2>¡Pedido realizado!</h2>
 
             <p>
-              Tu pedido de Delta Force fue enviado correctamente.
+              Tu pedido de Delta Force fue enviado
+              correctamente.
             </p>
 
             {orderId && (
               <div className="special-forces-order-id">
                 <span>Número de pedido</span>
+
                 <strong>{orderId}</strong>
               </div>
             )}
@@ -417,6 +464,7 @@ export default function DeltaForcePage() {
             <div className="special-forces-success-details">
               <div>
                 <span>Player ID</span>
+
                 <strong>{playerId}</strong>
               </div>
 
@@ -434,7 +482,9 @@ export default function DeltaForcePage() {
                 <strong>
                   $
                   {selectedOffer
-                    ? Number(selectedOffer.price).toFixed(2)
+                    ? Number(
+                        selectedOffer.price
+                      ).toFixed(2)
                     : "0.00"}{" "}
                   USDT
                 </strong>
@@ -442,8 +492,8 @@ export default function DeltaForcePage() {
             </div>
 
             <p className="special-forces-success-note">
-              La recarga será procesada y entregada directamente
-              en tu cuenta.
+              La recarga será procesada y entregada
+              directamente en tu cuenta.
             </p>
 
             <button
@@ -456,6 +506,7 @@ export default function DeltaForcePage() {
           </section>
         )}
 
+        {/* SERVICIOS */}
         <section className="special-forces-services">
           <div className="special-forces-section-header">
             <div>
@@ -474,7 +525,9 @@ export default function DeltaForcePage() {
           <div className="special-forces-service-grid">
             <div className="special-forces-service">
               <span>⚡</span>
+
               <strong>Rápido</strong>
+
               <p>
                 Procesamos tu pedido rápidamente.
               </p>
@@ -482,7 +535,9 @@ export default function DeltaForcePage() {
 
             <div className="special-forces-service">
               <span>🔒</span>
+
               <strong>Seguro</strong>
+
               <p>
                 Compra mediante un proceso protegido.
               </p>
@@ -490,16 +545,21 @@ export default function DeltaForcePage() {
 
             <div className="special-forces-service">
               <span>🎮</span>
+
               <strong>Directo</strong>
+
               <p>
-                La recarga llega directamente a tu cuenta.
+                La recarga llega directamente a tu
+                cuenta.
               </p>
             </div>
           </div>
         </section>
 
+        {/* FOOTER */}
         <footer className="special-forces-footer">
           <strong>🛒 STORE GAMING 🎮</strong>
+
           <span>
             Recargas digitales rápidas y seguras.
           </span>
@@ -507,4 +567,4 @@ export default function DeltaForcePage() {
       </div>
     </main>
   );
-      }
+        }
