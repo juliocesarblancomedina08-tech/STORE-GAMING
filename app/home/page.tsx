@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabase";
 
 type Service = {
   title: string;
@@ -28,7 +28,7 @@ type Notification = {
   created_at: string;
 };
 
-const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
+const ADMIN_EMAIL = "juliocesarblancomedina@gmail.com";
 
 const services: Service[] = [
   {
@@ -73,20 +73,11 @@ export default function HomePage() {
   const [ordersCreated, setOrdersCreated] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
 
-  const [notificationsOpen, setNotificationsOpen] =
-    useState(false);
-
-  const [notificationCount, setNotificationCount] =
-    useState(0);
-
-  const [notifications, setNotifications] =
-    useState<Notification[]>([]);
-
-  const [notificationsLoading, setNotificationsLoading] =
-    useState(false);
-
-  const [currentUserId, setCurrentUserId] =
-    useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState("");
 
   const loadNotifications = async (userId: string) => {
     if (!userId) return;
@@ -100,21 +91,15 @@ export default function HomePage() {
           "id,title,message,type,is_read,created_at"
         )
         .eq("user_id", userId)
-        .order("created_at", {
-          ascending: false,
-        })
+        .order("created_at", { ascending: false })
         .limit(50);
 
       if (error) {
-        console.error(
-          "Error cargando notificaciones:",
-          error
-        );
+        console.error("Error cargando notificaciones:", error);
         return;
       }
 
-      const notificationData =
-        (data || []) as Notification[];
+      const notificationData = (data || []) as Notification[];
 
       setNotifications(notificationData);
 
@@ -139,9 +124,7 @@ export default function HomePage() {
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({
-          is_read: true,
-        })
+        .update({ is_read: true })
         .eq("id", notificationId);
 
       if (error) {
@@ -180,9 +163,7 @@ export default function HomePage() {
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({
-          is_read: true,
-        })
+        .update({ is_read: true })
         .eq("user_id", currentUserId)
         .eq("is_read", false);
 
@@ -318,8 +299,7 @@ export default function HomePage() {
         return;
       }
 
-      const orders =
-        (data || []) as StoreOrder[];
+      const orders = (data || []) as StoreOrder[];
 
       setOrdersCreated(orders.length);
 
@@ -381,7 +361,6 @@ export default function HomePage() {
       >
         <div className="store-loading">
           <div className="store-spinner" />
-
           <p>
             Cargando STORE GAMING...
           </p>
@@ -413,7 +392,6 @@ export default function HomePage() {
             : ""
         }`}
       >
-
         <div className="side-menu-header">
 
           <div>
@@ -435,7 +413,6 @@ export default function HomePage() {
           >
             ✕
           </button>
-
         </div>
 
         <div className="side-menu-content">
@@ -514,7 +491,6 @@ export default function HomePage() {
               </span>
 
               <div>
-
                 <strong>
                   {ordersCreated}
                 </strong>
@@ -522,7 +498,6 @@ export default function HomePage() {
                 <small>
                   Pedidos
                 </small>
-
               </div>
 
             </div>
@@ -534,7 +509,6 @@ export default function HomePage() {
               </span>
 
               <div>
-
                 <strong>
                   $
                   {Number(
@@ -545,7 +519,6 @@ export default function HomePage() {
                 <small>
                   Gastado
                 </small>
-
               </div>
 
             </div>
@@ -607,8 +580,7 @@ export default function HomePage() {
               <div className="side-menu-section-title">
                 ADMINISTRACIÓN
               </div>
-
-              <button
+                            <button
                 type="button"
                 className="side-menu-item"
                 onClick={() =>
@@ -708,7 +680,6 @@ export default function HomePage() {
                 <div className="notification-panel-header">
 
                   <div>
-
                     <strong>
                       Notificaciones
                     </strong>
@@ -719,7 +690,6 @@ export default function HomePage() {
                         ? `${notificationCount} sin leer`
                         : "Todo leído"}
                     </span>
-
                   </div>
 
                   {notificationCount >
@@ -790,7 +760,6 @@ export default function HomePage() {
                         >
 
                           <div className="notification-item-icon">
-
                             {notification.type ===
                             "BALANCE_ADD"
                               ? "💰"
@@ -798,7 +767,6 @@ export default function HomePage() {
                                 "BALANCE_SUBTRACT"
                               ? "💳"
                               : "🔔"}
-
                           </div>
 
                           <div className="notification-item-content">
@@ -850,7 +818,6 @@ export default function HomePage() {
             )}
 
           </div>
-
         </div>
       </header>
 
@@ -904,7 +871,10 @@ export default function HomePage() {
   </div>
 </section>
 
-{/* SERVICIOS */}
+{/* =========================
+    SERVICIOS
+========================== */}
+
 <section className="store-section">
 
   <div className="store-section-heading">
@@ -980,7 +950,7 @@ export default function HomePage() {
         return (
           <div
             key={service.title}
-            className="service-card"
+            className="service-card finance-service-card"
             style={{
               position: "relative",
               overflow: "hidden",
@@ -1011,7 +981,10 @@ export default function HomePage() {
   </div>
 </section>
 
-{/* BENEFICIOS */}
+{/* =========================
+    BENEFICIOS
+========================== */}
+
 <section className="store-benefits">
 
   <div className="store-section-heading">
@@ -1100,7 +1073,10 @@ export default function HomePage() {
   </div>
 </section>
 
-{/* FOOTER */}
+{/* =========================
+    FOOTER
+========================== */}
+
 <footer className="store-footer">
 
   <div className="store-footer-main">
@@ -1175,9 +1151,7 @@ export default function HomePage() {
   <div className="store-footer-bottom">
 
     <span>
-      ©{" "}
-      {new Date().getFullYear()}{" "}
-      STORE GAMING
+      © {new Date().getFullYear()} STORE GAMING
     </span>
 
     <span>
@@ -1189,5 +1163,3 @@ export default function HomePage() {
 </footer>
 
 </main>
-  );
-}
