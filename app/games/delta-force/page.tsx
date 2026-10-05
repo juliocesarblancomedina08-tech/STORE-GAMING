@@ -17,33 +17,33 @@ type Offer = {
 
 const OFFERS: Offer[] = [
   {
-    id: "special_forces_1",
-    name: "Special Forces - Oferta 1",
-    price: 1.00,
+    id: "delta_force_1",
+    name: "Delta Force - Oferta 1",
+    price: 1.0,
   },
   {
-    id: "special_forces_2",
-    name: "Special Forces - Oferta 2",
-    price: 2.00,
+    id: "delta_force_2",
+    name: "Delta Force - Oferta 2",
+    price: 2.0,
   },
   {
-    id: "special_forces_3",
-    name: "Special Forces - Oferta 3",
-    price: 5.00,
+    id: "delta_force_3",
+    name: "Delta Force - Oferta 3",
+    price: 5.0,
   },
   {
-    id: "special_forces_4",
-    name: "Special Forces - Oferta 4",
-    price: 10.00,
+    id: "delta_force_4",
+    name: "Delta Force - Oferta 4",
+    price: 10.0,
   },
   {
-    id: "special_forces_5",
-    name: "Special Forces - Oferta 5",
-    price: 20.00,
+    id: "delta_force_5",
+    name: "Delta Force - Oferta 5",
+    price: 20.0,
   },
 ];
 
-export default function SpecialForcesPage() {
+export default function DeltaForcePage() {
   const router = useRouter();
 
   const [showOffers, setShowOffers] = useState(true);
@@ -56,20 +56,12 @@ export default function SpecialForcesPage() {
   const [showConfirmation, setShowConfirmation] =
     useState(false);
 
-  const [orderCreated, setOrderCreated] =
-    useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [supplierOrderId, setSupplierOrderId] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
 
-  const [orderNumber, setOrderNumber] =
-    useState("");
-
-  const [supplierOrderId, setSupplierOrderId] =
-    useState("");
-
-  const [orderStatus, setOrderStatus] =
-    useState("");
-
-  const [processing, setProcessing] =
-    useState(false);
+  const [processing, setProcessing] = useState(false);
 
   function selectOffer(offer: Offer) {
     setSelectedOffer(offer);
@@ -148,7 +140,7 @@ export default function SpecialForcesPage() {
               .slice(2)}`;
 
       const response = await fetch(
-        "/api/topups/special-forces",
+        "/api/topups/delta-force",
         {
           method: "POST",
           headers: {
@@ -197,7 +189,7 @@ export default function SpecialForcesPage() {
       setShowConfirmation(false);
     } catch (err) {
       console.error(
-        "ERROR CREANDO ORDEN SPECIAL FORCES:",
+        "ERROR CREANDO ORDEN DELTA FORCE:",
         err
       );
 
@@ -238,7 +230,7 @@ export default function SpecialForcesPage() {
         </button>
 
         <div className="special-forces-header-title">
-          <strong>Special Forces</strong>
+          <strong>Delta Force</strong>
           <span>Global</span>
         </div>
 
@@ -248,14 +240,14 @@ export default function SpecialForcesPage() {
       <section className="special-forces-hero">
         <div className="special-forces-banner">
           <img
-            src="/images/special-forces.jpg"
-            alt="Special Forces"
+            src="/images/delta-force.jpg"
+            alt="Delta Force"
           />
 
           <div className="special-forces-banner-overlay">
-            <span>SPECIAL FORCES</span>
+            <span>DELTA FORCE</span>
 
-            <h1>Special Forces</h1>
+            <h1>Delta Force</h1>
 
             <p>
               Recarga tu cuenta de forma rápida y segura.
@@ -271,7 +263,7 @@ export default function SpecialForcesPage() {
           </div>
 
           <div>
-            <h2>Recarga Special Forces</h2>
+            <h2>Recarga Delta Force</h2>
 
             <p>
               Selecciona una oferta, introduce tu ID de
@@ -295,9 +287,7 @@ export default function SpecialForcesPage() {
           <div>
             <h2>Ofertas disponibles</h2>
 
-            <p>
-              Special Forces · Global
-            </p>
+            <p>Delta Force · Global</p>
           </div>
 
           <button
@@ -324,9 +314,7 @@ export default function SpecialForcesPage() {
                   className={`special-forces-offer ${
                     selected ? "selected" : ""
                   }`}
-                  onClick={() =>
-                    selectOffer(offer)
-                  }
+                  onClick={() => selectOffer(offer)}
                 >
                   <div className="special-forces-offer-left">
                     <div className="special-forces-icon">
@@ -334,9 +322,7 @@ export default function SpecialForcesPage() {
                     </div>
 
                     <div className="special-forces-offer-name">
-                      <strong>
-                        {offer.name}
-                      </strong>
+                      <strong>{offer.name}</strong>
 
                       <small>
                         Recarga instantánea
@@ -367,9 +353,7 @@ export default function SpecialForcesPage() {
                 🎮
               </div>
 
-              <h3>
-                Selecciona una oferta
-              </h3>
+              <h3>Selecciona una oferta</h3>
 
               <p>
                 Elige uno de los paquetes disponibles
@@ -387,9 +371,7 @@ export default function SpecialForcesPage() {
               >
                 <div className="special-forces-selected">
                   <div>
-                    <span>
-                      OFERTA SELECCIONADA
-                    </span>
+                    <span>OFERTA SELECCIONADA</span>
 
                     <strong>
                       {selectedOffer.name}
@@ -403,29 +385,23 @@ export default function SpecialForcesPage() {
                 </div>
 
                 <div className="special-forces-form-title">
-                  <h2>
-                    Datos del jugador
-                  </h2>
+                  <h2>Datos del jugador</h2>
 
                   <p>
-                    Introduce el ID donde deseas
-                    recibir la recarga.
+                    Introduce el ID donde deseas recibir
+                    la recarga.
                   </p>
                 </div>
 
                 <label>
-                  <span>
-                    ID del jugador
-                  </span>
+                  <span>ID del jugador</span>
 
                   <input
                     type="text"
                     inputMode="numeric"
                     value={playerId}
                     onChange={(event) =>
-                      setPlayerId(
-                        event.target.value
-                      )
+                      setPlayerId(event.target.value)
                     }
                     placeholder="Ej: 123456789"
                     autoComplete="off"
@@ -464,20 +440,16 @@ export default function SpecialForcesPage() {
                   🛒
                 </div>
 
-                <h2>
-                  Confirmar compra
-                </h2>
+                <h2>Confirmar compra</h2>
 
                 <p>
-                  Revisa los datos antes de confirmar
-                  tu pedido.
+                  Revisa los datos antes de confirmar tu
+                  pedido.
                 </p>
 
                 <div className="special-forces-confirmation-card">
                   <div>
-                    <span>
-                      PRODUCTO
-                    </span>
+                    <span>PRODUCTO</span>
 
                     <strong>
                       {selectedOffer.name}
@@ -485,22 +457,18 @@ export default function SpecialForcesPage() {
                   </div>
 
                   <div>
-                    <span>
-                      ID DEL JUGADOR
-                    </span>
+                    <span>ID DEL JUGADOR</span>
 
-                    <strong>
-                      {playerId}
-                    </strong>
+                    <strong>{playerId}</strong>
                   </div>
 
                   <div className="total">
-                    <span>
-                      TOTAL
-                    </span>
+                    <span>TOTAL</span>
 
                     <strong>
-                      ${selectedOffer.price.toFixed(2)} USD
+                      $
+                      {selectedOffer.price.toFixed(2)}{" "}
+                      USD
                     </strong>
                   </div>
                 </div>
@@ -543,9 +511,7 @@ export default function SpecialForcesPage() {
                 ✓
               </div>
 
-              <h2>
-                ¡Orden creada!
-              </h2>
+              <h2>¡Orden creada!</h2>
 
               <p>
                 Tu solicitud de recarga fue recibida
@@ -555,21 +521,15 @@ export default function SpecialForcesPage() {
               <div className="special-forces-success-card">
                 {orderNumber && (
                   <div>
-                    <span>
-                      NÚMERO DE ORDEN
-                    </span>
+                    <span>NÚMERO DE ORDEN</span>
 
-                    <strong>
-                      {orderNumber}
-                    </strong>
+                    <strong>{orderNumber}</strong>
                   </div>
                 )}
 
                 {supplierOrderId && (
                   <div>
-                    <span>
-                      ID DEL PROVEEDOR
-                    </span>
+                    <span>ID DEL PROVEEDOR</span>
 
                     <strong>
                       {supplierOrderId}
@@ -578,9 +538,7 @@ export default function SpecialForcesPage() {
                 )}
 
                 <div>
-                  <span>
-                    PRODUCTO
-                  </span>
+                  <span>PRODUCTO</span>
 
                   <strong>
                     {selectedOffer?.name}
@@ -588,33 +546,24 @@ export default function SpecialForcesPage() {
                 </div>
 
                 <div>
-                  <span>
-                    ID DEL JUGADOR
-                  </span>
+                  <span>ID DEL JUGADOR</span>
 
-                  <strong>
-                    {playerId}
-                  </strong>
+                  <strong>{playerId}</strong>
                 </div>
 
                 <div>
-                  <span>
-                    ESTADO
-                  </span>
+                  <span>ESTADO</span>
 
-                  <strong>
-                    {orderStatus}
-                  </strong>
+                  <strong>{orderStatus}</strong>
                 </div>
 
                 <div>
-                  <span>
-                    TOTAL
-                  </span>
+                  <span>TOTAL</span>
 
                   <strong>
                     $
-                    {selectedOffer?.price.toFixed(2)} USD
+                    {selectedOffer?.price.toFixed(2)}{" "}
+                    USD
                   </strong>
                 </div>
               </div>
@@ -641,9 +590,7 @@ export default function SpecialForcesPage() {
         </section>
 
         <section className="special-forces-service">
-          <h2>
-            Servicio rápido y seguro
-          </h2>
+          <h2>Servicio rápido y seguro</h2>
 
           <div className="special-forces-service-grid">
             <div>
@@ -673,13 +620,9 @@ export default function SpecialForcesPage() {
         </section>
 
         <footer className="special-forces-footer">
-          <p>
-            🛒 STORE GAMING 🎮
-          </p>
+          <p>🛒 STORE GAMING 🎮</p>
 
-          <span>
-            Special Forces · Global
-          </span>
+          <span>Delta Force · Global</span>
         </footer>
       </section>
 
@@ -765,11 +708,10 @@ export default function SpecialForcesPage() {
           flex-direction: column;
           justify-content: flex-end;
           padding: 25px;
-          background:
-            linear-gradient(
-              transparent 25%,
-              rgba(0, 0, 0, 0.9)
-            );
+          background: linear-gradient(
+            transparent 25%,
+            rgba(0, 0, 0, 0.9)
+          );
         }
 
         .special-forces-banner-overlay span {
@@ -803,576 +745,495 @@ export default function SpecialForcesPage() {
         }
 
         .special-forces-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 15px;
-  padding: 18px;
-  border-radius: 18px;
-  background: #121212;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  margin-bottom: 15px;
-}
-
-.special-forces-info-icon {
-  width: 45px;
-  height: 45px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 13px;
-  background: rgba(255, 60, 60, 0.1);
-  font-size: 22px;
-  flex-shrink: 0;
-}
-
-.special-forces-info h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.special-forces-info p {
-  margin: 6px 0 0;
-  color: #aaa;
-  line-height: 1.5;
-  font-size: 14px;
-}
-
-.special-forces-note {
-  background: rgba(255, 170, 0, 0.06);
-  border: 1px solid rgba(255, 170, 0, 0.16);
-  border-radius: 17px;
-  padding: 17px;
-  margin-bottom: 28px;
-}
-
-.special-forces-note strong {
-  color: #ffc44d;
-}
-
-.special-forces-note p {
-  color: #bdbdbd;
-  font-size: 13px;
-  line-height: 1.5;
-  margin: 7px 0 0;
-}
-
-.special-forces-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.special-forces-section-header h2 {
-  margin: 0;
-  font-size: 23px;
-}
-
-.special-forces-section-header p {
-  color: #888;
-  margin: 5px 0 0;
-  font-size: 13px;
-}
-
-.special-forces-toggle {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #171717;
-  color: #fff;
-  padding: 10px 14px;
-  border-radius: 11px;
-  cursor: pointer;
-}
-
-.special-forces-offers {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.special-forces-offer {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  background: #121212;
-  color: #fff;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    transform 0.2s ease,
-    background 0.2s ease;
-}
-
-.special-forces-offer:hover {
-  transform: translateY(-2px);
-  background: #171717;
-  border-color: rgba(255, 70, 70, 0.35);
-}
-
-.special-forces-offer.selected {
-  border-color: #ff3e3e;
-  background: rgba(255, 50, 50, 0.08);
-}
-
-.special-forces-offer-left {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.special-forces-icon {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: rgba(255, 70, 70, 0.1);
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.special-forces-offer-name {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.special-forces-offer-name strong {
-  font-size: 14px;
-  line-height: 1.25;
-}
-
-.special-forces-offer-name small {
-  color: #777;
-  font-size: 10px;
-}
-
-.special-forces-price {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-
-.special-forces-price span {
-  color: #4cff9a;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.special-forces-price small {
-  color: #777;
-  font-size: 10px;
-  margin-top: 2px;
-}
-
-.special-forces-order {
-  margin-top: 25px;
-}
-
-.special-forces-empty,
-.special-forces-form,
-.special-forces-confirmation,
-.special-forces-success {
-  background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  padding: 24px;
-}
-
-.special-forces-empty {
-  text-align: center;
-  padding: 45px 20px;
-}
-
-.special-forces-empty-icon {
-  font-size: 42px;
-  margin-bottom: 12px;
-}
-
-.special-forces-empty h3 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.special-forces-empty p {
-  color: #888;
-  margin: 8px auto 0;
-  max-width: 450px;
-  line-height: 1.5;
-}
-
-.special-forces-selected {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 17px;
-  margin-bottom: 20px;
-  border-radius: 16px;
-  background: rgba(255, 50, 50, 0.07);
-  border: 1px solid rgba(255, 60, 60, 0.18);
-}
-
-.special-forces-selected > div:first-child {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.special-forces-selected span {
-  color: #888;
-  font-size: 11px;
-  margin-bottom: 5px;
-}
-
-.special-forces-selected strong {
-  font-size: 14px;
-}
-
-.special-forces-selected-price {
-  color: #4cff9a;
-  font-size: 20px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.special-forces-selected-price small {
-  color: #777;
-  font-size: 10px;
-}
-
-.special-forces-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.special-forces-form-title h2,
-.special-forces-confirmation h2,
-.special-forces-success h2 {
-  margin: 0;
-  font-size: 23px;
-}
-
-.special-forces-form-title p,
-.special-forces-confirmation > p,
-.special-forces-success > p {
-  color: #888;
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 7px 0 20px;
-}
-
-.special-forces-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.special-forces-form label > span {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ddd;
-}
-
-.special-forces-form input {
-  width: 100%;
-  box-sizing: border-box;
-  height: 50px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  outline: none;
-  background: #181818;
-  color: #fff;
-  padding: 0 15px;
-  font-size: 16px;
-}
-
-.special-forces-form input:focus {
-  border-color: #ff4141;
-  box-shadow: 0 0 0 3px rgba(255, 65, 65, 0.08);
-}
-
-.special-forces-help {
-  display: flex;
-  gap: 9px;
-  padding: 12px;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.special-forces-help p {
-  margin: 0;
-  color: #999;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.special-forces-error {
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: rgba(255, 45, 45, 0.08);
-  border: 1px solid rgba(255, 60, 60, 0.2);
-  color: #ff7b7b;
-  font-size: 13px;
-}
-
-.special-forces-submit,
-.special-forces-confirm,
-.special-forces-orders-button {
-  height: 52px;
-  border: 0;
-  border-radius: 12px;
-  background: #ff3838;
-  color: #fff;
-  font-weight: 900;
-  cursor: pointer;
-  padding: 0 18px;
-}
-
-.special-forces-submit:hover,
-.special-forces-confirm:hover,
-.special-forces-orders-button:hover {
-  background: #ff4f4f;
-}
-
-.special-forces-confirmation {
-  text-align: center;
-}
-
-.special-forces-confirmation-icon,
-.special-forces-success-icon {
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 14px;
-  border-radius: 50%;
-  font-size: 27px;
-  background: rgba(255, 55, 55, 0.1);
-}
-
-.special-forces-confirmation-card,
-.special-forces-success-card {
-  text-align: left;
-  border-radius: 15px;
-  background: #181818;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  padding: 15px;
-}
-
-.special-forces-confirmation-card > div,
-.special-forces-success-card > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 11px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.special-forces-confirmation-card > div:last-child,
-.special-forces-success-card > div:last-child {
-  border-bottom: 0;
-}
-
-.special-forces-confirmation-card span,
-.special-forces-success-card span {
-  color: #777;
-  font-size: 11px;
-}
-
-.special-forces-confirmation-card strong,
-.special-forces-success-card strong {
-  font-size: 14px;
-  word-break: break-word;
-}
-
-.special-forces-confirmation-card .total {
-  margin-top: 4px;
-  padding-top: 15px;
-}
-
-.special-forces-confirmation-card .total strong {
-  color: #4cff9a;
-  font-size: 20px;
-}
-
-.special-forces-confirmation-actions,
-.special-forces-success-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 15px;
-}
-
-.special-forces-cancel,
-.special-forces-new-button {
-  height: 52px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  background: #181818;
-  color: #fff;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.special-forces-confirm:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.special-forces-success {
-  text-align: center;
-}
-
-.special-forces-success-icon {
-  background: rgba(60, 255, 145, 0.1);
-  color: #4cff9a;
-}
-
-.special-forces-success-card {
-  text-align: left;
-}
-
-.special-forces-service {
-  margin-top: 30px;
-  padding: 22px;
-  border-radius: 20px;
-  background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.special-forces-service h2 {
-  margin: 0 0 15px;
-  font-size: 19px;
-}
-
-.special-forces-service-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-
-.special-forces-service-grid > div {
-  padding: 15px;
-  border-radius: 14px;
-  background: #171717;
-  text-align: center;
-}
-
-.special-forces-service-grid span {
-  display: block;
-  font-size: 22px;
-  margin-bottom: 7px;
-}
-
-.special-forces-service-grid strong {
-  display: block;
-  font-size: 12px;
-}
-
-.special-forces-service-grid p {
-  margin: 4px 0 0;
-  color: #777;
-  font-size: 11px;
-}
-
-.special-forces-footer {
-  text-align: center;
-  padding: 35px 20px 10px;
-  color: #777;
-}
-
-.special-forces-footer p {
-  margin: 0;
-  font-weight: 800;
-  color: #aaa;
-}
-
-.special-forces-footer span {
-  display: block;
-  margin-top: 5px;
-  font-size: 12px;
-}
-
-@media (max-width: 760px) {
-  .special-forces-banner {
-    height: 250px;
-  }
-
-  .special-forces-offers {
-    grid-template-columns: 1fr;
-  }
-
-  .special-forces-service-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 520px) {
-  .special-forces-header {
-    padding: 0 14px;
-  }
-
-  .special-forces-hero,
-  .special-forces-content {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
-  .special-forces-banner {
-    height: 220px;
-    border-radius: 17px;
-  }
-
-  .special-forces-banner-overlay {
-    padding: 15px;
-  }
-
-  .special-forces-banner-overlay h1 {
-    font-size: 30px;
-  }
-
-  .special-forces-info {
-    padding: 14px;
-  }
-
-  .special-forces-offer {
-    padding: 13px;
-  }
-
-  .special-forces-selected {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .special-forces-selected-price {
-    align-self: flex-end;
-  }
-
-  .special-forces-form,
-  .special-forces-confirmation,
-  .special-forces-success {
-    padding: 18px;
-  }
-
-  .special-forces-confirmation-actions,
-  .special-forces-success-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .special-forces-service {
-    padding: 17px;
-  }
-}
+          display: flex;
+          align-items: flex-start;
+          gap: 15px;
+          padding: 18px;
+          border-radius: 18px;
+          background: #121212;
+          border: 1px solid
+            rgba(255, 255, 255, 0.08);
+          margin-bottom: 15px;
+        }
+
+        .special-forces-info-icon {
+          width: 45px;
+          height: 45px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 13px;
+          background: rgba(255, 60, 60, 0.1);
+          font-size: 22px;
+          flex-shrink: 0;
+        }
+
+                .special-forces-info h2 {
+          margin: 0;
+          font-size: 18px;
+        }
+
+        .special-forces-info p {
+          margin: 6px 0 0;
+          color: #aaa;
+          line-height: 1.5;
+          font-size: 14px;
+        }
+
+        .special-forces-note {
+          background: rgba(255, 170, 0, 0.06);
+          border: 1px solid
+            rgba(255, 170, 0, 0.16);
+          border-radius: 17px;
+          padding: 17px;
+          margin-bottom: 28px;
+        }
+
+        .special-forces-note strong {
+          color: #ffc44d;
+        }
+
+        .special-forces-note p {
+          color: #bdbdbd;
+          font-size: 13px;
+          line-height: 1.5;
+          margin: 7px 0 0;
+        }
+
+        .special-forces-section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 15px;
+          margin-bottom: 15px;
+        }
+
+        .special-forces-section-header h2 {
+          margin: 0;
+          font-size: 20px;
+        }
+
+        .special-forces-section-header span {
+          color: #777;
+          font-size: 12px;
+        }
+
+        .special-forces-offers {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .special-forces-offer {
+          width: 100%;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.035);
+          border-radius: 18px;
+          padding: 16px;
+          text-align: left;
+          cursor: pointer;
+          color: white;
+          transition: 0.2s ease;
+        }
+
+        .special-forces-offer:hover {
+          transform: translateY(-2px);
+          border-color: rgba(255, 170, 0, 0.45);
+          background: rgba(255, 170, 0, 0.07);
+        }
+
+        .special-forces-offer.selected {
+          border-color: #ffb000;
+          background: rgba(255, 176, 0, 0.1);
+          box-shadow: 0 0 0 1px rgba(255, 176, 0, 0.15);
+        }
+
+        .special-forces-offer-name {
+          font-size: 14px;
+          font-weight: 800;
+          line-height: 1.35;
+          min-height: 38px;
+        }
+
+        .special-forces-offer-bottom {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          margin-top: 15px;
+        }
+
+        .special-forces-offer-price {
+          font-size: 20px;
+          font-weight: 900;
+          color: #ffc44d;
+        }
+
+        .special-forces-offer-action {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #ffb000;
+          color: #111;
+          font-weight: 900;
+        }
+
+        .special-forces-order {
+          margin-top: 30px;
+        }
+
+        .special-forces-empty {
+          padding: 30px 20px;
+          border-radius: 18px;
+          text-align: center;
+          color: #999;
+          border: 1px dashed rgba(255, 255, 255, 0.12);
+        }
+
+        .special-forces-form {
+          background: rgba(255, 255, 255, 0.035);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          padding: 22px;
+        }
+
+        .special-forces-form h2 {
+          margin: 0 0 6px;
+          font-size: 20px;
+        }
+
+        .special-forces-form-subtitle {
+          color: #888;
+          font-size: 13px;
+          margin-bottom: 20px;
+        }
+
+        .special-forces-selected {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 15px;
+          padding: 15px;
+          margin-bottom: 20px;
+          border-radius: 15px;
+          background: rgba(255, 176, 0, 0.08);
+          border: 1px solid rgba(255, 176, 0, 0.15);
+        }
+
+        .special-forces-selected-label {
+          color: #888;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+
+        .special-forces-selected-name {
+          margin-top: 4px;
+          font-size: 14px;
+          font-weight: 800;
+        }
+
+        .special-forces-selected-price {
+          font-size: 22px;
+          font-weight: 900;
+          color: #ffc44d;
+          white-space: nowrap;
+        }
+
+        .special-forces-field {
+          margin-bottom: 17px;
+        }
+
+        .special-forces-field label {
+          display: block;
+          margin-bottom: 8px;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .special-forces-input {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 14px 15px;
+          border-radius: 13px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(0, 0, 0, 0.25);
+          color: white;
+          outline: none;
+          font-size: 14px;
+        }
+
+        .special-forces-input:focus {
+          border-color: #ffb000;
+          box-shadow: 0 0 0 3px rgba(255, 176, 0, 0.08);
+        }
+
+        .special-forces-help {
+          margin-top: 7px;
+          color: #777;
+          font-size: 11px;
+        }
+
+        .special-forces-error {
+          padding: 12px 14px;
+          border-radius: 12px;
+          margin-bottom: 15px;
+          background: rgba(255, 65, 65, 0.08);
+          border: 1px solid rgba(255, 65, 65, 0.2);
+          color: #ff8d8d;
+          font-size: 13px;
+        }
+
+        .special-forces-primary-btn {
+          width: 100%;
+          border: 0;
+          border-radius: 14px;
+          padding: 15px 18px;
+          background: #ffb000;
+          color: #111;
+          font-size: 14px;
+          font-weight: 900;
+          cursor: pointer;
+          transition: 0.2s ease;
+        }
+
+        .special-forces-primary-btn:hover {
+          filter: brightness(1.08);
+          transform: translateY(-1px);
+        }
+
+        .special-forces-primary-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .special-forces-confirmation {
+          background: rgba(255, 255, 255, 0.035);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          padding: 22px;
+        }
+
+        .special-forces-confirmation h2 {
+          margin: 0 0 18px;
+          font-size: 21px;
+        }
+
+        .special-forces-confirmation-card {
+          display: grid;
+          gap: 11px;
+          margin-bottom: 20px;
+        }
+
+        .special-forces-confirmation-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 15px;
+          padding: 12px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          font-size: 13px;
+        }
+
+        .special-forces-confirmation-row span:first-child {
+          color: #888;
+        }
+
+        .special-forces-confirmation-row span:last-child {
+          font-weight: 800;
+          text-align: right;
+        }
+
+        .special-forces-confirmation-price {
+          color: #ffc44d;
+          font-size: 18px;
+        }
+
+        .special-forces-confirmation-actions {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+
+        .special-forces-secondary-btn {
+          width: 100%;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 14px;
+          padding: 14px 18px;
+          background: rgba(255, 255, 255, 0.04);
+          color: white;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .special-forces-secondary-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .special-forces-success {
+          text-align: center;
+          background: rgba(255, 255, 255, 0.035);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 22px;
+          padding: 28px;
+        }
+
+        .special-forces-success-icon {
+          width: 70px;
+          height: 70px;
+          margin: 0 auto 18px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(57, 211, 83, 0.12);
+          border: 1px solid rgba(57, 211, 83, 0.25);
+          color: #54e56b;
+          font-size: 34px;
+          font-weight: 900;
+        }
+
+        .special-forces-success h2 {
+          margin: 0 0 8px;
+          font-size: 24px;
+        }
+
+        .special-forces-success p {
+          margin: 0 auto;
+          max-width: 520px;
+          color: #999;
+          font-size: 14px;
+          line-height: 1.6;
+        }
+
+        .special-forces-success-reference {
+          margin: 20px 0;
+          padding: 13px;
+          border-radius: 13px;
+          background: rgba(255, 255, 255, 0.04);
+          color: #ccc;
+          font-size: 13px;
+        }
+
+        .special-forces-success-reference strong {
+          color: white;
+        }
+
+        .special-forces-success-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+          max-width: 420px;
+          margin: 0 auto;
+        }
+
+        .special-forces-service-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-top: 35px;
+        }
+
+        .special-forces-service {
+          padding: 20px;
+          border-radius: 17px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.07);
+          text-align: center;
+        }
+
+        .special-forces-service-icon {
+          font-size: 28px;
+          margin-bottom: 9px;
+        }
+
+        .special-forces-service strong {
+          display: block;
+          font-size: 13px;
+        }
+
+        .special-forces-service span {
+          display: block;
+          margin-top: 5px;
+          color: #777;
+          font-size: 11px;
+          line-height: 1.4;
+        }
+
+        .special-forces-footer {
+          text-align: center;
+          padding: 35px 15px;
+          color: #666;
+          font-size: 11px;
+        }
+
+        @media (max-width: 760px) {
+          .special-forces-offers {
+            grid-template-columns: 1fr;
+          }
+
+          .special-forces-service-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 520px) {
+          .special-forces-header {
+            padding: 0 14px;
+          }
+
+          .special-forces-hero,
+          .special-forces-content {
+            padding-left: 12px;
+            padding-right: 12px;
+          }
+
+          .special-forces-banner {
+            height: 220px;
+            border-radius: 17px;
+          }
+
+          .special-forces-banner-overlay {
+            padding: 15px;
+          }
+
+          .special-forces-banner-overlay h1 {
+            font-size: 30px;
+          }
+
+          .special-forces-info {
+            padding: 14px;
+          }
+
+          .special-forces-offer {
+            padding: 13px;
+          }
+
+          .special-forces-selected {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .special-forces-selected-price {
+            align-self: flex-end;
+          }
+
+          .special-forces-form,
+          .special-forces-confirmation,
+          .special-forces-success {
+            padding: 18px;
+          }
+
+          .special-forces-confirmation-actions,
+          .special-forces-success-actions {
+            grid-template-columns: 1fr;
+          }
+
+          .special-forces-service {
+            padding: 17px;
+          }
+        }
