@@ -26,6 +26,15 @@ type StoreOrder = {
   date?: string;
 };
 
+type Notification = {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  is_read: boolean;
+  created_at: string;
+};
+
 const ADMIN_EMAIL =
   "juliocesarblancomedina08@gmail.com";
 
@@ -89,8 +98,165 @@ export default function HomePage() {
   const [notificationCount, setNotificationCount] =
     useState(0);
 
+  const [notifications, setNotifications] =
+    useState<Notification[]>([]);
+
+  const [notificationsLoading, setNotificationsLoading] =
+    useState(false);
+
+  const [currentUserId, setCurrentUserId] =
+    useState("");
+
+  /* =========================
+     CARGAR NOTIFICACIONES
+  ========================== */
+
+  async function loadNotifications(
+    userId: string
+  ) {
+    if (!userId) return;
+
+    setNotificationsLoading(true);
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("notifications")
+      .select(
+        "id,title,message,type,is_read,created_at"
+      )
+      .eq("user_id", userId)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(30);
+
+    if (error) {
+      console.error(
+        "Error cargando notificaciones:",
+        error
+      );
+
+      setNotificationsLoading(false);
+      return;
+    }
+
+    const rows =
+      (data as Notification[]) || [];
+
+    setNotifications(rows);
+
+    setNotificationCount(
+      rows.filter(
+        (notification) =>
+          !notification.is_read
+      ).length
+    );
+
+    setNotificationsLoading(false);
+  }
+
+  /* =========================
+     MARCAR UNA COMO LEÍDA
+  ========================== */
+
+  async function markNotificationAsRead(
+    notificationId: string
+  ) {
+    if (!currentUserId) return;
+
+    const {
+      error,
+    } = await supabase
+      .from("notifications")
+      .update({
+        is_read: true,
+      })
+      .eq("id", notificationId)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      console.error(
+        "Error marcando notificación:",
+        error
+      );
+
+      return;
+    }
+
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.id ===
+        notificationId
+          ? {
+              ...notification,
+              is_read: true,
+            }
+          : notification
+      )
+    );
+
+    setNotificationCount((count) =>
+      Math.max(0, count - 1)
+    );
+  }
+
+  /* =========================
+     MARCAR TODAS COMO LEÍDAS
+  ========================== */
+
+  async function markAllNotificationsAsRead() {
+    if (!currentUserId) return;
+
+    const hasUnread =
+      notifications.some(
+        (notification) =>
+          !notification.is_read
+      );
+
+    if (!hasUnread) return;
+
+    const {
+      error,
+    } = await supabase
+      .from("notifications")
+      .update({
+        is_read: true,
+      })
+      .eq("user_id", currentUserId)
+      .eq("is_read", false);
+
+    if (error) {
+      console.error(
+        "Error marcando notificaciones:",
+        error
+      );
+
+      return;
+    }
+
+    setNotifications((current) =>
+      current.map((notification) => ({
+        ...notification,
+        is_read: true,
+      }))
+    );
+
+    setNotificationCount(0);
+  }
+
+  /* =========================
+     AUTENTICACIÓN
+  ========================== */
+
   useEffect(() => {
     let mounted = true;
+
+    let notificationChannel:
+      ReturnType<
+        typeof supabase.channel
+      > | null = null;
 
     async function loadUser() {
       const {
@@ -111,16 +277,48 @@ export default function HomePage() {
       const name =
         email.split("@")[0] || "usuario";
 
+      const userId =
+        session.user.id;
+
       setUsername(name);
+
+      setCurrentUserId(userId);
 
       setIsAdmin(
         email.trim().toLowerCase() ===
           ADMIN_EMAIL.toLowerCase()
       );
 
-      await loadStatistics(
-        session.user.id
-      );
+      await loadStatistics(userId);
+
+      await loadNotifications(userId);
+
+      /*
+       * NOTIFICACIONES EN TIEMPO REAL
+       *
+       * Cada vez que se cree, modifique o elimine
+       * una notificación perteneciente a este usuario,
+       * volvemos a cargar sus notificaciones.
+       */
+
+      notificationChannel =
+        supabase
+          .channel(
+            `notifications-${userId}`
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${userId}`,
+            },
+            () => {
+              loadNotifications(userId);
+            }
+          )
+          .subscribe();
 
       if (mounted) {
         setLoading(false);
@@ -144,24 +342,40 @@ export default function HomePage() {
         const name =
           email.split("@")[0] || "usuario";
 
+        const userId =
+          session.user.id;
+
         setUsername(name);
+
+        setCurrentUserId(userId);
 
         setIsAdmin(
           email.trim().toLowerCase() ===
             ADMIN_EMAIL.toLowerCase()
         );
 
-        await loadStatistics(
-          session.user.id
-        );
+        await loadStatistics(userId);
+
+        await loadNotifications(userId);
       }
     );
 
     return () => {
       mounted = false;
+
       subscription.unsubscribe();
+
+      if (notificationChannel) {
+        supabase.removeChannel(
+          notificationChannel
+        );
+      }
     };
   }, [router]);
+
+  /* =========================
+     ESTADÍSTICAS
+  ========================== */
 
   async function loadStatistics(
     userId: string
@@ -244,6 +458,10 @@ export default function HomePage() {
     }
   }
 
+  /* =========================
+     LOGOUT
+  ========================== */
+
   async function logout() {
     setMenuOpen(false);
 
@@ -256,6 +474,10 @@ export default function HomePage() {
     setMenuOpen(false);
     router.push(path);
   }
+
+  /* =========================
+     LOADING
+  ========================== */
 
   if (loading) {
     return (
@@ -558,14 +780,19 @@ export default function HomePage() {
                 <span />
               </div>
 
-              {/* BILLETERA */}
+              {/* VENTA DE SALDO MÓVIL */}
 
               <button
                 type="button"
                 className="side-menu-item"
                 onClick={() =>
-                  goTo("/balance")
+                  setMenuOpen(false)
                 }
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  paddingRight: "10px",
+                }}
               >
                 <span
                   className="menu-icon"
@@ -579,225 +806,250 @@ export default function HomePage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H19v14H5.5A2.5 2.5 0 0 1 3 16.5v-9Z" />
-                    <path d="M3 8h14" />
-                    <path d="M17 10h4v5h-4a2.5 2.5 0 0 1 0-5Z" />
-                    <circle
-                      cx="17"
-                      cy="12.5"
-                      r=".7"
+                    <rect
+                      x="6"
+                      y="3"
+                      width="12"
+                      height="18"
+                      rx="2"
                     />
+                    <path d="M9 7h6" />
+                    <path d="M10 17h4" />
                   </svg>
                 </span>
 
-                <span>
-                  Billetera
+                <span
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  Venta de saldo móvil
                 </span>
 
                 <span
-                  className="menu-arrow"
-                  aria-hidden="true"
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: "5px",
+                    padding: "3px 6px",
+                    borderRadius: "5px",
+                    background:
+                      "linear-gradient(135deg,#e50914,#9d0000)",
+                    color: "#fff",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    letterSpacing: ".3px",
+                    lineHeight: 1,
+                    boxShadow:
+                      "0 0 8px rgba(229,9,20,.35)",
+                  }}
                 >
-                  ›
+                  PRÓXIMAMENTE
                 </span>
               </button>
 
-              {/* ESTADÍSTICAS */}
+              {/* COMPRA Y VENTA DE USDT */}
 
               <button
                 type="button"
                 className="side-menu-item"
                 onClick={() =>
-                  goTo("/statistics")
+                  setMenuOpen(false)
                 }
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  paddingRight: "10px",
+                }}
               >
                 <span
-                  className="menu-icon"
-                  aria-hidden="true"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4 19V5" />
-                    <path d="M4 19h17" />
-                    <path d="m7 15 4-4 3 2 5-6" />
-                  </svg>
-                </span>
-
-                <span>
-                  Estadísticas
-                </span>
-
-                <span
-                  className="menu-arrow"
-                  aria-hidden="true"
-                >
-                  ›
-                </span>
-              </button>
-
-              <div className="side-menu-section-title">
-                <span />
-                CUENTA
-                <span />
-              </div>
-
-              {/* PERFIL */}
-
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() =>
-                  goTo("/profile")
-                }
-              >
-                <span
-                  className="menu-icon"
-                  aria-hidden="true"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle
-                      cx="12"
-                      cy="8"
-                      r="3.5"
-                    />
-                    <path d="M5 21c.7-4 3.1-6 7-6s6.3 2 7 6" />
-                  </svg>
-                </span>
-
-                <span>
-                  Perfil
-                </span>
-
-                <span
-                  className="menu-arrow"
-                  aria-hidden="true"
-                >
-                  ›
-                </span>
-              </button>
-
-              {/* SOPORTE */}
-
-              <button
-                type="button"
-                className="side-menu-item support-item"
-                onClick={() =>
-                  goTo("/support")
-                }
-              >
-                <span
-                  className="menu-icon"
-                  aria-hidden="true"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4 13a8 8 0 0 1 16 0" />
-                    <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Z" />
-                    <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Z" />
-                    <path d="M15 19c-.5 1-1.4 1.5-3 1.5" />
-                  </svg>
-                </span>
-
-                <span>
-                  Soporte
-                </span>
-
-                <span
-                  className="menu-arrow"
-                  aria-hidden="true"
-                >
-                  ›
-                </span>
-              </button>
-
-              {/* ADMINISTRACIÓN */}
-
-              {isAdmin && (
-                <>
-                  <div className="side-menu-section-title">
-                    <span />
-                    ADMINISTRACIÓN
-                    <span />
-                  </div>
-
-                  <button
-                    type="button"
-                    className="side-menu-item"
-                    onClick={() =>
-                      goTo("/admin")
-                    }
-                  >
-                    <span
-                      className="menu-icon"
-                      aria-hidden="true"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="3"
-                        />
-                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
-                      </svg>
-                    </span>
-
-                    <span>
-                      ADM PANEL
-                    </span>
-
-                    <span
-                      className="menu-arrow"
-                      aria-hidden="true"
-                    >
-                      ›
-                    </span>
-                  </button>
-                </>
-              )}
-
-            </nav>
-
-            <div className="side-menu-bottom">
-
-              <button
-  type="button"
-  className="side-menu-logout"
-  onClick={logout}
+  className="menu-icon"
+  aria-hidden="true"
 >
-  <span>
-    ⇥
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 19V5" />
+    <path d="M4 19h17" />
+    <path d="m7 15 4-4 3 2 5-6" />
+  </svg>
+</span>
+
+<span>
+  Estadísticas
+</span>
+
+<span
+  className="menu-arrow"
+  aria-hidden="true"
+>
+  ›
+</span>
+</button>
+
+<div className="side-menu-section-title">
+  <span />
+  CUENTA
+  <span />
+</div>
+
+{/* PERFIL */}
+
+<button
+  type="button"
+  className="side-menu-item"
+  onClick={() =>
+    goTo("/profile")
+  }
+>
+  <span
+    className="menu-icon"
+    aria-hidden="true"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle
+        cx="12"
+        cy="8"
+        r="3.5"
+      />
+      <path d="M5 21c.7-4 3.1-6 7-6s6.3 2 7 6" />
+    </svg>
   </span>
 
-  <strong>
-    Cerrar sesión
-  </strong>
+  <span>
+    Perfil
+  </span>
+
+  <span
+    className="menu-arrow"
+    aria-hidden="true"
+  >
+    ›
+  </span>
 </button>
+
+{/* SOPORTE */}
+
+<button
+  type="button"
+  className="side-menu-item support-item"
+  onClick={() =>
+    goTo("/support")
+  }
+>
+  <span
+    className="menu-icon"
+    aria-hidden="true"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 13a8 8 0 0 1 16 0" />
+      <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Z" />
+      <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Z" />
+      <path d="M15 19c-.5 1-1.4 1.5-3 1.5" />
+    </svg>
+  </span>
+
+  <span>
+    Soporte
+  </span>
+
+  <span
+    className="menu-arrow"
+    aria-hidden="true"
+  >
+    ›
+  </span>
+</button>
+
+{/* ADMINISTRACIÓN */}
+
+{isAdmin && (
+  <>
+    <div className="side-menu-section-title">
+      <span />
+      ADMINISTRACIÓN
+      <span />
+    </div>
+
+    <button
+      type="button"
+      className="side-menu-item"
+      onClick={() =>
+        goTo("/admin")
+      }
+    >
+      <span
+        className="menu-icon"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="3"
+          />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+        </svg>
+      </span>
+
+      <span>
+        ADM PANEL
+      </span>
+
+      <span
+        className="menu-arrow"
+        aria-hidden="true"
+      >
+        ›
+      </span>
+    </button>
+  </>
+)}
+
+</nav>
+
+<div className="side-menu-bottom">
+
+  <button
+    type="button"
+    className="side-menu-logout"
+    onClick={logout}
+  >
+    <span>
+      ⇥
+    </span>
+
+    <strong>
+      Cerrar sesión
+    </strong>
+  </button>
 
 </div>
 
@@ -823,9 +1075,6 @@ export default function HomePage() {
     <span />
     <span />
   </button>
-
-  {/* LOGO DEL HEADER OCULTO
-      PARA DEJAR SOLO LA CAMPANITA */}
 
   <div
     className="store-logo-hidden"
@@ -873,7 +1122,6 @@ export default function HomePage() {
         <div className="notification-panel-header">
 
           <div>
-
             <span>
               STORE GAMING
             </span>
@@ -881,7 +1129,6 @@ export default function HomePage() {
             <strong>
               NOTIFICACIONES
             </strong>
-
           </div>
 
           <button
@@ -896,21 +1143,133 @@ export default function HomePage() {
 
         </div>
 
-        <div className="notification-empty">
-
-          <div className="notification-empty-icon">
-            🔔
+        {notifications.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              padding: "8px 12px",
+              borderBottom:
+                "1px solid rgba(255,255,255,.07)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={
+                markAllNotificationsAsRead
+              }
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#e50914",
+                fontSize: "11px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              Marcar todas como leídas
+            </button>
           </div>
+        )}
 
-          <strong>
-            No tienes notificaciones
-          </strong>
+        <div className="notification-list">
 
-          <p>
-            Aquí aparecerán las
-            novedades de tus pedidos
-            y movimientos de saldo.
-          </p>
+          {notificationsLoading ? (
+
+            <div className="notification-empty">
+
+              <div className="notification-empty-icon">
+                🔔
+              </div>
+
+              <strong>
+                Cargando notificaciones...
+              </strong>
+
+            </div>
+
+          ) : notifications.length === 0 ? (
+
+            <div className="notification-empty">
+
+              <div className="notification-empty-icon">
+                🔔
+              </div>
+
+              <strong>
+                No tienes notificaciones
+              </strong>
+
+              <p>
+                Aquí aparecerán las
+                novedades de tus pedidos
+                y movimientos de saldo.
+              </p>
+
+            </div>
+
+          ) : (
+
+            notifications.map(
+              (notification) => (
+                <button
+                  key={notification.id}
+                  type="button"
+                  className={`notification-item ${
+                    notification.is_read
+                      ? "notification-read"
+                      : "notification-unread"
+                  }`}
+                  onClick={() => {
+                    if (
+                      !notification.is_read
+                    ) {
+                      markNotificationAsRead(
+                        notification.id
+                      );
+                    }
+                  }}
+                >
+
+                  <div className="notification-item-icon">
+                    {notification.is_read
+                      ? "✓"
+                      : "🔔"}
+                  </div>
+
+                  <div className="notification-item-content">
+
+                    <strong>
+                      {notification.title}
+                    </strong>
+
+                    <p>
+                      {notification.message}
+                    </p>
+
+                    <small>
+                      {new Date(
+                        notification.created_at
+                      ).toLocaleString(
+                        "es-ES",
+                        {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        }
+                      )}
+                    </small>
+
+                  </div>
+
+                  {!notification.is_read && (
+                    <span className="notification-unread-dot" />
+                  )}
+
+                </button>
+              )
+            )
+
+          )}
 
         </div>
 
@@ -1191,4 +1550,4 @@ export default function HomePage() {
 
 </main>
 );
-  }
+    }
