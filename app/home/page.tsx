@@ -111,9 +111,7 @@ export default function HomePage() {
      CARGAR NOTIFICACIONES
   ========================== */
 
-  async function loadNotifications(
-    userId: string
-  ) {
+  async function loadNotifications(userId: string) {
     if (!userId) return;
 
     setNotificationsLoading(true);
@@ -187,8 +185,7 @@ export default function HomePage() {
 
     setNotifications((current) =>
       current.map((notification) =>
-        notification.id ===
-        notificationId
+        notification.id === notificationId
           ? {
               ...notification,
               is_read: true,
@@ -281,7 +278,6 @@ export default function HomePage() {
         session.user.id;
 
       setUsername(name);
-
       setCurrentUserId(userId);
 
       setIsAdmin(
@@ -290,7 +286,6 @@ export default function HomePage() {
       );
 
       await loadStatistics(userId);
-
       await loadNotifications(userId);
 
       /*
@@ -346,7 +341,6 @@ export default function HomePage() {
           session.user.id;
 
         setUsername(name);
-
         setCurrentUserId(userId);
 
         setIsAdmin(
@@ -355,7 +349,6 @@ export default function HomePage() {
         );
 
         await loadStatistics(userId);
-
         await loadNotifications(userId);
       }
     );
@@ -780,7 +773,9 @@ export default function HomePage() {
                 <span />
               </div>
 
-              {/* VENTA DE SALDO MÓVIL */}
+              {/* =========================
+                  VENTA DE SALDO MÓVIL
+              ========================== */}
 
               <button
                 type="button"
@@ -849,7 +844,78 @@ export default function HomePage() {
                 </span>
               </button>
 
-              {/* COMPRA Y VENTA DE USDT */}
+              {/* =========================
+                  COMPRA Y VENTA DE CRIPTO
+              ========================== */}
+
+                            <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  paddingRight: "10px",
+                }}
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect
+                      x="6"
+                      y="3"
+                      width="12"
+                      height="18"
+                      rx="2"
+                    />
+                    <path d="M9 7h6" />
+                    <path d="M10 17h4" />
+                  </svg>
+                </span>
+
+                <span
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  Venta de saldo móvil
+                </span>
+
+                <span
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: "5px",
+                    padding: "3px 6px",
+                    borderRadius: "5px",
+                    background:
+                      "linear-gradient(135deg,#e50914,#9d0000)",
+                    color: "#fff",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    letterSpacing: ".3px",
+                    lineHeight: 1,
+                    boxShadow:
+                      "0 0 8px rgba(229,9,20,.35)",
+                  }}
+                >
+                  PRÓXIMAMENTE
+                </span>
+              </button>
+
+              {/* COMPRA Y VENTA DE CRIPTO */}
 
               <button
                 type="button"
@@ -864,690 +930,919 @@ export default function HomePage() {
                 }}
               >
                 <span
-  className="menu-icon"
-  aria-hidden="true"
->
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M4 19V5" />
-    <path d="M4 19h17" />
-    <path d="m7 15 4-4 3 2 5-6" />
-  </svg>
-</span>
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="8"
+                    />
+                    <path d="M12 7v10" />
+                    <path d="M9 9.5h4.5a2 2 0 0 1 0 4H9" />
+                    <path d="M9 12h5" />
+                  </svg>
+                </span>
 
-<span>
-  Estadísticas
-</span>
+                <span
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  Compra y venta de cripto
+                </span>
 
-<span
-  className="menu-arrow"
-  aria-hidden="true"
->
-  ›
-</span>
-</button>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: "5px",
+                    padding: "3px 6px",
+                    borderRadius: "5px",
+                    background:
+                      "linear-gradient(135deg,#e50914,#9d0000)",
+                    color: "#fff",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    letterSpacing: ".3px",
+                    lineHeight: 1,
+                    boxShadow:
+                      "0 0 8px rgba(229,9,20,.35)",
+                  }}
+                >
+                  PRÓXIMAMENTE
+                </span>
+              </button>
 
-<div className="side-menu-section-title">
-  <span />
-  CUENTA
-  <span />
-</div>
+              {/* ESTADÍSTICAS */}
 
-{/* PERFIL */}
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 19V5" />
+                    <path d="M4 19h17" />
+                    <path d="m7 15 4-4 3 2 5-6" />
+                  </svg>
+                </span>
 
-<button
-  type="button"
-  className="side-menu-item"
-  onClick={() =>
-    goTo("/profile")
-  }
->
-  <span
-    className="menu-icon"
-    aria-hidden="true"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle
-        cx="12"
-        cy="8"
-        r="3.5"
-      />
-      <path d="M5 21c.7-4 3.1-6 7-6s6.3 2 7 6" />
-    </svg>
-  </span>
+                <span>
+                  Estadísticas
+                </span>
 
-  <span>
-    Perfil
-  </span>
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
 
-  <span
-    className="menu-arrow"
-    aria-hidden="true"
-  >
-    ›
-  </span>
-</button>
+              <div className="side-menu-section-title">
+                <span />
+                CUENTA
+                <span />
+              </div>
 
-{/* SOPORTE */}
+              {/* PERFIL */}
 
-<button
-  type="button"
-  className="side-menu-item support-item"
-  onClick={() =>
-    goTo("/support")
-  }
->
-  <span
-    className="menu-icon"
-    aria-hidden="true"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 13a8 8 0 0 1 16 0" />
-      <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Z" />
-      <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Z" />
-      <path d="M15 19c-.5 1-1.4 1.5-3 1.5" />
-    </svg>
-  </span>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  goTo("/profile")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle
+                      cx="12"
+                      cy="8"
+                      r="3.5"
+                    />
+                    <path d="M5 21c.7-4 3.1-6 7-6s6.3 2 7 6" />
+                  </svg>
+                </span>
 
-  <span>
-    Soporte
-  </span>
+                <span>
+                  Perfil
+                </span>
 
-  <span
-    className="menu-arrow"
-    aria-hidden="true"
-  >
-    ›
-  </span>
-</button>
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
 
-{/* ADMINISTRACIÓN */}
+              {/* SOPORTE */}
 
-{isAdmin && (
-  <>
-    <div className="side-menu-section-title">
-      <span />
-      ADMINISTRACIÓN
-      <span />
-    </div>
+              <button
+                type="button"
+                className="side-menu-item support-item"
+                onClick={() =>
+                  goTo("/support")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 13a8 8 0 0 1 16 0" />
+                    <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Z" />
+                    <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Z" />
+                    <path d="M15 19c-.5 1-1.4 1.5-3 1.5" />
+                  </svg>
+                </span>
 
-    <button
-      type="button"
-      className="side-menu-item"
-      onClick={() =>
-        goTo("/admin")
-      }
-    >
-      <span
-        className="menu-icon"
-        aria-hidden="true"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle
-            cx="12"
-            cy="12"
-            r="3"
-          />
-          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
-        </svg>
-      </span>
+                <span>
+                  Soporte
+                </span>
 
-      <span>
-        ADM PANEL
-      </span>
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
 
-      <span
-        className="menu-arrow"
-        aria-hidden="true"
-      >
-        ›
-      </span>
-    </button>
-  </>
-)}
+              {/* ADMINISTRACIÓN */}
 
-</nav>
+              {isAdmin && (
+                <>
+                  <div className="side-menu-section-title">
+                    <span />
+                    ADMINISTRACIÓN
+                    <span />
+                  </div>
 
-<div className="side-menu-bottom">
+                  <button
+                    type="button"
+                    className="side-menu-item"
+                    onClick={() =>
+                      goTo("/admin")
+                    }
+                  >
+                    <span
+                      className="menu-icon"
+                      aria-hidden="true"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="3"
+                        />
+                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+                      </svg>
+                    </span>
 
-  <button
-    type="button"
-    className="side-menu-logout"
-    onClick={logout}
-  >
-    <span>
-      ⇥
-    </span>
+                    <span>
+                      ADM PANEL
+                    </span>
 
-    <strong>
-      Cerrar sesión
-    </strong>
-  </button>
+                    <span
+                      className="menu-arrow"
+                      aria-hidden="true"
+                    >
+                      ›
+                    </span>
+                  </button>
+                </>
+              )}
 
-</div>
+            </nav>
 
-</aside>
-</>
-)}
+            <div className="side-menu-bottom">
+              <button
+                type="button"
+                className="side-menu-logout"
+                onClick={logout}
+              >
+                <span>
+                  ⇥
+                </span>
 
-{/* =========================
-    HEADER
-========================== */}
+                <strong>
+                  Cerrar sesión
+                </strong>
+              </button>
+            </div>
 
-<header className="store-header">
-
-  <button
-    type="button"
-    className="menu-button"
-    onClick={() =>
-      setMenuOpen(true)
-    }
-    aria-label="Abrir menú"
-  >
-    <span />
-    <span />
-    <span />
-  </button>
-
-  <div
-    className="store-logo-hidden"
-    aria-hidden="true"
-  />
-
-  <div className="store-header-actions">
-
-    <button
-      type="button"
-      className="notification-button"
-      onClick={() =>
-        setNotificationsOpen(
-          !notificationsOpen
-        )
-      }
-      aria-label="Notificaciones"
-    >
-
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-        <path d="M10 21h4" />
-      </svg>
-
-      {notificationCount > 0 && (
-        <span className="notification-badge">
-          {notificationCount > 99
-            ? "99+"
-            : notificationCount}
-        </span>
+          </aside>
+        </>
       )}
 
-    </button>
+      {/* =========================
+          HEADER
+      ========================== */}
 
-    {notificationsOpen && (
-      <div className="notification-panel">
+      <header className="store-header">
 
-        <div className="notification-panel-header">
+        <button
+          type="button"
+          className="menu-button"
+          onClick={() =>
+            setMenuOpen(true)
+          }
+          aria-label="Abrir menú"
+        >
+          <span />
+          <span />
+          <span />
+        </button>
 
-          <div>
-            <span>
-              STORE GAMING
-            </span>
+        <div
+          className="store-logo-hidden"
+          aria-hidden="true"
+        />
 
-            <strong>
-              NOTIFICACIONES
-            </strong>
-          </div>
+        <div className="store-header-actions">
 
           <button
             type="button"
+            className="notification-button"
             onClick={() =>
-              setNotificationsOpen(false)
+              setNotificationsOpen(
+                !notificationsOpen
+              )
             }
-            aria-label="Cerrar notificaciones"
+            aria-label="Notificaciones"
           >
-            ×
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+              <path d="M10 21h4" />
+            </svg>
+
+            {notificationCount > 0 && (
+              <span className="notification-badge">
+                {notificationCount > 99
+                  ? "99+"
+                  : notificationCount}
+              </span>
+            )}
           </button>
 
-        </div>
+          {notificationsOpen && (
+            <div className="notification-panel">
 
-        {notifications.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              padding: "8px 12px",
-              borderBottom:
-                "1px solid rgba(255,255,255,.07)",
-            }}
-          >
-            <button
-              type="button"
-              onClick={
-                markAllNotificationsAsRead
-              }
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "#e50914",
-                fontSize: "11px",
-                fontWeight: 800,
-                cursor: "pointer",
-              }}
-            >
-              Marcar todas como leídas
-            </button>
-          </div>
-        )}
+              <div className="notification-panel-header">
 
-        <div className="notification-list">
+                <div>
+                  <span>
+                    STORE GAMING
+                  </span>
 
-          {notificationsLoading ? (
+                  <strong>
+                    NOTIFICACIONES
+                  </strong>
+                </div>
 
-            <div className="notification-empty">
-
-              <div className="notification-empty-icon">
-                🔔
-              </div>
-
-              <strong>
-                Cargando notificaciones...
-              </strong>
-
-            </div>
-
-          ) : notifications.length === 0 ? (
-
-            <div className="notification-empty">
-
-              <div className="notification-empty-icon">
-                🔔
-              </div>
-
-              <strong>
-                No tienes notificaciones
-              </strong>
-
-              <p>
-                Aquí aparecerán las
-                novedades de tus pedidos
-                y movimientos de saldo.
-              </p>
-
-            </div>
-
-          ) : (
-
-            notifications.map(
-              (notification) => (
                 <button
-                  key={notification.id}
                   type="button"
-                  className={`notification-item ${
-                    notification.is_read
-                      ? "notification-read"
-                      : "notification-unread"
-                  }`}
-                  onClick={() => {
-                    if (
-                      !notification.is_read
-                    ) {
-                      markNotificationAsRead(
-                        notification.id
-                      );
-                    }
+                  onClick={() =>
+                    setNotificationsOpen(false)
+                  }
+                  aria-label="Cerrar notificaciones"
+                >
+                  ×
+                </button>
+
+              </div>
+
+              {notifications.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    padding: "8px 12px",
+                    borderBottom:
+                      "1px solid rgba(255,255,255,.07)",
                   }}
                 >
+                  <button
+                    type="button"
+                    onClick={
+                      markAllNotificationsAsRead
+                    }
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#e50914",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Marcar todas como leídas
+                  </button>
+                </div>
+              )}
 
-                  <div className="notification-item-icon">
-                    {notification.is_read
-                      ? "✓"
-                      : "🔔"}
-                  </div>
+              <div className="notification-list">
 
-                  <div className="notification-item-content">
+                {notificationsLoading ? (
+
+                  <div className="notification-empty">
+
+                    <div className="notification-empty-icon">
+                      🔔
+                    </div>
 
                     <strong>
-                      {notification.title}
+                      Cargando notificaciones...
+                    </strong>
+
+                  </div>
+
+                ) : notifications.length === 0 ? (
+
+                  <div className="notification-empty">
+
+                    <div className="notification-empty-icon">
+                      🔔
+                    </div>
+
+                    <strong>
+                      No tienes notificaciones
                     </strong>
 
                     <p>
-                      {notification.message}
+                      Aquí aparecerán las
+                      novedades de tus pedidos
+                      y movimientos de saldo.
                     </p>
-
-                    <small>
-                      {new Date(
-                        notification.created_at
-                      ).toLocaleString(
-                        "es-ES",
-                        {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        }
-                      )}
-                    </small>
 
                   </div>
 
-                  {!notification.is_read && (
-                    <span className="notification-unread-dot" />
-                  )}
+                ) : (
 
-                </button>
-              )
-            )
+                  notifications.map(
+                    (notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        className={`notification-item ${
+                          notification.is_read
+                            ? "notification-read"
+                            : "notification-unread"
+                        }`}
+                        onClick={() => {
+                          if (
+                            !notification.is_read
+                          ) {
+                            markNotificationAsRead(
+                              notification.id
+                            );
+                          }
+                        }}
+                      >
 
+                        <div className="notification-item-icon">
+                          {notification.is_read
+                            ? "✓"
+                            : "🔔"}
+                        </div>
+
+                        <div className="notification-item-content">
+
+                          <strong>
+                            {notification.title}
+                          </strong>
+
+                          <p>
+                            {notification.message}
+                          </p>
+
+                          <small>
+                            {new Date(
+                              notification.created_at
+                            ).toLocaleString(
+                              "es-ES",
+                              {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              }
+                            )}
+                          </small>
+
+                        </div>
+
+                        {!notification.is_read && (
+                          <span className="notification-unread-dot" />
+                        )}
+
+                      </button>
+                    )
+                  )
+
+                )}
+
+              </div>
+
+            </div>
           )}
 
         </div>
 
-      </div>
-    )}
+      </header>
 
-  </div>
+      {/* =========================
+          BIENVENIDA
+      ========================== */}
 
-</header>
+      <section className="store-hero">
 
-{/* =========================
-    BIENVENIDA
-========================== */}
+        <div className="hero-glow" />
 
-<section className="store-hero">
+        <div className="hero-content">
 
-  <div className="hero-glow" />
+          <div className="hero-badge">
+            ⚡ STORE GAMING
+          </div>
 
-  <div className="hero-content">
+          <h1 className="hero-title">
 
-    <div className="hero-badge">
-      ⚡ STORE GAMING
-    </div>
-
-    <h1 className="hero-title">
-
-      <span className="hero-greeting">
-        BIENVENIDO A
-      </span>
-
-      <span className="hero-store-name">
-        STORE GAMING
-      </span>
-
-      <span className="hero-username">
-        USUARIO: @{username}
-      </span>
-
-    </h1>
-
-    <p className="hero-text">
-      Nos alegra tenerte aquí.
-      Selecciona un servicio para
-      comenzar.
-    </p>
-
-    <div className="hero-stats">
-
-      <div className="hero-stat-card">
-
-        <strong className="hero-stat-icon">
-          $
-        </strong>
-
-        <span className="hero-stat-label">
-          DEPOSITADO
-        </span>
-
-        <b className="hero-stat-value">
-          ${deposited.toFixed(2)}
-        </b>
-
-      </div>
-
-      <div className="hero-stat-card">
-
-        <strong className="hero-stat-icon">
-          💳
-        </strong>
-
-        <span className="hero-stat-label">
-          GASTO TOTAL
-        </span>
-
-        <b className="hero-stat-value">
-          ${totalSpent.toFixed(2)}
-        </b>
-
-      </div>
-
-      <div className="hero-stat-card">
-
-        <strong className="hero-stat-icon">
-          ▣
-        </strong>
-
-        <span className="hero-stat-label">
-          ÓRDENES
-        </span>
-
-        <b className="hero-stat-value">
-          {ordersCreated}
-        </b>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-{/* =========================
-    SERVICIOS
-========================== */}
-
-<section className="services-section">
-
-  <div className="catalog-header">
-
-    <div>
-
-      <span>
-        STORE GAMING
-      </span>
-
-      <h2>
-        SERVICIOS
-      </h2>
-
-    </div>
-
-    <div className="catalog-decoration">
-
-      <i />
-      <i />
-      <i />
-
-    </div>
-
-  </div>
-
-  <div className="services-grid">
-
-    {services.map((service) => (
-
-      <button
-        key={service.name}
-        type="button"
-        className="service-card"
-        onClick={() =>
-          router.push(
-            service.route
-          )
-        }
-      >
-
-        <div className="service-card-icon">
-          {service.icon}
-        </div>
-
-        <div className="service-card-tag">
-          {service.tag}
-        </div>
-
-        <div className="service-card-info">
-
-          <h3>
-            {service.name}
-          </h3>
-
-          <p>
-            {service.description}
-          </p>
-
-          <div className="service-card-bottom">
-
-            <span>
-              ENTRAR
+            <span className="hero-greeting">
+              BIENVENIDO A
             </span>
 
-            <strong>
-              →
-            </strong>
+            <span className="hero-store-name">
+              STORE GAMING
+            </span>
+
+            <span className="hero-username">
+              USUARIO: @{username}
+            </span>
+
+          </h1>
+
+          <p className="hero-text">
+            Nos alegra tenerte aquí.
+            Selecciona un servicio para
+            comenzar.
+          </p>
+
+          <div className="hero-stats">
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                $
+              </strong>
+
+              <span className="hero-stat-label">
+                DEPOSITADO
+              </span>
+
+              <b className="hero-stat-value">
+                ${deposited.toFixed(2)}
+              </b>
+
+            </div>
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                💳
+              </strong>
+
+              <span className="hero-stat-label">
+                GASTO TOTAL
+              </span>
+
+              <b className="hero-stat-value">
+                ${totalSpent.toFixed(2)}
+              </b>
+
+            </div>
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                ▣
+              </strong>
+
+              <span className="hero-stat-label">
+                ÓRDENES
+              </span>
+
+              <b className="hero-stat-value">
+                {ordersCreated}
+              </b>
+
+            </div>
 
           </div>
 
         </div>
 
-      </button>
+      </section>
 
-    ))}
+      {/* =========================
+          SERVICIOS
+      ========================== */}
 
-  </div>
+      <section className="services-section">
 
-</section>
+        <div className="catalog-header">
 
-{/* =========================
-    BENEFICIOS
-========================== */}
+          <div>
 
-<section className="benefits-section">
+            <span>
+              STORE GAMING
+            </span>
 
-  <div className="benefit">
+            <h2>
+              SERVICIOS
+            </h2>
 
-    <span>
-      ⚡
-    </span>
+          </div>
 
-    <div>
+          <div className="catalog-decoration">
+            <i />
+            <i />
+            <i />
+          </div>
 
-      <strong>
-        ENTREGA RÁPIDA
-      </strong>
+        </div>
 
-      <p>
-        Procesamos tus pedidos
-        rápidamente.
-      </p>
+        <div className="services-grid">
 
-    </div>
+          {services.map((service) => (
 
-  </div>
+            <button
+              key={service.name}
+              type="button"
+              className="service-card"
+              onClick={() =>
+                router.push(
+                  service.route
+                )
+              }
+            >
 
-  <div className="benefit">
+              <div className="service-card-icon">
+                {service.icon}
+              </div>
 
-    <span>
-      🛡️
-    </span>
+              <div className="service-card-tag">
+                {service.tag}
+              </div>
 
-    <div>
+              <div className="service-card-info">
 
-      <strong>
-        COMPRA SEGURA
-      </strong>
+                <h3>
+                  {service.name}
+                </h3>
 
-      <p>
-        Tu pedido queda registrado.
-      </p>
+                <p>
+                  {service.description}
+                </p>
 
-    </div>
+                <div className="service-card-bottom">
 
-  </div>
+                  <span>
+                    ENTRAR
+                  </span>
 
-  <div className="benefit">
+                  <strong>
+                    →
+                  </strong>
 
-    <span>
-      🎮
-    </span>
+                </div>
 
-    <div>
+              </div>
 
-      <strong>
-        SERVICIOS GAMING
-      </strong>
+            </button>
 
-      <p>
-        Todo lo que necesitas
-        en un solo lugar.
-      </p>
+          ))}
 
-    </div>
+        </div>
 
-  </div>
+        {/* =========================
+            FINANZAS
+        ========================== */}
 
-</section>
+         <div
+          className="services-category"
+          style={{
+            marginTop: "35px",
+          }}
+        >
 
-{/* =========================
-    FOOTER
-========================== */}
+          <div className="catalog-header">
 
-<footer className="store-footer">
+            <div>
 
-  <div className="footer-brand">
-    STORE GAMING
-  </div>
+              <span>
+                STORE GAMING
+              </span>
 
-  <p>
-    TU MEJOR OPCIÓN PARA
-    RECARGAS GAMING
-  </p>
+              <h2>
+                💰 FINANZAS
+              </h2>
 
-  <small>
-    © 2026 STORE GAMING
-  </small>
+            </div>
 
-</footer>
+            <div className="catalog-decoration">
+              <i />
+              <i />
+              <i />
+            </div>
 
-</main>
-);
-    }
+          </div>
+
+          <div className="services-grid">
+
+            {/* VENTA DE SALDO MÓVIL */}
+
+            <div
+              className="service-card"
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                cursor: "default",
+              }}
+            >
+
+              <div
+                style={{
+                  position: "absolute",
+                  top: "12px",
+                  right: "-38px",
+                  background:
+                    "linear-gradient(135deg,#e50914,#9d0000)",
+                  color: "#fff",
+                  padding: "5px 45px",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  transform: "rotate(45deg)",
+                  zIndex: 2,
+                  boxShadow:
+                    "0 0 12px rgba(229,9,20,.35)",
+                }}
+              >
+                PRÓXIMAMENTE
+              </div>
+
+              <div className="service-card-icon">
+                📱
+              </div>
+
+              <div className="service-card-tag">
+                FINANZAS
+              </div>
+
+              <div className="service-card-info">
+
+                <h3>
+                  Venta de saldo móvil
+                </h3>
+
+                <p>
+                  Compra y venta de saldo móvil
+                  de forma rápida y segura.
+                </p>
+
+                <div className="service-card-bottom">
+
+                  <span>
+                    PRÓXIMAMENTE
+                  </span>
+
+                  <strong>
+                    🔒
+                  </strong>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* COMPRA Y VENTA DE CRIPTO */}
+
+            <div
+              className="service-card"
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                cursor: "default",
+              }}
+            >
+
+              <div
+                style={{
+                  position: "absolute",
+                  top: "12px",
+                  right: "-38px",
+                  background:
+                    "linear-gradient(135deg,#e50914,#9d0000)",
+                  color: "#fff",
+                  padding: "5px 45px",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  transform: "rotate(45deg)",
+                  zIndex: 2,
+                  boxShadow:
+                    "0 0 12px rgba(229,9,20,.35)",
+                }}
+              >
+                PRÓXIMAMENTE
+              </div>
+
+              <div className="service-card-icon">
+                🪙
+              </div>
+
+              <div className="service-card-tag">
+                CRIPTO
+              </div>
+
+              <div className="service-card-info">
+
+                <h3>
+                  Compra y venta de cripto
+                </h3>
+
+                <p>
+                  Compra y venta de
+                  criptomonedas de forma
+                  rápida y segura.
+                </p>
+
+                <div className="service-card-bottom">
+
+                  <span>
+                    PRÓXIMAMENTE
+                  </span>
+
+                  <strong>
+                    🔒
+                  </strong>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* =========================
+          BENEFICIOS
+      ========================== */}
+
+      <section className="benefits-section">
+
+        <div className="benefit">
+
+          <span>
+            ⚡
+          </span>
+
+          <div>
+
+            <strong>
+              ENTREGA RÁPIDA
+            </strong>
+
+            <p>
+              Procesamos tus pedidos
+              rápidamente.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="benefit">
+
+          <span>
+            🛡️
+          </span>
+
+          <div>
+
+            <strong>
+              COMPRA SEGURA
+            </strong>
+
+            <p>
+              Tu pedido queda registrado.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="benefit">
+
+          <span>
+            🎮
+          </span>
+
+          <div>
+
+            <strong>
+              SERVICIOS GAMING
+            </strong>
+
+            <p>
+              Todo lo que necesitas
+              en un solo lugar.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* =========================
+          FOOTER
+      ========================== */}
+
+      <footer className="store-footer">
+
+        <div className="footer-brand">
+          STORE GAMING
+        </div>
+
+        <p>
+          TU MEJOR OPCIÓN PARA
+          RECARGAS GAMING
+        </p>
+
+        <small>
+          © 2026 STORE GAMING
+        </small>
+
+      </footer>
+
+    </main>
+  );
+}
