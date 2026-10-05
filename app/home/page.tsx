@@ -1158,8 +1158,10 @@ export default function HomePage() {
       Todos los derechos reservados.
     </span>
 
-  </div>
+    </div>
 
 </footer>
 
 </main>
+  );
+}
