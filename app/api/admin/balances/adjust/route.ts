@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
 
@@ -78,7 +77,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Acepta cantidades positivas con un máximo de 4 decimales.
-    // Se conserva como texto para evitar redondeos innecesarios en JavaScript.
     if (!/^\d+(?:\.\d{1,4})?$/.test(amountText)) {
       return jsonError(
         "Introduce una cantidad válida con un máximo de 4 decimales.",
@@ -93,7 +91,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Ejecutar el ajuste atómico en Supabase.
-    // La función también registra la transacción en el historial.
     const { data, error } = await supabaseAdmin.rpc(
       "store_gaming_admin_adjust_balance",
       {
@@ -131,30 +128,99 @@ export async function POST(request: NextRequest) {
     }
 
     if (!data || data.ok !== true) {
-      return jsonError("Supabase no confirmó el ajuste de saldo.", 500);
+      return jsonError(
+        "Supabase no confirmó el ajuste de saldo.",
+        500
+      );
     }
 
-    // 5. Responder con los saldos confirmados por la base de datos.
+    // ==========================================================
+    // 5. CREAR NOTIFICACIÓN PARA EL USUARIO
+    // ==========================================================
+
+    const notificationTitle =
+      action === "ADD"
+        ? "💰 Saldo agregado"
+        : "💳 Saldo descontado";
+
+    const notificationMessage =
+      action === "ADD"
+        ? `Se agregaron ${data.amount} a tu saldo. Tu nuevo saldo es ${data.balanceAfter}.`
+        : `Se descontaron ${data.amount} de tu saldo. Tu nuevo saldo es ${data.balanceAfter}.`;
+
+    const notificationType =
+      action === "ADD"
+        ? "BALANCE_ADD"
+        : "BALANCE_SUBTRACT";
+
+    /*
+     * Identificador único de este ajuste.
+     * Más adelante lo cambiaremos por el ID real de la transacción
+     * cuando hagamos que el RPC lo devuelva.
+     */
+    const notificationSourceId =
+      `${userId}-${Date.now()}-${crypto.randomUUID()}`;
+
+    const {
+      data: notification,
+      error: notificationError,
+    } = await supabaseAdmin.rpc(
+      "store_gaming_create_notification",
+      {
+        p_user_id: userId,
+        p_title: notificationTitle,
+        p_message: notificationMessage,
+        p_type: notificationType,
+        p_source_type: "BALANCE_ADJUSTMENT",
+        p_source_id: notificationSourceId,
+      }
+    );
+
+    if (notificationError) {
+      /*
+       * El saldo YA fue modificado correctamente.
+       * Por eso no devolvemos error de ajuste aunque falle
+       * solamente la creación de la notificación.
+       */
+      console.error(
+        "Saldo ajustado, pero no se pudo crear la notificación:",
+        notificationError
+      );
+    }
+
+    // 6. Responder con los datos confirmados
     return NextResponse.json({
       ok: true,
       message:
         action === "ADD"
           ? "Saldo agregado correctamente."
           : "Saldo restado correctamente.",
+
       client: {
         id: data.userId,
         balance: data.balanceAfter,
       },
+
       transaction: {
         action: data.action,
         amount: data.amount,
         balanceBefore: data.balanceBefore,
         balanceAfter: data.balanceAfter,
       },
+
+      notification: {
+        created: !notificationError && !!notification,
+      },
     });
   } catch (error) {
-    console.error("Error inesperado al ajustar saldo:", error);
+    console.error(
+      "Error inesperado al ajustar el saldo:",
+      error
+    );
 
-    return jsonError("Ocurrió un error interno al ajustar el saldo.", 500);
+    return jsonError(
+      "Ocurrió un error interno al ajustar el saldo.",
+      500
+    );
   }
-}
+    }
