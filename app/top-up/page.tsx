@@ -37,6 +37,14 @@ const games: Game[] = [
   },
 
   {
+    name: "LEGENDS MOBILE (GLOBAL)",
+    description: "Diamantes para Mobile Legends.",
+    image: "/images/mobile-legends.jpg",
+    route: "/games/mobile-legends-global",
+    tag: "DIAMANTES",
+  },
+
+  {
     name: "BLOOD STRIKE",
     description: "Recargas para tu cuenta.",
     image: "/images/blood-strike.jpg",
@@ -267,15 +275,11 @@ export default function TopUpPage() {
                   <div className="top-up-game-image-dark" />
 
                   <div className="top-up-game-tag">
-
                     {game.tag}
-
                   </div>
 
                   <div className="top-up-game-open">
-
                     VER OFERTAS →
-
                   </div>
 
                 </div>
@@ -361,4 +365,4 @@ export default function TopUpPage() {
 
     </main>
   );
-                }
+        }
