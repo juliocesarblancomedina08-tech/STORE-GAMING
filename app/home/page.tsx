@@ -5,18 +5,25 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 type Service = {
-  title: string;
+  name: string;
   description: string;
   icon: string;
-  path?: string;
-  comingSoon?: boolean;
+  route: string;
+  tag: string;
 };
 
 type StoreOrder = {
-  id: string;
-  status: string;
-  retail_price: number | null;
-  created_at: string;
+  id?: string;
+  game?: string;
+  product?: string;
+  displayProduct?: string;
+  price?: number | string;
+  total?: number | string;
+  playerId?: string;
+  serverId?: string;
+  status?: string;
+  createdAt?: string;
+  date?: string;
 };
 
 type Notification = {
@@ -28,36 +35,44 @@ type Notification = {
   created_at: string;
 };
 
-const ADMIN_EMAIL = "juliocesarblancomedina@gmail.com";
+const ADMIN_EMAIL =
+  "juliocesarblancomedina08@gmail.com";
 
 const services: Service[] = [
   {
-    title: "Recargar juegos",
-    description:
-      "Compra diamantes, monedas y otros productos para tus juegos favoritos.",
+    name: "RECARGAS TOP UP",
+    description: "Recarga tus juegos favoritos.",
     icon: "🎮",
-    path: "/top-up",
+    route: "/top-up",
+    tag: "TOP UP",
   },
   {
-    title: "Tarjetas de regalo",
-    description:
-      "Compra códigos digitales para diferentes plataformas y juegos.",
+    name: "ESTRELLAS DE TELEGRAM",
+    description: "Compra estrellas de Telegram.",
+    icon: "⭐",
+    route: "/telegram-stars",
+    tag: "TELEGRAM",
+  },
+  {
+    name: "TARJETAS DE REGALO",
+    description: "Tarjetas de regalo y códigos.",
     icon: "🎁",
-    path: "/gift-cards",
+    route: "/gift-cards",
+    tag: "CÓDIGOS",
   },
   {
-    title: "Venta de saldo móvil",
-    description:
-      "Próximamente podrás realizar operaciones de saldo móvil de forma rápida y segura.",
-    icon: "📱",
-    comingSoon: true,
+    name: "PERFIL",
+    description: "Administra los datos de tu cuenta.",
+    icon: "👤",
+    route: "/profile",
+    tag: "CUENTA",
   },
   {
-    title: "Compra y venta de cripto",
-    description:
-      "Próximamente podrás comprar y vender criptomonedas de forma rápida y segura.",
-    icon: "🪙",
-    comingSoon: true,
+    name: "SOPORTE",
+    description: "Obtén ayuda con tus pedidos.",
+    icon: "🎧",
+    route: "/support",
+    tag: "AYUDA",
   },
 ];
 
@@ -67,563 +82,1107 @@ export default function HomePage() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [ordersCreated, setOrdersCreated] = useState(0);
+  const [deposited, setDeposited] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
 
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState("");
+  /* =========================
+     NOTIFICACIONES
+  ========================== */
 
-  const loadNotifications = async (userId: string) => {
+  const [notificationsOpen, setNotificationsOpen] =
+    useState(false);
+
+  const [notificationCount, setNotificationCount] =
+    useState(0);
+
+  const [notifications, setNotifications] =
+    useState<Notification[]>([]);
+
+  const [notificationsLoading, setNotificationsLoading] =
+    useState(false);
+
+  const [currentUserId, setCurrentUserId] =
+    useState("");
+
+  /* =========================
+     CARGAR NOTIFICACIONES
+  ========================== */
+
+  async function loadNotifications(userId: string) {
     if (!userId) return;
 
     setNotificationsLoading(true);
 
-    try {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select(
-          "id,title,message,type,is_read,created_at"
-        )
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(50);
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("notifications")
+      .select(
+        "id,title,message,type,is_read,created_at"
+      )
+      .eq("user_id", userId)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(30);
 
-      if (error) {
-        console.error("Error cargando notificaciones:", error);
-        return;
-      }
-
-      const notificationData = (data || []) as Notification[];
-
-      setNotifications(notificationData);
-
-      setNotificationCount(
-        notificationData.filter(
-          (item) => !item.is_read
-        ).length
-      );
-    } catch (error) {
+    if (error) {
       console.error(
-        "Error inesperado cargando notificaciones:",
+        "Error cargando notificaciones:",
         error
       );
-    } finally {
+
       setNotificationsLoading(false);
+      return;
     }
-  };
 
-  const markNotificationAsRead = async (
+    const rows =
+      (data as Notification[]) || [];
+
+    setNotifications(rows);
+
+    setNotificationCount(
+      rows.filter(
+        (notification) =>
+          !notification.is_read
+      ).length
+    );
+
+    setNotificationsLoading(false);
+  }
+
+  /* =========================
+     MARCAR UNA COMO LEÍDA
+  ========================== */
+
+  async function markNotificationAsRead(
     notificationId: string
-  ) => {
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("id", notificationId);
-
-      if (error) {
-        console.error(
-          "Error marcando notificación:",
-          error
-        );
-        return;
-      }
-
-      setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.id === notificationId
-            ? {
-                ...notification,
-                is_read: true,
-              }
-            : notification
-        )
-      );
-
-      setNotificationCount((prev) =>
-        Math.max(0, prev - 1)
-      );
-    } catch (error) {
-      console.error(
-        "Error inesperado:",
-        error
-      );
-    }
-  };
-
-  const markAllNotificationsAsRead = async () => {
+  ) {
     if (!currentUserId) return;
 
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("user_id", currentUserId)
-        .eq("is_read", false);
+    const {
+      error,
+    } = await supabase
+      .from("notifications")
+      .update({
+        is_read: true,
+      })
+      .eq("id", notificationId)
+      .eq("user_id", currentUserId);
 
-      if (error) {
-        console.error(
-          "Error marcando todas las notificaciones:",
-          error
-        );
-        return;
-      }
-
-      setNotifications((prev) =>
-        prev.map((notification) => ({
-          ...notification,
-          is_read: true,
-        }))
-      );
-
-      setNotificationCount(0);
-    } catch (error) {
+    if (error) {
       console.error(
-        "Error inesperado:",
+        "Error marcando notificación:",
         error
       );
+
+      return;
     }
-  };
+
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.id === notificationId
+          ? {
+              ...notification,
+              is_read: true,
+            }
+          : notification
+      )
+    );
+
+    setNotificationCount((count) =>
+      Math.max(0, count - 1)
+    );
+  }
+
+  /* =========================
+     MARCAR TODAS COMO LEÍDAS
+  ========================== */
+
+  async function markAllNotificationsAsRead() {
+    if (!currentUserId) return;
+
+    const hasUnread =
+      notifications.some(
+        (notification) =>
+          !notification.is_read
+      );
+
+    if (!hasUnread) return;
+
+    const {
+      error,
+    } = await supabase
+      .from("notifications")
+      .update({
+        is_read: true,
+      })
+      .eq("user_id", currentUserId)
+      .eq("is_read", false);
+
+    if (error) {
+      console.error(
+        "Error marcando notificaciones:",
+        error
+      );
+
+      return;
+    }
+
+    setNotifications((current) =>
+      current.map((notification) => ({
+        ...notification,
+        is_read: true,
+      }))
+    );
+
+    setNotificationCount(0);
+  }
+
+  /* =========================
+     AUTENTICACIÓN
+  ========================== */
 
   useEffect(() => {
     let mounted = true;
 
-    const loadUser = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+    let notificationChannel:
+      ReturnType<
+        typeof supabase.channel
+      > | null = null;
 
-        if (!mounted) return;
+    async function loadUser() {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
 
-        if (!user) {
-          router.push("/login");
-          return;
-        }
+      if (!mounted) return;
 
-        const email = user.email || "";
-
-        setCurrentUserId(user.id);
-
-        setUsername(
-          user.user_metadata?.username ||
-            user.user_metadata?.name ||
-            email.split("@")[0]
-        );
-
-        setIsAdmin(
-          email.toLowerCase() ===
-            ADMIN_EMAIL.toLowerCase()
-        );
-
-        await loadNotifications(user.id);
-      } catch (error) {
-        console.error(
-          "Error obteniendo usuario:",
-          error
-        );
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadUser();
-
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
-
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    const channel = supabase
-      .channel(
-        `notifications-${currentUserId}`
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          const newNotification =
-            payload.new as Notification;
-
-          setNotifications((prev) => [
-            newNotification,
-            ...prev,
-          ]);
-
-          if (!newNotification.is_read) {
-            setNotificationCount(
-              (prev) => prev + 1
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentUserId]);
-
-  const loadStatistics = async () => {
-    if (!currentUserId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("topup_orders")
-        .select(
-          "id,status,retail_price,created_at"
-        )
-        .eq("user_id", currentUserId);
-
-      if (error) {
-        console.error(
-          "Error cargando estadísticas:",
-          error
-        );
+      if (error || !session?.user) {
+        router.replace("/");
         return;
       }
 
-      const orders = (data || []) as StoreOrder[];
+      const email =
+        session.user.email || "usuario";
 
-      setOrdersCreated(orders.length);
+      const name =
+        email.split("@")[0] || "usuario";
 
-      const completedOrders = orders.filter(
-        (order) =>
-          order.status === "completed" ||
-          order.status === "success" ||
-          order.status === "delivered"
+      const userId =
+        session.user.id;
+
+      setUsername(name);
+      setCurrentUserId(userId);
+
+      setIsAdmin(
+        email.trim().toLowerCase() ===
+          ADMIN_EMAIL.toLowerCase()
       );
 
-      const spent = completedOrders.reduce(
-        (total, order) =>
-          total +
-          Number(order.retail_price || 0),
+      await loadStatistics(userId);
+      await loadNotifications(userId);
+
+      /*
+       * NOTIFICACIONES EN TIEMPO REAL
+       *
+       * Cada vez que se cree, modifique o elimine
+       * una notificación perteneciente a este usuario,
+       * volvemos a cargar sus notificaciones.
+       */
+
+      notificationChannel =
+        supabase
+          .channel(
+            `notifications-${userId}`
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${userId}`,
+            },
+            () => {
+              loadNotifications(userId);
+            }
+          )
+          .subscribe();
+
+      if (mounted) {
+        setLoading(false);
+      }
+    }
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!session?.user) {
+          router.replace("/");
+          return;
+        }
+
+        const email =
+          session.user.email || "usuario";
+
+        const name =
+          email.split("@")[0] || "usuario";
+
+        const userId =
+          session.user.id;
+
+        setUsername(name);
+        setCurrentUserId(userId);
+
+        setIsAdmin(
+          email.trim().toLowerCase() ===
+            ADMIN_EMAIL.toLowerCase()
+        );
+
+        await loadStatistics(userId);
+        await loadNotifications(userId);
+      }
+    );
+
+    return () => {
+      mounted = false;
+
+      subscription.unsubscribe();
+
+      if (notificationChannel) {
+        supabase.removeChannel(
+          notificationChannel
+        );
+      }
+    };
+  }, [router]);
+
+  /* =========================
+     ESTADÍSTICAS
+  ========================== */
+
+  async function loadStatistics(
+    userId: string
+  ) {
+    let orders: StoreOrder[] = [];
+
+    try {
+      const savedOrders =
+        localStorage.getItem(
+          "storeGamingOrders"
+        );
+
+      if (savedOrders) {
+        const parsedOrders =
+          JSON.parse(savedOrders);
+
+        if (Array.isArray(parsedOrders)) {
+          orders = parsedOrders;
+        }
+      }
+    } catch {
+      orders = [];
+    }
+
+    setOrdersCreated(orders.length);
+
+    const completedStatuses = [
+      "COMPLETADA",
+      "COMPLETADO",
+      "CONFIRMADA",
+      "CONFIRMADO",
+      "completada",
+      "completado",
+      "confirmada",
+      "confirmado",
+    ];
+
+    const completedOrders =
+      orders.filter((order) =>
+        completedStatuses.includes(
+          String(order.status || "")
+        )
+      );
+
+    const spent =
+      completedOrders.reduce(
+        (sum, order) => {
+          const value =
+            Number(order.total) ||
+            Number(order.price) ||
+            0;
+
+          return sum + value;
+        },
         0
       );
 
-      setTotalSpent(spent);
-    } catch (error) {
-      console.error(
-        "Error inesperado:",
-        error
-      );
-    }
-  };
+    setTotalSpent(spent);
 
-  useEffect(() => {
-    if (currentUserId) {
-      loadStatistics();
-    }
-  }, [currentUserId]);
-
-  const logout = async () => {
     try {
-      await supabase.auth.signOut();
-      router.push("/login");
-    } catch (error) {
-      console.error(
-        "Error cerrando sesión:",
-        error
-      );
-    }
-  };
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", userId)
+        .single();
 
-  const goTo = (path: string) => {
+      if (!error && data) {
+        const balance =
+          Number(data.balance) || 0;
+
+        setDeposited(balance);
+      } else {
+        setDeposited(0);
+      }
+    } catch {
+      setDeposited(0);
+    }
+  }
+
+  /* =========================
+     LOGOUT
+  ========================== */
+
+  async function logout() {
+    setMenuOpen(false);
+
+    await supabase.auth.signOut();
+
+    router.replace("/");
+  }
+
+  function goTo(path: string) {
     setMenuOpen(false);
     router.push(path);
-  };
+  }
+
+  /* =========================
+     LOADING
+  ========================== */
 
   if (loading) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div className="store-loading">
-          <div className="store-spinner" />
-          <p>
-            Cargando STORE GAMING...
-          </p>
+      <main className="store-loading">
+        <div className="loading-logo">
+          STORE GAMING
         </div>
+
+        <div className="loading-line" />
+
+        <p>
+          CARGANDO STORE GAMING...
+        </p>
       </main>
     );
   }
 
   return (
-    <main className="store-home-page">
+    <main className="store-home">
 
       {/* =========================
-          SIDEBAR
+          MENÚ LATERAL
       ========================== */}
 
       {menuOpen && (
-        <div
-          className="side-menu-overlay"
-          onClick={() =>
-            setMenuOpen(false)
-          }
-        />
-      )}
-
-      <aside
-        className={`side-menu ${
-          menuOpen
-            ? "side-menu-open"
-            : ""
-        }`}
-      >
-        <div className="side-menu-header">
-
-          <div>
-            <div className="side-menu-title">
-              STORE GAMING
-            </div>
-
-            <div className="side-menu-subtitle">
-              Panel principal
-            </div>
-          </div>
-
+        <>
           <button
             type="button"
-            className="side-menu-close"
+            className="menu-backdrop"
+            aria-label="Cerrar menú"
             onClick={() =>
               setMenuOpen(false)
             }
-          >
-            ✕
-          </button>
-        </div>
+          />
 
-        <div className="side-menu-content">
+          <aside className="side-menu">
 
-          <button
-            type="button"
-            className="side-menu-item"
-            onClick={() =>
-              goTo("/home")
-            }
-          >
-            <span
-              className="menu-icon"
-              aria-hidden="true"
-            >
-              🏠
-            </span>
+            <div className="side-menu-header">
 
-            <span className="menu-text">
-              Inicio
-            </span>
-          </button>
+              <div className="side-menu-brand">
 
-          <button
-            type="button"
-            className="side-menu-item"
-            onClick={() =>
-              goTo("/top-up")
-            }
-          >
-            <span
-              className="menu-icon"
-              aria-hidden="true"
-            >
-              🎮
-            </span>
+                <span className="side-brand-line" />
 
-            <span className="menu-text">
-              Recargar juegos
-            </span>
-          </button>
+                <div>
+                  <small>
+                    STORE
+                  </small>
 
-          <button
-            type="button"
-            className="side-menu-item"
-            onClick={() =>
-              goTo("/gift-cards")
-            }
-          >
-            <span
-              className="menu-icon"
-              aria-hidden="true"
-            >
-              🎁
-            </span>
+                  <strong>
+                    GAMING
+                  </strong>
+                </div>
 
-            <span className="menu-text">
-              Tarjetas de regalo
-            </span>
-          </button>
-
-          {/* =========================
-              ESTADÍSTICAS
-          ========================== */}
-
-          <div className="side-menu-section-title">
-            ESTADÍSTICAS
-          </div>
-
-          <div className="side-menu-stats">
-
-            <div className="side-stat-card">
-
-              <span className="side-stat-icon">
-                🛒
-              </span>
-
-              <div>
-                <strong>
-                  {ordersCreated}
-                </strong>
-
-                <small>
-                  Pedidos
-                </small>
               </div>
 
-            </div>
-
-            <div className="side-stat-card">
-
-              <span className="side-stat-icon">
-                💰
-              </span>
-
-              <div>
-                <strong>
-                  $
-                  {Number(
-                    totalSpent
-                  ).toFixed(2)}
-                </strong>
-
-                <small>
-                  Gastado
-                </small>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* =========================
-              CUENTA
-          ========================== */}
-
-          <div className="side-menu-section-title">
-            CUENTA
-          </div>
-
-          <button
-            type="button"
-            className="side-menu-item"
-            onClick={() =>
-              goTo("/profile")
-            }
-          >
-            <span
-              className="menu-icon"
-              aria-hidden="true"
-            >
-              👤
-            </span>
-
-            <span className="menu-text">
-              Perfil
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className="side-menu-item"
-            onClick={() =>
-              goTo("/support")
-            }
-          >
-            <span
-              className="menu-icon"
-              aria-hidden="true"
-            >
-              💬
-            </span>
-
-            <span className="menu-text">
-              Soporte
-            </span>
-          </button>
-
-          {/* =========================
-              ADMINISTRACIÓN
-          ========================== */}
-
-          {isAdmin && (
-            <>
-              <div className="side-menu-section-title">
-                ADMINISTRACIÓN
-              </div>
-                            <button
+              <button
                 type="button"
-                className="side-menu-item"
+                className="side-menu-close"
                 onClick={() =>
-                  goTo("/admin")
+                  setMenuOpen(false)
+                }
+                aria-label="Cerrar menú"
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="side-menu-user">
+
+              <div className="side-user-icon">
+                @
+              </div>
+
+              <div>
+                <small>
+                  CUENTA
+                </small>
+
+                <strong>
+                  @{username}
+                </strong>
+              </div>
+
+            </div>
+
+            <nav className="side-menu-nav">
+
+              {/* HOGAR */}
+
+              <button
+                type="button"
+                className="side-menu-item active"
+                onClick={() =>
+                  goTo("/home")
                 }
               >
                 <span
                   className="menu-icon"
                   aria-hidden="true"
                 >
-                  ⚙️
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 10.5 12 3l9 7.5" />
+                    <path d="M5 9.5V21h14V9.5" />
+                    <path d="M9 21v-6h6v6" />
+                  </svg>
                 </span>
 
-                <span className="menu-text">
-                  Panel de administración
+                <span>
+                  Hogar
+                </span>
+
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
                 </span>
               </button>
-            </>
-          )}
 
-          {/* =========================
-              CERRAR SESIÓN
-          ========================== */}
+              {/* ÓRDENES */}
 
-          <button
-            type="button"
-            className="side-menu-item side-menu-logout"
-            onClick={logout}
-          >
-            <span
-              className="menu-icon"
-              aria-hidden="true"
-            >
-              🚪
-            </span>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  goTo("/orders")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 4h12" />
+                    <path d="M7 4v17h10V4" />
+                    <path d="M9 8h6" />
+                    <path d="M9 12h6" />
+                    <path d="M9 16h4" />
+                  </svg>
+                </span>
 
-            <span className="menu-text">
-              Cerrar sesión
-            </span>
-          </button>
+                <span>
+                  Órdenes
+                </span>
 
-        </div>
-      </aside>
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
+
+              <div className="side-menu-section-title">
+                <span />
+                SERVICIOS
+                <span />
+              </div>
+
+              {/* TELEGRAM */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  goTo("/telegram-stars")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 3 3.7 10.1c-.8.3-.8 1.4 0 1.7l4.4 1.7 1.7 5.3c.2.7 1.1.9 1.6.3l2.5-3.1 4.6 3.4c.6.5 1.5.1 1.7-.6L21 3Z" />
+                    <path d="m8.1 13.5 9.5-7.2" />
+                  </svg>
+                </span>
+
+                <span>
+                  Estrellas de Telegram
+                </span>
+
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
+
+              {/* TARJETAS */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  goTo("/gift-cards")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect
+                      x="3"
+                      y="6"
+                      width="18"
+                      height="13"
+                      rx="2"
+                    />
+                    <path d="M3 10h18" />
+                    <path d="M12 6v13" />
+                    <path d="M8.5 6c-1.4 0-2.5-.9-2.5-2s1.1-2 2.5-2c2 0 3.5 4 3.5 4" />
+                    <path d="M15.5 6c1.4 0 2.5-.9 2.5-2s1.1-2 2.5-2c2 0 3.5 4 3.5 4" />
+                  </svg>
+                </span>
+
+                <span>
+                  Tarjetas de regalo
+                </span>
+
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
+
+              {/* TOP UP */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  goTo("/top-up")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M13 2 5 13h6l-1 9 8-11h-6l1-9Z" />
+                  </svg>
+                </span>
+
+                <span>
+                  Recargas TOP UP
+                </span>
+
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
+
+              <div className="side-menu-section-title">
+                <span />
+                FINANZAS
+                <span />
+              </div>
+
+              {/* =========================
+                  VENTA DE SALDO MÓVIL
+              ========================== */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  paddingRight: "10px",
+                }}
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect
+                      x="6"
+                      y="3"
+                      width="12"
+                      height="18"
+                      rx="2"
+                    />
+                    <path d="M9 7h6" />
+                    <path d="M10 17h4" />
+                  </svg>
+                </span>
+
+                <span
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  Venta de saldo móvil
+                </span>
+
+                <span
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: "5px",
+                    padding: "3px 6px",
+                    borderRadius: "5px",
+                    background:
+                      "linear-gradient(135deg,#e50914,#9d0000)",
+                    color: "#fff",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    letterSpacing: ".3px",
+                    lineHeight: 1,
+                    boxShadow:
+                      "0 0 8px rgba(229,9,20,.35)",
+                  }}
+                >
+                  PRÓXIMAMENTE
+                </span>
+              </button>
+
+              {/* =========================
+                  COMPRA Y VENTA DE CRIPTO
+              ========================== */}
+
+                            <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  paddingRight: "10px",
+                }}
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect
+                      x="6"
+                      y="3"
+                      width="12"
+                      height="18"
+                      rx="2"
+                    />
+                    <path d="M9 7h6" />
+                    <path d="M10 17h4" />
+                  </svg>
+                </span>
+
+                <span
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  Venta de saldo móvil
+                </span>
+
+                <span
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: "5px",
+                    padding: "3px 6px",
+                    borderRadius: "5px",
+                    background:
+                      "linear-gradient(135deg,#e50914,#9d0000)",
+                    color: "#fff",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    letterSpacing: ".3px",
+                    lineHeight: 1,
+                    boxShadow:
+                      "0 0 8px rgba(229,9,20,.35)",
+                  }}
+                >
+                  PRÓXIMAMENTE
+                </span>
+              </button>
+
+              {/* COMPRA Y VENTA DE CRIPTO */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  paddingRight: "10px",
+                }}
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="8"
+                    />
+                    <path d="M12 7v10" />
+                    <path d="M9 9.5h4.5a2 2 0 0 1 0 4H9" />
+                    <path d="M9 12h5" />
+                  </svg>
+                </span>
+
+                <span
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  Compra y venta de cripto
+                </span>
+
+                <span
+                  style={{
+                    flexShrink: 0,
+                    marginLeft: "5px",
+                    padding: "3px 6px",
+                    borderRadius: "5px",
+                    background:
+                      "linear-gradient(135deg,#e50914,#9d0000)",
+                    color: "#fff",
+                    fontSize: "7px",
+                    fontWeight: 900,
+                    letterSpacing: ".3px",
+                    lineHeight: 1,
+                    boxShadow:
+                      "0 0 8px rgba(229,9,20,.35)",
+                  }}
+                >
+                  PRÓXIMAMENTE
+                </span>
+              </button>
+
+              {/* ESTADÍSTICAS */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 19V5" />
+                    <path d="M4 19h17" />
+                    <path d="m7 15 4-4 3 2 5-6" />
+                  </svg>
+                </span>
+
+                <span>
+                  Estadísticas
+                </span>
+
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
+
+              <div className="side-menu-section-title">
+                <span />
+                CUENTA
+                <span />
+              </div>
+
+              {/* PERFIL */}
+
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() =>
+                  goTo("/profile")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle
+                      cx="12"
+                      cy="8"
+                      r="3.5"
+                    />
+                    <path d="M5 21c.7-4 3.1-6 7-6s6.3 2 7 6" />
+                  </svg>
+                </span>
+
+                <span>
+                  Perfil
+                </span>
+
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
+
+              {/* SOPORTE */}
+
+              <button
+                type="button"
+                className="side-menu-item support-item"
+                onClick={() =>
+                  goTo("/support")
+                }
+              >
+                <span
+                  className="menu-icon"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 13a8 8 0 0 1 16 0" />
+                    <path d="M4 13v4a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2Z" />
+                    <path d="M20 13v4a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2Z" />
+                    <path d="M15 19c-.5 1-1.4 1.5-3 1.5" />
+                  </svg>
+                </span>
+
+                <span>
+                  Soporte
+                </span>
+
+                <span
+                  className="menu-arrow"
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              </button>
+
+              {/* ADMINISTRACIÓN */}
+
+              {isAdmin && (
+                <>
+                  <div className="side-menu-section-title">
+                    <span />
+                    ADMINISTRACIÓN
+                    <span />
+                  </div>
+
+                  <button
+                    type="button"
+                    className="side-menu-item"
+                    onClick={() =>
+                      goTo("/admin")
+                    }
+                  >
+                    <span
+                      className="menu-icon"
+                      aria-hidden="true"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="3"
+                        />
+                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.7-1.7.1-.1A1.7 1.7 0 0 0 8.4 15a1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+                      </svg>
+                    </span>
+
+                    <span>
+                      ADM PANEL
+                    </span>
+
+                    <span
+                      className="menu-arrow"
+                      aria-hidden="true"
+                    >
+                      ›
+                    </span>
+                  </button>
+                </>
+              )}
+
+            </nav>
+
+            <div className="side-menu-bottom">
+              <button
+                type="button"
+                className="side-menu-logout"
+                onClick={logout}
+              >
+                <span>
+                  ⇥
+                </span>
+
+                <strong>
+                  Cerrar sesión
+                </strong>
+              </button>
+            </div>
+
+          </aside>
+        </>
+      )}
 
       {/* =========================
           HEADER
@@ -633,7 +1192,7 @@ export default function HomePage() {
 
         <button
           type="button"
-          className="menu-toggle"
+          className="menu-button"
           onClick={() =>
             setMenuOpen(true)
           }
@@ -649,519 +1208,641 @@ export default function HomePage() {
           aria-hidden="true"
         />
 
-        <div className="header-actions">
+        <div className="store-header-actions">
 
-          <div className="notification-wrapper">
-
-            <button
-              type="button"
-              className="notification-button"
-              onClick={() =>
-                setNotificationsOpen(
-                  !notificationsOpen
-                )
-              }
-              aria-label="Notificaciones"
+          <button
+            type="button"
+            className="notification-button"
+            onClick={() =>
+              setNotificationsOpen(
+                !notificationsOpen
+              )
+            }
+            aria-label="Notificaciones"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              🔔
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+              <path d="M10 21h4" />
+            </svg>
 
-              {notificationCount > 0 && (
-                <span className="notification-badge">
-                  {notificationCount > 99
-                    ? "99+"
-                    : notificationCount}
-                </span>
+            {notificationCount > 0 && (
+              <span className="notification-badge">
+                {notificationCount > 99
+                  ? "99+"
+                  : notificationCount}
+              </span>
+            )}
+          </button>
+
+          {notificationsOpen && (
+            <div className="notification-panel">
+
+              <div className="notification-panel-header">
+
+                <div>
+                  <span>
+                    STORE GAMING
+                  </span>
+
+                  <strong>
+                    NOTIFICACIONES
+                  </strong>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setNotificationsOpen(false)
+                  }
+                  aria-label="Cerrar notificaciones"
+                >
+                  ×
+                </button>
+
+              </div>
+
+              {notifications.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    padding: "8px 12px",
+                    borderBottom:
+                      "1px solid rgba(255,255,255,.07)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={
+                      markAllNotificationsAsRead
+                    }
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#e50914",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Marcar todas como leídas
+                  </button>
+                </div>
               )}
-            </button>
 
-            {notificationsOpen && (
-              <div className="notification-panel">
+              <div className="notification-list">
 
-                <div className="notification-panel-header">
+                {notificationsLoading ? (
 
-                  <div>
+                  <div className="notification-empty">
+
+                    <div className="notification-empty-icon">
+                      🔔
+                    </div>
+
                     <strong>
-                      Notificaciones
+                      Cargando notificaciones...
                     </strong>
 
-                    <span>
-                      {notificationCount >
-                      0
-                        ? `${notificationCount} sin leer`
-                        : "Todo leído"}
-                    </span>
                   </div>
 
-                  {notificationCount >
-                    0 && (
-                    <button
-                      type="button"
-                      onClick={
-                        markAllNotificationsAsRead
-                      }
-                    >
-                      Marcar todo
-                    </button>
-                  )}
+                ) : notifications.length === 0 ? (
 
-                </div>
+                  <div className="notification-empty">
 
-                <div className="notification-panel-content">
-
-                  {notificationsLoading ? (
-                    <div className="notification-empty">
-                      Cargando...
+                    <div className="notification-empty-icon">
+                      🔔
                     </div>
-                  ) : notifications.length ===
-                    0 ? (
-                    <div className="notification-empty">
 
-                      <div
-                        style={{
-                          fontSize: "32px",
-                          marginBottom: "8px",
+                    <strong>
+                      No tienes notificaciones
+                    </strong>
+
+                    <p>
+                      Aquí aparecerán las
+                      novedades de tus pedidos
+                      y movimientos de saldo.
+                    </p>
+
+                  </div>
+
+                ) : (
+
+                  notifications.map(
+                    (notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        className={`notification-item ${
+                          notification.is_read
+                            ? "notification-read"
+                            : "notification-unread"
+                        }`}
+                        onClick={() => {
+                          if (
+                            !notification.is_read
+                          ) {
+                            markNotificationAsRead(
+                              notification.id
+                            );
+                          }
                         }}
                       >
-                        🔔
-                      </div>
 
-                      <strong>
-                        No tienes notificaciones
-                      </strong>
+                        <div className="notification-item-icon">
+                          {notification.is_read
+                            ? "✓"
+                            : "🔔"}
+                        </div>
 
-                      <span>
-                        Aquí aparecerán tus
-                        avisos importantes.
-                      </span>
+                        <div className="notification-item-content">
 
-                    </div>
-                  ) : (
-                    notifications.map(
-                      (notification) => (
-                        <button
-                          key={
-                            notification.id
-                          }
-                          type="button"
-                          className={`notification-item ${
-                            notification.is_read
-                              ? "notification-read"
-                              : "notification-unread"
-                          }`}
-                          onClick={() => {
-                            if (
-                              !notification.is_read
-                            ) {
-                              markNotificationAsRead(
-                                notification.id
-                              );
-                            }
-                          }}
-                        >
+                          <strong>
+                            {notification.title}
+                          </strong>
 
-                          <div className="notification-item-icon">
-                            {notification.type ===
-                            "BALANCE_ADD"
-                              ? "💰"
-                              : notification.type ===
-                                "BALANCE_SUBTRACT"
-                              ? "💳"
-                              : "🔔"}
-                          </div>
+                          <p>
+                            {notification.message}
+                          </p>
 
-                          <div className="notification-item-content">
-
-                            <strong>
+                          <small>
+                            {new Date(
+                              notification.created_at
+                            ).toLocaleString(
+                              "es-ES",
                               {
-                                notification.title
+                                dateStyle: "short",
+                                timeStyle: "short",
                               }
-                            </strong>
+                            )}
+                          </small>
 
-                            <span>
-                              {
-                                notification.message
-                              }
-                            </span>
+                        </div>
 
-                            <small>
-                              {new Date(
-                                notification.created_at
-                              ).toLocaleString(
-                                "es-ES",
-                                {
-                                  day: "2-digit",
-                                  month:
-                                    "2-digit",
-                                  year:
-                                    "numeric",
-                                  hour:
-                                    "2-digit",
-                                  minute:
-                                    "2-digit",
-                                }
-                              )}
-                            </small>
+                        {!notification.is_read && (
+                          <span className="notification-unread-dot" />
+                        )}
 
-                          </div>
-
-                          {!notification.is_read && (
-                            <span className="notification-dot" />
-                          )}
-
-                        </button>
-                      )
+                      </button>
                     )
-                  )}
+                  )
 
-                </div>
+                )}
+
               </div>
-            )}
 
-          </div>
+            </div>
+          )}
+
         </div>
+
       </header>
 
       {/* =========================
-          HERO
+          BIENVENIDA
       ========================== */}
 
       <section className="store-hero">
 
-  <div className="store-hero-content">
+        <div className="hero-glow" />
 
-    <span className="store-hero-badge">
-      🎮 TU TIENDA GAMING
-    </span>
+        <div className="hero-content">
 
-    <h1>
-      ¡Hola, {username}! 👋
-    </h1>
-
-    <p>
-      Bienvenido a STORE GAMING.
-      <br />
-      Recarga tus juegos de forma
-      rápida, segura y sencilla.
-    </p>
-
-    <div className="store-hero-actions">
-
-      <button
-        type="button"
-        className="store-primary-button"
-        onClick={() =>
-          goTo("/top-up")
-        }
-      >
-        🎮 Recargar juegos
-      </button>
-
-      <button
-        type="button"
-        className="store-secondary-button"
-        onClick={() =>
-          goTo("/gift-cards")
-        }
-      >
-        🎁 Ver tarjetas
-      </button>
-
-    </div>
-
-  </div>
-</section>
-
-{/* =========================
-    SERVICIOS
-========================== */}
-
-<section className="store-section">
-
-  <div className="store-section-heading">
-
-    <span className="store-section-label">
-      NUESTROS SERVICIOS
-    </span>
-
-    <h2>
-      Todo lo que necesitas
-    </h2>
-
-    <p>
-      Encuentra tus productos digitales
-      favoritos en un solo lugar.
-    </p>
-
-  </div>
-
-  <div className="services-grid">
-
-    {services.map((service) => {
-
-      const cardContent = (
-        <>
-          <div className="service-icon">
-            {service.icon}
+          <div className="hero-badge">
+            ⚡ STORE GAMING
           </div>
 
-          <div className="service-content">
+          <h1 className="hero-title">
 
-            <h3>
-              {service.title}
-            </h3>
+            <span className="hero-greeting">
+              BIENVENIDO A
+            </span>
 
-            <p>
-              {service.description}
-            </p>
+            <span className="hero-store-name">
+              STORE GAMING
+            </span>
 
-            {!service.comingSoon && (
-              <span className="service-link">
-                Ver servicio →
+            <span className="hero-username">
+              USUARIO: @{username}
+            </span>
+
+          </h1>
+
+          <p className="hero-text">
+            Nos alegra tenerte aquí.
+            Selecciona un servicio para
+            comenzar.
+          </p>
+
+          <div className="hero-stats">
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                $
+              </strong>
+
+              <span className="hero-stat-label">
+                DEPOSITADO
               </span>
-            )}
 
-          </div>
+              <b className="hero-stat-value">
+                ${deposited.toFixed(2)}
+              </b>
 
-          {service.comingSoon && (
-            <div
-              style={{
-                position: "absolute",
-                top: "18px",
-                right: "-45px",
-                background: "#ff2d2d",
-                color: "#fff",
-                fontSize: "11px",
-                fontWeight: 900,
-                padding: "7px 48px",
-                transform: "rotate(38deg)",
-                letterSpacing: "0.7px",
-                boxShadow:
-                  "0 3px 12px rgba(0,0,0,.3)",
-              }}
-            >
-              PRÓXIMAMENTE
             </div>
-          )}
 
-        </>
-      );
+            <div className="hero-stat-card">
 
-      if (service.comingSoon) {
-        return (
-          <div
-            key={service.title}
-            className="service-card finance-service-card"
-            style={{
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {cardContent}
+              <strong className="hero-stat-icon">
+                💳
+              </strong>
+
+              <span className="hero-stat-label">
+                GASTO TOTAL
+              </span>
+
+              <b className="hero-stat-value">
+                ${totalSpent.toFixed(2)}
+              </b>
+
+            </div>
+
+            <div className="hero-stat-card">
+
+              <strong className="hero-stat-icon">
+                ▣
+              </strong>
+
+              <span className="hero-stat-label">
+                ÓRDENES
+              </span>
+
+              <b className="hero-stat-value">
+                {ordersCreated}
+              </b>
+
+            </div>
+
           </div>
-        );
-      }
 
-      return (
-        <button
-          type="button"
-          key={service.title}
-          className="service-card"
-          onClick={() => {
-            if (service.path) {
-              goTo(service.path);
-            }
+        </div>
+
+      </section>
+
+      {/* =========================
+          SERVICIOS
+      ========================== */}
+
+      <section className="services-section">
+
+        <div className="catalog-header">
+
+          <div>
+
+            <span>
+              STORE GAMING
+            </span>
+
+            <h2>
+              SERVICIOS
+            </h2>
+
+          </div>
+
+          <div className="catalog-decoration">
+            <i />
+            <i />
+            <i />
+          </div>
+
+        </div>
+
+        <div className="services-grid">
+
+          {services.map((service) => (
+
+            <button
+              key={service.name}
+              type="button"
+              className="service-card"
+              onClick={() =>
+                router.push(
+                  service.route
+                )
+              }
+            >
+
+              <div className="service-card-icon">
+                {service.icon}
+              </div>
+
+              <div className="service-card-tag">
+                {service.tag}
+              </div>
+
+              <div className="service-card-info">
+
+                <h3>
+                  {service.name}
+                </h3>
+
+                <p>
+                  {service.description}
+                </p>
+
+                <div className="service-card-bottom">
+
+                  <span>
+                    ENTRAR
+                  </span>
+
+                  <strong>
+                    →
+                  </strong>
+
+                </div>
+
+              </div>
+
+            </button>
+
+          ))}
+
+        </div>
+
+        {/* =========================
+            FINANZAS
+        ========================== */}
+
+        <div
+          className="services-category"
+          style={{
+            marginTop: "35px",
           }}
         >
-          {cardContent}
-        </button>
-      );
 
-    })}
+          <div className="catalog-header">
 
-  </div>
-</section>
+            <div>
 
-{/* =========================
-    BENEFICIOS
-========================== */}
+              <span>
+                STORE GAMING
+              </span>
 
-<section className="store-benefits">
+              <h2>
+                💰 FINANZAS
+              </h2>
 
-  <div className="store-section-heading">
+            </div>
 
-    <span className="store-section-label">
-      ¿POR QUÉ STORE GAMING?
-    </span>
+            <div className="catalog-decoration">
+              <i />
+              <i />
+              <i />
+            </div>
 
-    <h2>
-      Compra con confianza
-    </h2>
+          </div>
 
-  </div>
+          <div className="services-grid">
 
-  <div className="benefits-grid">
+            {/* VENTA DE SALDO MÓVIL */}
 
-    <div className="benefit-card">
+            <div
+              className="service-card"
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                cursor: "default",
+              }}
+            >
 
-      <div className="benefit-icon">
-        ⚡
-      </div>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "12px",
+                  right: "-38px",
+                  background:
+                    "linear-gradient(135deg,#e50914,#9d0000)",
+                  color: "#fff",
+                  padding: "5px 45px",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  transform: "rotate(45deg)",
+                  zIndex: 2,
+                  boxShadow:
+                    "0 0 12px rgba(229,9,20,.35)",
+                }}
+              >
+                PRÓXIMAMENTE
+              </div>
 
-      <h3>
-        Entrega rápida
-      </h3>
+              <div className="service-card-icon">
+                📱
+              </div>
 
-      <p>
-        Recibe tus productos digitales
-        rápidamente después de completar
-        tu compra.
-      </p>
+              <div className="service-card-tag">
+                FINANZAS
+              </div>
 
-    </div>
+              <div className="service-card-info">
 
-    <div className="benefit-card">
+                <h3>
+                  Venta de saldo móvil
+                </h3>
 
-      <div className="benefit-icon">
-        🔒
-      </div>
+                <p>
+                  Compra y venta de saldo móvil
+                  de forma rápida y segura.
+                </p>
 
-      <h3>
-        Compra segura
-      </h3>
+                <div className="service-card-bottom">
 
-      <p>
-        Protegemos tus datos y procesamos
-        tus compras de forma segura.
-      </p>
+                  <span>
+                    PRÓXIMAMENTE
+                  </span>
 
-    </div>
+                  <strong>
+                    🔒
+                  </strong>
 
-    <div className="benefit-card">
+                </div>
 
-      <div className="benefit-icon">
-        💬
-      </div>
+              </div>
 
-      <h3>
-        Soporte
-      </h3>
+            </div>
 
-      <p>
-        Estamos disponibles para ayudarte
-        cuando necesites asistencia.
-      </p>
+            {/* COMPRA Y VENTA DE CRIPTO */}
 
-    </div>
+            <div
+              className="service-card"
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                cursor: "default",
+              }}
+            >
 
-    <div className="benefit-card">
+              <div
+                style={{
+                  position: "absolute",
+                  top: "12px",
+                  right: "-38px",
+                  background:
+                    "linear-gradient(135deg,#e50914,#9d0000)",
+                  color: "#fff",
+                  padding: "5px 45px",
+                  fontSize: "11px",
+                  fontWeight: 800,
+                  transform: "rotate(45deg)",
+                  zIndex: 2,
+                  boxShadow:
+                    "0 0 12px rgba(229,9,20,.35)",
+                }}
+              >
+                PRÓXIMAMENTE
+              </div>
 
-      <div className="benefit-icon">
-        🎮
-      </div>
+              <div className="service-card-icon">
+                🪙
+              </div>
 
-      <h3>
-        Variedad
-      </h3>
+              <div className="service-card-tag">
+                CRIPTO
+              </div>
 
-      <p>
-        Encuentra productos para tus juegos
-        favoritos en un solo lugar.
-      </p>
+              <div className="service-card-info">
 
-    </div>
+                <h3>
+                  Compra y venta de cripto
+                </h3>
 
-  </div>
-</section>
+                <p>
+                  Compra y venta de
+                  criptomonedas de forma
+                  rápida y segura.
+                </p>
 
-{/* =========================
-    FOOTER
-========================== */}
+                <div className="service-card-bottom">
 
-<footer className="store-footer">
+                  <span>
+                    PRÓXIMAMENTE
+                  </span>
 
-  <div className="store-footer-main">
+                  <strong>
+                    🔒
+                  </strong>
 
-    <div>
+                </div>
 
-      <h3>
-        STORE GAMING
-      </h3>
+              </div>
 
-      <p>
-        Tu tienda de productos digitales
-        para gaming.
-      </p>
+            </div>
 
-    </div>
+          </div>
 
-    <div>
+        </div>
 
-      <h4>
-        Servicios
-      </h4>
+      </section>
 
-      <button
-        type="button"
-        onClick={() =>
-          goTo("/top-up")
-        }
-      >
-        Recargar juegos
-      </button>
+      {/* =========================
+          BENEFICIOS
+      ========================== */}
 
-      <button
-        type="button"
-        onClick={() =>
-          goTo("/gift-cards")
-        }
-      >
-        Tarjetas de regalo
-      </button>
+      <section className="benefits-section">
 
-    </div>
+        <div className="benefit">
 
-    <div>
+          <span>
+            ⚡
+          </span>
 
-      <h4>
-        Ayuda
-      </h4>
+          <div>
 
-      <button
-        type="button"
-        onClick={() =>
-          goTo("/support")
-        }
-      >
-        Soporte
-      </button>
+            <strong>
+              ENTREGA RÁPIDA
+            </strong>
 
-      <button
-        type="button"
-        onClick={() =>
-          goTo("/profile")
-        }
-      >
-        Mi perfil
-      </button>
+            <p>
+              Procesamos tus pedidos
+              rápidamente.
+            </p>
 
-    </div>
+          </div>
 
-  </div>
+        </div>
 
-  <div className="store-footer-bottom">
+        <div className="benefit">
 
-    <span>
-      © {new Date().getFullYear()} STORE GAMING
-    </span>
+          <span>
+            🛡️
+          </span>
 
-    <span>
-      Todos los derechos reservados.
-    </span>
+          <div>
 
-    </div>
+            <strong>
+              COMPRA SEGURA
+            </strong>
 
-</footer>
+            <p>
+              Tu pedido queda registrado.
+            </p>
 
-</main>
+          </div>
+
+        </div>
+
+        <div className="benefit">
+
+          <span>
+            🎮
+          </span>
+
+          <div>
+
+            <strong>
+              SERVICIOS GAMING
+            </strong>
+
+            <p>
+              Todo lo que necesitas
+              en un solo lugar.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* =========================
+          FOOTER
+      ========================== */}
+
+      <footer className="store-footer">
+
+        <div className="footer-brand">
+          STORE GAMING
+        </div>
+
+        <p>
+          TU MEJOR OPCIÓN PARA
+          RECARGAS GAMING
+        </p>
+
+        <small>
+          © 2026 STORE GAMING
+        </small>
+
+      </footer>
+
+    </main>
   );
-}
+        }
