@@ -53,11 +53,16 @@ export default function MobileLegendsGlobalPage() {
     setTimeout(() => {
       document
         .getElementById("order-section")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
     }, 50);
   }
 
-  function handleFinishPurchase(event: FormEvent<HTMLFormElement>) {
+  function handleFinishPurchase(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     setError("");
@@ -71,21 +76,33 @@ export default function MobileLegendsGlobalPage() {
     }
 
     if (!/^\d+$/.test(cleanPlayerId)) {
-      setError("El ID del jugador debe contener solamente números.");
+      setError(
+        "El ID del jugador debe contener solamente números."
+      );
       return;
     }
 
-    if (cleanPlayerId.length < 3 || cleanPlayerId.length > 20) {
-      setError("El ID del jugador debe tener entre 3 y 20 números.");
+    if (
+      cleanPlayerId.length < 3 ||
+      cleanPlayerId.length > 20
+    ) {
+      setError(
+        "El ID del jugador debe tener entre 3 y 20 números."
+      );
       return;
     }
 
     if (!/^\d+$/.test(cleanServerId)) {
-      setError("El ID del servidor debe contener solamente números.");
+      setError(
+        "El ID del servidor debe contener solamente números."
+      );
       return;
     }
 
-    if (cleanServerId.length < 1 || cleanServerId.length > 20) {
+    if (
+      cleanServerId.length < 1 ||
+      cleanServerId.length > 20
+    ) {
       setError("El ID del servidor no es válido.");
       return;
     }
@@ -112,25 +129,33 @@ export default function MobileLegendsGlobalPage() {
       }
 
       const idempotencyKey =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
+        typeof crypto !== "undefined" &&
+        "randomUUID" in crypto
           ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          : `${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2)}`;
 
-      const response = await fetch("/api/topups/mobile-legends-global", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          offerId: selectedOffer.id,
-          playerId,
-          serverId,
-          idempotencyKey,
-        }),
-      });
+      const response = await fetch(
+        "/api/topups/mobile-legends-global",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            offerId: selectedOffer.id,
+            playerId,
+            serverId,
+            idempotencyKey,
+          }),
+        }
+      );
 
-      const data = await response.json().catch(() => null);
+      const data = await response
+        .json()
+        .catch(() => null);
 
       if (!response.ok) {
         throw new Error(
@@ -142,12 +167,17 @@ export default function MobileLegendsGlobalPage() {
 
       setOrderNumber(data?.orderNumber || "");
       setSupplierOrderId(data?.supplierOrderId || "");
-      setOrderStatus(data?.status || "SUPPLIER_PENDING");
+      setOrderStatus(
+        data?.status || "SUPPLIER_PENDING"
+      );
 
       setOrderCreated(true);
       setShowConfirmation(false);
     } catch (err) {
-      console.error("ERROR CREANDO ORDEN LEGENDS MOBILE GLOBAL:", err);
+      console.error(
+        "ERROR CREANDO ORDEN LEGENDS MOBILE GLOBAL:",
+        err
+      );
 
       setError(
         err instanceof Error
@@ -190,8 +220,12 @@ export default function MobileLegendsGlobalPage() {
           <div className="mobile-legends-banner-overlay">
             <div>
               <span>RECARGA GLOBAL</span>
+
               <h1>LEGENDS MOBILE</h1>
-              <p>Diamantes y paquetes Global</p>
+
+              <p>
+                Diamantes y paquetes Global
+              </p>
             </div>
           </div>
         </div>
@@ -199,13 +233,17 @@ export default function MobileLegendsGlobalPage() {
 
       <section className="mobile-legends-content">
         <div className="mobile-legends-info">
-          <div className="mobile-legends-info-icon">🌎</div>
+          <div className="mobile-legends-info-icon">
+            🌎
+          </div>
 
           <div>
             <h2>Legends Mobile Global</h2>
+
             <p>
-              Selecciona el paquete que deseas comprar y coloca
-              correctamente tu ID de jugador y servidor.
+              Selecciona el paquete que deseas comprar y
+              coloca correctamente tu ID de jugador y
+              servidor.
             </p>
           </div>
         </div>
@@ -214,30 +252,33 @@ export default function MobileLegendsGlobalPage() {
           <strong>⚠️ Importante</strong>
 
           <p>
-            Servicio Global. No disponible para las regiones de
-            Indonesia y Brasil.
+            Servicio Global. No disponible para las
+            regiones de Indonesia y Brasil.
           </p>
 
           <p>
-            Algunos paquetes pueden no estar disponibles para
-            MY / SG / PH / ID / RU.
+            Algunos paquetes pueden no estar disponibles
+            para MY / SG / PH / ID / RU.
           </p>
 
           <p>
-            Para las ofertas de primera recarga, verifica que la
-            cuenta sea elegible para recibir el bono.
+            Para las ofertas de primera recarga, verifica
+            que la cuenta sea elegible para recibir el bono.
           </p>
         </div>
 
         <div className="mobile-legends-section-header">
           <div>
             <h2>Selecciona tu oferta</h2>
+
             <p>Legends Mobile Global</p>
           </div>
 
           <button
             type="button"
-            onClick={() => setShowOffers((value) => !value)}
+            onClick={() =>
+              setShowOffers((value) => !value)
+            }
             className="mobile-legends-toggle"
           >
             {showOffers ? "Ocultar" : "Mostrar"}
@@ -288,7 +329,10 @@ export default function MobileLegendsGlobalPage() {
                 </div>
 
                 <div className="mobile-legends-price">
-                  <span>${offer.price.toFixed(2)}</span>
+                  <span>
+                    ${offer.price.toFixed(2)}
+                  </span>
+
                   <small>USDT</small>
                 </div>
               </button>
@@ -320,11 +364,15 @@ export default function MobileLegendsGlobalPage() {
               <div className="mobile-legends-selected">
                 <div>
                   <span>Oferta seleccionada</span>
-                  <strong>{selectedOffer.name}</strong>
+
+                  <strong>
+                    {selectedOffer.name}
+                  </strong>
                 </div>
 
                 <div className="mobile-legends-selected-price">
                   ${selectedOffer.price.toFixed(2)}
+
                   <small> USDT</small>
                 </div>
               </div>
@@ -337,8 +385,8 @@ export default function MobileLegendsGlobalPage() {
                   <h2>Datos de la cuenta</h2>
 
                   <p>
-                    Introduce los datos exactamente como aparecen
-                    en tu cuenta.
+                    Introduce los datos exactamente como
+                    aparecen en tu cuenta.
                   </p>
                 </div>
 
@@ -351,7 +399,10 @@ export default function MobileLegendsGlobalPage() {
                     value={playerId}
                     onChange={(event) =>
                       setPlayerId(
-                        event.target.value.replace(/\D/g, "")
+                        event.target.value.replace(
+                          /\D/g,
+                          ""
+                        )
                       )
                     }
                     placeholder="Ej: 123456789"
@@ -369,7 +420,10 @@ export default function MobileLegendsGlobalPage() {
                     value={serverId}
                     onChange={(event) =>
                       setServerId(
-                        event.target.value.replace(/\D/g, "")
+                        event.target.value.replace(
+                          /\D/g,
+                          ""
+                        )
                       )
                     }
                     placeholder="Ej: 1234"
@@ -382,8 +436,9 @@ export default function MobileLegendsGlobalPage() {
                   <span>💡</span>
 
                   <p>
-                    Puedes encontrar tu ID de jugador y servidor
-                    dentro de tu perfil de Legends Mobile.
+                    Puedes encontrar tu ID de jugador y
+                    servidor dentro de tu perfil de Legends
+                    Mobile.
                   </p>
                 </div>
 
@@ -420,23 +475,30 @@ export default function MobileLegendsGlobalPage() {
                 <div className="mobile-legends-confirmation-card">
                   <div>
                     <span>Oferta</span>
-                    <strong>{selectedOffer.name}</strong>
+
+                    <strong>
+                      {selectedOffer.name}
+                    </strong>
                   </div>
 
                   <div>
                     <span>ID jugador</span>
+
                     <strong>{playerId}</strong>
                   </div>
 
                   <div>
                     <span>ID servidor</span>
+
                     <strong>{serverId}</strong>
                   </div>
 
                   <div className="total">
                     <span>Total</span>
+
                     <strong>
-                      ${selectedOffer.price.toFixed(2)} USDT
+                      ${selectedOffer.price.toFixed(2)}{" "}
+                      USDT
                     </strong>
                   </div>
                 </div>
@@ -451,7 +513,9 @@ export default function MobileLegendsGlobalPage() {
                   <button
                     type="button"
                     className="mobile-legends-cancel"
-                    onClick={() => setShowConfirmation(false)}
+                    onClick={() =>
+                      setShowConfirmation(false)
+                    }
                     disabled={processing}
                   >
                     VOLVER
@@ -488,6 +552,7 @@ export default function MobileLegendsGlobalPage() {
                 {orderNumber && (
                   <div>
                     <span>Número de orden</span>
+
                     <strong>{orderNumber}</strong>
                   </div>
                 )}
@@ -495,17 +560,22 @@ export default function MobileLegendsGlobalPage() {
                 {supplierOrderId && (
                   <div>
                     <span>Orden del proveedor</span>
-                    <strong>{supplierOrderId}</strong>
+
+                    <strong>
+                      {supplierOrderId}
+                    </strong>
                   </div>
                 )}
 
                 <div>
                   <span>Estado</span>
+
                   <strong>{orderStatus}</strong>
                 </div>
 
                 <div>
                   <span>Oferta</span>
+
                   <strong>
                     {selectedOffer?.name}
                   </strong>
@@ -532,6 +602,7 @@ export default function MobileLegendsGlobalPage() {
                     setSupplierOrderId("");
                     setOrderStatus("");
                     setShowConfirmation(false);
+                    setError("");
                   }}
                   className="mobile-legends-new-button"
                 >
@@ -548,25 +619,33 @@ export default function MobileLegendsGlobalPage() {
           <div className="mobile-legends-service-grid">
             <div>
               <span>🌎</span>
+
               <strong>Región</strong>
+
               <p>Global</p>
             </div>
 
             <div>
               <span>⚡</span>
+
               <strong>Entrega</strong>
+
               <p>Automática</p>
             </div>
 
             <div>
               <span>🔒</span>
+
               <strong>Seguro</strong>
+
               <p>Pago protegido</p>
             </div>
 
             <div>
               <span>💎</span>
+
               <strong>Producto</strong>
+
               <p>Diamantes</p>
             </div>
           </div>
@@ -575,6 +654,7 @@ export default function MobileLegendsGlobalPage() {
 
       <footer className="mobile-legends-footer">
         <p>STORE GAMING 🎮</p>
+
         <span>Legends Mobile Global</span>
       </footer>
 
@@ -599,7 +679,8 @@ export default function MobileLegendsGlobalPage() {
           gap: 14px;
           padding: 0 20px;
           background: rgba(10, 10, 10, 0.96);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          border-bottom: 1px solid
+            rgba(255, 255, 255, 0.08);
           position: sticky;
           top: 0;
           z-index: 20;
@@ -610,7 +691,8 @@ export default function MobileLegendsGlobalPage() {
           width: 42px;
           height: 42px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid
+            rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.05);
           color: #fff;
           font-size: 24px;
@@ -646,7 +728,8 @@ export default function MobileLegendsGlobalPage() {
           height: 310px;
           overflow: hidden;
           border-radius: 22px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid
+            rgba(255, 255, 255, 0.1);
           background: #111;
         }
 
@@ -671,47 +754,49 @@ export default function MobileLegendsGlobalPage() {
         }
 
         .mobile-legends-banner-overlay span {
-          display: inline-block;
-          font-size: 12px;
-          font-weight: 800;
-          letter-spacing: 1.5px;
-          color: #ff4747;
-          margin-bottom: 5px;
-        }
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ff4747;
+  margin-bottom: 5px;
+}
 
-        .mobile-legends-banner-overlay h1 {
-          margin: 0;
-          font-size: clamp(28px, 5vw, 52px);
-          font-weight: 900;
-          line-height: 1;
-          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
-        }
+.mobile-legends-banner-overlay h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 4px 20px
+    rgba(0, 0, 0, 0.7);
+}
 
-        .mobile-legends-banner-overlay p {
-          margin: 8px 0 0;
-          color: #ddd;
-          font-size: 15px;
-        }
+.mobile-legends-banner-overlay p {
+  margin: 8px 0 0;
+  color: #ddd;
+  font-size: 15px;
+}
 
-        .mobile-legends-content {
-          width: 100%;
-          max-width: 1000px;
-          margin: 0 auto;
-          padding: 0 18px;
-        }
+.mobile-legends-content {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 18px;
+}
 
-        .mobile-legends-info {
-          display: flex;
-          align-items: flex-start;
-          gap: 15px;
-          padding: 18px;
-          border-radius: 18px;
-          background: #121212;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          margin-bottom: 15px;
-        }
+.mobile-legends-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 18px;
+  border-radius: 18px;
+  background: #121212;
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
+  margin-bottom: 15px;
+}
 
-        .mobile-legends-info-icon {
+.mobile-legends-info-icon {
   width: 45px;
   height: 45px;
   display: flex;
@@ -737,7 +822,8 @@ export default function MobileLegendsGlobalPage() {
 
 .mobile-legends-note {
   background: rgba(255, 170, 0, 0.06);
-  border: 1px solid rgba(255, 170, 0, 0.16);
+  border: 1px solid
+    rgba(255, 170, 0, 0.16);
   border-radius: 17px;
   padding: 17px;
   margin-bottom: 28px;
@@ -774,7 +860,8 @@ export default function MobileLegendsGlobalPage() {
 }
 
 .mobile-legends-toggle {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid
+    rgba(255, 255, 255, 0.12);
   background: #171717;
   color: #fff;
   padding: 10px 14px;
@@ -784,7 +871,10 @@ export default function MobileLegendsGlobalPage() {
 
 .mobile-legends-offers {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
   gap: 10px;
 }
 
@@ -795,7 +885,8 @@ export default function MobileLegendsGlobalPage() {
   justify-content: space-between;
   gap: 10px;
   padding: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   background: #121212;
   color: #fff;
@@ -887,7 +978,8 @@ export default function MobileLegendsGlobalPage() {
 .mobile-legends-confirmation,
 .mobile-legends-success {
   background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: 24px;
 }
@@ -923,7 +1015,8 @@ export default function MobileLegendsGlobalPage() {
   margin-bottom: 12px;
   border-radius: 16px;
   background: rgba(255, 50, 50, 0.07);
-  border: 1px solid rgba(255, 60, 60, 0.18);
+  border: 1px solid
+    rgba(255, 60, 60, 0.18);
 }
 
 .mobile-legends-selected > div:first-child {
@@ -992,7 +1085,8 @@ export default function MobileLegendsGlobalPage() {
   width: 100%;
   box-sizing: border-box;
   height: 50px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid
+    rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   outline: none;
   background: #181818;
@@ -1003,7 +1097,8 @@ export default function MobileLegendsGlobalPage() {
 
 .mobile-legends-form input:focus {
   border-color: #ff4141;
-  box-shadow: 0 0 0 3px rgba(255, 65, 65, 0.08);
+  box-shadow: 0 0 0 3px
+    rgba(255, 65, 65, 0.08);
 }
 
 .mobile-legends-help {
@@ -1025,7 +1120,8 @@ export default function MobileLegendsGlobalPage() {
   padding: 12px 14px;
   border-radius: 10px;
   background: rgba(255, 45, 45, 0.08);
-  border: 1px solid rgba(255, 60, 60, 0.2);
+  border: 1px solid
+    rgba(255, 60, 60, 0.2);
   color: #ff7b7b;
   font-size: 13px;
 }
@@ -1072,7 +1168,8 @@ export default function MobileLegendsGlobalPage() {
   text-align: left;
   border-radius: 15px;
   background: #181818;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid
+    rgba(255, 255, 255, 0.07);
   padding: 15px;
 }
 
@@ -1082,7 +1179,8 @@ export default function MobileLegendsGlobalPage() {
   flex-direction: column;
   gap: 4px;
   padding: 11px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid
+    rgba(255, 255, 255, 0.06);
 }
 
 .mobile-legends-confirmation-card > div:last-child,
@@ -1123,7 +1221,8 @@ export default function MobileLegendsGlobalPage() {
 .mobile-legends-cancel,
 .mobile-legends-new-button {
   height: 52px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid
+    rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   background: #181818;
   color: #fff;
@@ -1167,7 +1266,8 @@ export default function MobileLegendsGlobalPage() {
   padding: 22px;
   border-radius: 20px;
   background: #111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
 }
 
 .mobile-legends-service h2 {
@@ -1292,4 +1392,8 @@ export default function MobileLegendsGlobalPage() {
   .mobile-legends-service {
     padding: 17px;
   }
+}
+      `}</style>
+    </main>
+  );
 }
