@@ -1,23 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "../../lib/supabase";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSendCode(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
 
     setError("");
 
@@ -36,20 +33,11 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      /*
-       * Guardamos el correo ANTES de pasar a la siguiente página.
-       */
       sessionStorage.setItem(
         "reset_password_email",
         cleanEmail
       );
 
-      /*
-       * Solicitamos el código de recuperación.
-       *
-       * El correo de Supabase debe tener {{ .Token }}
-       * en la plantilla "Reset password".
-       */
       const { error: resetError } =
         await supabase.auth.resetPasswordForEmail(
           cleanEmail,
@@ -70,17 +58,11 @@ export default function ResetPasswordPage() {
             "NO SE PUDO ENVIAR EL CÓDIGO."
         );
 
+        setLoading(false);
         return;
       }
 
-      /*
-       * MUY IMPORTANTE:
-       * No esperamos ningún enlace de recuperación.
-       * Mandamos directamente al usuario
-       * a la página para introducir el código.
-       */
       router.push("/reset-password/code");
-
     } catch (error) {
       console.error(
         "ERROR RECUPERANDO CONTRASEÑA:",
@@ -93,112 +75,195 @@ export default function ResetPasswordPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">
+    <main className="auth-page login-page">
 
-      <div className="w-full max-w-md">
+      <div className="auth-background" />
+
+      <section className="auth-card login-card">
+
+        {/* BOTÓN ATRÁS */}
+
+        <button
+          type="button"
+          className="back-button auth-back-button login-back-button"
+          onClick={() => router.push("/login")}
+          disabled={loading}
+        >
+          <span className="back-arrow">
+            ←
+          </span>
+
+          <span>
+            ATRÁS
+          </span>
+        </button>
 
         {/* LOGO */}
-        <div className="text-center mb-8">
 
-          <div className="mx-auto mb-4 w-20 h-20 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/20">
+        <div className="login-logo">
 
-            <span className="text-4xl">
-              🛒
+          <div className="login-logo-cart">
+            🛒
+          </div>
+
+          <div className="login-logo-text">
+
+            <span>
+              STORE
             </span>
+
+            <strong>
+              GAMING
+            </strong>
 
           </div>
 
-          <h1 className="text-3xl font-black tracking-tight">
-            STORE{" "}
-            <span className="text-green-400">
-              GAMING
-            </span>
+        </div>
+
+        {/* ENCABEZADO */}
+
+        <div className="login-heading">
+
+          <p className="auth-small">
+            RECUPERACIÓN DE CUENTA
+          </p>
+
+          <h1 className="auth-title">
+            RECUPERAR <span>CONTRASEÑA</span>
           </h1>
 
-          <p className="text-gray-400 mt-2">
-            Recuperar contraseña
+          <div className="login-title-line" />
+
+          <p className="auth-description">
+            Introduce tu Gmail para recibir un
+            <strong> código de verificación</strong>.
           </p>
 
         </div>
 
-        {/* CARD */}
-        <div className="bg-[#101010] border border-white/10 rounded-2xl p-6 shadow-2xl">
+        {/* FORMULARIO */}
 
-          <h2 className="text-xl font-bold text-center mb-2">
-            RECUPERAR CONTRASEÑA
-          </h2>
+        <form
+          onSubmit={handleSendCode}
+          className="auth-form login-form"
+        >
 
-          <p className="text-sm text-gray-400 text-center mb-6">
-            Introduzca su Gmail para recibir un
-            código de verificación de 6 dígitos.
-          </p>
+          {/* GMAIL */}
 
-          <form
-            onSubmit={handleSendCode}
-            className="space-y-4"
-          >
+          <div className="login-field">
 
-            {/* GMAIL */}
-            <div>
+            <label htmlFor="reset-email">
+              GMAIL
+            </label>
 
-              <label
-                htmlFor="email"
-                className="block text-sm font-semibold text-gray-300 mb-2"
-              >
-                GMAIL
-              </label>
+            <div className="input-wrapper login-input-wrapper">
+
+              <span className="input-icon">
+                ✉
+              </span>
 
               <input
-                id="email"
+                id="reset-email"
                 type="email"
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
+                onChange={(event) =>
+                  setEmail(event.target.value)
                 }
-                placeholder="ejemplo@gmail.com"
+                placeholder="tucorreo@gmail.com"
                 autoComplete="email"
-                className="w-full h-12 rounded-xl bg-[#181818] border border-white/10 px-4 text-white placeholder-gray-600 outline-none focus:border-green-400 transition"
+                inputMode="email"
+                disabled={loading}
               />
 
             </div>
 
-            {/* ERROR */}
-            {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                {error}
-              </div>
-            )}
+          </div>
 
-            {/* BOTÓN */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-12 rounded-xl bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-black transition"
-            >
+          {/* ERROR */}
+
+          {error && (
+            <div className="auth-error login-message">
+
+              <span>
+                ⚠
+              </span>
+
+              <p>
+                {error}
+              </p>
+
+            </div>
+          )}
+
+          {/* VERIFICAR GMAIL */}
+
+          <button
+            type="submit"
+            className="auth-submit login-submit"
+            disabled={loading}
+          >
+
+            <span>
               {loading
                 ? "ENVIANDO CÓDIGO..."
                 : "VERIFICAR GMAIL"}
-            </button>
+            </span>
 
-          </form>
+            {!loading && (
+              <b>
+                →
+              </b>
+            )}
 
-          {/* VOLVER */}
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/login")
-            }
-            className="w-full mt-4 text-sm text-gray-400 hover:text-white transition"
-          >
-            ← VOLVER AL INICIO DE SESIÓN
           </button>
+
+        </form>
+
+        {/* DIVISOR */}
+
+        <div className="auth-divider login-divider">
+
+          <span />
+
+          <strong>
+            O
+          </strong>
+
+          <span />
 
         </div>
 
-      </div>
+        {/* INFORMACIÓN */}
+
+        <div className="login-register-area">
+
+          <p className="auth-register-text">
+            RECIBIRÁS UN CÓDIGO DE 6 DÍGITOS
+          </p>
+
+          <p
+            className="auth-description"
+            style={{
+              marginTop: "8px",
+              fontSize: "13px",
+            }}
+          >
+            Revisa tu bandeja de entrada y también
+            la carpeta de spam.
+          </p>
+
+        </div>
+
+        {/* PIE */}
+
+        <div className="login-footer">
+          STORE GAMING • RECUPERACIÓN SEGURA
+        </div>
+
+      </section>
 
     </main>
   );
