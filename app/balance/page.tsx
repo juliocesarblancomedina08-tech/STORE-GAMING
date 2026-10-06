@@ -97,8 +97,12 @@ export default function BalancePage() {
         <div className="balance-background" />
 
         <div className="balance-loading">
-          <div className="balance-loading-logo">🛒🎮</div>
+          <div className="balance-loading-logo">
+            🛒🎮
+          </div>
+
           <div className="balance-spinner" />
+
           <p>CARGANDO BILLETERA...</p>
         </div>
       </main>
@@ -128,7 +132,9 @@ export default function BalancePage() {
           </h1>
         </div>
 
-        <div className="balance-header-icon">💰</div>
+        <div className="balance-header-icon">
+          💰
+        </div>
       </header>
 
       {/* CONTENIDO */}
@@ -182,6 +188,7 @@ export default function BalancePage() {
 
           <span className="insert-balance-text">
             <strong>INSERTAR BALANCE</strong>
+
             <small>
               Deposita USDT en tu billetera
             </small>
@@ -260,6 +267,7 @@ export default function BalancePage() {
               event.stopPropagation()
             }
           >
+
             {/* INDICADOR SUPERIOR */}
             <div className="deposit-sheet-handle" />
 
@@ -283,11 +291,11 @@ export default function BalancePage() {
               </button>
             </div>
 
-            {/* MONTO */}
+            {/* ================================================= */}
+            {/* CAMPO DE CANTIDAD */}
+            {/* ================================================= */}
+
             <div className="deposit-amount-wrapper">
-              <label htmlFor="deposit-amount">
-                INSERTAR BALANCE
-              </label>
 
               <div className="deposit-amount-input">
                 <span>$</span>
@@ -304,19 +312,30 @@ export default function BalancePage() {
                     setDepositAmount(
                       event.target.value
                     );
+
                     setDepositError("");
                   }}
                 />
 
                 <span>USD</span>
               </div>
+
             </div>
 
+            {/* ================================================= */}
             {/* MÉTODO DE PAGO */}
+            {/* ================================================= */}
+
             <div className="deposit-networks-section deposit-single-method">
+
               <div className="deposit-networks-title">
-                <strong>MÉTODO DE PAGO</strong>
-                <span>USDT</span>
+                <strong>
+                  MÉTODO DE PAGO
+                </strong>
+
+                <span>
+                  USDT
+                </span>
               </div>
 
               <div className="deposit-networks">
@@ -325,25 +344,30 @@ export default function BalancePage() {
                 <div className="deposit-network-card selected">
 
                   <div className="deposit-network-icon tether-logo">
+
                     <img
-                      src="/images/usdt-logo.png"
-                      alt="Tether USDT"
+                      src="/images/usdt-bep20-logo.png"
+                      alt="USDT BEP20"
                     />
+
                   </div>
 
                   <div className="deposit-network-info">
+
                     <strong>
-                      Tether USD
+                      USDT BEP20
                     </strong>
 
                     <span>
                       BNB Smart Chain · BEP-20
                     </span>
+
                   </div>
 
                   <div className="deposit-network-check">
                     ✓
                   </div>
+
                 </div>
 
               </div>
@@ -363,7 +387,10 @@ export default function BalancePage() {
               onClick={confirmDeposit}
             >
               CONFIRMAR
-              <span>→</span>
+
+              <span>
+                →
+              </span>
             </button>
 
             {/* CANCELAR */}
@@ -377,7 +404,10 @@ export default function BalancePage() {
 
             {/* AVISO */}
             <div className="deposit-sheet-security">
-              <span>🛡️</span>
+
+              <span>
+                🛡️
+              </span>
 
               <p>
                 Envía únicamente USDT por la red
@@ -385,20 +415,27 @@ export default function BalancePage() {
                 Verifica la red antes de confirmar
                 el depósito.
               </p>
+
             </div>
+
           </section>
         </div>
       )}
 
-      {/* ESTILOS ESPECÍFICOS DEL DEPÓSITO */}
+      {/* ===================================================== */}
+      {/* ESTILOS DE LA VENTANA DE DEPÓSITO */}
+      {/* ===================================================== */}
+
       <style jsx global>{`
+
+        /* VENTANA */
 
         .balance-page .deposit-sheet {
           background:
             radial-gradient(
               circle at 50% 0%,
-              rgba(38,161,123,.13),
-              transparent 34%
+              rgba(38,161,123,.16),
+              transparent 36%
             ),
             linear-gradient(
               180deg,
@@ -406,19 +443,33 @@ export default function BalancePage() {
               #050505 100%
             );
 
-          border:1px solid rgba(38,161,123,.18);
+          border: 1px solid
+            rgba(38,161,123,.25);
 
           box-shadow:
-            0 -28px 80px rgba(0,0,0,.85),
-            0 -4px 30px rgba(38,161,123,.10);
+            0 -28px 80px
+            rgba(0,0,0,.85),
+
+            0 -4px 30px
+            rgba(38,161,123,.14);
         }
 
-        .balance-page .deposit-sheet-header h2 span {
+        /* TITULO */
+
+        .balance-page
+        .deposit-sheet-header h2 span {
           color:#26a17b;
         }
 
-        .balance-page .deposit-amount-wrapper {
-          border:1px solid rgba(255,255,255,.12);
+        /* CAMPO DE CANTIDAD */
+
+        .balance-page
+        .deposit-amount-wrapper {
+
+          padding:0;
+
+          border:1px solid
+            rgba(255,255,255,.12);
 
           background:
             linear-gradient(
@@ -428,94 +479,139 @@ export default function BalancePage() {
             );
 
           box-shadow:
-            inset 0 1px rgba(255,255,255,.04),
-            0 12px 28px rgba(0,0,0,.35);
+            inset 0 1px
+            rgba(255,255,255,.04),
+
+            0 12px 28px
+            rgba(0,0,0,.35);
+
+          border-radius:16px;
         }
 
-        .balance-page .deposit-amount-wrapper label {
-          color:#fff;
-          letter-spacing:.7px;
-          font-weight:950;
-        }
-
-        .balance-page .deposit-amount-input {
-          display:flex;
-          align-items:center;
-          gap:10px;
-
-          min-height:58px;
-          padding:0 15px;
-
-          border-radius:14px;
-
-          background:#0b0b0b;
-
-          border:1px solid rgba(255,255,255,.08);
-        }
-
-        .balance-page .deposit-amount-input input {
-          flex:1;
-          min-width:0;
-
-          background:transparent;
-          border:0;
-          outline:0;
-
-          color:#fff;
-
-          font-size:21px;
-          font-weight:900;
-        }
+        /* RENGÓN PARA ESCRIBIR */
 
         .balance-page
-        .deposit-amount-input
-        input::placeholder {
-          color:#555;
-          opacity:1;
+        .deposit-amount-input {
+
+          display:flex;
+
+          align-items:center;
+
+          gap:10px;
+
+          min-height:60px;
+
+          padding:0 16px;
+
+          border-radius:15px;
+
+          background:#090909;
+
+          border:1px solid
+            rgba(255,255,255,.08);
         }
+
+        /* SIGNO $ */
 
         .balance-page
         .deposit-amount-input
         > span:first-child {
+
           color:#26a17b;
+
+          font-size:22px;
+
           font-weight:950;
         }
+
+        /* INPUT */
+
+        .balance-page
+        .deposit-amount-input input {
+
+          flex:1;
+
+          min-width:0;
+
+          background:transparent;
+
+          border:0;
+
+          outline:0;
+
+          color:#fff;
+
+          font-size:22px;
+
+          font-weight:900;
+        }
+
+        /* PLACEHOLDER */
+
+        .balance-page
+        .deposit-amount-input
+        input::placeholder {
+
+          color:#555;
+
+          opacity:1;
+        }
+
+        /* USD */
 
         .balance-page
         .deposit-amount-input
         > span:last-child {
+
           color:#26a17b;
-          font-size:10px;
+
+          font-size:11px;
+
           font-weight:950;
         }
+
+        /* MÉTODO ÚNICO */
 
         .balance-page
         .deposit-single-method
         .deposit-network-card {
-          min-height:78px;
+
+          min-height:82px;
 
           border-color:
-            rgba(38,161,123,.42);
+            rgba(38,161,123,.48);
 
           background:
             linear-gradient(
               145deg,
-              rgba(38,161,123,.12),
+              rgba(38,161,123,.14),
               #0a0a0a
             );
 
           box-shadow:
-            0 12px 28px rgba(0,0,0,.38),
-            0 0 18px rgba(38,161,123,.08);
+
+            0 12px 28px
+            rgba(0,0,0,.38),
+
+            0 0 20px
+            rgba(38,161,123,.10);
         }
 
-        .balance-page .tether-logo {
-          width:48px;
-          height:48px;
-          flex:0 0 48px;
+        /* LOGO USDT + BEP20 */
+
+        .balance-page
+        .tether-logo {
+
+          width:52px;
+
+          height:52px;
+
+          flex:0 0 52px;
 
           display:flex;
+
           align-items:center;
+
           justify-content:center;
 
           border-radius:50%;
@@ -523,45 +619,60 @@ export default function BalancePage() {
           background:#26a17b;
 
           border:2px solid
-            rgba(255,255,255,.12);
+            rgba(255,255,255,.15);
 
           box-shadow:
-            0 0 18px
-            rgba(38,161,123,.28);
+            0 0 20px
+            rgba(38,161,123,.32);
 
           overflow:hidden;
         }
 
-        .balance-page .tether-logo img {
+        .balance-page
+        .tether-logo img {
+
           width:100%;
+
           height:100%;
 
-          object-fit:contain;
+          object-fit:cover;
 
-          padding:7px;
+          padding:0;
+        }
+
+        /* TEXTO MÉTODO */
+
+        .balance-page
+        .deposit-network-info strong {
+
+          font-size:15px;
+
+          color:#fff;
         }
 
         .balance-page
-        .deposit-network-info
-        strong {
-          font-size:14px;
-        }
+        .deposit-network-info span {
 
-        .balance-page
-        .deposit-network-info
-        span {
           color:#26a17b;
+
           font-weight:800;
         }
 
-        .balance-page .deposit-network-check {
-          width:28px;
-          height:28px;
+        /* CHECK */
+
+        .balance-page
+        .deposit-network-check {
+
+          width:29px;
+
+          height:29px;
 
           border-radius:50%;
 
           display:flex;
+
           align-items:center;
+
           justify-content:center;
 
           background:#26a17b;
@@ -569,10 +680,17 @@ export default function BalancePage() {
           color:#03140f;
 
           font-weight:950;
+
+          box-shadow:
+            0 0 12px
+            rgba(38,161,123,.25);
         }
+
+        /* BOTÓN CONFIRMAR */
 
         .balance-page
         .deposit-confirm-button {
+
           background:
             linear-gradient(
               135deg,
@@ -584,22 +702,28 @@ export default function BalancePage() {
             rgba(75,220,171,.55);
 
           box-shadow:
+
             0 14px 32px
             rgba(38,161,123,.22),
+
             inset 0 1px
             rgba(255,255,255,.16);
         }
 
+        /* AVISO DE SEGURIDAD */
+
         .balance-page
         .deposit-sheet-security {
+
           border-color:
-            rgba(38,161,123,.12);
+            rgba(38,161,123,.14);
 
           background:
-            rgba(38,161,123,.045);
+            rgba(38,161,123,.05);
         }
 
       `}</style>
+
     </main>
   );
-  }
+        }
