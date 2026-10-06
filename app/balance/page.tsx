@@ -296,17 +296,25 @@ export default function BalancePage() {
             {/* ================================================= */}
 
             <div className="deposit-amount-wrapper">
+
               <div className="deposit-amount-input">
 
-                <span>$</span>
+                {/* LOGO */}
+                <div className="deposit-input-logo">
+                  <img
+                    src="/images/usdt-bep20-logo.png"
+                    alt="USDT BEP20"
+                  />
+                </div>
 
+                {/* CANTIDAD */}
                 <input
                   id="deposit-amount"
                   type="number"
                   inputMode="decimal"
                   min="0.01"
                   step="0.01"
-                  placeholder="00000"
+                  placeholder="0000"
                   value={depositAmount}
                   onChange={(event) => {
                     setDepositAmount(
@@ -317,7 +325,10 @@ export default function BalancePage() {
                   }}
                 />
 
-                <span>USD</span>
+                {/* USD */}
+                <span className="deposit-input-usd">
+                  USD
+                </span>
 
               </div>
             </div>
@@ -423,10 +434,14 @@ export default function BalancePage() {
       )}
 
       {/* ===================================================== */}
-      {/* ESTILOS DE LA VENTANA DE DEPÓSITO */}
+      {/* ESTILOS */}
       {/* ===================================================== */}
 
       <style jsx global>{`
+
+        /* ================================================= */
+        /* VENTANA DE DEPÓSITO */
+        /* ================================================= */
 
         .balance-page .deposit-sheet {
           background:
@@ -452,12 +467,18 @@ export default function BalancePage() {
             rgba(38,161,123,.14);
         }
 
+        /* ================================================= */
+        /* TITULO */
+        /* ================================================= */
+
         .balance-page
         .deposit-sheet-header h2 span {
           color:#26a17b;
         }
 
-        /* CAMPO DE CANTIDAD */
+        /* ================================================= */
+        /* BARRA DE CANTIDAD */
+        /* ================================================= */
 
         .balance-page
         .deposit-amount-wrapper {
@@ -482,6 +503,8 @@ export default function BalancePage() {
             rgba(0,0,0,.35);
 
           border-radius:16px;
+
+          overflow:hidden;
         }
 
         .balance-page
@@ -491,11 +514,11 @@ export default function BalancePage() {
 
           align-items:center;
 
-          gap:10px;
+          gap:14px;
 
-          min-height:60px;
+          min-height:64px;
 
-          padding:0 16px;
+          padding:0 14px;
 
           border-radius:15px;
 
@@ -505,16 +528,51 @@ export default function BalancePage() {
             rgba(255,255,255,.08);
         }
 
+        /* ================================================= */
+        /* LOGO DENTRO DEL RENGLÓN */
+        /* ================================================= */
+
         .balance-page
-        .deposit-amount-input
-        > span:first-child {
+        .deposit-input-logo {
 
-          color:#26a17b;
+          width:44px;
 
-          font-size:22px;
+          height:44px;
 
-          font-weight:950;
+          flex:0 0 44px;
+
+          display:flex;
+
+          align-items:center;
+
+          justify-content:center;
+
+          border-radius:50%;
+
+          overflow:hidden;
+
+          background:#26a17b;
+
+          box-shadow:
+            0 0 18px
+            rgba(38,161,123,.30);
         }
+
+        .balance-page
+        .deposit-input-logo img {
+
+          width:100%;
+
+          height:100%;
+
+          object-fit:cover;
+
+          display:block;
+        }
+
+        /* ================================================= */
+        /* NÚMERO */
+        /* ================================================= */
 
         .balance-page
         .deposit-amount-input input {
@@ -545,18 +603,25 @@ export default function BalancePage() {
           opacity:1;
         }
 
+        /* ================================================= */
+        /* USD */
+        /* ================================================= */
+
         .balance-page
-        .deposit-amount-input
-        > span:last-child {
+        .deposit-input-usd {
 
           color:#26a17b;
 
           font-size:11px;
 
           font-weight:950;
+
+          flex-shrink:0;
         }
 
-        /* MÉTODO ÚNICO */
+        /* ================================================= */
+        /* MÉTODO DE PAGO */
+        /* ================================================= */
 
         .balance-page
         .deposit-single-method
@@ -583,7 +648,9 @@ export default function BalancePage() {
             rgba(38,161,123,.10);
         }
 
-        /* LOGO USDT BEP20 */
+        /* ================================================= */
+        /* LOGO USDT BEP20 DEL MÉTODO */
+        /* ================================================= */
 
         .balance-page
         .tether-logo {
@@ -624,9 +691,13 @@ export default function BalancePage() {
           object-fit:cover;
 
           padding:0;
+
+          display:block;
         }
 
-        /* TEXTO MÉTODO */
+        /* ================================================= */
+        /* TEXTO DEL MÉTODO */
+        /* ================================================= */
 
         .balance-page
         .deposit-network-info strong {
@@ -644,7 +715,9 @@ export default function BalancePage() {
           font-weight:800;
         }
 
+        /* ================================================= */
         /* CHECK */
+        /* ================================================= */
 
         .balance-page
         .deposit-network-check {
@@ -672,7 +745,9 @@ export default function BalancePage() {
             rgba(38,161,123,.25);
         }
 
+        /* ================================================= */
         /* BOTÓN CONFIRMAR */
+        /* ================================================= */
 
         .balance-page
         .deposit-confirm-button {
@@ -696,7 +771,9 @@ export default function BalancePage() {
             rgba(255,255,255,.16);
         }
 
+        /* ================================================= */
         /* AVISO DE SEGURIDAD */
+        /* ================================================= */
 
         .balance-page
         .deposit-sheet-security {
@@ -712,4 +789,4 @@ export default function BalancePage() {
 
     </main>
   );
-      }
+          }
