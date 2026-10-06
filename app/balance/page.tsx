@@ -299,15 +299,6 @@ export default function BalancePage() {
 
               <div className="deposit-amount-input">
 
-                {/* LOGO */}
-                <div className="deposit-input-logo">
-                  <img
-                    src="/images/usdt-bep20-logo.png"
-                    alt="USDT BEP20"
-                  />
-                </div>
-
-                {/* CANTIDAD */}
                 <input
                   id="deposit-amount"
                   type="number"
@@ -325,12 +316,12 @@ export default function BalancePage() {
                   }}
                 />
 
-                {/* USD */}
                 <span className="deposit-input-usd">
                   USD
                 </span>
 
               </div>
+
             </div>
 
             {/* ================================================= */}
@@ -518,7 +509,7 @@ export default function BalancePage() {
 
           min-height:64px;
 
-          padding:0 14px;
+          padding:0 16px;
 
           border-radius:15px;
 
@@ -526,48 +517,6 @@ export default function BalancePage() {
 
           border:1px solid
             rgba(255,255,255,.08);
-        }
-
-        /* ================================================= */
-        /* LOGO DENTRO DEL RENGLÓN */
-        /* ================================================= */
-
-        .balance-page
-        .deposit-input-logo {
-
-          width:44px;
-
-          height:44px;
-
-          flex:0 0 44px;
-
-          display:flex;
-
-          align-items:center;
-
-          justify-content:center;
-
-          border-radius:50%;
-
-          overflow:hidden;
-
-          background:#26a17b;
-
-          box-shadow:
-            0 0 18px
-            rgba(38,161,123,.30);
-        }
-
-        .balance-page
-        .deposit-input-logo img {
-
-          width:100%;
-
-          height:100%;
-
-          object-fit:cover;
-
-          display:block;
         }
 
         /* ================================================= */
@@ -649,7 +598,7 @@ export default function BalancePage() {
         }
 
         /* ================================================= */
-        /* LOGO USDT BEP20 DEL MÉTODO */
+        /* LOGO USDT BEP20 */
         /* ================================================= */
 
         .balance-page
