@@ -13,41 +13,20 @@ const supabaseAdmin = createClient(
 
 export const dynamic = "force-dynamic";
 
-/* =====================================================
-   VERIFICAR FIRMA DE FAZERCARDS
-===================================================== */
-function verifySignature(
-  rawBody: string,
-  signature: string
-): boolean {
-  if (!FAZER_WEBHOOK_SECRET || !signature) {
-    return false;
-  }
+function verifySignature(rawBody: string, signature: string): boolean {
+  if (!FAZER_WEBHOOK_SECRET || !signature) return false;
 
   const expected =
     "sha256=" +
     crypto
-      .createHmac(
-        "sha256",
-        FAZER_WEBHOOK_SECRET
-      )
+      .createHmac("sha256", FAZER_WEBHOOK_SECRET)
       .update(rawBody)
       .digest("hex");
 
-  const expectedBuffer = Buffer.from(
-    expected,
-    "utf8"
-  );
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  const signatureBuffer = Buffer.from(signature.trim(), "utf8");
 
-  const signatureBuffer = Buffer.from(
-    signature.trim(),
-    "utf8"
-  );
-
-  if (
-    expectedBuffer.length !==
-    signatureBuffer.length
-  ) {
+  if (expectedBuffer.length !== signatureBuffer.length) {
     return false;
   }
 
@@ -57,28 +36,19 @@ function verifySignature(
   );
 }
 
-/* =====================================================
-   EXTRAER ORDER ID
-===================================================== */
-function extractSupplierOrderId(
-  payload: any
-): string {
+function extractSupplierOrderId(payload: any): string {
   const candidates = [
     payload?.data?.order_id,
     payload?.data?.orderId,
     payload?.data?.id,
-
     payload?.order_id,
     payload?.orderId,
-
     payload?.data?.order?.id,
     payload?.data?.order?.order_id,
     payload?.data?.order?.orderId,
-
     payload?.order?.id,
     payload?.order?.order_id,
     payload?.order?.orderId,
-
     payload?.id,
   ];
 
@@ -101,22 +71,14 @@ function extractSupplierOrderId(
   return "";
 }
 
-/* =====================================================
-   EXTRAER STATUS
-===================================================== */
-function extractSupplierStatus(
-  payload: any
-): string {
+function extractSupplierStatus(payload: any): string {
   const candidates = [
     payload?.data?.status,
     payload?.status,
-
     payload?.data?.order?.status,
     payload?.order?.status,
-
     payload?.data?.order?.state,
     payload?.order?.state,
-
     payload?.data?.order_status,
     payload?.order_status,
   ];
@@ -126,21 +88,14 @@ function extractSupplierStatus(
       typeof candidate === "string" &&
       candidate.trim()
     ) {
-      return candidate
-        .trim()
-        .toLowerCase();
+      return candidate.trim().toLowerCase();
     }
   }
 
   return "";
 }
 
-/* =====================================================
-   EXTRAER EVENTO
-===================================================== */
-function extractEvent(
-  payload: any
-): string {
+function extractEvent(payload: any): string {
   const event =
     payload?.event ??
     payload?.type ??
@@ -151,21 +106,15 @@ function extractEvent(
     return "";
   }
 
-  return event
-    .trim()
-    .toLowerCase();
+  return event.trim().toLowerCase();
 }
 
-/* =====================================================
-   ESTADO INTERNO
-===================================================== */
 function getInternalStatus(
   supplierStatus: string
 ): string {
-  const normalized =
-    supplierStatus
-      .trim()
-      .toLowerCase();
+  const normalized = supplierStatus
+    .trim()
+    .toLowerCase();
 
   if (
     normalized === "processing" ||
@@ -183,19 +132,13 @@ function getInternalStatus(
     return "PENDING";
   }
 
-  if (
-    normalized === "confirmed"
-  ) {
+  if (normalized === "confirmed") {
     return "CONFIRMED";
   }
 
   return "PENDING";
 }
 
-/* =====================================================
-   CREAR NOTIFICACIÓN
-   Si falla la notificación, no bloquea el webhook.
-===================================================== */
 async function createNotification(
   userId: string,
   title: string,
@@ -230,22 +173,12 @@ async function createNotification(
   }
 }
 
-/* =====================================================
-   WEBHOOK
-===================================================== */
 export async function POST(
   request: NextRequest
 ) {
   try {
-    /* =================================================
-       1. LEER BODY RAW
-    ================================================= */
-    const rawBody =
-      await request.text();
+    const rawBody = await request.text();
 
-    /* =================================================
-       2. OBTENER FIRMA
-    ================================================= */
     const signature =
       request.headers.get(
         "x-webhook-signature"
@@ -255,9 +188,6 @@ export async function POST(
       ) ||
       "";
 
-    /* =================================================
-       3. VERIFICAR FIRMA
-    ================================================= */
     if (
       !verifySignature(
         rawBody,
@@ -270,20 +200,14 @@ export async function POST(
 
       return new NextResponse(
         "Invalid signature",
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
 
-    /* =================================================
-       4. PARSEAR JSON
-    ================================================= */
     let payload: any;
 
     try {
-      payload =
-        JSON.parse(rawBody);
+      payload = JSON.parse(rawBody);
     } catch (error) {
       console.error(
         "FAZERCARDS WEBHOOK: JSON INVÁLIDO",
@@ -292,27 +216,18 @@ export async function POST(
 
       return new NextResponse(
         "Invalid JSON",
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
-    /* =================================================
-       5. EXTRAER INFORMACIÓN
-    ================================================= */
     const event =
       extractEvent(payload);
 
     const supplierOrderId =
-      extractSupplierOrderId(
-        payload
-      );
+      extractSupplierOrderId(payload);
 
     let status =
-      extractSupplierStatus(
-        payload
-      );
+      extractSupplierStatus(payload);
 
     console.log(
       "========== FAZERCARDS WEBHOOK =========="
@@ -329,9 +244,6 @@ export async function POST(
       JSON.stringify(payload)
     );
 
-    /* =================================================
-       6. VALIDAR ORDER ID
-    ================================================= */
     if (!supplierOrderId) {
       console.error(
         "FAZERCARDS: ORDER ID NO ENCONTRADO"
@@ -340,26 +252,21 @@ export async function POST(
       return NextResponse.json({
         ok: true,
         action: "IGNORED",
-        reason:
-          "ORDER_ID_NOT_FOUND",
+        reason: "ORDER_ID_NOT_FOUND",
       });
     }
 
-    /* =================================================
-       7. BUSCAR ORDEN INTERNA
-    ================================================= */
     const {
       data: internalOrder,
       error: orderError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .select("*")
-        .eq(
-          "supplier_order_id",
-          supplierOrderId
-        )
-        .maybeSingle();
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .select("*")
+      .eq(
+        "supplier_order_id",
+        supplierOrderId
+      )
+      .maybeSingle();
 
     if (orderError) {
       console.error(
@@ -369,15 +276,10 @@ export async function POST(
 
       return new NextResponse(
         "Database error",
-        {
-          status: 500,
-        }
+        { status: 500 }
       );
     }
 
-    /* =================================================
-       8. ORDEN NO ENCONTRADA
-    ================================================= */
     if (!internalOrder) {
       console.error(
         "ORDEN INTERNA NO ENCONTRADA:",
@@ -387,30 +289,24 @@ export async function POST(
       return NextResponse.json({
         ok: true,
         action: "IGNORED",
-        reason:
-          "ORDER_NOT_FOUND",
+        reason: "ORDER_NOT_FOUND",
         supplierOrderId,
       });
     }
 
-    /* =================================================
-       9. GUARDAR WEBHOOK COMPLETO
-    ================================================= */
     const {
       error: responseError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          supplier_response:
-            payload,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          internalOrder.id
-        );
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .update({
+        supplier_response: payload,
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        internalOrder.id
+      );
 
     if (responseError) {
       console.error(
@@ -420,18 +316,12 @@ export async function POST(
 
       return new NextResponse(
         "Database error",
-        {
-          status: 500,
-        }
+        { status: 500 }
       );
     }
 
-    /* =================================================
-       10. EVENTOS SOPORTADOS
-    ================================================= */
     const supportedEvent =
-      event ===
-        "order.status_changed" ||
+      event === "order.status_changed" ||
       event === "order.created" ||
       event === "order.processing" ||
       event === "order.confirmed" ||
@@ -452,15 +342,14 @@ export async function POST(
         action: "IGNORED",
         event,
         status,
-        orderId:
-          internalOrder.id,
+        orderId: internalOrder.id,
         supplierOrderId,
       });
     }
 
-    /* =================================================
-       11. EVENTOS EXPLÍCITOS
-    ================================================= */
+    /*
+     * Normalizamos los eventos de Fazercards.
+     */
 
     if (
       event === "order.processing"
@@ -505,9 +394,6 @@ export async function POST(
       status = "refunded";
     }
 
-    /* =================================================
-       12. ESTADO ACTUAL
-    ================================================= */
     const currentStatus =
       String(
         internalOrder.status || ""
@@ -515,12 +401,12 @@ export async function POST(
         .trim()
         .toUpperCase();
 
-    /* =================================================
-       13. COMPLETED ES FINAL
-    ================================================= */
+    /*
+     * Si ya fue completada, no hacemos nada.
+     */
+
     if (
-      currentStatus ===
-      "COMPLETED"
+      currentStatus === "COMPLETED"
     ) {
       console.log(
         "ORDEN YA COMPLETADA. WEBHOOK IGNORADO."
@@ -528,22 +414,20 @@ export async function POST(
 
       return NextResponse.json({
         ok: true,
-        action:
-          "ALREADY_COMPLETED",
-        orderId:
-          internalOrder.id,
+        action: "ALREADY_COMPLETED",
+        orderId: internalOrder.id,
         supplierOrderId,
-        status:
-          "COMPLETED",
+        status: "COMPLETED",
       });
     }
 
-    /* =================================================
-       14. REFUNDED ES FINAL
-    ================================================= */
+    /*
+     * Si ya fue reembolsada, no volvemos
+     * a devolver el dinero.
+     */
+
     if (
-      currentStatus ===
-      "REFUNDED"
+      currentStatus === "REFUNDED"
     ) {
       console.log(
         "ORDEN YA REEMBOLSADA. WEBHOOK IGNORADO."
@@ -551,19 +435,17 @@ export async function POST(
 
       return NextResponse.json({
         ok: true,
-        action:
-          "ALREADY_REFUNDED",
-        orderId:
-          internalOrder.id,
+        action: "ALREADY_REFUNDED",
+        orderId: internalOrder.id,
         supplierOrderId,
-        status:
-          "REFUNDED",
+        status: "REFUNDED",
       });
     }
 
-    /* =================================================
-       15. COMPLETED / SUCCESS
-    ================================================= */
+    /*
+     * PEDIDO COMPLETADO
+     */
+
     if (
       status === "completed" ||
       status === "complete" ||
@@ -574,14 +456,13 @@ export async function POST(
     ) {
       const {
         error: completeError,
-      } =
-        await supabaseAdmin.rpc(
-          "complete_topup_order",
-          {
-            p_supplier_order_id:
-              supplierOrderId,
-          }
-        );
+      } = await supabaseAdmin.rpc(
+        "complete_topup_order",
+        {
+          p_supplier_order_id:
+            supplierOrderId,
+        }
+      );
 
       if (completeError) {
         console.error(
@@ -591,9 +472,7 @@ export async function POST(
 
         return new NextResponse(
           "Database error",
-          {
-            status: 500,
-          }
+          { status: 500 }
         );
       }
 
@@ -612,32 +491,22 @@ export async function POST(
       return NextResponse.json({
         ok: true,
         action: "UPDATED",
-        orderId:
-          internalOrder.id,
+        orderId: internalOrder.id,
         supplierOrderId,
-        status:
-          "COMPLETED",
+        status: "COMPLETED",
       });
     }
 
-    /* =================================================
-       16. REFUNDED / FAILED / CANCELLED
+    /*
+     * PEDIDO REEMBOLSADO / FALLIDO / CANCELADO
+     *
+     * IMPORTANTE:
+     * Fazercards está enviando "refund",
+     * no solamente "refunded".
+     */
 
-       Estos estados devuelven el saldo mediante:
-
-       fail_topup_order()
-             ↓
-       refund_topup_balance()
-             ↓
-       + retail_price al balance
-             ↓
-       transactions = REFUND
-             ↓
-       topup_orders = REFUNDED
-
-       El RPC protege contra doble reembolso.
-    ================================================= */
     if (
+      status === "refund" ||
       status === "refunded" ||
       status === "failed" ||
       status === "failure" ||
@@ -649,14 +518,13 @@ export async function POST(
       const {
         data: refundResult,
         error: refundError,
-      } =
-        await supabaseAdmin.rpc(
-          "fail_topup_order",
-          {
-            p_supplier_order_id:
-              supplierOrderId,
-          }
-        );
+      } = await supabaseAdmin.rpc(
+        "fail_topup_order",
+        {
+          p_supplier_order_id:
+            supplierOrderId,
+        }
+      );
 
       if (refundError) {
         console.error(
@@ -666,9 +534,7 @@ export async function POST(
 
         return new NextResponse(
           "Database error",
-          {
-            status: 500,
-          }
+          { status: 500 }
         );
       }
 
@@ -690,10 +556,14 @@ export async function POST(
       console.log({
         internalOrderId:
           internalOrder.id,
+
         supplierOrderId,
+
         supplierStatus:
           status,
+
         refundResult,
+
         refundedAmount:
           internalOrder.retail_price,
       });
@@ -705,37 +575,34 @@ export async function POST(
       return NextResponse.json({
         ok: true,
         action: "REFUNDED",
-        orderId:
-          internalOrder.id,
+        orderId: internalOrder.id,
         supplierOrderId,
-        status:
-          "REFUNDED",
+        status: "REFUNDED",
         refundedAmount:
           internalOrder.retail_price,
       });
     }
 
-    /* =================================================
-       17. ESTADOS INTERMEDIOS
-    ================================================= */
+    /*
+     * ESTADOS INTERMEDIOS
+     */
+
     const internalStatus =
       getInternalStatus(status);
 
     const {
       error: intermediateError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          status:
-            internalStatus,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          internalOrder.id
-        );
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .update({
+        status: internalStatus,
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        internalOrder.id
+      );
 
     if (intermediateError) {
       console.error(
@@ -745,9 +612,7 @@ export async function POST(
 
       return new NextResponse(
         "Database error",
-        {
-          status: 500,
-        }
+        { status: 500 }
       );
     }
 
@@ -756,9 +621,12 @@ export async function POST(
       {
         internalOrderId:
           internalOrder.id,
+
         supplierOrderId,
+
         supplierStatus:
           status,
+
         internalStatus,
       }
     );
@@ -766,11 +634,9 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       action: "UPDATED",
-      orderId:
-        internalOrder.id,
+      orderId: internalOrder.id,
       supplierOrderId,
-      status:
-        internalStatus,
+      status: internalStatus,
     });
   } catch (error) {
     console.error(
@@ -780,9 +646,7 @@ export async function POST(
 
     return new NextResponse(
       "Internal server error",
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
-        }
+    }
