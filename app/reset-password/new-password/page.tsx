@@ -1,235 +1,418 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "../../../lib/supabase";
 
 export default function NewPasswordPage() {
   const router = useRouter();
 
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
-
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const checkRecoverySession = async () => {
+    async function checkRecoverySession() {
       try {
         const verified =
-          sessionStorage.getItem("reset_password_verified");
+          sessionStorage.getItem(
+            "reset_password_verified"
+          );
 
         if (verified !== "true") {
           router.replace("/reset-password");
           return;
         }
 
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data, error: sessionError } =
+          await supabase.auth.getSession();
 
-        if (!session) {
-          sessionStorage.removeItem("reset_password_verified");
+        if (
+          sessionError ||
+          !data.session
+        ) {
+          sessionStorage.removeItem(
+            "reset_password_verified"
+          );
+
           router.replace("/reset-password");
           return;
         }
 
-        setCheckingSession(false);
+        setChecking(false);
       } catch (error) {
-        console.error(error);
+        console.error(
+          "ERROR COMPROBANDO SESIÓN:",
+          error
+        );
+
         router.replace("/reset-password");
       }
-    };
+    }
 
     checkRecoverySession();
   }, [router]);
 
-  const handleContinue = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleChangePassword(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
 
     setError("");
-    setSuccess("");
 
     if (!password) {
-      setError("Ponga una contraseña.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+      setError(
+        "PONGA SU CONTRASEÑA."
+      );
       return;
     }
 
     if (!repeatPassword) {
-      setError("Repita su contraseña.");
+      setError(
+        "REPITA SU CONTRASEÑA."
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      setError(
+        "LA CONTRASEÑA DEBE TENER AL MENOS 6 CARACTERES."
+      );
       return;
     }
 
     if (password !== repeatPassword) {
-      setError("Las contraseñas no coinciden.");
+      setError(
+        "LAS CONTRASEÑAS NO COINCIDEN."
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { error: updateError } =
+        await supabase.auth.updateUser({
+          password,
+        });
 
-      if (!session) {
-        setError(
-          "La sesión de recuperación expiró. Solicite un nuevo código."
+      if (updateError) {
+        console.error(
+          "ERROR ACTUALIZANDO CONTRASEÑA:",
+          updateError
         );
+
+        setError(
+          updateError.message ||
+            "NO SE PUDO CAMBIAR LA CONTRASEÑA."
+        );
+
+        setLoading(false);
         return;
       }
 
-      const { error } = await supabase.auth.updateUser({
-        password,
-      });
+      sessionStorage.removeItem(
+        "reset_password_verified"
+      );
 
-      if (error) {
-        setError(error.message);
-        return;
-      }
+      sessionStorage.removeItem(
+        "reset_password_email"
+      );
 
-      setSuccess("Contraseña actualizada correctamente.");
-
-      sessionStorage.removeItem("reset_password_email");
-      sessionStorage.removeItem("reset_password_verified");
-
-      setTimeout(() => {
-        router.replace("/home");
-      }, 1000);
+      router.push("/home");
     } catch (error) {
-      console.error(error);
-      setError("No se pudo actualizar la contraseña.");
-    } finally {
+      console.error(
+        "ERROR CAMBIANDO CONTRASEÑA:",
+        error
+      );
+
+      setError(
+        "OCURRIÓ UN ERROR. INTENTE NUEVAMENTE."
+      );
+
       setLoading(false);
     }
-  };
+  }
 
-  if (checkingSession) {
+  if (checking) {
     return (
-      <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 rounded-full border-4 border-white/10 border-t-green-400 animate-spin" />
+      <main className="auth-page login-page">
+        <div className="auth-background" />
 
-          <p className="text-gray-400">
-            Verificando sesión...
-          </p>
-        </div>
+        <section className="auth-card login-card">
+
+          <div className="login-logo">
+
+            <div className="login-logo-cart">
+              🛒
+            </div>
+
+            <div className="login-logo-text">
+              <span>
+                STORE
+              </span>
+
+              <strong>
+                GAMING
+              </strong>
+            </div>
+
+          </div>
+
+          <div className="login-heading">
+
+            <p className="auth-small">
+              STORE GAMING
+            </p>
+
+            <h1 className="auth-title">
+              VERIFICANDO <span>CUENTA</span>
+            </h1>
+
+            <div className="login-title-line" />
+
+            <p className="auth-description">
+              COMPROBANDO LA SESIÓN DE RECUPERACIÓN...
+            </p>
+
+          </div>
+
+          <div className="login-footer">
+            STORE GAMING • RECUPERACIÓN SEGURA
+          </div>
+
+        </section>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <main className="auth-page login-page">
+
+      <div className="auth-background" />
+
+      <section className="auth-card login-card">
+
+        {/* BOTÓN ATRÁS */}
+
+        <button
+          type="button"
+          className="back-button auth-back-button login-back-button"
+          onClick={() =>
+            router.push("/reset-password/code")
+          }
+          disabled={loading}
+        >
+          <span className="back-arrow">
+            ←
+          </span>
+
+          <span>
+            ATRÁS
+          </span>
+        </button>
 
         {/* LOGO */}
-        <div className="text-center mb-8">
-          <div className="mx-auto mb-4 w-20 h-20 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/20">
-            <span className="text-4xl">🛒</span>
+
+        <div className="login-logo">
+
+          <div className="login-logo-cart">
+            🛒
           </div>
 
-          <h1 className="text-3xl font-black tracking-tight">
-            STORE <span className="text-green-400">GAMING</span>
-          </h1>
+          <div className="login-logo-text">
 
-          <p className="text-gray-400 mt-2">
-            Nueva contraseña
-          </p>
+            <span>
+              STORE
+            </span>
+
+            <strong>
+              GAMING
+            </strong>
+
+          </div>
+
         </div>
 
-        {/* CARD */}
-        <div className="bg-[#101010] border border-white/10 rounded-2xl p-6 shadow-2xl">
+        {/* ENCABEZADO */}
 
-          <h2 className="text-xl font-bold text-center mb-2">
-            CAMBIAR CONTRASEÑA
-          </h2>
+        <div className="login-heading">
 
-          <p className="text-sm text-gray-400 text-center mb-6">
-            Introduzca su nueva contraseña para continuar.
+          <p className="auth-small">
+            SEGURIDAD DE CUENTA
           </p>
 
-          <form onSubmit={handleContinue} className="space-y-4">
+          <h1 className="auth-title">
+            NUEVA <span>CONTRASEÑA</span>
+          </h1>
 
-            {/* PASSWORD */}
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-semibold text-gray-300 mb-2"
-              >
-                PONGA SU CONTRASEÑA
-              </label>
+          <div className="login-title-line" />
+
+          <p className="auth-description">
+            Crea una nueva contraseña para
+            <strong> proteger tu cuenta.</strong>
+          </p>
+
+        </div>
+
+        {/* FORMULARIO */}
+
+        <form
+          onSubmit={handleChangePassword}
+          className="auth-form login-form"
+        >
+
+          {/* CONTRASEÑA */}
+
+          <div className="login-field">
+
+            <label htmlFor="new-password">
+              PONGA SU CONTRASEÑA
+            </label>
+
+            <div className="input-wrapper login-input-wrapper">
+
+              <span className="input-icon">
+                🔒
+              </span>
 
               <input
-                id="password"
+                id="new-password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                onChange={(event) =>
+                  setPassword(event.target.value)
+                }
+                placeholder="Nueva contraseña"
                 autoComplete="new-password"
-                className="w-full h-12 rounded-xl bg-[#181818] border border-white/10 px-4 text-white placeholder-gray-600 outline-none focus:border-green-400 transition"
+                disabled={loading}
               />
+
             </div>
 
-            {/* REPEAT PASSWORD */}
-            <div>
-              <label
-                htmlFor="repeat-password"
-                className="block text-sm font-semibold text-gray-300 mb-2"
-              >
-                REPETIR CONTRASEÑA
-              </label>
+          </div>
+
+          {/* REPETIR CONTRASEÑA */}
+
+          <div className="login-field">
+
+            <label htmlFor="repeat-password">
+              REPETIR CONTRASEÑA
+            </label>
+
+            <div className="input-wrapper login-input-wrapper">
+
+              <span className="input-icon">
+                🔒
+              </span>
 
               <input
                 id="repeat-password"
                 type="password"
                 value={repeatPassword}
-                onChange={(e) => setRepeatPassword(e.target.value)}
-                placeholder="••••••••"
+                onChange={(event) =>
+                  setRepeatPassword(
+                    event.target.value
+                  )
+                }
+                placeholder="Repita su contraseña"
                 autoComplete="new-password"
-                className="w-full h-12 rounded-xl bg-[#181818] border border-white/10 px-4 text-white placeholder-gray-600 outline-none focus:border-green-400 transition"
+                disabled={loading}
               />
+
             </div>
 
-            {/* ERROR */}
-            {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          </div>
+
+          {/* ERROR */}
+
+          {error && (
+            <div className="auth-error login-message">
+
+              <span>
+                ⚠
+              </span>
+
+              <p>
                 {error}
-              </div>
+              </p>
+
+            </div>
+          )}
+
+          {/* CONTINUAR */}
+
+          <button
+            type="submit"
+            className="auth-submit login-submit"
+            disabled={
+              loading ||
+              !password ||
+              !repeatPassword
+            }
+          >
+
+            <span>
+              {loading
+                ? "GUARDANDO..."
+                : "CONTINUAR"}
+            </span>
+
+            {!loading && (
+              <b>
+                →
+              </b>
             )}
 
-            {/* SUCCESS */}
-            {success && (
-              <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-400">
-                {success}
-              </div>
-            )}
+          </button>
 
-            {/* CONTINUE */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-12 rounded-xl bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-black transition"
-            >
-              {loading ? "ACTUALIZANDO..." : "CONTINUAR"}
-            </button>
+        </form>
 
-          </form>
+        {/* DIVISOR */}
+
+        <div className="auth-divider login-divider">
+
+          <span />
+
+          <strong>
+            O
+          </strong>
+
+          <span />
 
         </div>
-      </div>
+
+        {/* INFORMACIÓN */}
+
+        <div className="login-register-area">
+
+          <p className="auth-register-text">
+            CONTRASEÑA SEGURA
+          </p>
+
+          <p
+            className="auth-description"
+            style={{
+              marginTop: "8px",
+              fontSize: "13px",
+            }}
+          >
+            Usa una contraseña que puedas
+            recordar y que sea difícil de adivinar.
+          </p>
+
+        </div>
+
+        {/* PIE */}
+
+        <div className="login-footer">
+          STORE GAMING • RECUPERACIÓN SEGURA
+        </div>
+
+      </section>
+
     </main>
   );
 }
