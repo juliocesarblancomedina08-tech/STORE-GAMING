@@ -72,7 +72,8 @@ export default function LoginPage() {
   function handleForgotPassword() {
     if (loading) return;
 
-    router.push("/forgot-password");
+    // NUEVO FLUJO DE RECUPERACIÓN
+    router.push("/reset-password");
   }
 
   return (
@@ -318,4 +319,4 @@ export default function LoginPage() {
 
     </main>
   );
-                }
+}
