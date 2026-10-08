@@ -436,65 +436,92 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // -------------------------------------------------------------------------
-    // CREAR ORDEN
-    // -------------------------------------------------------------------------
+ // -----------------------------------------------------------------------------
+// CREAR ORDEN
+// -----------------------------------------------------------------------------
 
-    const { data: createdOrder, error: orderError } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .insert({
-          user_id: user.id,
-          username:
-            user.user_metadata?.username ||
-            user.user_metadata?.name ||
-            user.email ||
-            "Cliente",
-          email: user.email,
-          game: "Free Fire LATAM",
-          category_id: CATEGORY_ID,
-          offer_id: localOffer.id,
-          offer_name: localOffer.name,
-          player_id: cleanPlayerId,
-          retail_price: retailPrice,
-          supplier_price: Number(localOffer.supplierPrice),
-          currency: "USD",
-          status: "RESERVED",
-          supplier_fields: {
-            player_id: cleanPlayerId,
-          },
-        })
-        .select("id")
-        .single();
+const idempotencyKey = randomUUID();
 
-    if (orderError || !createdOrder) {
-      console.error(
-        "Error creando topup_order:",
-        orderError,
-      );
+const { data: createdOrder, error: orderError } =
+  await supabaseAdmin
+    .from("topup_orders")
+    .insert({
+      user_id: user.id,
 
-      // Devolver el saldo si la orden no pudo crearse.
-      await supabaseAdmin.rpc(
-        "store_gaming_admin_adjust_balance",
-        {
-          p_user_id: user.id,
-          p_amount: retailPrice,
-          p_action: "REFUND",
-        },
-      );
+      username:
+        user.user_metadata?.username ||
+        user.user_metadata?.name ||
+        user.email ||
+        "Cliente",
 
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            orderError?.message ||
-            "No se pudo crear la orden.",
-        },
-        { status: 500 },
-      );
-    }
+      email: user.email,
 
-    orderId = createdOrder.id;
+      game: "Free Fire LATAM",
+
+      category_id: CATEGORY_ID,
+
+      // ID INTERNO DE STORE GAMING
+      // Ejemplo: ff-110
+      offer_id: localOffer.id,
+
+      offer_name: localOffer.name,
+
+      player_id: cleanPlayerId,
+
+      retail_price: retailPrice,
+
+      supplier_price: Number(
+        localOffer.supplierPrice,
+      ),
+
+      currency: "USD",
+
+      status: "RESERVED",
+
+      // CLAVE OBLIGATORIA
+      idempotency_key: idempotencyKey,
+
+      supplier_fields: {
+        player_id: cleanPlayerId,
+
+        // Guardamos también el ID real
+        // que utiliza FazerCards.
+        supplier_offer_id:
+          localOffer.supplierOfferId,
+      },
+    })
+    .select("id")
+    .single();
+
+if (orderError || !createdOrder) {
+  console.error(
+    "Error creando topup_order:",
+    orderError,
+  );
+
+  // Devolver el saldo reservado porque
+  // la orden no pudo crearse.
+  await supabaseAdmin.rpc(
+    "store_gaming_admin_adjust_balance",
+    {
+      p_user_id: user.id,
+      p_amount: retailPrice,
+      p_action: "REFUND",
+    },
+  );
+
+  return NextResponse.json(
+    {
+      ok: false,
+      error:
+        orderError?.message ||
+        "No se pudo crear la orden.",
+    },
+    { status: 500 },
+  );
+}
+
+orderId = createdOrder.id;
 
     // -------------------------------------------------------------------------
     // CAMBIAR A PROCESSING
