@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const FAZER_API_BASE =
-  process.env.FAZERCARDS_API_URL || "https://api.fzr.cards/api/v2";
+  process.env.FAZERCARDS_API_URL ||
+  "https://api.fzr.cards/api/v2";
 
 const FAZER_API_KEY = process.env.FAZERCARDS_API_KEY!;
 
@@ -17,7 +20,7 @@ const supabaseAdmin = createClient(
 );
 
 // -----------------------------------------------------------------------------
-// OFERTAS DE FREE FIRE
+// OFERTAS DE FREE FIRE LATAM
 // -----------------------------------------------------------------------------
 
 const FREE_FIRE_OFFERS = [
@@ -132,19 +135,25 @@ const FREE_FIRE_OFFERS = [
 // OBTENER USUARIO
 // -----------------------------------------------------------------------------
 
-async function getUserFromRequest(request: NextRequest) {
-  const authorization = request.headers.get("authorization");
+async function getUserFromRequest(
+  request: NextRequest,
+) {
+  const authorization =
+    request.headers.get("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
     return null;
   }
 
-  const accessToken = authorization.substring(7);
+  const accessToken =
+    authorization.substring(7);
 
   const {
     data: { user },
     error,
-  } = await supabaseAdmin.auth.getUser(accessToken);
+  } = await supabaseAdmin.auth.getUser(
+    accessToken,
+  );
 
   if (error || !user) {
     return null;
@@ -154,7 +163,7 @@ async function getUserFromRequest(request: NextRequest) {
 }
 
 // -----------------------------------------------------------------------------
-// OBTENER OFERTA DEL LIB
+// BUSCAR OFERTA EN NUESTRO LIB
 // -----------------------------------------------------------------------------
 
 function findLocalOffer(offerId: string) {
@@ -166,7 +175,7 @@ function findLocalOffer(offerId: string) {
 }
 
 // -----------------------------------------------------------------------------
-// CONSULTAR OFERTAS EN FAZERCARDS
+// CONSULTAR OFERTAS DE FAZERCARDS
 // -----------------------------------------------------------------------------
 
 async function getFazerCardsOffers() {
@@ -207,7 +216,7 @@ async function getFazerCardsOffers() {
 }
 
 // -----------------------------------------------------------------------------
-// EXTRAER ARRAY DE OFERTAS
+// EXTRAER OFERTAS
 // -----------------------------------------------------------------------------
 
 function extractOffers(data: any): any[] {
@@ -238,11 +247,18 @@ function extractOffers(data: any): any[] {
 // POST
 // -----------------------------------------------------------------------------
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest,
+) {
   let orderId: string | null = null;
 
   try {
-    const user = await getUserFromRequest(request);
+    // -------------------------------------------------------------------------
+    // USUARIO
+    // -------------------------------------------------------------------------
+
+    const user =
+      await getUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json(
@@ -254,6 +270,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // -------------------------------------------------------------------------
+    // BODY
+    // -------------------------------------------------------------------------
+
     const body = await request.json();
 
     const {
@@ -262,75 +282,90 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // -------------------------------------------------------------------------
-    // VALIDACIONES
+    // VALIDAR OFERTA
     // -------------------------------------------------------------------------
 
     if (!offerId) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Falta seleccionar una oferta.",
+          error:
+            "Falta seleccionar una oferta.",
         },
         { status: 400 },
       );
     }
+
+    // -------------------------------------------------------------------------
+    // VALIDAR PLAYER ID
+    // -------------------------------------------------------------------------
 
     if (!playerId) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Debe introducir el ID del jugador.",
+          error:
+            "Debe introducir el ID del jugador.",
         },
         { status: 400 },
       );
     }
 
-    const cleanPlayerId = String(playerId).trim();
+    const cleanPlayerId =
+      String(playerId).trim();
 
     if (!cleanPlayerId) {
       return NextResponse.json(
         {
           ok: false,
-          error: "El ID del jugador no puede estar vacío.",
+          error:
+            "El ID del jugador no puede estar vacío.",
         },
         { status: 400 },
       );
     }
 
     // -------------------------------------------------------------------------
-    // BUSCAR OFERTA EN EL LIB
-    //
-    // Ejemplo:
-    //
-    // ff-110
-    //     ↓
-    // 110_diamonds
-    //
+    // BUSCAR OFERTA LOCAL
     // -------------------------------------------------------------------------
 
-    const localOffer = findLocalOffer(String(offerId));
+    const localOffer =
+      findLocalOffer(String(offerId));
 
     if (!localOffer) {
       return NextResponse.json(
         {
           ok: false,
-          error: "La oferta de Free Fire no existe en STORE GAMING.",
+          error:
+            "La oferta de Free Fire no existe en STORE GAMING.",
           receivedOfferId: offerId,
         },
         { status: 400 },
       );
     }
 
-    const supplierOfferId = localOffer.supplierOfferId;
+    /*
+      Ejemplo:
+
+      STORE GAMING
+      ff-110
+
+      FazerCards
+      110_diamonds
+    */
+
+    const supplierOfferId =
+      localOffer.supplierOfferId;
 
     // -------------------------------------------------------------------------
-    // VERIFICAR QUE LA OFERTA EXISTE EN FAZERCARDS
+    // CONSULTAR FAZERCARDS
     // -------------------------------------------------------------------------
 
     let fazerData: any;
 
     try {
-      fazerData = await getFazerCardsOffers();
+      fazerData =
+        await getFazerCardsOffers();
     } catch (error) {
       console.error(
         "Error consultando ofertas de FazerCards:",
@@ -340,7 +375,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          error: "No se pudieron consultar las ofertas de FazerCards.",
+          error:
+            "No se pudieron consultar las ofertas de FazerCards.",
           details:
             error instanceof Error
               ? error.message
@@ -350,29 +386,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fazerOffers = extractOffers(fazerData);
+    const fazerOffers =
+      extractOffers(fazerData);
 
-    // Buscar por el supplierOfferId REAL.
-    const fazerOffer = fazerOffers.find((offer: any) => {
-      const ids = [
-        offer?.id,
-        offer?.offer_id,
-        offer?.offerId,
-        offer?.supplier_offer_id,
-        offer?.supplierOfferId,
-      ]
-        .filter(Boolean)
-        .map(String);
+    // -------------------------------------------------------------------------
+    // BUSCAR LA OFERTA REAL EN FAZERCARDS
+    // -------------------------------------------------------------------------
 
-      return ids.includes(String(supplierOfferId));
-    });
+    const fazerOffer =
+      fazerOffers.find((offer: any) => {
+        const ids = [
+          offer?.id,
+          offer?.offer_id,
+          offer?.offerId,
+          offer?.supplier_offer_id,
+          offer?.supplierOfferId,
+        ]
+          .filter(Boolean)
+          .map(String);
+
+        return ids.includes(
+          String(supplierOfferId),
+        );
+      });
 
     if (!fazerOffer) {
       console.error(
         "Oferta no encontrada en FazerCards",
         {
           categoryId: CATEGORY_ID,
-          storeGamingOfferId: localOffer.id,
+          storeGamingOfferId:
+            localOffer.id,
           supplierOfferId,
           fazerOffers,
         },
@@ -381,7 +425,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          error: "La oferta no está disponible en FazerCards.",
+          error:
+            "La oferta no está disponible en FazerCards.",
           offerId: localOffer.id,
           supplierOfferId,
           categoryId: CATEGORY_ID,
@@ -394,13 +439,18 @@ export async function POST(request: NextRequest) {
     // PRECIO
     // -------------------------------------------------------------------------
 
-    const retailPrice = Number(localOffer.price);
+    const retailPrice =
+      Number(localOffer.price);
 
-    if (!Number.isFinite(retailPrice) || retailPrice <= 0) {
+    if (
+      !Number.isFinite(retailPrice) ||
+      retailPrice <= 0
+    ) {
       return NextResponse.json(
         {
           ok: false,
-          error: "El precio de la oferta no es válido.",
+          error:
+            "El precio de la oferta no es válido.",
         },
         { status: 400 },
       );
@@ -410,7 +460,10 @@ export async function POST(request: NextRequest) {
     // RESERVAR SALDO
     // -------------------------------------------------------------------------
 
-    const { data: reserveData, error: reserveError } =
+    const {
+      data: reserveData,
+      error: reserveError,
+    } =
       await supabaseAdmin.rpc(
         "store_gaming_reserve_balance",
         {
@@ -436,152 +489,203 @@ export async function POST(request: NextRequest) {
       );
     }
 
- // -----------------------------------------------------------------------------
-// CREAR ORDEN
-// -----------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // GENERAR IDEMPOTENCY KEY
+    // -----------------------------------------------------------------------------
+    // ESTA ERA LA PARTE QUE CAUSABA EL ERROR DEL BUILD.
+    // randomUUID está importado arriba desde "crypto".
+    // -----------------------------------------------------------------------------
 
-const idempotencyKey = randomUUID();
-
-const { data: createdOrder, error: orderError } =
-  await supabaseAdmin
-    .from("topup_orders")
-    .insert({
-      user_id: user.id,
-
-      username:
-        user.user_metadata?.username ||
-        user.user_metadata?.name ||
-        user.email ||
-        "Cliente",
-
-      email: user.email,
-
-      game: "Free Fire LATAM",
-
-      category_id: CATEGORY_ID,
-
-      // ID INTERNO DE STORE GAMING
-      // Ejemplo: ff-110
-      offer_id: localOffer.id,
-
-      offer_name: localOffer.name,
-
-      player_id: cleanPlayerId,
-
-      retail_price: retailPrice,
-
-      supplier_price: Number(
-        localOffer.supplierPrice,
-      ),
-
-      currency: "USD",
-
-      status: "RESERVED",
-
-      // CLAVE OBLIGATORIA
-      idempotency_key: idempotencyKey,
-
-      supplier_fields: {
-        player_id: cleanPlayerId,
-
-        // Guardamos también el ID real
-        // que utiliza FazerCards.
-        supplier_offer_id:
-          localOffer.supplierOfferId,
-      },
-    })
-    .select("id")
-    .single();
-
-if (orderError || !createdOrder) {
-  console.error(
-    "Error creando topup_order:",
-    orderError,
-  );
-
-  // Devolver el saldo reservado porque
-  // la orden no pudo crearse.
-  await supabaseAdmin.rpc(
-    "store_gaming_admin_adjust_balance",
-    {
-      p_user_id: user.id,
-      p_amount: retailPrice,
-      p_action: "REFUND",
-    },
-  );
-
-  return NextResponse.json(
-    {
-      ok: false,
-      error:
-        orderError?.message ||
-        "No se pudo crear la orden.",
-    },
-    { status: 500 },
-  );
-}
-
-orderId = createdOrder.id;
+    const idempotencyKey =
+      randomUUID();
 
     // -------------------------------------------------------------------------
-    // CAMBIAR A PROCESSING
+    // CREAR ORDEN EN SUPABASE
+    // -------------------------------------------------------------------------
+
+    const {
+      data: createdOrder,
+      error: orderError,
+    } =
+      await supabaseAdmin
+        .from("topup_orders")
+        .insert({
+          user_id: user.id,
+
+          username:
+            user.user_metadata
+              ?.username ||
+            user.user_metadata?.name ||
+            user.email ||
+            "Cliente",
+
+          email: user.email,
+
+          game: "Free Fire LATAM",
+
+          category_id: CATEGORY_ID,
+
+          // ID INTERNO DE STORE GAMING
+          // Ejemplo: ff-110
+          offer_id: localOffer.id,
+
+          offer_name: localOffer.name,
+
+          player_id: cleanPlayerId,
+
+          retail_price: retailPrice,
+
+          supplier_price:
+            Number(
+              localOffer.supplierPrice,
+            ),
+
+          currency: "USD",
+
+          status: "RESERVED",
+
+          // OBLIGATORIO EN topup_orders
+          idempotency_key:
+            idempotencyKey,
+
+          supplier_fields: {
+            player_id:
+              cleanPlayerId,
+
+            supplier_offer_id:
+              localOffer.supplierOfferId,
+          },
+        })
+        .select("id")
+        .single();
+
+    // -------------------------------------------------------------------------
+    // ERROR CREANDO ORDEN
+    // -------------------------------------------------------------------------
+
+    if (
+      orderError ||
+      !createdOrder
+    ) {
+      console.error(
+        "Error creando topup_order:",
+        orderError,
+      );
+
+      // Devolver saldo reservado
+      // porque la orden no pudo crearse.
+      await supabaseAdmin.rpc(
+        "store_gaming_admin_adjust_balance",
+        {
+          p_user_id: user.id,
+          p_amount: retailPrice,
+          p_action: "REFUND",
+        },
+      );
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            orderError?.message ||
+            "No se pudo crear la orden.",
+        },
+        { status: 500 },
+      );
+    }
+
+    orderId =
+      createdOrder.id;
+
+    // -------------------------------------------------------------------------
+    // CAMBIAR ORDEN A PROCESSING
     // -------------------------------------------------------------------------
 
     await supabaseAdmin
       .from("topup_orders")
       .update({
         status: "PROCESSING",
-        updated_at: new Date().toISOString(),
+        updated_at:
+          new Date().toISOString(),
       })
       .eq("id", orderId);
 
     // -------------------------------------------------------------------------
-    // CREAR ORDEN EN FAZERCARDS
+    // PREPARAR ORDEN PARA FAZERCARDS
+    // -----------------------------------------------------------------------------
+    //
+    // IMPORTANTE:
+    //
+    // NO enviamos:
+    //
+    // ff-110
+    //
+    // Enviamos:
+    //
+    // 110_diamonds
+    //
     // -------------------------------------------------------------------------
 
-    const fazerOrderUrl = `${FAZER_API_BASE}/topups/order`;
+    const fazerOrderUrl =
+      `${FAZER_API_BASE}/topups/order`;
 
     const fazerPayload = {
-      category_id: CATEGORY_ID,
+      category_id:
+        CATEGORY_ID,
 
-      // IMPORTANTE:
-      // Aquí NO enviamos ff-110.
-      //
-      // Enviamos:
-      // 110_diamonds
-      //
-      // que es el supplierOfferId de tu lib.
-      offer_id: supplierOfferId,
+      offer_id:
+        supplierOfferId,
 
       fields: {
-        player_id: cleanPlayerId,
+        player_id:
+          cleanPlayerId,
       },
     };
 
     console.log(
       "Enviando orden a FazerCards:",
-      JSON.stringify(fazerPayload, null, 2),
+      JSON.stringify(
+        fazerPayload,
+        null,
+        2,
+      ),
     );
 
-    const fazerResponse = await fetch(
-      fazerOrderUrl,
-      {
-        method: "POST",
-        headers: {
-          "X-API-Key": FAZER_API_KEY,
-          "Content-Type": "application/json",
-          Accept: "application/json",
+    // -------------------------------------------------------------------------
+    // CREAR ORDEN EN FAZERCARDS
+    // -------------------------------------------------------------------------
+
+    const fazerResponse =
+      await fetch(
+        fazerOrderUrl,
+        {
+          method: "POST",
+
+          headers: {
+            "X-API-Key":
+              FAZER_API_KEY,
+
+            "Content-Type":
+              "application/json",
+
+            Accept:
+              "application/json",
+          },
+
+          body: JSON.stringify(
+            fazerPayload,
+          ),
         },
-        body: JSON.stringify(fazerPayload),
-      },
-    );
+      );
 
-    const fazerText = await fazerResponse.text();
+    const fazerText =
+      await fazerResponse.text();
 
     let fazerResult: any;
 
     try {
-      fazerResult = JSON.parse(fazerText);
+      fazerResult =
+        JSON.parse(fazerText);
     } catch {
       fazerResult = {
         raw: fazerText,
@@ -589,7 +693,7 @@ orderId = createdOrder.id;
     }
 
     // -------------------------------------------------------------------------
-    // ERROR DE FAZERCARDS
+    // FAZERCARDS RECHAZÓ LA ORDEN
     // -------------------------------------------------------------------------
 
     if (!fazerResponse.ok) {
@@ -603,32 +707,44 @@ orderId = createdOrder.id;
         .from("topup_orders")
         .update({
           status: "CANCELLED",
-          supplier_response: fazerResult,
-          failed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+
+          supplier_response:
+            fazerResult,
+
+          failed_at:
+            new Date().toISOString(),
+
+          updated_at:
+            new Date().toISOString(),
         })
         .eq("id", orderId);
 
       await supabaseAdmin.rpc(
         "store_gaming_refund_balance",
         {
-          p_order_id: orderId,
+          p_order_id:
+            orderId,
         },
       );
 
       return NextResponse.json(
         {
           ok: false,
+
           error:
             fazerResult?.message ||
             fazerResult?.error ||
             "FazerCards rechazó la orden.",
-          fazer: fazerResult,
+
+          fazer:
+            fazerResult,
         },
         {
           status:
-            fazerResponse.status >= 400 &&
-            fazerResponse.status < 500
+            fazerResponse.status >=
+              400 &&
+            fazerResponse.status <
+              500
               ? 400
               : 502,
         },
@@ -648,50 +764,68 @@ orderId = createdOrder.id;
       fazerResult?.data?.id ??
       null;
 
-    const supplierStatus = String(
-      fazerResult?.status ??
-        fazerResult?.data?.status ??
-        "PENDING",
-    ).toUpperCase();
+    const supplierStatus =
+      String(
+        fazerResult?.status ??
+          fazerResult?.data
+            ?.status ??
+          "PENDING",
+      ).toUpperCase();
 
     // -------------------------------------------------------------------------
-    // NO LLEGÓ ID DE ORDEN
+    // FAZERCARDS NO DEVOLVIÓ ID
     // -------------------------------------------------------------------------
 
     if (!supplierOrderId) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status: "SUPPLIER_PENDING",
-          supplier_response: fazerResult,
-          updated_at: new Date().toISOString(),
+          status:
+            "SUPPLIER_PENDING",
+
+          supplier_response:
+            fazerResult,
+
+          updated_at:
+            new Date().toISOString(),
         })
         .eq("id", orderId);
 
       return NextResponse.json({
         ok: true,
+
         orderId,
-        status: "SUPPLIER_PENDING",
+
+        status:
+          "SUPPLIER_PENDING",
+
         message:
           "La orden fue enviada a FazerCards y está pendiente de confirmación.",
       });
     }
 
     // -------------------------------------------------------------------------
-    // GUARDAR ORDEN DEL PROVEEDOR
+    // GUARDAR ID DE FAZERCARDS
     // -------------------------------------------------------------------------
 
     await supabaseAdmin
       .from("topup_orders")
       .update({
-        supplier_order_id: String(supplierOrderId),
-        supplier_response: fazerResult,
-        updated_at: new Date().toISOString(),
+        supplier_order_id:
+          String(
+            supplierOrderId,
+          ),
+
+        supplier_response:
+          fazerResult,
+
+        updated_at:
+          new Date().toISOString(),
       })
       .eq("id", orderId);
 
     // -------------------------------------------------------------------------
-    // ESTADOS DEL PROVEEDOR
+    // COMPLETED
     // -------------------------------------------------------------------------
 
     if (
@@ -699,36 +833,55 @@ orderId = createdOrder.id;
         "COMPLETED",
         "SUCCESS",
         "DONE",
-      ].includes(supplierStatus)
+      ].includes(
+        supplierStatus,
+      )
     ) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status: "COMPLETED",
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          status:
+            "COMPLETED",
+
+          completed_at:
+            new Date().toISOString(),
+
+          updated_at:
+            new Date().toISOString(),
         })
         .eq("id", orderId);
 
       await supabaseAdmin.rpc(
         "store_gaming_complete_order",
         {
-          p_supplier_order_id: String(
-            supplierOrderId,
-          ),
+          p_supplier_order_id:
+            String(
+              supplierOrderId,
+            ),
         },
       );
 
       return NextResponse.json({
         ok: true,
+
         orderId,
-        supplierOrderId: String(
-          supplierOrderId,
-        ),
-        status: "COMPLETED",
-        message: "Recarga completada correctamente.",
+
+        supplierOrderId:
+          String(
+            supplierOrderId,
+          ),
+
+        status:
+          "COMPLETED",
+
+        message:
+          "Recarga completada correctamente.",
       });
     }
+
+    // -------------------------------------------------------------------------
+    // FAILED / ERROR / REJECTED / CANCELLED
+    // -------------------------------------------------------------------------
 
     if (
       [
@@ -737,110 +890,162 @@ orderId = createdOrder.id;
         "REJECTED",
         "CANCELLED",
         "CANCELED",
-      ].includes(supplierStatus)
+      ].includes(
+        supplierStatus,
+      )
     ) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status: "CANCELLED",
-          failed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          status:
+            "CANCELLED",
+
+          failed_at:
+            new Date().toISOString(),
+
+          updated_at:
+            new Date().toISOString(),
         })
         .eq("id", orderId);
 
       await supabaseAdmin.rpc(
         "store_gaming_refund_balance",
         {
-          p_order_id: orderId,
+          p_order_id:
+            orderId,
         },
       );
 
       return NextResponse.json({
         ok: false,
+
         orderId,
-        supplierOrderId: String(
-          supplierOrderId,
-        ),
-        status: "CANCELLED",
+
+        supplierOrderId:
+          String(
+            supplierOrderId,
+          ),
+
+        status:
+          "CANCELLED",
+
         message:
           "La recarga fue rechazada y el saldo fue reembolsado.",
       });
     }
 
+    // -------------------------------------------------------------------------
+    // CONFIRMED / ACCEPTED
+    // -------------------------------------------------------------------------
+
     if (
       [
         "CONFIRMED",
         "ACCEPTED",
-      ].includes(supplierStatus)
+      ].includes(
+        supplierStatus,
+      )
     ) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status: "CONFIRMED",
-          updated_at: new Date().toISOString(),
+          status:
+            "CONFIRMED",
+
+          updated_at:
+            new Date().toISOString(),
         })
         .eq("id", orderId);
 
       return NextResponse.json({
         ok: true,
+
         orderId,
-        supplierOrderId: String(
-          supplierOrderId,
-        ),
-        status: "CONFIRMED",
+
+        supplierOrderId:
+          String(
+            supplierOrderId,
+          ),
+
+        status:
+          "CONFIRMED",
+
         message:
           "La orden fue confirmada por FazerCards.",
       });
     }
 
     // -------------------------------------------------------------------------
-    // PENDING / PROCESSING / CUALQUIER OTRO ESTADO
+    // PENDING / PROCESSING / OTROS
     // -------------------------------------------------------------------------
 
     await supabaseAdmin
       .from("topup_orders")
       .update({
-        status: "SUPPLIER_PENDING",
-        updated_at: new Date().toISOString(),
+        status:
+          "SUPPLIER_PENDING",
+
+        updated_at:
+          new Date().toISOString(),
       })
       .eq("id", orderId);
 
     return NextResponse.json({
       ok: true,
+
       orderId,
-      supplierOrderId: String(
-        supplierOrderId,
-      ),
-      status: "SUPPLIER_PENDING",
+
+      supplierOrderId:
+        String(
+          supplierOrderId,
+        ),
+
+      status:
+        "SUPPLIER_PENDING",
+
       message:
         "La orden fue enviada y está pendiente de procesamiento.",
     });
   } catch (error) {
+    // -------------------------------------------------------------------------
+    // ERROR GENERAL
+    // -------------------------------------------------------------------------
+
     console.error(
       "Free Fire API error:",
       error,
     );
 
-    // Si ya habíamos creado una orden y ocurre un error inesperado,
-    // intentamos cancelarla y devolver el saldo mediante el RPC.
+    // -------------------------------------------------------------------------
+    // INTENTAR DEVOLVER SALDO SI YA EXISTÍA UNA ORDEN
+    // -------------------------------------------------------------------------
+
     if (orderId) {
       try {
         await supabaseAdmin
           .from("topup_orders")
           .update({
-            status: "CANCELLED",
-            failed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            status:
+              "CANCELLED",
+
+            failed_at:
+              new Date().toISOString(),
+
+            updated_at:
+              new Date().toISOString(),
           })
           .eq("id", orderId);
 
         await supabaseAdmin.rpc(
           "store_gaming_refund_balance",
           {
-            p_order_id: orderId,
+            p_order_id:
+              orderId,
           },
         );
-      } catch (refundError) {
+      } catch (
+        refundError
+      ) {
         console.error(
           "Error intentando devolver saldo:",
           refundError,
@@ -851,6 +1056,7 @@ orderId = createdOrder.id;
     return NextResponse.json(
       {
         ok: false,
+
         error:
           error instanceof Error
             ? error.message
@@ -868,17 +1074,31 @@ orderId = createdOrder.id;
 export async function GET() {
   return NextResponse.json({
     ok: true,
-    game: "Free Fire LATAM",
-    categoryId: CATEGORY_ID,
-    playerField: "player_id",
-    offers: FREE_FIRE_OFFERS.map(
-      (offer) => ({
-        id: offer.id,
-        supplierOfferId:
-          offer.supplierOfferId,
-        name: offer.name,
-        price: offer.price,
-      }),
-    ),
+
+    game:
+      "Free Fire LATAM",
+
+    categoryId:
+      CATEGORY_ID,
+
+    playerField:
+      "player_id",
+
+    offers:
+      FREE_FIRE_OFFERS.map(
+        (offer) => ({
+          id:
+            offer.id,
+
+          supplierOfferId:
+            offer.supplierOfferId,
+
+          name:
+            offer.name,
+
+          price:
+            offer.price,
+        }),
+      ),
   });
-    }
+  }
