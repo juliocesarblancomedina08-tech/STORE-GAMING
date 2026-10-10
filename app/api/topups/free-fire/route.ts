@@ -205,7 +205,6 @@ async function getFazerCardsOffers() {
     headers: {
       "X-API-Key": FAZER_API_KEY,
       Accept: "application/json",
-      Origin: getFazerOrigin(),
     },
     cache: "no-store",
   });
