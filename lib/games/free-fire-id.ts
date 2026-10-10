@@ -1,619 +1,412 @@
-
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-import { FREE_FIRE_ID } from "../../../lib/games/free-fire-id";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-type Offer = {
+export type FreeFireIdOffer = {
   id: string;
-  supplierOfferId: string;
   name: string;
-  display: string;
-  price: number;
+  displayName: string;
   supplierPrice: number;
+  price: number;
   icon: string;
 };
 
-export default function FreeFireIdPage() {
-  const router = useRouter();
-
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [offersOpen, setOffersOpen] = useState(true);
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
-  const [playerId, setPlayerId] = useState("");
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [orderNumber, setOrderNumber] = useState("");
-
-  useEffect(() => {
-    try {
-      const catalogOffers: Offer[] = FREE_FIRE_ID.offers
-        .map((offer) => ({
-          id: offer.id,
-          supplierOfferId: offer.id,
-          name: offer.name,
-          display: offer.displayName,
-          price: Number(offer.price),
-          supplierPrice: Number(offer.supplierPrice),
-          icon: offer.icon,
-        }))
-        .filter(
-          (offer) =>
-            Boolean(offer.id) &&
-            Boolean(offer.name) &&
-            Number.isFinite(offer.price) &&
-            offer.price > 0 &&
-            Number.isFinite(offer.supplierPrice) &&
-            offer.supplierPrice > 0
-        );
-
-      if (catalogOffers.length === 0) {
-        throw new Error("El catálogo no contiene ofertas válidas.");
-      }
-
-      setOffers(catalogOffers);
-    } catch (err) {
-      console.error("Error cargando Free Fire ID:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo cargar el catálogo."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  function selectOffer(offer: Offer) {
-    setSelectedOffer(offer);
-    setPlayerId("");
-    setError("");
-    setSuccess("");
-    setOrderNumber("");
-  }
-
-  async function createOrder(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setSuccess("");
-
-    if (!selectedOffer) {
-      setError("Selecciona una oferta.");
-      return;
-    }
-
-    const cleanPlayerId = playerId.trim();
-
-    if (!/^[0-9]{4,20}$/.test(cleanPlayerId)) {
-      setError("Introduce un ID de jugador válido, de 4 a 20 números.");
-      return;
-    }
-
-    setProcessing(true);
-
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session?.access_token) {
-        router.push("/login");
-        return;
-      }
-
-      const response = await fetch("/api/topups/free-fire-id", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          offerId: selectedOffer.supplierOfferId,
-          offerName: selectedOffer.name,
-          playerId: cleanPlayerId,
-          retailPrice: selectedOffer.price,
-          idempotencyKey: crypto.randomUUID(),
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error || data?.message || "No se pudo crear el pedido."
-        );
-      }
-
-      const number =
-        data.orderNumber ??
-        data.order_number ??
-        data.order?.order_number ??
-        data.order?.id ??
-        data.id ??
-        "";
-
-      setOrderNumber(String(number));
-      setSuccess("Tu pedido fue creado correctamente.");
-      setSelectedOffer(null);
-      setPlayerId("");
-    } catch (err) {
-      console.error("Error creando pedido:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Ocurrió un error al crear el pedido."
-      );
-    } finally {
-      setProcessing(false);
-    }
-  }
-
-  return (
-    <main className="page">
-      <header className="header">
-        <button
-          type="button"
-          className="back"
-          onClick={() => router.push("/top-up")}
-          aria-label="Volver"
-        >
-          ←
-        </button>
-        <h1>Free Fire (ID)</h1>
-        <span className="header-space" />
-      </header>
-
-      <div className="content">
-        <img
-          className="banner"
-          src={FREE_FIRE_ID.image}
-          alt="Free Fire Indonesia"
-        />
-
-        <section className="notice">
-          <strong>🇮🇩 Región Indonesia</strong>
-          <p>{FREE_FIRE_ID.note}</p>
-        </section>
-
-        <button
-          type="button"
-          className="toggle"
-          onClick={() => setOffersOpen((open) => !open)}
-        >
-          <span>💎 Ver ofertas disponibles</span>
-          <span>{offersOpen ? "▲" : "▼"}</span>
-        </button>
-
-        {offersOpen && (
-          <section className="offers">
-            {loading ? (
-              <p className="message">Cargando ofertas...</p>
-            ) : offers.length === 0 ? (
-              <p className="message">
-                {error || "No hay ofertas disponibles."}
-              </p>
-            ) : (
-              offers.map((offer) => (
-                <button
-                  type="button"
-                  key={offer.id}
-                  className={`offer ${
-                    selectedOffer?.id === offer.id ? "selected" : ""
-                  }`}
-                  onClick={() => selectOffer(offer)}
-                >
-                  <span className="offer-icon">{offer.icon}</span>
-                  <span className="offer-info">
-                    <strong>{offer.display}</strong>
-                    <small>{offer.name}</small>
-                  </span>
-                  <strong className="price">
-                    ${offer.price.toFixed(4)}
-                  </strong>
-                </button>
-              ))
-            )}
-          </section>
-        )}
-
-        {selectedOffer && (
-          <section className="order">
-            <h2>Confirmar selección</h2>
-
-            <div className="selected-offer">
-              <span>{selectedOffer.icon}</span>
-              <div>
-                <strong>{selectedOffer.name}</strong>
-                <p>${selectedOffer.price.toFixed(4)}</p>
-              </div>
-            </div>
-
-            <form onSubmit={createOrder}>
-              <label htmlFor="playerId">ID de jugador</label>
-              <input
-                id="playerId"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="Introduce tu ID de jugador"
-                value={playerId}
-                onChange={(event) => setPlayerId(event.target.value)}
-                disabled={processing}
-                required
-              />
-
-              <p className="help">
-                Comprueba que tu cuenta pertenece a la región Indonesia.
-              </p>
-
-              {error && <p className="error">{error}</p>}
-
-              <button
-                className="submit"
-                type="submit"
-                disabled={processing}
-              >
-                {processing ? "Procesando pedido..." : "FINALIZAR ORDEN"}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {success && (
-          <section className="success">
-            <h2>✅ Pedido creado</h2>
-            <p>{success}</p>
-            {orderNumber && (
-              <p>
-                Número de orden: <strong>{orderNumber}</strong>
-              </p>
-            )}
-            <button
-              type="button"
-              className="submit"
-              onClick={() => router.push("/orders")}
-            >
-              Ver mis pedidos
-            </button>
-          </section>
-        )}
-
-        <section className="info">
-          <article>
-            <span>⚡</span>
-            <div>
-              <strong>ENTREGA AUTOMÁTICA</strong>
-              <p>El producto se entrega directamente a tu cuenta.</p>
-            </div>
-          </article>
-          <article>
-            <span>🔒</span>
-            <div>
-              <strong>COMPRA SEGURA</strong>
-              <p>Revisa los datos antes de confirmar tu pedido.</p>
-            </div>
-          </article>
-          <article>
-            <span>🇮🇩</span>
-            <div>
-              <strong>REGIÓN INDONESIA</strong>
-              <p>Solo para cuentas registradas en esta región.</p>
-            </div>
-          </article>
-        </section>
-
-        <footer>
-          🛒 STORE GAMING 🎮
-          <small>FREE FIRE INDONESIA</small>
-        </footer>
-      </div>
-
-      <style jsx>{`
-        .page {
-          min-height: 100vh;
-          padding-bottom: 30px;
-          color: #fff;
-          background: #101014;
-        }
-
-        .header {
-          position: sticky;
-          top: 0;
-          z-index: 5;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 10px 14px;
-          background: #09090b;
-          border-bottom: 1px solid #29292e;
-        }
-
-        .header h1 {
-          margin: 0;
-          font-size: 19px;
-          font-weight: 800;
-        }
-
-        .back,
-        .toggle,
-        .offer,
-        .submit {
-          cursor: pointer;
-        }
-
-        .back {
-          width: 40px;
-          height: 40px;
-          border: 0;
-          border-radius: 10px;
-          background: #222228;
-          color: white;
-          font-size: 25px;
-        }
-
-        .header-space {
-          width: 40px;
-        }
-
-        .content {
-          width: min(100% - 24px, 680px);
-          margin: 0 auto;
-        }
-
-        .banner {
-          display: block;
-          width: calc(100% + 24px);
-          height: 210px;
-          margin-left: -12px;
-          object-fit: cover;
-        }
-
-        .notice,
-        .order,
-        .success,
-        .info article {
-          margin-top: 14px;
-          padding: 15px;
-          border: 1px solid #2b2b32;
-          border-radius: 13px;
-          background: #19191f;
-        }
-
-        .notice p,
-        .info p,
-        .help {
-          color: #b9b9c2;
-          font-size: 13px;
-          line-height: 1.5;
-        }
-
-        .notice p {
-          margin-bottom: 0;
-        }
-
-        .toggle {
-          display: flex;
-          width: 100%;
-          justify-content: space-between;
-          margin-top: 14px;
-          padding: 15px;
-          border: 1px solid #303038;
-          border-radius: 12px;
-          background: #202027;
-          color: white;
-          font-weight: 800;
-        }
-
-        .offers {
-          display: grid;
-          gap: 8px;
-          margin-top: 10px;
-        }
-
-        .offer {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          min-height: 65px;
-          padding: 10px;
-          border: 1px solid #303038;
-          border-radius: 12px;
-          background: #19191f;
-          color: white;
-          text-align: left;
-        }
-
-        .offer.selected {
-          border-color: #ff3047;
-          background: #30171d;
-        }
-
-        .offer-icon {
-          display: grid;
-          width: 40px;
-          height: 40px;
-          flex-shrink: 0;
-          place-items: center;
-          border-radius: 10px;
-          background: #292930;
-          font-size: 22px;
-        }
-
-        .offer-info {
-          display: grid;
-          flex: 1;
-          gap: 4px;
-          min-width: 0;
-        }
-
-        .offer-info strong {
-          font-size: 14px;
-        }
-
-        .offer-info small {
-          color: #a2a2ad;
-          font-size: 11px;
-        }
-
-        .price {
-          white-space: nowrap;
-          font-size: 13px;
-        }
-
-        .message {
-          padding: 15px;
-          border-radius: 10px;
-          background: #19191f;
-          color: #ddd;
-        }
-
-        .order h2,
-        .success h2 {
-          margin-top: 0;
-          font-size: 18px;
-        }
-
-        .selected-offer {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 15px;
-          padding: 12px;
-          border-radius: 10px;
-          background: #25252c;
-        }
-
-        .selected-offer > span {
-          font-size: 25px;
-        }
-
-        .selected-offer p {
-          margin-bottom: 0;
-          color: #ff6979;
-          font-weight: 800;
-        }
-
-        form {
-          display: grid;
-          gap: 9px;
-        }
-
-        label {
-          font-size: 13px;
-          font-weight: 800;
-        }
-
-        input {
-          width: 100%;
-          box-sizing: border-box;
-          padding: 13px;
-          border: 1px solid #3a3a43;
-          border-radius: 10px;
-          outline: none;
-          background: #101014;
-          color: white;
-          font-size: 15px;
-        }
-
-        input:focus {
-          border-color: #ff3047;
-        }
-
-        .help {
-          margin: 0;
-        }
-
-        .error {
-          padding: 10px;
-          border-radius: 9px;
-          background: #3a151b;
-          color: #ff9ca7;
-          font-size: 13px;
-        }
-
-        .submit {
-          width: 100%;
-          margin-top: 8px;
-          padding: 14px;
-          border: 0;
-          border-radius: 10px;
-          background: #e52239;
-          color: white;
-          font-weight: 900;
-        }
-
-        .submit:disabled {
-          opacity: 0.6;
-          cursor: wait;
-        }
-
-        .success {
-          border-color: #276c42;
-        }
-
-        .info {
-          margin-top: 16px;
-        }
-
-        .info article {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .info article > span {
-          font-size: 22px;
-        }
-
-        .info p {
-          margin-bottom: 0;
-        }
-
-        footer {
-          padding: 24px 10px 5px;
-          color: #c7c7ce;
-          text-align: center;
-          font-size: 13px;
-          font-weight: 800;
-        }
-
-        footer small {
-          display: block;
-          margin-top: 5px;
-          color: #777780;
-          font-size: 10px;
-          font-weight: 500;
-        }
-
-        @media (max-width: 480px) {
-          .banner {
-            height: 180px;
-          }
-
-          .header h1 {
-            font-size: 17px;
-          }
-
-          .offer-info strong {
-            font-size: 13px;
-          }
-
-          .price {
-            font-size: 12px;
-          }
-        }
-      `}</style>
-    </main>
-  );
-}
+export const FREE_FIRE_ID = {
+  categoryId: "free_fire_id",
+
+  name: "Free Fire (ID)",
+
+  image: "/images/free-fire-latam.jpg",
+
+  note:
+    "Región: Indonesia. Recarga de Free Fire. Ingrese su ID de jugador antes de realizar el pedido. Asegúrese de que su cuenta de Free Fire esté registrada en la región de Indonesia; los paquetes están bloqueados por región. El producto seleccionado se entrega directamente a su cuenta después de realizar el pedido.",
+
+  field: {
+    key: "player_id",
+    label: "ID de jugador",
+    type: "text",
+  },
+
+  offers: [
+    {
+      id: "5_diamonds",
+      name: "5 Diamantes",
+      displayName: "5💎",
+      supplierPrice: 0.0504,
+      price: 0.2504,
+      icon: "💎",
+    },
+    {
+      id: "12_diamonds",
+      name: "12 Diamantes",
+      displayName: "12💎",
+      supplierPrice: 0.1008,
+      price: 0.3008,
+      icon: "💎",
+    },
+    {
+      id: "10_diamonds",
+      name: "10 Diamantes",
+      displayName: "10💎",
+      supplierPrice: 0.1128,
+      price: 0.3128,
+      icon: "💎",
+    },
+    {
+      id: "20_diamonds",
+      name: "20 Diamantes",
+      displayName: "20💎",
+      supplierPrice: 0.2156,
+      price: 0.4156,
+      icon: "💎",
+    },
+    {
+      id: "25_diamantes",
+      name: "25 Diamantes",
+      displayName: "25💎",
+      supplierPrice: 0.267,
+      price: 0.467,
+      icon: "💎",
+    },
+    {
+      id: "level_up_pass_level_6",
+      name: "Pase de subida de nivel - Nivel 6",
+      displayName: "PASE NIVEL 6",
+      supplierPrice: 0.2821,
+      price: 0.4821,
+      icon: "🎟️",
+    },
+    {
+      id: "30_diamantes",
+      name: "30 Diamantes",
+      displayName: "30💎",
+      supplierPrice: 0.3184,
+      price: 0.5184,
+      icon: "💎",
+    },
+    {
+      id: "50_diamantes",
+      name: "50 Diamantes",
+      displayName: "50💎",
+      supplierPrice: 0.4131,
+      price: 0.6131,
+      icon: "💎",
+    },
+    {
+      id: "55_diamantes",
+      name: "55 Diamantes",
+      displayName: "55💎",
+      supplierPrice: 0.4725,
+      price: 0.6725,
+      icon: "💎",
+    },
+    {
+      id: "level_up_pass_level_20",
+      name: "Pase de subida de nivel - Nivel 20",
+      displayName: "PASE NIVEL 20",
+      supplierPrice: 0.4735,
+      price: 0.6735,
+      icon: "🎟️",
+    },
+    {
+      id: "level_up_pass_level_10",
+      name: "Level Up Pass - Level 10",
+      displayName: "PASE NIVEL 10",
+      supplierPrice: 0.4735,
+      price: 0.6735,
+      icon: "🎟️",
+    },
+    {
+      id: "level_up_pass_level_15",
+      name: "Level Up Pass - Level 15",
+      displayName: "PASE NIVEL 15",
+      supplierPrice: 0.4735,
+      price: 0.6735,
+      icon: "🎟️",
+    },
+    {
+      id: "level_up_pass_level_25",
+      name: "Level Up Pass - Level 25",
+      displayName: "PASE NIVEL 25",
+      supplierPrice: 0.4735,
+      price: 0.6735,
+      icon: "🎟️",
+    },
+    {
+      id: "70_diamonds",
+      name: "70 Diamonds",
+      displayName: "70💎",
+      supplierPrice: 0.4836,
+      price: 0.6836,
+      icon: "💎",
+    },
+    {
+      id: "80_diamonds",
+      name: "80 Diamonds",
+      displayName: "80💎",
+      supplierPrice: 0.6367,
+      price: 0.8367,
+      icon: "💎",
+    },
+    {
+      id: "level_up_pass_level_30",
+      name: "Level Up Pass - Level 30",
+      displayName: "PASE NIVEL 30",
+      supplierPrice: 0.7556,
+      price: 0.9556,
+      icon: "🎟️",
+    },
+    {
+      id: "100_diamonds",
+      name: "100 Diamonds",
+      displayName: "100💎",
+      supplierPrice: 0.8534,
+      price: 1.0534,
+      icon: "💎",
+    },
+    {
+      id: "120_diamonds",
+      name: "120 Diamonds",
+      displayName: "120💎",
+      supplierPrice: 0.9561,
+      price: 1.1561,
+      icon: "💎",
+    },
+    {
+      id: "140_diamantes",
+      name: "140 Diamantes",
+      displayName: "140💎",
+      supplierPrice: 0.9974,
+      price: 1.1974,
+      icon: "💎",
+    },
+    {
+      id: "130_diamantes",
+      name: "130 Diamantes",
+      displayName: "130💎",
+      supplierPrice: 1.0589,
+      price: 1.2589,
+      icon: "💎",
+    },
+    {
+      id: "145_diamantes",
+      name: "145 Diamantes",
+      displayName: "145💎",
+      supplierPrice: 1.1203,
+      price: 1.3203,
+      icon: "💎",
+    },
+    {
+      id: "150_diamantes",
+      name: "150 Diamantes",
+      displayName: "150💎",
+      supplierPrice: 1.1717,
+      price: 1.3717,
+      icon: "💎",
+    },
+    {
+      id: "190_diamantes",
+      name: "190 Diamantes",
+      displayName: "190💎",
+      supplierPrice: 1.4901,
+      price: 1.6901,
+      icon: "💎",
+    },
+    {
+      id: "210_diamantes",
+      name: "210 Diamantes",
+      displayName: "210💎",
+      supplierPrice: 1.5929,
+      price: 1.7929,
+      icon: "💎",
+    },
+    {
+      id: "200_diamantes",
+      name: "200 Diamantes",
+      displayName: "200💎",
+      supplierPrice: 1.5929,
+      price: 1.7929,
+      icon: "💎",
+    },
+    {
+      id: "membresía_semanal",
+      name: "Membresía semanal",
+      displayName: "MEMBRESÍA SEMANAL",
+      supplierPrice: 1.4508,
+      price: 1.6508,
+      icon: "⭐",
+    },
+    {
+      id: "280_diamantes",
+      name: "280 Diamantes",
+      displayName: "280💎",
+      supplierPrice: 2.1268,
+      price: 2.3268,
+      icon: "💎",
+    },
+    {
+      id: "tarjeta_bp",
+      name: "Tarjeta BP",
+      displayName: "TARJETA BP",
+      supplierPrice: 2.3475,
+      price: 2.5475,
+      icon: "🎟️",
+    },
+    {
+      id: "355_diamantes",
+      name: "355 Diamantes",
+      displayName: "355💎",
+      supplierPrice: 2.418,
+      price: 2.618,
+      icon: "💎",
+    },
+    {
+      id: "420_diamantes",
+      name: "420 Diamantes",
+      displayName: "420💎",
+      supplierPrice: 3.1857,
+      price: 3.3857,
+      icon: "💎",
+    },
+    {
+      id: "500_diamantes",
+      name: "500 Diamantes",
+      displayName: "500💎",
+      supplierPrice: 3.7711,
+      price: 3.9711,
+      icon: "💎",
+    },
+    {
+      id: "510_diamantes",
+      name: "510 Diamantes",
+      displayName: "510💎",
+      supplierPrice: 3.8738,
+      price: 4.0738,
+      icon: "💎",
+    },
+    {
+      id: "565_diamantes",
+      name: "565 Diamantes",
+      displayName: "565💎",
+      supplierPrice: 4.2547,
+      price: 4.4547,
+      icon: "💎",
+    },
+    {
+      id: "635_diamantes",
+      name: "635 Diamantes",
+      displayName: "635💎",
+      supplierPrice: 4.7886,
+      price: 4.9886,
+      icon: "💎",
+    },
+    {
+      id: "membresía_mensual",
+      name: "Membresía mensual",
+      displayName: "MEMBRESÍA MENSUAL",
+      supplierPrice: 4.3625,
+      price: 4.5625,
+      icon: "⭐",
+    },
+    {
+      id: "720_diamantes",
+      name: "720 Diamantes",
+      displayName: "720💎",
+      supplierPrice: 4.8259,
+      price: 5.0259,
+      icon: "💎",
+    },
+    {
+      id: "800_diamantes",
+      name: "800 Diamantes",
+      displayName: "800💎",
+      supplierPrice: 5.9503,
+      price: 6.1503,
+      icon: "💎",
+    },
+    {
+      id: "860_diamantes",
+      name: "860 Diamantes",
+      displayName: "860💎",
+      supplierPrice: 6.3815,
+      price: 6.5815,
+      icon: "💎",
+    },
+    {
+      id: "930_diamantes",
+      name: "930 Diamantes",
+      displayName: "930💎",
+      supplierPrice: 6.9165,
+      price: 7.1165,
+      icon: "💎",
+    },
+    {
+      id: "1000_diamantes",
+      name: "1000 Diamantes",
+      displayName: "1000💎",
+      supplierPrice: 7.4404,
+      price: 7.6404,
+      icon: "💎",
+    },
+    {
+      id: "1050_diamantes",
+      name: "1050 Diamantes",
+      displayName: "1050💎",
+      supplierPrice: 7.8716,
+      price: 8.0716,
+      icon: "💎",
+    },
+    {
+      id: "1075_diamantes",
+      name: "1075 Diamantes",
+      displayName: "1075💎",
+      supplierPrice: 7.9744,
+      price: 8.1744,
+      icon: "💎",
+    },
+    {
+      id: "1080_diamantes",
+      name: "1080 Diamantes",
+      displayName: "1080💎",
+      supplierPrice: 8.0257,
+      price: 8.2257,
+      icon: "💎",
+    },
+    {
+      id: "1450_diamantes",
+      name: "1450 Diamantes",
+      displayName: "1450💎",
+      supplierPrice: 9.6619,
+      price: 9.8619,
+      icon: "💎",
+    },
+    {
+      id: "2180_diamantes",
+      name: "2180 Diamantes",
+      displayName: "2180💎",
+      supplierPrice: 14.4879,
+      price: 14.6879,
+      icon: "💎",
+    },
+    {
+      id: "2200_diamantes",
+      name: "2200 Diamantes",
+      displayName: "2200💎",
+      supplierPrice: 16.3709,
+      price: 16.5709,
+      icon: "💎",
+    },
+    {
+      id: "3640_diamantes",
+      name: "3640 Diamantes",
+      displayName: "3640💎",
+      supplierPrice: 24.1397,
+      price: 24.3397,
+      icon: "💎",
+    },
+    {
+      id: "7290_diamantes",
+      name: "7290 Diamantes",
+      displayName: "7290💎",
+      supplierPrice: 48.3802,
+      price: 48.5802,
+      icon: "💎",
+    },
+  ] satisfies FreeFireIdOffer[],
+} as const;
