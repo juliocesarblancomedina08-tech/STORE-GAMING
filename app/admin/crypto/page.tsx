@@ -181,7 +181,8 @@ export default function AdminCryptoPage() {
       if (!value || !Number.isFinite(Number(value)) || Number(value) <= 0) {
         setNotice({
           type: "error",
-          message: "Introduce una tasa válida y mayor que cero en los cuatro campos.",
+          message:
+            "Introduce una tasa válida y mayor que cero en los cuatro campos.",
         });
         return;
       }
@@ -471,13 +472,10 @@ export default function AdminCryptoPage() {
 
             <label className="field full-field">
               <span className="field-label">Billetera USDT BEP20</span>
-              <span className="field-help">
-                Dirección de la billetera para las operaciones que la requieran.
-              </span>
               <input
                 type="text"
                 autoComplete="off"
-                placeholder="Introduce la dirección BEP20"
+                placeholder="Dirección BEP20"
                 value={form.bep20_wallet}
                 onChange={(event) =>
                   updateField("bep20_wallet", event.target.value)
@@ -487,12 +485,9 @@ export default function AdminCryptoPage() {
 
             <label className="field full-field">
               <span className="field-label">Instrucciones de pago</span>
-              <span className="field-help">
-                Indicaciones para los clientes sobre cómo realizar el pago.
-              </span>
               <textarea
                 rows={4}
-                placeholder="Escribe aquí las instrucciones de pago..."
+                placeholder="Instrucciones de pago..."
                 value={form.payment_instructions}
                 onChange={(event) =>
                   updateField("payment_instructions", event.target.value)
@@ -583,6 +578,7 @@ export default function AdminCryptoPage() {
           font-size: 11px;
           font-weight: 700;
           cursor: pointer;
+          transition: border-color 0.2s ease, color 0.2s ease;
         }
 
         .back-button {
@@ -599,6 +595,7 @@ export default function AdminCryptoPage() {
         .back-button:hover,
         .logout-button:hover {
           border-color: #ff3047;
+          color: #ff6477;
         }
 
         .hero {
@@ -740,6 +737,7 @@ export default function AdminCryptoPage() {
           border: 1px solid #292a34;
           border-radius: 16px;
           background: linear-gradient(145deg, #15161d, #101116);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         }
 
         .section-heading {
@@ -829,6 +827,7 @@ export default function AdminCryptoPage() {
           color: #f5f5f7;
           font: inherit;
           font-size: 13px;
+          transition: border-color 0.2s ease;
         }
 
         .input-wrap input {
@@ -1052,4 +1051,4 @@ export default function AdminCryptoPage() {
       `}</style>
     </main>
   );
-          }
+}
