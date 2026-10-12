@@ -19,7 +19,146 @@ type Notification = {
   created_at: string;
 };
 
+type MenuIconName =
+  | "home"
+  | "gamepad"
+  | "gift"
+  | "phone"
+  | "coins"
+  | "star"
+  | "wallet"
+  | "chart"
+  | "user"
+  | "package"
+  | "headphones"
+  | "settings"
+  | "clipboard";
+
 const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
+
+/* ICONOS DE LÍNEAS PARA EL MENÚ LATERAL */
+
+function MenuLineIcon({ name }: { name: MenuIconName }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="19"
+      height="19"
+      aria-hidden="true"
+      {...common}
+    >
+      {name === "home" && (
+        <>
+          <path d="m3 10 9-7 9 7" />
+          <path d="M5 9v11h14V9" />
+          <path d="M9 20v-7h6v7" />
+        </>
+      )}
+
+      {name === "gamepad" && (
+        <>
+          <path d="M6.5 8h11a4.5 4.5 0 0 1 4.3 5.8l-1.1 3.6a2.5 2.5 0 0 1-4.1 1.1L14 16h-4l-2.6 2.5a2.5 2.5 0 0 1-4.1-1.1l-1.1-3.6A4.5 4.5 0 0 1 6.5 8Z" />
+          <path d="M7 11v4M5 13h4" />
+          <path d="M16.5 12h.01M18.5 14h.01" />
+        </>
+      )}
+
+      {name === "gift" && (
+        <>
+          <rect x="3" y="9" width="18" height="12" rx="2" />
+          <path d="M12 9v12M3 13h18" />
+          <path d="M12 9H7.5a2.5 2.5 0 1 1 2.5-2.5V9ZM12 9h4.5A2.5 2.5 0 1 0 14 6.5V9Z" />
+        </>
+      )}
+
+      {name === "phone" && (
+        <>
+          <rect x="6" y="2" width="12" height="20" rx="2" />
+          <path d="M10 5h4M11 18h2" />
+        </>
+      )}
+
+      {name === "coins" && (
+        <>
+          <ellipse cx="9" cy="6" rx="6" ry="3" />
+          <path d="M3 6v5c0 1.7 2.7 3 6 3 1.1 0 2.1-.2 3-.5" />
+          <path d="M3 11v5c0 1.7 2.7 3 6 3 1.2 0 2.3-.2 3.2-.6" />
+          <ellipse cx="16" cy="14" rx="5" ry="2.5" />
+          <path d="M11 14v4c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-4" />
+        </>
+      )}
+
+      {name === "star" && (
+        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
+      )}
+
+      {name === "wallet" && (
+        <>
+          <rect x="3" y="5" width="18" height="15" rx="2" />
+          <path d="M3 9h18" />
+          <path d="M16 14h5" />
+          <path d="M16 14h.01" />
+          <path d="M6 5V4a2 2 0 0 1 2-2h10" />
+        </>
+      )}
+
+      {name === "chart" && (
+        <>
+          <path d="M3 3v18h18" />
+          <rect x="7" y="12" width="3" height="6" rx=".5" />
+          <rect x="13" y="8" width="3" height="10" rx=".5" />
+          <rect x="19" y="5" width="2" height="13" rx=".5" />
+        </>
+      )}
+
+      {name === "user" && (
+        <>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0" />
+        </>
+      )}
+
+      {name === "package" && (
+        <>
+          <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+          <path d="M3 8v9l9 5 9-5V8" />
+          <path d="M12 13v9M7.5 5.5l9 5" />
+        </>
+      )}
+
+      {name === "headphones" && (
+        <>
+          <path d="M3 14v-3a9 9 0 0 1 18 0v3" />
+          <rect x="3" y="13" width="5" height="8" rx="2" />
+          <rect x="16" y="13" width="5" height="8" rx="2" />
+        </>
+      )}
+
+      {name === "settings" && (
+        <>
+          <circle cx="12" cy="12" r="3" />
+          <path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.7 1l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.7-1l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-2l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.7-1l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.7 1l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1 0 2Z" />
+        </>
+      )}
+
+      {name === "clipboard" && (
+        <>
+          <rect x="5" y="4" width="14" height="18" rx="2" />
+          <path d="M9 4V3h6v1" />
+          <path d="M9 10h6M9 14h6M9 18h4" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 const panelStyle: CSSProperties = {
   maxWidth: "1100px",
@@ -105,7 +244,6 @@ const cardArrow: CSSProperties = {
 };
 
 function getOrderAmount(order: StoreOrder): number {
-  // Admite varios nombres de columnas habituales para el importe.
   const amountFields = [
     "total",
     "total_amount",
@@ -224,11 +362,6 @@ export default function HomePage() {
   }
 
   async function loadStatistics(userId: string) {
-    /*
-     * PEDIDOS Y GASTO TOTAL:
-     * Consultamos la vista store_gaming_orders, basada en topup_orders,
-     * para mostrar las órdenes reales de la cuenta.
-     */
     const { data: orderData, error: ordersError } = await supabase
       .from("store_gaming_orders")
       .select("*")
@@ -241,10 +374,8 @@ export default function HomePage() {
     } else {
       const orders = (orderData || []) as StoreOrder[];
 
-      // Cuenta todas las órdenes realizadas por este usuario.
       setOrdersCreated(orders.length);
 
-      // Suma el importe de todas las órdenes, sin filtrar por estado.
       const sum = orders.reduce(
         (total, order) => total + getOrderAmount(order),
         0
@@ -253,10 +384,6 @@ export default function HomePage() {
       setTotalSpent(sum);
     }
 
-    /*
-     * BILLETERA:
-     * Se mantiene la consulta del saldo desde profiles.
-     */
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("balance")
@@ -275,6 +402,10 @@ export default function HomePage() {
     let mounted = true;
 
     let notificationChannel:
+      | ReturnType<typeof supabase.channel>
+      | null = null;
+
+    let ordersChannel:
       | ReturnType<typeof supabase.channel>
       | null = null;
 
@@ -321,8 +452,7 @@ export default function HomePage() {
         )
         .subscribe();
 
-      // Actualiza los contadores cuando cambian las órdenes en la base de datos.
-      const ordersChannel = supabase
+      ordersChannel = supabase
         .channel(`home-orders-${userId}`)
         .on(
           "postgres_changes",
@@ -339,19 +469,9 @@ export default function HomePage() {
         .subscribe();
 
       setLoading(false);
-
-      return () => {
-        void supabase.removeChannel(ordersChannel);
-      };
     }
 
-    let removeOrdersChannel: (() => void) | undefined;
-
-    void loadUser().then((cleanup) => {
-      if (typeof cleanup === "function") {
-        removeOrdersChannel = cleanup;
-      }
-    });
+    void loadUser();
 
     const {
       data: { subscription },
@@ -386,7 +506,9 @@ export default function HomePage() {
         void supabase.removeChannel(notificationChannel);
       }
 
-      if (removeOrdersChannel) removeOrdersChannel();
+      if (ordersChannel) {
+        void supabase.removeChannel(ordersChannel);
+      }
     };
   }, [router]);
 
@@ -475,7 +597,9 @@ export default function HomePage() {
                 className="side-menu-item active"
                 onClick={() => goTo("/home")}
               >
-                <span className="menu-icon">🏠</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="home" />
+                </span>
                 <span>Hogar</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -489,7 +613,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => goTo("/top-up")}
               >
-                <span className="menu-icon">🎮</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="gamepad" />
+                </span>
                 <span>Recargas TOP UP</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -499,7 +625,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => goTo("/gift-cards")}
               >
-                <span className="menu-icon">🎁</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="gift" />
+                </span>
                 <span>Tarjetas de regalo</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -509,7 +637,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => setMenuOpen(false)}
               >
-                <span className="menu-icon">📱</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="phone" />
+                </span>
                 <span style={{ flex: 1, textAlign: "left", fontSize: "13px" }}>
                   Venta de saldo móvil
                 </span>
@@ -536,7 +666,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => goTo("/crypto")}
               >
-                <span className="menu-icon">🪙</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="coins" />
+                </span>
                 <span>Compra y venta de cripto</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -546,7 +678,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => goTo("/telegram-stars")}
               >
-                <span className="menu-icon">⭐</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="star" />
+                </span>
                 <span>Estrellas de Telegram</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -560,7 +694,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => goTo("/balance")}
               >
-                <span className="menu-icon">💳</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="wallet" />
+                </span>
                 <span>Billetera</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -570,7 +706,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => setMenuOpen(false)}
               >
-                <span className="menu-icon">📊</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="chart" />
+                </span>
                 <span>Estadísticas</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -584,7 +722,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => goTo("/profile")}
               >
-                <span className="menu-icon">👤</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="user" />
+                </span>
                 <span>Mi perfil</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -594,7 +734,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => goTo("/orders")}
               >
-                <span className="menu-icon">📦</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="package" />
+                </span>
                 <span>Mis pedidos</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -604,7 +746,9 @@ export default function HomePage() {
                 className="side-menu-item"
                 onClick={() => goTo("/support")}
               >
-                <span className="menu-icon">🎧</span>
+                <span className="menu-icon">
+                  <MenuLineIcon name="headphones" />
+                </span>
                 <span>Soporte</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -622,7 +766,9 @@ export default function HomePage() {
                     className="side-menu-item"
                     onClick={() => goTo("/admin")}
                   >
-                    <span className="menu-icon">⚙️</span>
+                    <span className="menu-icon">
+                      <MenuLineIcon name="settings" />
+                    </span>
                     <span>ADM PANEL</span>
                     <span className="menu-arrow">›</span>
                   </button>
@@ -632,7 +778,9 @@ export default function HomePage() {
                     className="side-menu-item"
                     onClick={() => goTo("/admin/manual-orders")}
                   >
-                    <span className="menu-icon">🧾</span>
+                    <span className="menu-icon">
+                      <MenuLineIcon name="clipboard" />
+                    </span>
                     <span>ÓRDENES ADM</span>
                     <span className="menu-arrow">›</span>
                   </button>
@@ -879,8 +1027,6 @@ export default function HomePage() {
               gap: "8px",
             }}
           >
-            {/* BILLETERA */}
-
             <button
               type="button"
               onClick={() => goTo("/balance")}
@@ -914,8 +1060,6 @@ export default function HomePage() {
               </b>
             </button>
 
-            {/* GASTO TOTAL: SUMA DE TODAS LAS ÓRDENES */}
-
             <button
               type="button"
               onClick={() => goTo("/orders")}
@@ -948,8 +1092,6 @@ export default function HomePage() {
                 ${totalSpent.toFixed(2)}
               </b>
             </button>
-
-            {/* CANTIDAD DE ÓRDENES */}
 
             <button
               type="button"
