@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -101,7 +102,7 @@ export default function AdminPage() {
       }
     }
 
-    checkAdmin();
+    void checkAdmin();
 
     return () => {
       mounted = false;
@@ -163,6 +164,17 @@ export default function AdminPage() {
   return (
     <main className="admin-page">
       <div className="container">
+        {/* BOTÓN PARA REGRESAR AL HOME */}
+
+        <button
+          type="button"
+          className="back-home-button"
+          onClick={() => router.push("/home")}
+        >
+          <span className="back-home-arrow">←</span>
+          <span>VOLVER AL HOME</span>
+        </button>
+
         <header className="topbar">
           <div className="brand">
             <div className="brand-logo">🎮</div>
@@ -288,6 +300,44 @@ export default function AdminPage() {
           width: 100%;
           max-width: 780px;
           margin: 0 auto;
+        }
+
+        /* ESTILO DEL BOTÓN VOLVER AL HOME */
+
+        .back-home-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 9px;
+          margin-bottom: 20px;
+          padding: 11px 15px;
+          border: 1px solid rgba(255, 48, 71, 0.35);
+          border-radius: 10px;
+          background: linear-gradient(
+            135deg,
+            rgba(255, 48, 71, 0.14),
+            rgba(21, 22, 29, 0.95)
+          );
+          color: #ff6477;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.8px;
+          cursor: pointer;
+          transition:
+            background 0.2s ease,
+            border-color 0.2s ease,
+            transform 0.2s ease;
+        }
+
+        .back-home-button:hover {
+          border-color: #ff3047;
+          background: rgba(255, 48, 71, 0.2);
+          transform: translateY(-1px);
+        }
+
+        .back-home-arrow {
+          font-size: 19px;
+          line-height: 1;
         }
 
         .topbar {
@@ -650,6 +700,10 @@ export default function AdminPage() {
             padding: 20px 12px 28px;
           }
 
+          .back-home-button {
+            margin-bottom: 17px;
+          }
+
           .topbar {
             gap: 8px;
             padding-bottom: 20px;
@@ -748,11 +802,13 @@ export default function AdminPage() {
 
         @media (prefers-reduced-motion: reduce) {
           .service-card,
-          .logout-button {
+          .logout-button,
+          .back-home-button {
             transition: none;
           }
 
-          .service-card:hover {
+          .service-card:hover,
+          .back-home-button:hover {
             transform: none;
           }
         }
