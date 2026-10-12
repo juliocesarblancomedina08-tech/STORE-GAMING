@@ -5,18 +5,9 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
-type StoreOrder = {
+type StoreOrder = Record<string, unknown> & {
   id?: string;
-  game?: string;
-  product?: string;
-  displayProduct?: string;
-  price?: number | string;
-  total?: number | string;
-  playerId?: string;
-  serverId?: string;
   status?: string;
-  createdAt?: string;
-  date?: string;
 };
 
 type Notification = {
@@ -35,7 +26,7 @@ const panelStyle: CSSProperties = {
   margin: "14px auto",
   padding: "16px",
   borderRadius: "16px",
-  border: "1px solid rgba(255,255,255,.10)",
+  border: "1px solid rgba(255,255,255,.1)",
   background:
     "linear-gradient(rgba(8,10,17,.88),rgba(8,10,17,.93)), url('/images/battle-royale-bg.jpg') center / cover no-repeat",
   boxShadow: "0 10px 30px rgba(0,0,0,.22)",
@@ -77,7 +68,7 @@ const cardStyle: CSSProperties = {
   minHeight: "62px",
   padding: "10px 9px",
   borderRadius: "11px",
-  border: "1px solid rgba(255,255,255,.10)",
+  border: "1px solid rgba(255,255,255,.1)",
   background: "rgba(15,18,28,.78)",
   color: "#fff",
   font: "inherit",
@@ -89,12 +80,12 @@ const cardIcon: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  width: "31px",
-  height: "31px",
+  width: "34px",
+  height: "34px",
   flexShrink: 0,
   borderRadius: "9px",
-  background: "rgba(229,9,20,.15)",
-  fontSize: "18px",
+  background: "rgba(229,9,20,.16)",
+  fontSize: "20px",
 };
 
 const cardText: CSSProperties = {
@@ -112,6 +103,33 @@ const cardArrow: CSSProperties = {
   fontWeight: 900,
   flexShrink: 0,
 };
+
+function getOrderAmount(order: StoreOrder): number {
+  // Admite varios nombres de columnas habituales para el importe.
+  const amountFields = [
+    "total",
+    "total_amount",
+    "total_usd",
+    "amount",
+    "amount_usd",
+    "price",
+    "price_usd",
+    "cost",
+    "subtotal",
+  ];
+
+  for (const field of amountFields) {
+    const value = order[field];
+
+    if (value !== null && value !== undefined && value !== "") {
+      const amount = Number(value);
+
+      if (Number.isFinite(amount)) return amount;
+    }
+  }
+
+  return 0;
+}
 
 export default function HomePage() {
   const router = useRouter();
@@ -150,6 +168,7 @@ export default function HomePage() {
     }
 
     const rows = (data as Notification[]) || [];
+
     setNotifications(rows);
     setNotificationCount(
       rows.filter((notification) => !notification.is_read).length
@@ -184,6 +203,7 @@ export default function HomePage() {
 
   async function markAllNotificationsAsRead() {
     if (!currentUserId) return;
+
     if (!notifications.some((notification) => !notification.is_read)) return;
 
     const { error } = await supabase
@@ -204,59 +224,59 @@ export default function HomePage() {
   }
 
   async function loadStatistics(userId: string) {
-    let orders: StoreOrder[] = [];
+    /*
+     * PEDIDOS Y GASTO TOTAL:
+     * Consultamos la vista store_gaming_orders, basada en topup_orders,
+     * para mostrar las órdenes reales de la cuenta.
+     */
+    const { data: orderData, error: ordersError } = await supabase
+      .from("store_gaming_orders")
+      .select("*")
+      .eq("user_id", userId);
 
-    try {
-      const savedOrders = localStorage.getItem("storeGamingOrders");
-      if (savedOrders) {
-        const parsedOrders = JSON.parse(savedOrders);
-        if (Array.isArray(parsedOrders)) orders = parsedOrders;
-      }
-    } catch {
-      orders = [];
-    }
+    if (ordersError) {
+      console.error("Error cargando órdenes:", ordersError);
+      setOrdersCreated(0);
+      setTotalSpent(0);
+    } else {
+      const orders = (orderData || []) as StoreOrder[];
 
-    setOrdersCreated(orders.length);
+      // Cuenta todas las órdenes realizadas por este usuario.
+      setOrdersCreated(orders.length);
 
-    const completedStatuses = [
-      "COMPLETADA",
-      "COMPLETADO",
-      "CONFIRMADA",
-      "CONFIRMADO",
-      "completada",
-      "completado",
-      "confirmada",
-      "confirmado",
-    ];
-
-    const spent = orders
-      .filter((order) =>
-        completedStatuses.includes(String(order.status || ""))
-      )
-      .reduce(
-        (sum, order) =>
-          sum + (Number(order.total) || Number(order.price) || 0),
+      // Suma el importe de todas las órdenes, sin filtrar por estado.
+      const sum = orders.reduce(
+        (total, order) => total + getOrderAmount(order),
         0
       );
 
-    setTotalSpent(spent);
+      setTotalSpent(sum);
+    }
 
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("balance")
-        .eq("id", userId)
-        .single();
+    /*
+     * BILLETERA:
+     * Se mantiene la consulta del saldo desde profiles.
+     */
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("balance")
+      .eq("id", userId)
+      .single();
 
-      setDeposited(!error && data ? Number(data.balance) || 0 : 0);
-    } catch {
+    if (profileError) {
+      console.error("Error cargando billetera:", profileError);
       setDeposited(0);
+    } else {
+      setDeposited(Number(profileData?.balance) || 0);
     }
   }
 
   useEffect(() => {
     let mounted = true;
-    let notificationChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    let notificationChannel:
+      | ReturnType<typeof supabase.channel>
+      | null = null;
 
     async function loadUser() {
       const {
@@ -278,8 +298,10 @@ export default function HomePage() {
       setCurrentUserId(userId);
       setIsAdmin(email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase());
 
-      await loadStatistics(userId);
-      await loadNotifications(userId);
+      await Promise.all([
+        loadStatistics(userId),
+        loadNotifications(userId),
+      ]);
 
       if (!mounted) return;
 
@@ -299,10 +321,37 @@ export default function HomePage() {
         )
         .subscribe();
 
+      // Actualiza los contadores cuando cambian las órdenes en la base de datos.
+      const ordersChannel = supabase
+        .channel(`home-orders-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "topup_orders",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            void loadStatistics(userId);
+          }
+        )
+        .subscribe();
+
       setLoading(false);
+
+      return () => {
+        void supabase.removeChannel(ordersChannel);
+      };
     }
 
-    void loadUser();
+    let removeOrdersChannel: (() => void) | undefined;
+
+    void loadUser().then((cleanup) => {
+      if (typeof cleanup === "function") {
+        removeOrdersChannel = cleanup;
+      }
+    });
 
     const {
       data: { subscription },
@@ -320,8 +369,11 @@ export default function HomePage() {
       setIsAdmin(email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase());
 
       void (async () => {
-        await loadStatistics(userId);
-        await loadNotifications(userId);
+        await Promise.all([
+          loadStatistics(userId),
+          loadNotifications(userId),
+        ]);
+
         if (mounted) setLoading(false);
       })();
     });
@@ -333,6 +385,8 @@ export default function HomePage() {
       if (notificationChannel) {
         void supabase.removeChannel(notificationChannel);
       }
+
+      if (removeOrdersChannel) removeOrdersChannel();
     };
   }, [router]);
 
@@ -405,14 +459,17 @@ export default function HomePage() {
             </div>
 
             <div className="side-menu-user">
-              <div className="side-user-icon">@</div>
+              <div className="side-user-icon">👤</div>
               <div>
                 <small>CUENTA</small>
                 <strong>@{username}</strong>
               </div>
             </div>
 
-            <nav className="side-menu-nav" style={{ position: "relative", zIndex: 2 }}>
+            <nav
+              className="side-menu-nav"
+              style={{ position: "relative", zIndex: 2 }}
+            >
               <button
                 type="button"
                 className="side-menu-item active"
@@ -427,13 +484,21 @@ export default function HomePage() {
                 <span /> SERVICIOS <span />
               </div>
 
-              <button type="button" className="side-menu-item" onClick={() => goTo("/top-up")}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/top-up")}
+              >
                 <span className="menu-icon">🎮</span>
                 <span>Recargas TOP UP</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button type="button" className="side-menu-item" onClick={() => goTo("/gift-cards")}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/gift-cards")}
+              >
                 <span className="menu-icon">🎁</span>
                 <span>Tarjetas de regalo</span>
                 <span className="menu-arrow">›</span>
@@ -466,13 +531,21 @@ export default function HomePage() {
                 </span>
               </button>
 
-              <button type="button" className="side-menu-item" onClick={() => goTo("/crypto")}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/crypto")}
+              >
                 <span className="menu-icon">🪙</span>
                 <span>Compra y venta de cripto</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button type="button" className="side-menu-item" onClick={() => goTo("/telegram-stars")}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/telegram-stars")}
+              >
                 <span className="menu-icon">⭐</span>
                 <span>Estrellas de Telegram</span>
                 <span className="menu-arrow">›</span>
@@ -482,13 +555,21 @@ export default function HomePage() {
                 <span /> FINANZAS <span />
               </div>
 
-              <button type="button" className="side-menu-item" onClick={() => goTo("/balance")}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/balance")}
+              >
                 <span className="menu-icon">💳</span>
                 <span>Billetera</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button type="button" className="side-menu-item" onClick={() => setMenuOpen(false)}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => setMenuOpen(false)}
+              >
                 <span className="menu-icon">📊</span>
                 <span>Estadísticas</span>
                 <span className="menu-arrow">›</span>
@@ -498,25 +579,37 @@ export default function HomePage() {
                 <span /> CUENTA <span />
               </div>
 
-              <button type="button" className="side-menu-item" onClick={() => goTo("/profile")}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/profile")}
+              >
                 <span className="menu-icon">👤</span>
                 <span>Mi perfil</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button type="button" className="side-menu-item" onClick={() => goTo("/orders")}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/orders")}
+              >
                 <span className="menu-icon">📦</span>
                 <span>Mis pedidos</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button type="button" className="side-menu-item" onClick={() => goTo("/support")}>
+              <button
+                type="button"
+                className="side-menu-item"
+                onClick={() => goTo("/support")}
+              >
                 <span className="menu-icon">🎧</span>
                 <span>Soporte</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              {/* AMBAS OPCIONES SOLO SON VISIBLES PARA EL ADMIN */}
+              {/* SOLO EL ADMIN PUEDE VER ESTAS OPCIONES */}
 
               {isAdmin && (
                 <>
@@ -524,7 +617,11 @@ export default function HomePage() {
                     <span /> ADMINISTRACIÓN <span />
                   </div>
 
-                  <button type="button" className="side-menu-item" onClick={() => goTo("/admin")}>
+                  <button
+                    type="button"
+                    className="side-menu-item"
+                    onClick={() => goTo("/admin")}
+                  >
                     <span className="menu-icon">⚙️</span>
                     <span>ADM PANEL</span>
                     <span className="menu-arrow">›</span>
@@ -544,8 +641,12 @@ export default function HomePage() {
             </nav>
 
             <div className="side-menu-bottom">
-              <button type="button" className="side-menu-logout" onClick={logout}>
-                <span>⇥</span>
+              <button
+                type="button"
+                className="side-menu-logout"
+                onClick={logout}
+              >
+                <span>🚪</span>
                 <strong>Cerrar sesión</strong>
               </button>
             </div>
@@ -553,7 +654,7 @@ export default function HomePage() {
         </>
       )}
 
-      {/* CABECERA: MENÚ A LA IZQUIERDA Y CAMPANA A LA DERECHA */}
+      {/* CABECERA */}
 
       <header className="store-header">
         <button
@@ -583,6 +684,8 @@ export default function HomePage() {
               strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
+              width="24"
+              height="24"
             >
               <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
               <path d="M10 21h4" />
@@ -602,6 +705,7 @@ export default function HomePage() {
                   <span>STORE GAMING</span>
                   <strong>NOTIFICACIONES</strong>
                 </div>
+
                 <button
                   type="button"
                   onClick={() => setNotificationsOpen(false)}
@@ -658,7 +762,9 @@ export default function HomePage() {
                       key={notification.id}
                       type="button"
                       className={`notification-item ${
-                        notification.is_read ? "notification-read" : "notification-unread"
+                        notification.is_read
+                          ? "notification-read"
+                          : "notification-unread"
                       }`}
                       onClick={() => {
                         if (!notification.is_read) {
@@ -669,16 +775,18 @@ export default function HomePage() {
                       <div className="notification-item-icon">
                         {notification.is_read ? "✓" : "🔔"}
                       </div>
+
                       <div className="notification-item-content">
                         <strong>{notification.title}</strong>
                         <p>{notification.message}</p>
                         <small>
-                          {new Date(notification.created_at).toLocaleString("es-ES", {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          })}
+                          {new Date(notification.created_at).toLocaleString(
+                            "es-ES",
+                            { dateStyle: "short", timeStyle: "short" }
+                          )}
                         </small>
                       </div>
+
                       {!notification.is_read && (
                         <span className="notification-unread-dot" />
                       )}
@@ -691,7 +799,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* BIENVENIDA */}
+      {/* BIENVENIDA Y ESTADÍSTICAS */}
 
       <section className="store-hero" style={panelStyle}>
         <div className="hero-content">
@@ -721,9 +829,15 @@ export default function HomePage() {
               margin: 0,
             }}
           >
-            <span style={{ fontSize: "clamp(19px,4vw,28px)", fontWeight: 900 }}>
+            <span
+              style={{
+                fontSize: "clamp(19px,4vw,28px)",
+                fontWeight: 900,
+              }}
+            >
               BIENVENIDO A
             </span>
+
             <span
               style={{
                 color: "#ff3948",
@@ -733,7 +847,14 @@ export default function HomePage() {
             >
               STORE GAMING
             </span>
-            <span style={{ color: "#b5bdca", fontSize: "11px", fontWeight: 700 }}>
+
+            <span
+              style={{
+                color: "#b5bdca",
+                fontSize: "11px",
+                fontWeight: 700,
+              }}
+            >
               USUARIO: @{username}
             </span>
           </h1>
@@ -758,27 +879,115 @@ export default function HomePage() {
               gap: "8px",
             }}
           >
-            <div className="hero-stat-card" style={{ ...cardStyle, cursor: "default", flexDirection: "column", alignItems: "flex-start", gap: "5px", minHeight: "auto" }}>
-              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>BILLETERA</span>
-              <b style={{ fontSize: "clamp(12px,3vw,16px)", overflowWrap: "anywhere" }}>${deposited.toFixed(2)}</b>
-            </div>
+            {/* BILLETERA */}
 
-            <div className="hero-stat-card" style={{ ...cardStyle, cursor: "default", flexDirection: "column", alignItems: "flex-start", gap: "5px", minHeight: "auto" }}>
-              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>GASTO TOTAL</span>
-              <b style={{ fontSize: "clamp(12px,3vw,16px)", overflowWrap: "anywhere" }}>${totalSpent.toFixed(2)}</b>
-            </div>
+            <button
+              type="button"
+              onClick={() => goTo("/balance")}
+              className="hero-stat-card"
+              style={{
+                ...cardStyle,
+                cursor: "pointer",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: "6px",
+                minHeight: "104px",
+              }}
+            >
+              <span style={{ fontSize: "23px" }}>💳</span>
+              <span
+                style={{
+                  color: "#aab3c5",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                }}
+              >
+                BILLETERA
+              </span>
+              <b
+                style={{
+                  fontSize: "clamp(12px,3vw,16px)",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                ${deposited.toFixed(2)}
+              </b>
+            </button>
 
-            <div className="hero-stat-card" style={{ ...cardStyle, cursor: "default", flexDirection: "column", alignItems: "flex-start", gap: "5px", minHeight: "auto" }}>
-              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>PEDIDOS</span>
-              <b style={{ fontSize: "clamp(12px,3vw,16px)" }}>{ordersCreated}</b>
-            </div>
+            {/* GASTO TOTAL: SUMA DE TODAS LAS ÓRDENES */}
+
+            <button
+              type="button"
+              onClick={() => goTo("/orders")}
+              className="hero-stat-card"
+              style={{
+                ...cardStyle,
+                cursor: "pointer",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: "6px",
+                minHeight: "104px",
+              }}
+            >
+              <span style={{ fontSize: "23px" }}>💸</span>
+              <span
+                style={{
+                  color: "#aab3c5",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                }}
+              >
+                GASTO TOTAL
+              </span>
+              <b
+                style={{
+                  fontSize: "clamp(12px,3vw,16px)",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                ${totalSpent.toFixed(2)}
+              </b>
+            </button>
+
+            {/* CANTIDAD DE ÓRDENES */}
+
+            <button
+              type="button"
+              onClick={() => goTo("/orders")}
+              className="hero-stat-card"
+              style={{
+                ...cardStyle,
+                cursor: "pointer",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: "6px",
+                minHeight: "104px",
+              }}
+            >
+              <span style={{ fontSize: "23px" }}>📦</span>
+              <span
+                style={{
+                  color: "#aab3c5",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                }}
+              >
+                ÓRDENES
+              </span>
+              <b style={{ fontSize: "clamp(12px,3vw,16px)" }}>
+                {ordersCreated}
+              </b>
+            </button>
           </div>
         </div>
       </section>
 
-      {/* SERVICIOS: DOS POR FILA */}
+      {/* SERVICIOS */}
 
-      <section className="services-section" style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 10px" }}>
+      <section
+        className="services-section"
+        style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 10px" }}
+      >
         <div style={sectionHeading}>
           <div>
             <span style={sectionLabel}>EXPLORA LA TIENDA</span>
@@ -788,25 +997,45 @@ export default function HomePage() {
         </div>
 
         <div style={cardGrid}>
-          <button type="button" className="service-card" style={cardStyle} onClick={() => goTo("/top-up")}>
+          <button
+            type="button"
+            className="service-card"
+            style={cardStyle}
+            onClick={() => goTo("/top-up")}
+          >
             <span style={cardIcon}>🎮</span>
             <span style={cardText}>SERVICIOS TOP UP</span>
             <span style={cardArrow}>›</span>
           </button>
 
-          <button type="button" className="service-card" style={cardStyle} onClick={() => goTo("/gift-cards")}>
+          <button
+            type="button"
+            className="service-card"
+            style={cardStyle}
+            onClick={() => goTo("/gift-cards")}
+          >
             <span style={cardIcon}>🎁</span>
             <span style={cardText}>TARJETAS DE REGALO</span>
             <span style={cardArrow}>›</span>
           </button>
 
-          <button type="button" className="service-card" style={cardStyle} onClick={() => goTo("/telegram-stars")}>
+          <button
+            type="button"
+            className="service-card"
+            style={cardStyle}
+            onClick={() => goTo("/telegram-stars")}
+          >
             <span style={cardIcon}>⭐</span>
             <span style={cardText}>ESTRELLAS DE TELEGRAM</span>
             <span style={cardArrow}>›</span>
           </button>
 
-          <button type="button" className="service-card" style={cardStyle} onClick={() => goTo("/crypto")}>
+          <button
+            type="button"
+            className="service-card"
+            style={cardStyle}
+            onClick={() => goTo("/crypto")}
+          >
             <span style={cardIcon}>🪙</span>
             <span style={cardText}>COMPRA Y VENTA DE CRIPTO</span>
             <span style={cardArrow}>›</span>
@@ -837,25 +1066,41 @@ export default function HomePage() {
         </div>
 
         <div style={cardGrid}>
-          <button type="button" style={cardStyle} onClick={() => goTo("/orders")}>
+          <button
+            type="button"
+            style={cardStyle}
+            onClick={() => goTo("/orders")}
+          >
             <span style={cardIcon}>📦</span>
             <span style={cardText}>PEDIDOS</span>
             <span style={cardArrow}>›</span>
           </button>
 
-          <button type="button" style={cardStyle} onClick={() => goTo("/balance")}>
+          <button
+            type="button"
+            style={cardStyle}
+            onClick={() => goTo("/balance")}
+          >
             <span style={cardIcon}>💳</span>
             <span style={cardText}>BILLETERA</span>
             <span style={cardArrow}>›</span>
           </button>
 
-          <button type="button" style={cardStyle} onClick={() => goTo("/transfers")}>
+          <button
+            type="button"
+            style={cardStyle}
+            onClick={() => goTo("/transfers")}
+          >
             <span style={cardIcon}>🔄</span>
             <span style={cardText}>TRANSFERENCIAS</span>
             <span style={cardArrow}>›</span>
           </button>
 
-          <button type="button" style={cardStyle} onClick={() => goTo("/profile")}>
+          <button
+            type="button"
+            style={cardStyle}
+            onClick={() => goTo("/profile")}
+          >
             <span style={cardIcon}>👤</span>
             <span style={cardText}>PERFIL</span>
             <span style={cardArrow}>›</span>
@@ -911,20 +1156,32 @@ export default function HomePage() {
         }}
       >
         <div className="benefit" style={cardStyle}>
-          <span>⚡</span>
+          <span style={{ fontSize: "22px" }}>⚡</span>
           <div>
             <strong style={{ fontSize: "10px" }}>ENTREGA RÁPIDA</strong>
-            <p style={{ fontSize: "10px", color: "#aab3c5", margin: "4px 0 0" }}>
+            <p
+              style={{
+                fontSize: "10px",
+                color: "#aab3c5",
+                margin: "4px 0 0",
+              }}
+            >
               Procesamos tus pedidos rápidamente.
             </p>
           </div>
         </div>
 
         <div className="benefit" style={cardStyle}>
-          <span>🛡️</span>
+          <span style={{ fontSize: "22px" }}>🛡️</span>
           <div>
             <strong style={{ fontSize: "10px" }}>COMPRA SEGURA</strong>
-            <p style={{ fontSize: "10px", color: "#aab3c5", margin: "4px 0 0" }}>
+            <p
+              style={{
+                fontSize: "10px",
+                color: "#aab3c5",
+                margin: "4px 0 0",
+              }}
+            >
               Tu pedido queda registrado.
             </p>
           </div>
@@ -941,10 +1198,15 @@ export default function HomePage() {
           color: "#aab3c5",
         }}
       >
-        <div className="footer-brand" style={{ color: "#fff", fontWeight: 900 }}>
-          STORE GAMING
+        <div
+          className="footer-brand"
+          style={{ color: "#fff", fontWeight: 900 }}
+        >
+          🛒 STORE GAMING 🎮
         </div>
-        <p style={{ fontSize: "10px" }}>TU MEJOR OPCIÓN PARA RECARGAS GAMING</p>
+        <p style={{ fontSize: "10px" }}>
+          TU MEJOR OPCIÓN PARA RECARGAS GAMING
+        </p>
         <small>© 2026 STORE GAMING</small>
       </footer>
     </main>
