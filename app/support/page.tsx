@@ -15,6 +15,7 @@ type View = "closed" | "form" | "chat" | "tickets";
 type ChatSender = "ai" | "user" | "admin";
 
 type ChatMessage = {
+  id?: string | number;
   sender: ChatSender;
   message: string;
   created_at?: string;
@@ -197,8 +198,14 @@ const SUPPORT_CSS = `
   font-size: 14px;
 }
 .support-field select { color-scheme: dark; }
-.support-field textarea { min-height: 130px; resize: vertical; line-height: 1.6; }
-.support-field input::placeholder, .support-field textarea::placeholder { color: #666; }
+.support-field textarea {
+  min-height: 130px;
+  resize: vertical;
+  line-height: 1.6;
+}
+.support-field input::placeholder, .support-field textarea::placeholder {
+  color: #666;
+}
 .support-field input:focus, .support-field select:focus,
 .support-field textarea:focus {
   border-color: #e50914;
@@ -304,8 +311,16 @@ const SUPPORT_CSS = `
   border-top: 1px solid #202020;
   text-align: center;
 }
-.game-service-footer strong { color: #fff; font-size: 15px; font-weight: 950; }
-.game-service-footer span { color: #777; font-size: 10px; letter-spacing: 2px; }
+.game-service-footer strong {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 950;
+}
+.game-service-footer span {
+  color: #777;
+  font-size: 10px;
+  letter-spacing: 2px;
+}
 .support-floating-button {
   position: fixed;
   right: max(20px,env(safe-area-inset-right));
@@ -351,26 +366,105 @@ const SUPPORT_CSS = `
   scrollbar-color: #373737 #0b0b0b;
   -webkit-overflow-scrolling: touch;
 }
-.support-chat-input-row { display: flex; width: 100%; align-items: center; gap: 8px; margin: 0; }
+.support-chat-input-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
 .support-chat-input-row input:focus {
   border-color: #e50914 !important;
   box-shadow: 0 0 0 3px rgba(229,9,20,.1);
 }
 .support-send-button { cursor: pointer; }
 .support-admin-button:disabled, .support-send-button:disabled,
-.support-submit-button:disabled { opacity: .5; cursor: not-allowed; }
+.support-submit-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
 @media(max-width:600px) {
-  .support-content { width: calc(100% - 22px); padding-top: 14px; padding-bottom: 24px; }
+  .support-content {
+    width: calc(100% - 22px);
+    padding-top: 14px;
+    padding-bottom: 24px;
+  }
   .support-header { gap: 10px; margin-bottom: 17px; }
   .support-main-card { padding: 24px 16px; border-radius: 18px; }
   .support-form { padding: 17px; gap: 16px; }
   .support-item { gap: 10px; padding: 13px; }
-  .support-floating-button { width: 50px; height: 50px; right: 14px; bottom: 14px; }
+  .support-floating-button {
+    width: 50px;
+    height: 50px;
+    right: 14px;
+    bottom: 14px;
+  }
 }
 `;
 
 function SupportStyles() {
   return <style jsx global>{SUPPORT_CSS}</style>;
+}
+
+function createMessageId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeConversation(value: unknown): ChatMessage[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(
+      (item: unknown) =>
+        item !== null && typeof item === "object"
+    )
+    .map((item: any): ChatMessage | null => {
+      const rawText =
+        typeof item.message === "string"
+          ? item.message
+          : typeof item.text === "string"
+            ? item.text
+            : typeof item.content === "string"
+              ? item.content
+              : "";
+
+      if (!rawText.trim()) return null;
+
+      let sender: ChatSender = "user";
+
+      if (item.sender === "admin" || item.role === "admin") {
+        sender = "admin";
+      } else if (
+        item.sender === "ai" ||
+        item.role === "assistant" ||
+        item.sender === "assistant"
+      ) {
+        sender = "ai";
+      } else if (item.sender === "user" || item.role === "user") {
+        sender = "user";
+      }
+
+      const rawId = item.id;
+      const id =
+        typeof rawId === "string" || typeof rawId === "number"
+          ? rawId
+          : createMessageId();
+
+      const createdAt =
+        typeof item.created_at === "string"
+          ? item.created_at
+          : typeof item.createdAt === "string"
+            ? item.createdAt
+            : undefined;
+
+      return {
+        id,
+        sender,
+        message: rawText,
+        created_at: createdAt,
+      };
+    })
+    .filter((item): item is ChatMessage => item !== null);
 }
 
 export default function SupportPage() {
@@ -399,18 +493,23 @@ export default function SupportPage() {
       setTicketLoading(true);
       setError("");
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
         throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
       }
 
       const finalUserId = userId || session.user.id;
+
       const response = await fetch(
         `/api/support/tickets?user_id=${encodeURIComponent(finalUserId)}`,
         {
           method: "GET",
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
           cache: "no-store",
         }
       );
@@ -418,13 +517,38 @@ export default function SupportPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "No se pudieron cargar las consultas.");
+        throw new Error(
+          result.error || "No se pudieron cargar las consultas."
+        );
       }
 
-      setTickets(Array.isArray(result.tickets) ? result.tickets : []);
+      const loadedTickets: SupportTicket[] = Array.isArray(result.tickets)
+        ? result.tickets.map((ticket: SupportTicket) => ({
+            ...ticket,
+            id: Number(ticket.id),
+            conversation: normalizeConversation(ticket.conversation),
+            status: ticket.status || "PENDING",
+          }))
+        : [];
+
+      setTickets(loadedTickets);
+
+      setSelectedTicket((current) => {
+        if (!current) return null;
+
+        const refreshed = loadedTickets.find(
+          (ticket) => Number(ticket.id) === Number(current.id)
+        );
+
+        return refreshed || current;
+      });
     } catch (err) {
       console.error("ERROR CARGANDO TICKETS:", err);
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las consultas.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron cargar las consultas."
+      );
     } finally {
       setTicketLoading(false);
     }
@@ -432,8 +556,10 @@ export default function SupportPage() {
 
   const loadCurrentUser = useCallback(async () => {
     try {
-      const { data: { session }, error: sessionError } =
-        await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
       if (sessionError || !session?.user) {
         router.replace("/");
@@ -442,6 +568,7 @@ export default function SupportPage() {
 
       const user = session.user;
       const metadata = user.user_metadata || {};
+
       const username =
         metadata.username ||
         metadata.user_name ||
@@ -451,6 +578,7 @@ export default function SupportPage() {
 
       setCurrentEmail(user.email || "");
       setCurrentUsername(username);
+
       await loadTickets(user.id);
     } catch (err) {
       console.error("ERROR CARGANDO USUARIO:", err);
@@ -495,7 +623,9 @@ export default function SupportPage() {
       setLoading(true);
       setError("");
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
         throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
@@ -518,16 +648,20 @@ export default function SupportPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "No se pudo obtener una respuesta del soporte.");
+        throw new Error(
+          result.error || "No se pudo obtener una respuesta del soporte."
+        );
       }
 
-      const aiText = result.message || result.response || result.answer || "";
+      const aiText =
+        result.message || result.response || result.answer || "";
 
       if (!aiText) {
         throw new Error("El soporte no devolvió una respuesta.");
       }
 
       const aiMessage: ChatMessage = {
+        id: createMessageId(),
         sender: result.sender === "admin" ? "admin" : "ai",
         message: aiText,
         created_at: new Date().toISOString(),
@@ -555,7 +689,11 @@ export default function SupportPage() {
       }
     } catch (err) {
       console.error("ERROR CHAT SOPORTE:", err);
-      setError(err instanceof Error ? err.message : "No se pudo obtener una respuesta.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo obtener una respuesta."
+      );
     } finally {
       setLoading(false);
     }
@@ -583,13 +721,16 @@ export default function SupportPage() {
       setTicketLoading(true);
       setError("");
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session?.user || !session.access_token) {
         throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
       }
 
       const firstMessage: ChatMessage = {
+        id: createMessageId(),
         sender: "user",
         message: cleanMessage,
         created_at: new Date().toISOString(),
@@ -617,8 +758,11 @@ export default function SupportPage() {
 
       const createdTicket = result.ticket || result.data || null;
       const rawId = createdTicket?.id ?? result.ticketId ?? result.id;
+
       const createdId =
-        rawId !== undefined && rawId !== null && Number.isFinite(Number(rawId))
+        rawId !== undefined &&
+        rawId !== null &&
+        Number.isFinite(Number(rawId))
           ? Number(rawId)
           : null;
 
@@ -638,7 +782,11 @@ export default function SupportPage() {
       await loadTickets(session.user.id);
     } catch (err) {
       console.error("ERROR CREANDO TICKET:", err);
-      setError(err instanceof Error ? err.message : "No se pudo crear la consulta.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la consulta."
+      );
     } finally {
       setTicketLoading(false);
     }
@@ -656,6 +804,7 @@ export default function SupportPage() {
     setChatInput("");
 
     const userMessage: ChatMessage = {
+      id: createMessageId(),
       sender: "user",
       message: cleanMessage,
       created_at: new Date().toISOString(),
@@ -665,7 +814,9 @@ export default function SupportPage() {
     setConversation(nextConversation);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
         throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
@@ -687,16 +838,27 @@ export default function SupportPage() {
           }),
         });
 
+        const result = await response.json();
+
         if (!response.ok) {
-          const result = await response.json();
           throw new Error(result.error || "No se pudo guardar el mensaje.");
+        }
+
+        if (result.ticket?.status) {
+          setTicketStatus(result.ticket.status);
+        } else if (result.status) {
+          setTicketStatus(result.status);
         }
       }
 
       await sendToSupportAI(nextConversation, ticketId);
     } catch (err) {
       console.error("ERROR ENVIANDO MENSAJE:", err);
-      setError(err instanceof Error ? err.message : "No se pudo enviar el mensaje.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo enviar el mensaje."
+      );
     }
   }
 
@@ -707,15 +869,19 @@ export default function SupportPage() {
       setTicketLoading(true);
       setError("");
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
         throw new Error("Tu sesión ha expirado.");
       }
 
       const adminMessage: ChatMessage = {
+        id: createMessageId(),
         sender: "user",
-        message: "👨‍💻 Solicito llamar al administrador para continuar con mi consulta.",
+        message:
+          "👨‍💻 Solicito llamar al administrador para continuar con mi consulta.",
         created_at: new Date().toISOString(),
       };
 
@@ -741,7 +907,9 @@ export default function SupportPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "No se pudo llamar al administrador.");
+        throw new Error(
+          result.error || "No se pudo llamar al administrador."
+        );
       }
 
       setAdminRequested(false);
@@ -749,29 +917,47 @@ export default function SupportPage() {
       await loadTickets(session.user.id);
     } catch (err) {
       console.error("ERROR SOLICITANDO ADMIN:", err);
-      setError(err instanceof Error ? err.message : "No se pudo contactar al administrador.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo contactar al administrador."
+      );
     } finally {
       setTicketLoading(false);
     }
   }
 
   function openTicket(ticket: SupportTicket) {
-    setSelectedTicket(ticket);
-    setTicketId(ticket.id);
+    const normalizedConversation = normalizeConversation(
+      ticket.conversation
+    );
+
+    setSelectedTicket({
+      ...ticket,
+      id: Number(ticket.id),
+      conversation: normalizedConversation,
+    });
+
+    setTicketId(Number(ticket.id));
     setCategory(ticket.category || "Otro/pregunta");
     setSubject(ticket.subject || "");
     setTicketStatus(ticket.status || "PENDING");
-    setConversation(
-      Array.isArray(ticket.conversation)
-        ? ticket.conversation
-        : ticket.message
-          ? [{
-              sender: "user",
-              message: ticket.message,
-              created_at: ticket.created_at,
-            }]
-          : []
-    );
+
+    if (normalizedConversation.length > 0) {
+      setConversation(normalizedConversation);
+    } else if (ticket.message) {
+      setConversation([
+        {
+          id: createMessageId(),
+          sender: "user",
+          message: ticket.message,
+          created_at: ticket.created_at,
+        },
+      ]);
+    } else {
+      setConversation([]);
+    }
+
     setAdminRequested(false);
     setError("");
     setView("chat");
@@ -784,7 +970,9 @@ export default function SupportPage() {
       setTicketLoading(true);
       setError("");
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
         throw new Error("Tu sesión ha expirado.");
@@ -808,43 +996,58 @@ export default function SupportPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "No se pudo reabrir la consulta.");
+        throw new Error(
+          result.error || "No se pudo reabrir la consulta."
+        );
       }
 
-      setTicketStatus("PENDING");
+      setTicketStatus(result.status || "PENDING");
       await loadTickets(session.user.id);
     } catch (err) {
       console.error("ERROR REABRIENDO TICKET:", err);
-      setError(err instanceof Error ? err.message : "No se pudo reabrir la consulta.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo reabrir la consulta."
+      );
     } finally {
       setTicketLoading(false);
     }
   }
 
-  const isClosed = ticketStatus === "COMPLETED" || ticketStatus === "CLOSED";
+  const isClosed =
+    ticketStatus === "COMPLETED" || ticketStatus === "CLOSED";
 
   return (
     <main
       className="support-page"
-      style={view === "chat" ? {
-        height: "100dvh",
-        minHeight: "100dvh",
-        overflow: "hidden",
-      } : undefined}
+      style={
+        view === "chat"
+          ? {
+              height: "100dvh",
+              minHeight: "100dvh",
+              overflow: "hidden",
+            }
+          : undefined
+      }
     >
       <SupportStyles />
       <div className="support-page-background" />
 
       <div
         className="support-content"
-        style={view === "chat" ? {
-          height: "100dvh",
-          minHeight: "100dvh",
-          paddingBottom: 16,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        } : undefined}
+        style={
+          view === "chat"
+            ? {
+                height: "100dvh",
+                minHeight: "100dvh",
+                paddingBottom: 16,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+              }
+            : undefined
+        }
       >
         <header className="support-header">
           <button
@@ -865,7 +1068,9 @@ export default function SupportPage() {
           </button>
 
           <div className="support-header-title">
-            <span>{view === "tickets" ? "📋" : view === "chat" ? "💬" : "📩"}</span>
+            <span>
+              {view === "tickets" ? "📋" : view === "chat" ? "💬" : "📩"}
+            </span>
             <h1>
               {view === "form"
                 ? "Crear nueva consulta"
@@ -897,7 +1102,9 @@ export default function SupportPage() {
                   disabled={ticketLoading}
                 >
                   {SUPPORT_CATEGORIES.map((item) => (
-                    <option key={item} value={item}>{item}</option>
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -936,7 +1143,9 @@ export default function SupportPage() {
               <button
                 type="submit"
                 className="support-submit-button"
-                disabled={ticketLoading || !subject.trim() || !message.trim()}
+                disabled={
+                  ticketLoading || !subject.trim() || !message.trim()
+                }
               >
                 {ticketLoading ? "CREANDO CONSULTA..." : "CREAR CONSULTA →"}
               </button>
@@ -946,56 +1155,73 @@ export default function SupportPage() {
 
         {view === "chat" && (
           <section className="support-chat-container">
-            <div style={{
-              flex: "0 0 auto",
-              minHeight: 58,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 13px",
-              borderBottom: "1px solid rgba(255,255,255,.08)",
-              background: "#0b0b0b",
-            }}>
-              <div style={{
-                width: 38,
-                height: 38,
-                flex: "0 0 38px",
+            <div
+              style={{
+                flex: "0 0 auto",
+                minHeight: 58,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg,#e50914,#760007)",
-                fontSize: 18,
-              }}>🤖</div>
+                gap: 10,
+                padding: "10px 13px",
+                borderBottom: "1px solid rgba(255,255,255,.08)",
+                background: "#0b0b0b",
+              }}
+            >
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  flex: "0 0 38px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg,#e50914,#760007)",
+                  fontSize: 18,
+                }}
+              >
+                🤖
+              </div>
 
               <div style={{ minWidth: 0, flex: 1 }}>
                 <strong style={{ display: "block", fontSize: 12 }}>
                   STORE GAMING
                 </strong>
-                <span style={{ display: "block", marginTop: 3, color: "#777", fontSize: 10 }}>
+                <span
+                  style={{
+                    display: "block",
+                    marginTop: 3,
+                    color: "#777",
+                    fontSize: 10,
+                  }}
+                >
                   {isClosed ? "Consulta cerrada" : "Asistente de soporte"}
                 </span>
               </div>
 
-              <span style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: isClosed ? "#777" : "#20c55a",
-              }} />
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: isClosed ? "#777" : "#20c55a",
+                }}
+              />
             </div>
 
             <div className="support-chat-messages">
               {conversation.length === 0 && (
-                <div style={{
-                  margin: "auto",
-                  maxWidth: 280,
-                  padding: 20,
-                  textAlign: "center",
-                  color: "#777",
-                  fontSize: 12,
-                  lineHeight: 1.6,
-                }}>
+                <div
+                  style={{
+                    margin: "auto",
+                    maxWidth: 280,
+                    padding: 20,
+                    textAlign: "center",
+                    color: "#777",
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
                   💬<br />
                   Escribe tu mensaje para comenzar la conversación.
                 </div>
@@ -1007,58 +1233,74 @@ export default function SupportPage() {
 
                 return (
                   <div
-                    key={`${index}-${item.created_at || ""}`}
+                    key={item.id ?? `${index}-${item.created_at || ""}`}
                     style={{
                       width: "100%",
                       display: "flex",
                       justifyContent: isUser ? "flex-end" : "flex-start",
                     }}
                   >
-                    <div style={{
-                      width: "fit-content",
-                      maxWidth: "84%",
-                      minWidth: 70,
-                      padding: "9px 11px",
-                      borderRadius: isUser
-                        ? "15px 15px 4px 15px"
-                        : "15px 15px 15px 4px",
-                      background: isUser
-                        ? "linear-gradient(135deg,#e50914,#a50008)"
-                        : isAdmin
-                          ? "linear-gradient(135deg,#242424,#151515)"
-                          : "#151515",
-                      border: "1px solid rgba(255,255,255,.08)",
-                      color: "#fff",
-                      overflowWrap: "anywhere",
-                    }}>
-                      <span style={{
-                        display: "block",
-                        marginBottom: 4,
-                        color: isUser ? "#ffd6d8" : isAdmin ? "#ff6d74" : "#888",
-                        fontSize: 9,
-                        fontWeight: 900,
-                        textTransform: "uppercase",
-                      }}>
-                        {isUser ? "Tú" : isAdmin ? "Administrador" : "Soporte IA"}
+                    <div
+                      style={{
+                        width: "fit-content",
+                        maxWidth: "84%",
+                        minWidth: 70,
+                        padding: "9px 11px",
+                        borderRadius: isUser
+                          ? "15px 15px 4px 15px"
+                          : "15px 15px 15px 4px",
+                        background: isUser
+                          ? "linear-gradient(135deg,#e50914,#a50008)"
+                          : isAdmin
+                            ? "linear-gradient(135deg,#242424,#151515)"
+                            : "#151515",
+                        border: "1px solid rgba(255,255,255,.08)",
+                        color: "#fff",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "block",
+                          marginBottom: 4,
+                          color: isUser
+                            ? "#ffd6d8"
+                            : isAdmin
+                              ? "#ff6d74"
+                              : "#888",
+                          fontSize: 9,
+                          fontWeight: 900,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {isUser
+                          ? "Tú"
+                          : isAdmin
+                            ? "Administrador"
+                            : "Soporte IA"}
                       </span>
 
-                      <div style={{
-                        whiteSpace: "pre-wrap",
-                        overflowWrap: "anywhere",
-                        fontSize: 12,
-                        lineHeight: 1.55,
-                      }}>
+                      <div
+                        style={{
+                          whiteSpace: "pre-wrap",
+                          overflowWrap: "anywhere",
+                          fontSize: 12,
+                          lineHeight: 1.55,
+                        }}
+                      >
                         {item.message}
                       </div>
 
                       {item.created_at && (
-                        <span style={{
-                          display: "block",
-                          marginTop: 5,
-                          textAlign: "right",
-                          color: "rgba(255,255,255,.55)",
-                          fontSize: 9,
-                        }}>
+                        <span
+                          style={{
+                            display: "block",
+                            marginTop: 5,
+                            textAlign: "right",
+                            color: "rgba(255,255,255,.55)",
+                            fontSize: 9,
+                          }}
+                        >
                           {new Date(item.created_at).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -1071,14 +1313,16 @@ export default function SupportPage() {
               })}
 
               {loading && (
-                <div style={{
-                  alignSelf: "flex-start",
-                  padding: "10px 13px",
-                  borderRadius: "15px 15px 15px 4px",
-                  background: "#151515",
-                  color: "#aaa",
-                  fontSize: 11,
-                }}>
+                <div
+                  style={{
+                    alignSelf: "flex-start",
+                    padding: "10px 13px",
+                    borderRadius: "15px 15px 15px 4px",
+                    background: "#151515",
+                    color: "#aaa",
+                    fontSize: 11,
+                  }}
+                >
                   Escribiendo •••
                 </div>
               )}
@@ -1095,7 +1339,9 @@ export default function SupportPage() {
                   disabled={ticketLoading || ticketId === null}
                   style={{ width: "100%" }}
                 >
-                  {ticketLoading ? "CONTACTANDO..." : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
+                  {ticketLoading
+                    ? "CONTACTANDO..."
+                    : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
                 </button>
               </div>
             )}
@@ -1107,13 +1353,18 @@ export default function SupportPage() {
             )}
 
             {!isClosed ? (
-              <div style={{
-                flex: "0 0 auto",
-                padding: "9px 10px max(9px, env(safe-area-inset-bottom))",
-                borderTop: "1px solid rgba(255,255,255,.08)",
-                background: "#090909",
-              }}>
-                <form className="support-chat-input-row" onSubmit={handleSendChat}>
+              <div
+                style={{
+                  flex: "0 0 auto",
+                  padding: "9px 10px max(9px, env(safe-area-inset-bottom))",
+                  borderTop: "1px solid rgba(255,255,255,.08)",
+                  background: "#090909",
+                }}
+              >
+                <form
+                  className="support-chat-input-row"
+                  onSubmit={handleSendChat}
+                >
                   <input
                     type="text"
                     value={chatInput}
@@ -1136,10 +1387,13 @@ export default function SupportPage() {
                       fontSize: 12,
                     }}
                   />
+
                   <button
                     type="submit"
                     className="support-send-button"
-                    disabled={loading || ticketLoading || !chatInput.trim()}
+                    disabled={
+                      loading || ticketLoading || !chatInput.trim()
+                    }
                     aria-label="Enviar mensaje"
                     style={{
                       width: 45,
@@ -1153,7 +1407,10 @@ export default function SupportPage() {
                       background: "linear-gradient(135deg,#e50914,#a00008)",
                       color: "#fff",
                       fontSize: 19,
-                      opacity: loading || ticketLoading || !chatInput.trim() ? 0.45 : 1,
+                      opacity:
+                        loading || ticketLoading || !chatInput.trim()
+                          ? 0.45
+                          : 1,
                     }}
                   >
                     ➤
@@ -1161,12 +1418,14 @@ export default function SupportPage() {
                 </form>
               </div>
             ) : (
-              <div style={{
-                flex: "0 0 auto",
-                padding: 12,
-                borderTop: "1px solid rgba(255,255,255,.08)",
-                background: "#090909",
-              }}>
+              <div
+                style={{
+                  flex: "0 0 auto",
+                  padding: 12,
+                  borderTop: "1px solid rgba(255,255,255,.08)",
+                  background: "#090909",
+                }}
+              >
                 <button
                   type="button"
                   className="support-submit-button"
