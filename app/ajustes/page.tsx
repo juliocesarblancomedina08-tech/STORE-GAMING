@@ -1,137 +1,152 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 type ApiResult = {
   success?: boolean;
-  created?: boolean;
-  rotated?: boolean;
-  hasKey?: boolean;
-  needsRecovery?: boolean;
-  active?: boolean | null;
-  createdAt?: string | null;
-  apiKey?: string;
-  message?: string;
   error?: string;
+  message?: string;
+  apiKey?: string;
+  hasKey?: boolean;
+  created?: boolean;
+  active?: boolean;
+  createdAt?: string;
+  needsRecovery?: boolean;
 };
 
-type View = "menu" | "api";
+async function readApiResponse(response: Response): Promise<ApiResult> {
+  const text = await response.text();
+
+  if (!text.trim()) {
+    return {
+      success: false,
+      error: `El servidor devolvió una respuesta vacía (HTTP ${response.status}).`,
+    };
+  }
+
+  try {
+    return JSON.parse(text) as ApiResult;
+  } catch {
+    return {
+      success: false,
+      error:
+        `Respuesta no válida del servidor (HTTP ${response.status}): ` +
+        text.slice(0, 200),
+    };
+  }
+}
 
 export default function AjustesPage() {
   const router = useRouter();
 
-  const [checking, setChecking] = useState(true);
-  const [view, setView] = useState<View>("menu");
+  const [view, setView] = useState<"menu" | "api">("menu");
   const [loading, setLoading] = useState(false);
-  const [hasKey, setHasKey] = useState(false);
-  const [needsRecovery, setNeedsRecovery] = useState(false);
   const [apiKey, setApiKey] = useState("");
-  const [active, setActive] = useState<boolean | null>(null);
-  const [createdAt, setCreatedAt] = useState("");
+  const [hasKey, setHasKey] = useState(false);
+  const [active, setActive] = useState(true);
+  const [needsRecovery, setNeedsRecovery] = useState(false);
+  const [showKey, setShowKey] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [showKey, setShowKey] = useState(false);
-  const [confirmRotation, setConfirmRotation] = useState(false);
+  const [createdAt, setCreatedAt] = useState("");
 
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
 
     async function checkSession() {
       const { data, error: sessionError } =
         await supabase.auth.getSession();
 
-      if (!mounted) return;
+      if (cancelled) return;
 
-      if (sessionError || !data.session?.user) {
-        router.replace("/");
-        return;
+      if (sessionError || !data.session) {
+        router.replace("/login");
       }
-
-      setChecking(false);
     }
 
-    void checkSession();
+    checkSession();
 
     return () => {
-      mounted = false;
+      cancelled = true;
     };
   }, [router]);
 
-  const getAccessToken = useCallback(async () => {
-    const { data, error: sessionError } =
+  async function authorizedRequest(
+    method: "GET" | "POST" | "PATCH"
+  ): Promise<{ response: Response; data: ApiResult }> {
+    const { data: sessionData, error: sessionError } =
       await supabase.auth.getSession();
 
-    if (sessionError || !data.session?.access_token) {
-      router.replace("/");
-      throw new Error("Tu sesión ha caducado. Inicia sesión nuevamente.");
+    const token = sessionData.session?.access_token;
+
+    if (sessionError || !token) {
+      throw new Error("Tu sesión expiró. Inicia sesión nuevamente.");
     }
 
-    return data.session.access_token;
-  }, [router]);
+    const response = await fetch("/api/account/api-key", {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        ...(method !== "GET"
+          ? { "Content-Type": "application/json" }
+          : {}),
+      },
+      cache: "no-store",
+    });
 
-  const loadApi = useCallback(async () => {
+    const data = await readApiResponse(response);
+
+    if (!response.ok || data.success === false) {
+      throw new Error(
+        data.error ||
+          data.message ||
+          `Error del servidor (HTTP ${response.status}).`
+      );
+    }
+
+    return { response, data };
+  }
+
+  async function loadApi() {
     setLoading(true);
     setError("");
     setMessage("");
-    setCopied(false);
-    setShowKey(false);
 
     try {
-      const token = await getAccessToken();
+      const { data } = await authorizedRequest("GET");
 
-      const response = await fetch("/api/account/api-key", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
+      setHasKey(Boolean(data.hasKey || data.apiKey));
+      setApiKey(data.apiKey || "");
+      setActive(data.active !== false);
+      setNeedsRecovery(Boolean(data.needsRecovery));
+      setCreatedAt(data.createdAt || "");
 
-      const result = (await response.json()) as ApiResult;
-
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.error || "No se pudo consultar tu clave API."
-        );
-      }
-
-      setHasKey(Boolean(result.hasKey));
-      setNeedsRecovery(Boolean(result.needsRecovery));
-      setActive(
-        typeof result.active === "boolean" ? result.active : null
-      );
-      setCreatedAt(result.createdAt || "");
-      setApiKey(result.apiKey || "");
-
-      if (!result.hasKey) {
-        setMessage("Todavía no tienes una clave API. Puedes crearla aquí.");
-      } else if (result.needsRecovery) {
+      if (data.needsRecovery) {
         setMessage(
-          "Tu clave anterior no se puede recuperar. Puedes generar una nueva."
+          "Existe una clave anterior, pero no se puede recuperar. Puedes generar una nueva; la clave anterior dejará de funcionar."
         );
-      } else if (result.apiKey) {
-        setMessage("Tu clave API está guardada y puedes consultarla cuando quieras.");
+      } else if (data.apiKey) {
+        setMessage("Tu clave API está disponible.");
       } else {
-        setMessage("Tu clave API está registrada.");
+        setMessage("Todavía no tienes una clave API.");
       }
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Ocurrió un error inesperado."
+          : "No se pudo consultar la clave API."
       );
     } finally {
       setLoading(false);
     }
-  }, [getAccessToken]);
+  }
 
   async function openApi() {
     setView("api");
-    setConfirmRotation(false);
     await loadApi();
   }
 
@@ -139,105 +154,75 @@ export default function AjustesPage() {
     setLoading(true);
     setError("");
     setMessage("");
-    setApiKey("");
-    setCopied(false);
 
     try {
-      const token = await getAccessToken();
+      const { data } = await authorizedRequest("POST");
 
-      const response = await fetch("/api/account/api-key", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      });
-
-      const result = (await response.json()) as ApiResult;
-
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.error || "No se pudo crear tu clave API."
-        );
-      }
-
-      setHasKey(Boolean(result.hasKey));
-      setNeedsRecovery(Boolean(result.needsRecovery));
-      setActive(
-        typeof result.active === "boolean" ? result.active : null
-      );
-      setCreatedAt(result.createdAt || "");
-      setApiKey(result.apiKey || "");
-
-      if (result.created && result.apiKey) {
+      if (data.apiKey) {
+        setApiKey(data.apiKey);
+        setHasKey(true);
+        setActive(data.active !== false);
+        setNeedsRecovery(false);
+        setCreatedAt(data.createdAt || "");
         setShowKey(true);
         setMessage(
-          "¡Clave API creada! Guárdala en un lugar seguro."
+          data.created === false
+            ? "La clave existente fue reconocida."
+            : "Clave API creada correctamente. Cópiala y guárdala en un lugar seguro."
         );
-      } else if (result.needsRecovery) {
-        setMessage(
-          "Ya tienes una clave anterior que no se puede recuperar. Puedes generar una nueva."
-        );
-      } else {
-        // Si ya existe, recuperar la clave mediante GET.
+      } else if (data.hasKey || data.needsRecovery) {
         await loadApi();
+      } else {
+        setError(
+          data.error ||
+            "El servidor no devolvió la clave API. Intenta actualizar la página."
+        );
       }
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Ocurrió un error inesperado."
+          : "No se pudo crear la clave API."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  async function rotateApiKey() {
+  async function recoverApiKey() {
+    const confirmed = window.confirm(
+      "No se puede recuperar la clave anterior. ¿Quieres generar una nueva? La clave anterior dejará de funcionar en los servicios que la utilicen."
+    );
+
+    if (!confirmed) return;
+
     setLoading(true);
     setError("");
     setMessage("");
-    setApiKey("");
-    setCopied(false);
-    setConfirmRotation(false);
 
     try {
-      const token = await getAccessToken();
+      const { data } = await authorizedRequest("PATCH");
 
-      const response = await fetch("/api/account/api-key", {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      });
-
-      const result = (await response.json()) as ApiResult;
-
-      if (!response.ok || !result.success || !result.apiKey) {
+      if (!data.apiKey) {
         throw new Error(
-          result.error || "No se pudo renovar tu clave API."
+          "El servidor no devolvió la nueva clave. Actualiza el estado antes de volver a intentarlo."
         );
       }
 
+      setApiKey(data.apiKey);
       setHasKey(true);
+      setActive(data.active !== false);
       setNeedsRecovery(false);
-      setActive(
-        typeof result.active === "boolean" ? result.active : true
-      );
-      setCreatedAt(result.createdAt || "");
-      setApiKey(result.apiKey);
+      setCreatedAt(data.createdAt || "");
       setShowKey(true);
       setMessage(
-        "Clave renovada. La clave anterior deja de ser válida. Guarda esta nueva clave."
+        "Nueva clave creada correctamente. Recuerda actualizarla en los servicios que utilizaban la anterior."
       );
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Ocurrió un error inesperado."
+          : "No se pudo generar una nueva clave."
       );
     } finally {
       setLoading(false);
@@ -245,520 +230,313 @@ export default function AjustesPage() {
   }
 
   async function copyApiKey() {
-    if (!apiKey) return;
+    if (!apiKey) {
+      setError("No hay ninguna clave disponible para copiar.");
+      return;
+    }
 
     try {
       await navigator.clipboard.writeText(apiKey);
-      setCopied(true);
-      setMessage("Clave copiada correctamente.");
+      setMessage("Clave API copiada al portapapeles.");
       setError("");
     } catch {
       setError(
-        "No se pudo copiar automáticamente. Selecciona la clave y cópiala manualmente."
+        "No se pudo copiar automáticamente. Muestra la clave y cópiala manualmente."
       );
     }
   }
 
-  if (checking) {
-    return (
-      <main style={styles.page}>
-        <div style={styles.loading}>Comprobando tu sesión...</div>
-      </main>
-    );
-  }
+  const styles: Record<string, CSSProperties> = {
+    page: {
+      minHeight: "100vh",
+      background: "#080b12",
+      color: "#f3f4f6",
+      padding: "24px 16px 48px",
+      fontFamily: "Arial, sans-serif",
+    },
+    container: {
+      width: "100%",
+      maxWidth: "760px",
+      margin: "0 auto",
+    },
+    back: {
+      background: "#171c27",
+      color: "#fff",
+      border: "1px solid #303747",
+      borderRadius: "10px",
+      padding: "10px 14px",
+      cursor: "pointer",
+      marginBottom: "24px",
+    },
+    title: {
+      fontSize: "28px",
+      fontWeight: 800,
+      margin: "0 0 10px",
+    },
+    subtitle: {
+      color: "#a5adbd",
+      lineHeight: 1.6,
+      margin: "0 0 24px",
+    },
+    card: {
+      background: "#111622",
+      border: "1px solid #283142",
+      borderRadius: "16px",
+      padding: "22px",
+      marginBottom: "16px",
+    },
+    option: {
+      width: "100%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "16px",
+      textAlign: "left",
+      background: "#111622",
+      color: "#fff",
+      border: "1px solid #303747",
+      borderRadius: "14px",
+      padding: "20px",
+      cursor: "pointer",
+    },
+    primary: {
+      background: "#e11d48",
+      color: "#fff",
+      border: "none",
+      borderRadius: "10px",
+      padding: "12px 16px",
+      fontWeight: 700,
+      cursor: "pointer",
+    },
+    secondary: {
+      background: "#202838",
+      color: "#fff",
+      border: "1px solid #3a4559",
+      borderRadius: "10px",
+      padding: "11px 14px",
+      fontWeight: 600,
+      cursor: "pointer",
+    },
+    input: {
+      width: "100%",
+      boxSizing: "border-box",
+      background: "#080b12",
+      color: "#f9fafb",
+      border: "1px solid #3a4559",
+      borderRadius: "10px",
+      padding: "13px",
+      fontSize: "14px",
+      marginTop: "10px",
+      marginBottom: "12px",
+    },
+    message: {
+      background: "#10251e",
+      border: "1px solid #245c43",
+      color: "#b9f6d3",
+      padding: "12px",
+      borderRadius: "10px",
+      marginBottom: "14px",
+      lineHeight: 1.5,
+      overflowWrap: "anywhere",
+    },
+    error: {
+      background: "#2b1218",
+      border: "1px solid #793044",
+      color: "#ffbdc8",
+      padding: "12px",
+      borderRadius: "10px",
+      marginBottom: "14px",
+      lineHeight: 1.5,
+      overflowWrap: "anywhere",
+    },
+    muted: {
+      color: "#a5adbd",
+      fontSize: "14px",
+      lineHeight: 1.6,
+    },
+    status: {
+      display: "inline-block",
+      padding: "5px 9px",
+      borderRadius: "8px",
+      background: active ? "#153b2a" : "#3a2026",
+      color: active ? "#a7f3c5" : "#ffbdc8",
+      fontSize: "12px",
+      fontWeight: 700,
+      marginBottom: "14px",
+    },
+    actions: {
+      display: "flex",
+      gap: "10px",
+      flexWrap: "wrap",
+      marginTop: "8px",
+    },
+  };
 
   return (
     <main style={styles.page}>
-      <section style={styles.container}>
+      <div style={styles.container}>
         <button
           type="button"
-          onClick={() =>
-            view === "api" ? setView("menu") : router.push("/home")
-          }
-          style={styles.backButton}
+          style={styles.back}
+          onClick={() => {
+            if (view === "api") {
+              setView("menu");
+              setError("");
+              setMessage("");
+            } else {
+              router.push("/home");
+            }
+          }}
         >
-          ← {view === "api" ? "VOLVER A AJUSTES" : "VOLVER A INICIO"}
+          ← {view === "api" ? "Volver a ajustes" : "Volver al inicio"}
         </button>
-
-        <div style={styles.logo}>🛒 STORE GAMING 🎮</div>
 
         {view === "menu" ? (
           <>
-            <p style={styles.eyebrow}>PANEL DE CONFIGURACIÓN</p>
-            <h1 style={styles.title}>
-              AJUSTES <span style={styles.red}>DE CUENTA</span>
-            </h1>
-            <p style={styles.description}>
-              Administra las opciones y los servicios de tu cuenta.
+            <h1 style={styles.title}>Ajustes</h1>
+            <p style={styles.subtitle}>
+              Administra las opciones de tu cuenta de STORE GAMING.
             </p>
 
             <button
               type="button"
-              onClick={() => void openApi()}
-              style={styles.optionCard}
+              style={styles.option}
+              onClick={openApi}
             >
-              <span style={styles.optionIcon}>🔑</span>
-              <span style={styles.optionContent}>
-                <strong style={styles.optionTitle}>CLAVE API</strong>
-                <span style={styles.optionDescription}>
-                  Crear, consultar y copiar tu clave API personal.
+              <span>
+                <strong style={{ display: "block", fontSize: "17px" }}>
+                  🔑 Clave API
+                </strong>
+                <span style={{ ...styles.muted, display: "block", marginTop: "7px" }}>
+                  Consulta y administra la clave API de tu cuenta.
                 </span>
               </span>
-              <span style={styles.chevron}>›</span>
+              <span style={{ fontSize: "22px" }}>›</span>
             </button>
-
-            <footer style={styles.footer}>
-              STORE GAMING · AJUSTES
-            </footer>
           </>
         ) : (
           <>
-            <p style={styles.eyebrow}>ADMINISTRACIÓN DE SERVICIOS</p>
-            <h1 style={styles.title}>
-              CLAVE <span style={styles.red}>API</span>
-            </h1>
-            <p style={styles.description}>
-              Gestiona la clave vinculada a tu cuenta de STORE GAMING.
+            <h1 style={styles.title}>Clave API</h1>
+            <p style={styles.subtitle}>
+              Administra la clave que permite conectar servicios autorizados
+              con STORE GAMING. No la compartas con otras personas.
             </p>
 
-            <div style={styles.apiCard}>
-              <div style={styles.apiIcon}>🔐</div>
-              <h2 style={styles.subtitle}>MI CLAVE API</h2>
+            <section style={styles.card}>
+              <h2 style={{ fontSize: "19px", marginTop: 0 }}>
+                Mi clave API
+              </h2>
 
-              <p style={styles.description}>
-                Tu clave es personal. No la compartas con otras personas.
-              </p>
-
-              <div style={styles.status}>
-                <span
-                  style={{
-                    ...styles.dot,
-                    background:
-                      active === true
-                        ? "#22c55e"
-                        : active === false
-                        ? "#ef4444"
-                        : "#9ca3af",
-                  }}
-                />
-                {hasKey
-                  ? active === true
-                    ? "API registrada y activa"
-                    : active === false
-                    ? "API desactivada"
-                    : "API registrada"
-                  : "Todavía no tienes una clave API"}
-              </div>
-
-              {createdAt && (
-                <p style={styles.date}>
-                  Fecha de creación:{" "}
-                  {new Date(createdAt).toLocaleDateString("es-ES")}
-                </p>
+              {hasKey && !needsRecovery && (
+                <div style={styles.status}>
+                  {active ? "● ACTIVA" : "● INACTIVA"}
+                </div>
               )}
+
+              {message && <div style={styles.message}>{message}</div>}
+              {error && <div style={styles.error}>{error}</div>}
 
               {loading && (
-                <p style={styles.message}>Procesando solicitud...</p>
+                <p style={styles.muted}>Consultando el servidor...</p>
               )}
 
-              {!loading && apiKey && (
-                <div style={styles.keyArea}>
-                  <label style={styles.label} htmlFor="api-key">
-                    TU CLAVE API
+              {needsRecovery ? (
+                <>
+                  <p style={styles.muted}>
+                    Existe una clave registrada, pero no hay una clave
+                    recuperable almacenada. Puedes crear una nueva, pero la
+                    anterior dejará de funcionar.
+                  </p>
+                  <button
+                    type="button"
+                    style={styles.primary}
+                    onClick={recoverApiKey}
+                    disabled={loading}
+                  >
+                    {loading ? "Procesando..." : "Generar nueva clave"}
+                  </button>
+                </>
+              ) : hasKey && apiKey ? (
+                <>
+                  <label
+                    htmlFor="api-key"
+                    style={{ fontSize: "14px", fontWeight: 700 }}
+                  >
+                    Tu clave API
                   </label>
 
-                  <textarea
+                  <input
                     id="api-key"
-                    value={showKey ? apiKey : "•".repeat(32)}
+                    type={showKey ? "text" : "password"}
+                    value={apiKey}
                     readOnly
-                    rows={3}
-                    spellCheck={false}
-                    style={styles.keyInput}
-                    onFocus={(event) => event.currentTarget.select()}
+                    style={styles.input}
+                    autoComplete="off"
                   />
 
-                  <button
-                    type="button"
-                    onClick={() => setShowKey((value) => !value)}
-                    style={styles.secondaryButton}
-                  >
-                    {showKey ? "🙈 OCULTAR CLAVE" : "👁️ VER CLAVE"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => void copyApiKey()}
-                    style={styles.primaryButton}
-                  >
-                    {copied ? "✓ CLAVE COPIADA" : "📋 COPIAR CLAVE"}
-                  </button>
-                </div>
-              )}
-
-              {!loading && !hasKey && (
-                <button
-                  type="button"
-                  onClick={() => void createApiKey()}
-                  style={styles.primaryButton}
-                >
-                  ⚡ CREAR MI CLAVE API
-                </button>
-              )}
-
-              {!loading && hasKey && needsRecovery && (
-                <div style={styles.warningBox}>
-                  <p style={styles.warning}>
-                    Tu clave anterior se creó antes de habilitar el
-                    almacenamiento cifrado. No puede recuperarse. Si
-                    generas otra, la clave anterior dejará de funcionar.
-                  </p>
-
-                  {!confirmRotation ? (
+                  <div style={styles.actions}>
                     <button
                       type="button"
-                      onClick={() => setConfirmRotation(true)}
-                      style={styles.primaryButton}
+                      style={styles.secondary}
+                      onClick={() => setShowKey((value) => !value)}
                     >
-                      GENERAR UNA NUEVA CLAVE
+                      {showKey ? "Ocultar clave" : "Mostrar clave"}
                     </button>
-                  ) : (
-                    <>
-                      <p style={styles.warning}>
-                        ¿Confirmas que quieres reemplazar la clave anterior?
-                        Los servicios que la utilicen deberán actualizarla.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => void rotateApiKey()}
-                        style={styles.primaryButton}
-                      >
-                        SÍ, RENOVAR CLAVE
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmRotation(false)}
-                        style={styles.secondaryButton}
-                      >
-                        CANCELAR
-                      </button>
-                    </>
+
+                    <button
+                      type="button"
+                      style={styles.primary}
+                      onClick={copyApiKey}
+                    >
+                      Copiar clave
+                    </button>
+                  </div>
+
+                  {createdAt && (
+                    <p style={{ ...styles.muted, marginTop: "18px" }}>
+                      Fecha de creación:{" "}
+                      {Number.isNaN(Date.parse(createdAt))
+                        ? createdAt
+                        : new Date(createdAt).toLocaleString()}
+                    </p>
                   )}
-                </div>
-              )}
 
-              {message && (
-                <div style={styles.success} role="status">
-                  {message}
-                </div>
-              )}
+                  <p style={{ ...styles.muted, marginTop: "18px" }}>
+                    No generes otra clave si no es necesario. Cambiarla puede
+                    interrumpir las conexiones que usan la clave actual.
+                  </p>
+                </>
+              ) : !loading && !error ? (
+                <>
+                  <p style={styles.muted}>
+                    Todavía no tienes una clave API. Puedes crear una para
+                    comenzar a utilizar las integraciones disponibles.
+                  </p>
+                  <button
+                    type="button"
+                    style={styles.primary}
+                    onClick={createApiKey}
+                    disabled={loading}
+                  >
+                    Crear clave API
+                  </button>
+                </>
+              ) : null}
 
-              {error && (
-                <div style={styles.error} role="alert">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => void loadApi()}
-                disabled={loading}
-                style={styles.secondaryButton}
-              >
-                ↻ ACTUALIZAR ESTADO
-              </button>
-            </div>
-
-            <div style={styles.infoCard}>
-              <h3 style={styles.infoTitle}>🛡️ SEGURIDAD</h3>
-              <p style={styles.infoText}>
-                Mantén tu clave en privado. Si la renuevas, la clave
-                anterior deja de funcionar. La disponibilidad de otros
-                servicios depende de que sus endpoints validen esta API.
-              </p>
-            </div>
+              <div style={{ marginTop: "22px" }}>
+                <button
+                  type="button"
+                  style={styles.secondary}
+                  onClick={loadApi}
+                  disabled={loading}
+                >
+                  Actualizar estado
+                </button>
+              </div>
+            </section>
           </>
         )}
-
-        <button
-          type="button"
-          onClick={() => router.push("/home")}
-          style={styles.homeButton}
-        >
-          REGRESAR A STORE GAMING
-        </button>
-      </section>
+      </div>
     </main>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    boxSizing: "border-box",
-    minHeight: "100vh",
-    padding: "24px 14px",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "flex-start",
-    background: "linear-gradient(145deg,#080a11,#111522 55%,#080a11)",
-    color: "#fff",
-    fontFamily: "Arial, sans-serif",
-  },
-  container: {
-    boxSizing: "border-box",
-    width: "100%",
-    maxWidth: "650px",
-    padding: "22px",
-    borderRadius: "18px",
-    border: "1px solid rgba(255,255,255,.1)",
-    background: "rgba(12,15,24,.96)",
-    boxShadow: "0 15px 45px rgba(0,0,0,.35)",
-  },
-  loading: {
-    padding: "25px",
-    color: "#fff",
-  },
-  backButton: {
-    padding: "9px 12px",
-    border: "1px solid #343846",
-    borderRadius: "8px",
-    background: "#171b27",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 800,
-    fontSize: "11px",
-  },
-  logo: {
-    marginTop: "25px",
-    color: "#fff",
-    fontWeight: 900,
-    fontSize: "19px",
-    letterSpacing: ".5px",
-  },
-  eyebrow: {
-    marginTop: "27px",
-    marginBottom: "7px",
-    color: "#ff5964",
-    fontSize: "10px",
-    fontWeight: 900,
-    letterSpacing: "2px",
-  },
-  title: {
-    margin: 0,
-    fontSize: "clamp(26px,6vw,36px)",
-    fontWeight: 900,
-  },
-  red: {
-    color: "#ff3948",
-  },
-  description: {
-    color: "#b8c0cf",
-    fontSize: "13px",
-    lineHeight: 1.7,
-  },
-  optionCard: {
-    boxSizing: "border-box",
-    width: "100%",
-    marginTop: "22px",
-    padding: "18px",
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-    textAlign: "left",
-    borderRadius: "14px",
-    border: "1px solid rgba(255,65,80,.35)",
-    background: "linear-gradient(145deg,#191d2b,#10131c)",
-    color: "#fff",
-    cursor: "pointer",
-  },
-  optionIcon: {
-    width: "48px",
-    height: "48px",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "12px",
-    background: "#29232a",
-    fontSize: "25px",
-  },
-  optionContent: {
-    display: "flex",
-    flex: 1,
-    flexDirection: "column",
-    gap: "7px",
-  },
-  optionTitle: {
-    fontSize: "14px",
-    fontWeight: 900,
-  },
-  optionDescription: {
-    color: "#b8c0cf",
-    fontSize: "12px",
-    lineHeight: 1.6,
-  },
-  chevron: {
-    color: "#ff5964",
-    fontSize: "28px",
-    fontWeight: 700,
-  },
-  apiCard: {
-    marginTop: "24px",
-    padding: "20px",
-    borderRadius: "14px",
-    border: "1px solid rgba(255,65,80,.3)",
-    background: "linear-gradient(145deg,#171b28,#10131c)",
-  },
-  apiIcon: {
-    fontSize: "29px",
-  },
-  subtitle: {
-    margin: "12px 0",
-    fontSize: "17px",
-    fontWeight: 900,
-  },
-  status: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginTop: "18px",
-    fontSize: "12px",
-    fontWeight: 800,
-  },
-  dot: {
-    width: "9px",
-    height: "9px",
-    borderRadius: "50%",
-    flexShrink: 0,
-  },
-  date: {
-    color: "#9ca3af",
-    fontSize: "11px",
-  },
-  keyArea: {
-    marginTop: "18px",
-  },
-  label: {
-    display: "block",
-    marginBottom: "9px",
-    color: "#ff7a83",
-    fontSize: "10px",
-    fontWeight: 900,
-  },
-  keyInput: {
-    boxSizing: "border-box",
-    width: "100%",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #414657",
-    background: "#080a10",
-    color: "#fff",
-    fontSize: "12px",
-    lineHeight: 1.6,
-    overflowWrap: "anywhere",
-    resize: "vertical",
-  },
-  primaryButton: {
-    boxSizing: "border-box",
-    width: "100%",
-    marginTop: "14px",
-    padding: "14px",
-    border: "none",
-    borderRadius: "9px",
-    background: "linear-gradient(135deg,#ed1827,#a9000b)",
-    color: "#fff",
-    fontSize: "12px",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
-  secondaryButton: {
-    boxSizing: "border-box",
-    width: "100%",
-    marginTop: "12px",
-    padding: "13px",
-    border: "1px solid #363b49",
-    borderRadius: "9px",
-    background: "#171b27",
-    color: "#fff",
-    fontSize: "11px",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  homeButton: {
-    boxSizing: "border-box",
-    width: "100%",
-    marginTop: "18px",
-    padding: "13px",
-    border: "1px solid #363b49",
-    borderRadius: "9px",
-    background: "#171b27",
-    color: "#fff",
-    fontSize: "11px",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  warningBox: {
-    marginTop: "16px",
-    padding: "12px",
-    borderRadius: "9px",
-    border: "1px solid rgba(251,191,36,.3)",
-    background: "rgba(251,191,36,.06)",
-  },
-  warning: {
-    margin: "5px 0",
-    color: "#fbbf24",
-    fontSize: "11px",
-    lineHeight: 1.7,
-  },
-  message: {
-    marginTop: "14px",
-    color: "#d1d5db",
-    fontSize: "12px",
-    lineHeight: 1.6,
-  },
-  success: {
-    marginTop: "15px",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid rgba(34,197,94,.35)",
-    background: "rgba(34,197,94,.08)",
-    color: "#86efac",
-    fontSize: "12px",
-    lineHeight: 1.6,
-    overflowWrap: "anywhere",
-  },
-  error: {
-    marginTop: "15px",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid rgba(239,68,68,.4)",
-    background: "rgba(239,68,68,.1)",
-    color: "#fca5a5",
-    fontSize: "12px",
-    lineHeight: 1.6,
-  },
-  infoCard: {
-    marginTop: "18px",
-    padding: "16px",
-    borderRadius: "12px",
-    background: "rgba(255,255,255,.035)",
-    border: "1px solid rgba(255,255,255,.08)",
-  },
-  infoTitle: {
-    margin: "0 0 8px",
-    fontSize: "12px",
-    fontWeight: 900,
-  },
-  infoText: {
-    margin: 0,
-    color: "#b8c0cf",
-    fontSize: "12px",
-    lineHeight: 1.7,
-  },
-  footer: {
-    marginTop: "24px",
-    textAlign: "center",
-    color: "#737b8b",
-    fontSize: "9px",
-    letterSpacing: "1px",
-  },
-};
