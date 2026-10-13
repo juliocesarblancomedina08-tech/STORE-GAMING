@@ -13,63 +13,83 @@ const SUPPORT_ADMIN_USER_IDS = (
   process.env.SUPPORT_ADMIN_USER_IDS || ""
 )
   .split(",")
-  .map((id) => id.trim())
+  .map((value) => value.trim())
   .filter(Boolean);
 
-type ConversationMessage = {
-  id?: string;
-  sender?: string;
-  text?: string;
-  message?: string;
-  content?: string;
+type ChatMessage = {
+  id?: string | number;
+  sender: string;
+  text: string;
   created_at?: string;
-  [key: string]: unknown;
 };
 
-function jsonError(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
+function jsonError(error: string, status: number) {
+  return NextResponse.json({ error }, { status });
 }
 
-function normalizeConversation(value: unknown): ConversationMessage[] {
+function normalizeConversation(value: unknown): ChatMessage[] {
   if (!Array.isArray(value)) return [];
 
   return value
     .filter(
-      (item): item is ConversationMessage =>
+      (item): item is Record<string, unknown> =>
         !!item && typeof item === "object"
     )
-    .map((item) => ({
-      ...item,
-      sender: String(item.sender || "user"),
-      text: String(item.text || item.message || item.content || ""),
-    }))
-    .filter((item) => item.text?.trim());
+    .map((item) => {
+      const rawText =
+        typeof item.text === "string"
+          ? item.text
+          : typeof item.message === "string"
+            ? item.message
+            : typeof item.content === "string"
+              ? item.content
+              : "";
+
+      const rawSender = String(
+        item.sender || item.role || "user"
+      ).toLowerCase();
+
+      let sender = "user";
+
+      if (rawSender === "assistant" || rawSender === "ai") {
+        sender = "assistant";
+      } else if (rawSender === "admin") {
+        sender = "admin";
+      }
+
+      return {
+        id:
+          typeof item.id === "string" ||
+          typeof item.id === "number"
+            ? item.id
+            : undefined,
+        sender,
+        text: rawText.trim(),
+        created_at:
+          typeof item.created_at === "string"
+            ? item.created_at
+            : undefined,
+      };
+    })
+    .filter((item) => item.text.length > 0);
 }
 
-function isAdmin(user: {
-  id: string;
-  email?: string;
-}): boolean {
-  const emailMatches =
-    !!SUPPORT_ADMIN_EMAIL &&
-    user.email?.toLowerCase() === SUPPORT_ADMIN_EMAIL.toLowerCase();
+function extractLastUserMessage(
+  body: Record<string, unknown>
+): string {
+  // La página actual envía el historial bajo "messages".
+  if (Array.isArray(body.messages)) {
+    const messages = normalizeConversation(body.messages);
 
-  return (
-    emailMatches ||
-    SUPPORT_ADMIN_USER_IDS.includes(user.id)
-  );
-}
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].sender === "user") {
+        return messages[i].text;
+      }
+    }
+  }
 
-function fallbackAnswer() {
-  return (
-    "Ahora mismo no puedo generar una respuesta automática. " +
-    "Tu mensaje se ha recibido y puedes continuar por este ticket. " +
-    "Inténtalo de nuevo más tarde."
-  );
-}
-
-function extractMessage(body: Record<string, unknown>): string {
-  const possibleFields = [
+  // Compatibilidad con peticiones que envían un mensaje individual.
+  const fields = [
     body.message,
     body.text,
     body.content,
@@ -83,17 +103,19 @@ function extractMessage(body: Record<string, unknown>): string {
     body.new_message,
   ];
 
-  for (const value of possibleFields) {
+  for (const value of fields) {
     if (typeof value === "string" && value.trim()) {
       return value.trim();
     }
   }
 
-  // Compatibilidad con algunos formularios que envían el mensaje anidado.
-  const nested = body.data;
-
-  if (nested && typeof nested === "object") {
-    const data = nested as Record<string, unknown>;
+  // Compatibilidad con un objeto data anidado.
+  if (
+    body.data &&
+    typeof body.data === "object" &&
+    !Array.isArray(body.data)
+  ) {
+    const data = body.data as Record<string, unknown>;
 
     for (const key of [
       "message",
@@ -113,8 +135,10 @@ function extractMessage(body: Record<string, unknown>): string {
   return "";
 }
 
-function extractTicketId(body: Record<string, unknown>): number {
-  const candidates = [
+function extractTicketId(
+  body: Record<string, unknown>
+): number {
+  const values = [
     body.ticketId,
     body.ticket_id,
     body.ticketID,
@@ -122,21 +146,21 @@ function extractTicketId(body: Record<string, unknown>): number {
     body.ticket,
   ];
 
-  for (const value of candidates) {
-    const raw =
+  for (const value of values) {
+    const candidate =
       value && typeof value === "object"
         ? (value as Record<string, unknown>).id
         : value;
 
     if (
-      (typeof raw === "number" ||
-        typeof raw === "string") &&
-      String(raw).trim() !== ""
+      (typeof candidate === "string" ||
+        typeof candidate === "number") &&
+      String(candidate).trim()
     ) {
-      const parsed = Number(raw);
+      const id = Number(candidate);
 
-      if (Number.isSafeInteger(parsed) && parsed > 0) {
-        return parsed;
+      if (Number.isSafeInteger(id) && id > 0) {
+        return id;
       }
     }
   }
@@ -144,62 +168,91 @@ function extractTicketId(body: Record<string, unknown>): number {
   return 0;
 }
 
+function isAdmin(user: {
+  id: string;
+  email?: string;
+}): boolean {
+  const emailMatches =
+    !!SUPPORT_ADMIN_EMAIL &&
+    user.email?.toLowerCase() ===
+      SUPPORT_ADMIN_EMAIL.toLowerCase();
+
+  return (
+    emailMatches ||
+    SUPPORT_ADMIN_USER_IDS.includes(user.id)
+  );
+}
+
+function fallbackAnswer(): string {
+  return (
+    "He recibido tu consulta, pero el asistente automático " +
+    "no está disponible en este momento. Tu mensaje permanece " +
+    "en el ticket. Inténtalo de nuevo más tarde o solicita " +
+    "ayuda al administrador."
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
-    let parsedBody: unknown;
+    let parsed: unknown;
 
     try {
-      parsedBody = await request.json();
+      parsed = await request.json();
     } catch {
-      return jsonError("El cuerpo de la petición no es JSON válido.", 400);
+      return jsonError("La petición no contiene JSON válido.", 400);
     }
 
     if (
-      !parsedBody ||
-      typeof parsedBody !== "object" ||
-      Array.isArray(parsedBody)
+      !parsed ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
     ) {
       return jsonError("Los datos enviados no son válidos.", 400);
     }
 
-    const body = parsedBody as Record<string, unknown>;
+    const body = parsed as Record<string, unknown>;
     const ticketId = extractTicketId(body);
-    const userMessage = extractMessage(body);
+    const userMessage = extractLastUserMessage(body);
 
     if (!ticketId) {
       return jsonError(
-        "Falta el ID del ticket o no tiene un formato válido.",
+        "No se recibió un ID de ticket válido.",
         400
       );
     }
 
     if (!userMessage) {
       console.warn(
-        "Soporte: no se encontró el mensaje. Campos recibidos:",
-        Object.keys(body)
+        "Soporte: no se encontró un mensaje de usuario.",
+        {
+          fields: Object.keys(body),
+          messagesIsArray: Array.isArray(body.messages),
+        }
       );
 
       return jsonError(
-        "Escribe un mensaje antes de enviarlo. Si ya escribiste, actualiza la página y vuelve a intentarlo.",
+        "No se encontró el texto del mensaje. Comprueba que escribiste el mensaje e inténtalo de nuevo.",
         400
       );
     }
 
     if (userMessage.length > 6000) {
       return jsonError(
-        "El mensaje es demasiado largo. Máximo 6000 caracteres.",
+        "El mensaje supera el máximo de 6000 caracteres.",
         400
       );
     }
 
-    const authorization = request.headers.get("authorization");
-    const accessToken = authorization?.startsWith("Bearer ")
+    const authorization =
+      request.headers.get("authorization") || "";
+
+    const accessToken = authorization.startsWith("Bearer ")
       ? authorization.slice(7).trim()
       : "";
 
     if (!accessToken) {
       return jsonError(
-        "Debes iniciar sesión para usar el soporte.",
+        "Tu sesión ha expirado. Inicia sesión de nuevo.",
         401
       );
     }
@@ -211,7 +264,7 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return jsonError(
-        "La sesión no es válida o ha caducado. Inicia sesión nuevamente.",
+        "La sesión no es válida. Inicia sesión de nuevo.",
         401
       );
     }
@@ -224,12 +277,22 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
     if (ticketError) {
-      console.error("Error consultando el ticket:", ticketError);
-      return jsonError("No se pudo consultar el ticket.", 500);
+      console.error(
+        "Error consultando support_tickets:",
+        ticketError
+      );
+
+      return jsonError(
+        "No se pudo consultar el ticket.",
+        500
+      );
     }
 
     if (!ticket) {
-      return jsonError("No se encontró el ticket.", 404);
+      return jsonError(
+        "No se encontró el ticket solicitado.",
+        404
+      );
     }
 
     const ownerId = String(
@@ -249,33 +312,52 @@ export async function POST(request: NextRequest) {
       ["CLOSED", "COMPLETED", "CANCELLED"].includes(status)
     ) {
       return jsonError(
-        "Este ticket está cerrado. Abre uno nuevo para continuar.",
+        "Este ticket está cerrado. Abre una nueva consulta.",
         409
       );
     }
 
-    const conversation = normalizeConversation(
+    /*
+     * La página guarda primero la conversación mediante
+     * /api/support/ticket. Por eso leemos la conversación
+     * actual y no agregamos dos veces el último mensaje.
+     */
+    let conversation = normalizeConversation(
       ticket.conversation
     );
 
-    const userEntry: ConversationMessage = {
-      id: crypto.randomUUID(),
-      sender: "user",
-      text: userMessage,
-      created_at: new Date().toISOString(),
-    };
+    const lastMessage = conversation[conversation.length - 1];
 
-    const updatedConversation = [
-      ...conversation,
-      userEntry,
-    ];
+    if (
+      !lastMessage ||
+      lastMessage.sender !== "user" ||
+      lastMessage.text.trim() !== userMessage
+    ) {
+      conversation = [
+        ...conversation,
+        {
+          id: crypto.randomUUID(),
+          sender: "user",
+          text: userMessage,
+          created_at: new Date().toISOString(),
+        },
+      ];
+    }
 
     async function saveConversation(
-      messages: ConversationMessage[]
+      messages: ChatMessage[]
     ): Promise<boolean> {
+      const storedConversation = messages.map((item) => ({
+        id: item.id ?? crypto.randomUUID(),
+        sender: item.sender,
+        text: item.text,
+        created_at:
+          item.created_at || new Date().toISOString(),
+      }));
+
       const { data, error } = await supabaseAdmin
         .from("support_tickets")
-        .update({ conversation: messages })
+        .update({ conversation: storedConversation })
         .eq("id", ticketId)
         .select("id");
 
@@ -284,27 +366,26 @@ export async function POST(request: NextRequest) {
           "Error guardando la conversación:",
           error
         );
+
         return false;
       }
 
       return !!data?.length;
     }
 
-    const userMessageSaved = await saveConversation(
-      updatedConversation
-    );
+    const userSaved = await saveConversation(conversation);
 
-    if (!userMessageSaved) {
+    if (!userSaved) {
       return jsonError(
-        "No se pudo guardar el mensaje en el ticket.",
+        "No se pudo guardar el mensaje en la consulta.",
         500
       );
     }
 
-    async function saveFallback() {
+    async function returnFallback() {
       const answer = fallbackAnswer();
 
-      const assistantEntry: ConversationMessage = {
+      const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         sender: "assistant",
         text: answer,
@@ -312,8 +393,8 @@ export async function POST(request: NextRequest) {
       };
 
       const saved = await saveConversation([
-        ...updatedConversation,
-        assistantEntry,
+        ...conversation,
+        assistantMessage,
       ]);
 
       return NextResponse.json({
@@ -329,16 +410,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (!OPENAI_API_KEY) {
-      console.error("Falta configurar OPENAI_API_KEY en Vercel.");
-      return await saveFallback();
+      console.error(
+        "Falta OPENAI_API_KEY en las variables de Vercel."
+      );
+
+      return await returnFallback();
     }
 
-    let ticketContext = "";
+    let supportContext = "";
 
     try {
       const baseUrl = request.nextUrl.origin;
 
-      const toolHeaders = {
+      const headers = {
         Authorization: `Bearer ${accessToken}`,
       };
 
@@ -347,14 +431,14 @@ export async function POST(request: NextRequest) {
           fetch(
             `${baseUrl}/api/support/tools/deposits?limit=100`,
             {
-              headers: toolHeaders,
+              headers,
               cache: "no-store",
             }
           ),
           fetch(
             `${baseUrl}/api/support/tools/orders?limit=100`,
             {
-              headers: toolHeaders,
+              headers,
               cache: "no-store",
             }
           ),
@@ -362,40 +446,41 @@ export async function POST(request: NextRequest) {
 
       const deposits = depositsResponse.ok
         ? await depositsResponse.text()
-        : "No se pudieron consultar los depósitos.";
+        : "Información de depósitos no disponible.";
 
       const orders = ordersResponse.ok
         ? await ordersResponse.text()
-        : "No se pudieron consultar los pedidos.";
+        : "Información de pedidos no disponible.";
 
-      ticketContext = `
-INFORMACIÓN DE DEPÓSITOS:
+      supportContext = `
+DEPÓSITOS:
 ${deposits.slice(0, 10000)}
 
-INFORMACIÓN DE PEDIDOS:
+PEDIDOS:
 ${orders.slice(0, 10000)}
 `;
     } catch (error) {
       console.error(
-        "Error cargando el contexto del soporte:",
+        "Error consultando los datos del soporte:",
         error
       );
     }
 
-    const conversationText = updatedConversation
+    const conversationText = conversation
       .slice(-20)
-      .map((message) => {
-        const sender =
-          message.sender === "assistant"
+      .map((item) => {
+        const name =
+          item.sender === "assistant"
             ? "Asistente"
-            : "Cliente";
+            : item.sender === "admin"
+              ? "Administrador"
+              : "Cliente";
 
-        return `${sender}: ${message.text}`;
+        return `${name}: ${item.text}`;
       })
       .join("\n");
 
     const controller = new AbortController();
-
     const timeout = setTimeout(
       () => controller.abort(),
       25000
@@ -417,19 +502,19 @@ ${orders.slice(0, 10000)}
             model: OPENAI_MODEL,
             instructions: `
 Eres el asistente oficial de soporte de STORE GAMING.
-
-Responde en español, de forma amable, clara y breve.
-Utiliza la información disponible para ayudar al cliente.
-No inventes depósitos, pedidos, pagos, reembolsos ni estados.
-No afirmes que un pago se ha recibido si no está verificado.
-Si no tienes información suficiente, explícalo y recomienda continuar por el ticket.
-Nunca solicites contraseñas, claves privadas ni frases semilla.
+Responde en español, de forma clara, breve y amable.
+Utiliza los datos disponibles como contexto, pero no inventes
+depósitos, pedidos, pagos, reembolsos ni estados.
+No confirmes pagos sin pruebas verificables.
+Si no tienes información suficiente, explícalo y recomienda
+continuar mediante el ticket o solicitar un administrador.
+Nunca pidas contraseñas, claves privadas ni frases semilla.
             `.trim(),
             input: `
-ID DEL TICKET: ${ticketId}
+TICKET: ${ticketId}
 
 CONTEXTO DEL SISTEMA:
-${ticketContext}
+${supportContext}
 
 CONVERSACIÓN:
 ${conversationText}
@@ -443,7 +528,7 @@ Responde al último mensaje del cliente.
       clearTimeout(timeout);
     }
 
-    const responseData = await openAIResponse
+    const openAIData = await openAIResponse
       .json()
       .catch(() => ({}));
 
@@ -451,67 +536,62 @@ Responde al último mensaje del cliente.
       console.error(
         "Error de OpenAI:",
         openAIResponse.status,
-        responseData
+        openAIData
       );
 
-      return await saveFallback();
+      return await returnFallback();
     }
 
-    const outputText =
-      typeof responseData.output_text === "string"
-        ? responseData.output_text
+    let answer =
+      typeof openAIData.output_text === "string"
+        ? openAIData.output_text.trim()
         : "";
 
-    const outputItems = Array.isArray(responseData.output)
-      ? responseData.output
-      : [];
+    if (!answer && Array.isArray(openAIData.output)) {
+      answer = openAIData.output
+        .flatMap((item: { content?: unknown[] }) =>
+          Array.isArray(item.content) ? item.content : []
+        )
+        .map((content: unknown) => {
+          if (
+            content &&
+            typeof content === "object" &&
+            "text" in content &&
+            typeof content.text === "string"
+          ) {
+            return content.text;
+          }
 
-    const extractedOutput = outputItems
-      .flatMap((item: { content?: unknown[] }) =>
-        Array.isArray(item.content) ? item.content : []
-      )
-      .map((content: unknown) => {
-        if (
-          content &&
-          typeof content === "object" &&
-          "text" in content &&
-          typeof content.text === "string"
-        ) {
-          return content.text;
-        }
-
-        return "";
-      })
-      .filter(Boolean)
-      .join("\n");
-
-    const answer = (
-      outputText || extractedOutput
-    ).trim();
+          return "";
+        })
+        .filter(Boolean)
+        .join("\n")
+        .trim();
+    }
 
     if (!answer) {
       console.error(
-        "OpenAI respondió sin texto utilizable."
+        "OpenAI no devolvió texto en la respuesta."
       );
 
-      return await saveFallback();
+      return await returnFallback();
     }
 
-    const assistantEntry: ConversationMessage = {
+    const assistantMessage: ChatMessage = {
       id: crypto.randomUUID(),
       sender: "assistant",
       text: answer,
       created_at: new Date().toISOString(),
     };
 
-    const assistantMessageSaved = await saveConversation([
-      ...updatedConversation,
-      assistantEntry,
+    const saved = await saveConversation([
+      ...conversation,
+      assistantMessage,
     ]);
 
     return NextResponse.json({
       success: true,
-      saved: assistantMessageSaved,
+      saved,
       fallback: false,
       message: answer,
       response: answer,
