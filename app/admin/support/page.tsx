@@ -1,7 +1,13 @@
 
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
@@ -31,10 +37,15 @@ type SupportTicket = {
 
 const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
-function normalizeMessage(message: ChatMessage, index: number): ChatMessage {
+function normalizeMessage(
+  message: ChatMessage,
+  index: number
+): ChatMessage {
   return {
     id: message.id ?? `${message.created_at ?? "message"}-${index}`,
-    sender: message.sender ?? "ai",
+    sender: ["ai", "user", "admin"].includes(message.sender)
+      ? message.sender
+      : "ai",
     text: message.text ?? message.message ?? "",
     created_at: message.created_at,
   };
@@ -47,10 +58,16 @@ function normalizeTicket(ticket: SupportTicket): SupportTicket {
     subject: ticket.subject || "Solicitud de soporte",
     message: ticket.message || "",
     conversation: Array.isArray(ticket.conversation)
-      ? ticket.conversation.map(normalizeMessage)
+      ? ticket.conversation.map((message, index) =>
+          normalizeMessage(message, index)
+        )
       : [],
     status: ticket.status || "PENDING",
   };
+}
+
+function getErrorMessage(data: any, fallback: string): string {
+  return typeof data?.error === "string" ? data.error : fallback;
 }
 
 export default function AdminSupportPage() {
@@ -61,13 +78,15 @@ export default function AdminSupportPage() {
   const [loading, setLoading] = useState(true);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [selectedTicket, setSelectedTicket] =
+    useState<SupportTicket | null>(null);
   const [reply, setReply] = useState("");
   const [replyLoading, setReplyLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"ALL" | TicketStatus>("ALL");
 
+  // Obtener el token real de la sesión de Supabase.
   const getAccessToken = useCallback(async () => {
     const {
       data: { session },
@@ -75,12 +94,15 @@ export default function AdminSupportPage() {
     } = await supabase.auth.getSession();
 
     if (sessionError || !session?.access_token) {
-      throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
+      throw new Error(
+        "Tu sesión ha expirado. Cierra sesión e inicia sesión nuevamente."
+      );
     }
 
     return session.access_token;
   }, []);
 
+  // Todas las llamadas a la API incluyen autenticación.
   const apiFetch = useCallback(
     async (url: string, init: RequestInit = {}) => {
       const token = await getAccessToken();
@@ -101,6 +123,7 @@ export default function AdminSupportPage() {
     [getAccessToken]
   );
 
+  // Cargar tickets y mantener sincronizada la conversación abierta.
   const loadTickets = useCallback(async () => {
     try {
       setTicketsLoading(true);
@@ -113,40 +136,51 @@ export default function AdminSupportPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "No se pudieron cargar las consultas.");
+        throw new Error(
+          getErrorMessage(data, "No se pudieron cargar los tickets.")
+        );
       }
 
       if (data?.isAdmin === false) {
         throw new Error(
-          "El servidor no reconoce esta cuenta como administradora. Revisa los permisos de la API."
+          "El servidor no reconoce esta cuenta como administradora."
         );
       }
 
-      const loadedTickets: SupportTicket[] = Array.isArray(data?.tickets)
-        ? data.tickets.map(normalizeTicket)
-        : [];
+      if (!Array.isArray(data?.tickets)) {
+        throw new Error(
+          "La API no devolvió una lista válida de tickets."
+        );
+      }
+
+      const loadedTickets: SupportTicket[] =
+        data.tickets.map(normalizeTicket);
 
       setTickets(loadedTickets);
 
       setSelectedTicket((current) => {
         if (!current) return null;
 
-        return (
-          loadedTickets.find((ticket) => ticket.id === current.id) ?? current
+        const refreshed = loadedTickets.find(
+          (ticket) => String(ticket.id) === String(current.id)
         );
+
+        return refreshed ?? current;
       });
     } catch (err) {
       console.error("ERROR CARGANDO SOPORTE ADMIN:", err);
+
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudieron cargar las consultas."
+          : "No se pudieron cargar los tickets."
       );
     } finally {
       setTicketsLoading(false);
     }
   }, [apiFetch]);
 
+  // Comprobar la cuenta antes de mostrar el panel.
   useEffect(() => {
     let active = true;
 
@@ -168,7 +202,9 @@ export default function AdminSupportPage() {
         const email = session.user.email?.trim().toLowerCase();
 
         if (email !== ADMIN_EMAIL.toLowerCase()) {
-          setError("Esta cuenta no tiene acceso al panel de administración.");
+          setError(
+            "Esta cuenta no tiene acceso al panel de administración."
+          );
           router.replace("/home");
           return;
         }
@@ -184,11 +220,13 @@ export default function AdminSupportPage() {
           setError(
             err instanceof Error
               ? err.message
-              : "No se pudo verificar el acceso al soporte."
+              : "No se pudo verificar el acceso."
           );
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
@@ -201,72 +239,96 @@ export default function AdminSupportPage() {
 
   useEffect(() => {
     if (selectedTicket) {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      chatEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
     }
-  }, [selectedTicket?.conversation, selectedTicket?.id]);
+  }, [
+    selectedTicket?.id,
+    selectedTicket?.conversation,
+  ]);
 
+  // Enviar solamente el mensaje nuevo.
+  // La API debe guardarlo en la conversación de Supabase.
   async function sendReply() {
     const text = reply.trim();
 
-    if (!selectedTicket || !text || replyLoading) return;
+    if (
+      !selectedTicket ||
+      !text ||
+      replyLoading ||
+      selectedTicket.status === "COMPLETED"
+    ) {
+      return;
+    }
+
+    const ticketId = selectedTicket.id;
 
     try {
       setReplyLoading(true);
       setError("");
 
-      const conversation = [
-        ...selectedTicket.conversation,
-        {
-          id: Date.now(),
-          sender: "admin" as const,
-          text,
-          created_at: new Date().toISOString(),
-        },
-      ];
-
       const response = await apiFetch("/api/support/ticket", {
         method: "POST",
         body: JSON.stringify({
-          ticketId: selectedTicket.id,
+          ticketId,
           message: text,
-          conversation,
-          category: selectedTicket.category,
-          subject: selectedTicket.subject,
         }),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data?.error || "No se pudo enviar la respuesta.");
+      if (!response.ok || data?.success !== true) {
+        throw new Error(
+          getErrorMessage(data, "No se pudo enviar la respuesta.")
+        );
       }
 
-      const updated: SupportTicket = {
-        ...selectedTicket,
-        conversation,
-        status: data?.status || "IN_PROGRESS",
-        updated_at: data?.updated_at || new Date().toISOString(),
-      };
-
-      setSelectedTicket(updated);
-      setTickets((current) =>
-        current.map((ticket) => ticket.id === updated.id ? updated : ticket)
-      );
+      // No borrar el texto hasta que el servidor confirme el envío.
       setReply("");
 
+      // Mostrar el ticket devuelto por el servidor.
+      if (data.ticket) {
+        const updated = normalizeTicket(data.ticket);
+
+        setSelectedTicket(updated);
+
+        setTickets((current) =>
+          current.map((ticket) =>
+            String(ticket.id) === String(updated.id)
+              ? updated
+              : ticket
+          )
+        );
+      }
+
+      // Confirmar la conversación guardada en el servidor.
       await loadTickets();
     } catch (err) {
       console.error("ERROR RESPONDIENDO TICKET:", err);
+
       setError(
-        err instanceof Error ? err.message : "No se pudo enviar la respuesta."
+        err instanceof Error
+          ? err.message
+          : "No se pudo enviar la respuesta."
       );
     } finally {
       setReplyLoading(false);
     }
   }
 
+  // Cambiar estado sin necesidad de enviar un mensaje.
   async function changeStatus(status: TicketStatus) {
-    if (!selectedTicket || statusLoading) return;
+    if (
+      !selectedTicket ||
+      statusLoading ||
+      selectedTicket.status === status
+    ) {
+      return;
+    }
+
+    const ticketId = selectedTicket.id;
 
     try {
       setStatusLoading(true);
@@ -275,31 +337,50 @@ export default function AdminSupportPage() {
       const response = await apiFetch("/api/support/ticket", {
         method: "POST",
         body: JSON.stringify({
-          ticketId: selectedTicket.id,
+          ticketId,
           status,
         }),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data?.error || "No se pudo actualizar el estado.");
+      if (!response.ok || data?.success !== true) {
+        throw new Error(
+          getErrorMessage(data, "No se pudo actualizar el estado.")
+        );
       }
 
-      const updated: SupportTicket = {
-        ...selectedTicket,
-        status: data?.status || status,
-        updated_at: data?.updated_at || new Date().toISOString(),
-      };
+      if (data.ticket) {
+        const updated = normalizeTicket(data.ticket);
 
-      setSelectedTicket(updated);
-      setTickets((current) =>
-        current.map((ticket) => ticket.id === updated.id ? updated : ticket)
-      );
+        setSelectedTicket(updated);
 
+        setTickets((current) =>
+          current.map((ticket) =>
+            String(ticket.id) === String(updated.id)
+              ? updated
+              : ticket
+          )
+        );
+      } else if (data.status) {
+        setSelectedTicket((current) =>
+          current &&
+          String(current.id) === String(ticketId)
+            ? {
+                ...current,
+                status: data.status as TicketStatus,
+                updated_at:
+                  data.updated_at || new Date().toISOString(),
+              }
+            : current
+        );
+      }
+
+      // Volver a consultar para comprobar el estado persistido.
       await loadTickets();
     } catch (err) {
       console.error("ERROR ACTUALIZANDO ESTADO:", err);
+
       setError(
         err instanceof Error
           ? err.message
@@ -316,21 +397,32 @@ export default function AdminSupportPage() {
     setError("");
   }
 
-  function formatDate(value: string) {
+  function formatDate(value?: string) {
     if (!value) return "Fecha no disponible";
 
     const date = new Date(value);
+
     return Number.isNaN(date.getTime())
       ? value
       : date.toLocaleString("es-ES");
   }
 
   const filteredTickets = tickets.filter(
-    (ticket) => filter === "ALL" || ticket.status === filter
+    (ticket) =>
+      filter === "ALL" || ticket.status === filter
   );
 
-  const pendingCount = tickets.filter((ticket) => ticket.status === "PENDING").length;
-  const inProgressCount = tickets.filter((ticket) => ticket.status === "IN_PROGRESS").length;
+  const pendingCount = tickets.filter(
+    (ticket) => ticket.status === "PENDING"
+  ).length;
+
+  const inProgressCount = tickets.filter(
+    (ticket) => ticket.status === "IN_PROGRESS"
+  ).length;
+
+  const completedCount = tickets.filter(
+    (ticket) => ticket.status === "COMPLETED"
+  ).length;
 
   if (loading) {
     return (
@@ -353,7 +445,10 @@ export default function AdminSupportPage() {
           <p style={styles.muted}>
             {error || "No se pudo verificar el acceso al panel."}
           </p>
-          <button style={styles.button} onClick={() => router.push("/home")}>
+          <button
+            style={styles.button}
+            onClick={() => router.push("/home")}
+          >
             VOLVER
           </button>
         </section>
@@ -366,23 +461,48 @@ export default function AdminSupportPage() {
       <main style={styles.page}>
         <section style={styles.panel}>
           <header style={styles.header}>
-            <button style={styles.smallButton} onClick={() => setSelectedTicket(null)}>
+            <button
+              type="button"
+              style={styles.smallButton}
+              onClick={() => {
+                setSelectedTicket(null);
+                setError("");
+              }}
+            >
               ← Volver
             </button>
+
             <div>
-              <h1 style={styles.heading}>Consulta #{selectedTicket.id}</h1>
+              <h1 style={styles.heading}>
+                Consulta #{selectedTicket.id}
+              </h1>
               <p style={styles.muted}>
-                {selectedTicket.username || selectedTicket.email || "Cliente"}
+                {selectedTicket.username ||
+                  selectedTicket.email ||
+                  "Cliente"}
               </p>
             </div>
+
+            <button
+              type="button"
+              style={styles.smallButton}
+              disabled={ticketsLoading}
+              onClick={() => void loadTickets()}
+            >
+              {ticketsLoading ? "..." : "↻ Actualizar"}
+            </button>
           </header>
 
           <div style={styles.ticketInfo}>
             <strong>{selectedTicket.subject}</strong>
             <p>{selectedTicket.category}</p>
-            <p>Correo: {selectedTicket.email || "No disponible"}</p>
+            <p>
+              Correo: {selectedTicket.email || "No disponible"}
+            </p>
             <p>Creada: {formatDate(selectedTicket.created_at)}</p>
-            <p>Estado: {selectedTicket.status}</p>
+            <p>
+              Estado: <strong>{selectedTicket.status}</strong>
+            </p>
           </div>
 
           <div style={styles.messages}>
@@ -392,19 +512,32 @@ export default function AdminSupportPage() {
 
               return (
                 <div
-                  key={String(item.id ?? index)}
+                  key={`${String(item.id ?? index)}-${index}`}
                   style={{
                     ...styles.message,
-                    alignSelf: sender === "admin" ? "flex-end" : "flex-start",
-                    background: sender === "admin" ? "#8d080f" : "#1b1b1b",
+                    alignSelf:
+                      sender === "admin" ? "flex-end" : "flex-start",
+                    background:
+                      sender === "admin" ? "#8d080f" : "#1b1b1b",
                   }}
                 >
                   <strong style={styles.messageLabel}>
-                    {sender === "admin" ? "Administrador" : sender === "user" ? "Cliente" : "Soporte IA"}
+                    {sender === "admin"
+                      ? "Administrador"
+                      : sender === "user"
+                        ? "Cliente"
+                        : "Soporte IA"}
                   </strong>
-                  <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+
+                  <div
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
                     {text}
                   </div>
+
                   {item.created_at && (
                     <small style={styles.messageTime}>
                       {formatDate(item.created_at)}
@@ -413,6 +546,13 @@ export default function AdminSupportPage() {
                 </div>
               );
             })}
+
+            {selectedTicket.conversation.length === 0 && (
+              <p style={styles.muted}>
+                No hay mensajes en esta conversación.
+              </p>
+            )}
+
             <div ref={chatEndRef} />
           </div>
 
@@ -420,27 +560,57 @@ export default function AdminSupportPage() {
 
           <div style={styles.statusButtons}>
             <button
-              style={selectedTicket.status === "PENDING" ? styles.button : styles.secondary}
+              type="button"
+              style={
+                selectedTicket.status === "PENDING"
+                  ? styles.button
+                  : styles.secondary
+              }
               disabled={statusLoading}
-              onClick={() => changeStatus("PENDING")}
+              onClick={() => void changeStatus("PENDING")}
             >
-              PENDIENTE
+              {statusLoading &&
+              selectedTicket.status !== "PENDING"
+                ? "ACTUALIZANDO..."
+                : "PENDIENTE"}
             </button>
+
             <button
-              style={selectedTicket.status === "IN_PROGRESS" ? styles.button : styles.secondary}
+              type="button"
+              style={
+                selectedTicket.status === "IN_PROGRESS"
+                  ? styles.button
+                  : styles.secondary
+              }
               disabled={statusLoading}
-              onClick={() => changeStatus("IN_PROGRESS")}
+              onClick={() => void changeStatus("IN_PROGRESS")}
             >
               EN PROCESO
             </button>
+
             <button
-              style={selectedTicket.status === "COMPLETED" ? styles.button : styles.secondary}
+              type="button"
+              style={
+                selectedTicket.status === "COMPLETED"
+                  ? styles.button
+                  : styles.secondary
+              }
               disabled={statusLoading}
-              onClick={() => changeStatus("COMPLETED")}
+              onClick={() => void changeStatus("COMPLETED")}
             >
-              FINALIZAR
+              {statusLoading &&
+              selectedTicket.status !== "COMPLETED"
+                ? "ACTUALIZANDO..."
+                : "FINALIZAR"}
             </button>
           </div>
+
+          {selectedTicket.status === "COMPLETED" && (
+            <div style={styles.notice}>
+              Este ticket está finalizado. Si necesitas contestar,
+              cambia primero su estado a pendiente o en proceso.
+            </div>
+          )}
 
           {selectedTicket.status !== "COMPLETED" && (
             <form
@@ -453,18 +623,21 @@ export default function AdminSupportPage() {
               <textarea
                 value={reply}
                 onChange={(event) => setReply(event.target.value)}
-                placeholder="Responder al cliente..."
+                placeholder="Escribe tu respuesta al cliente..."
                 rows={3}
                 maxLength={4000}
                 style={styles.textarea}
                 disabled={replyLoading}
               />
+
               <button
                 type="submit"
                 style={styles.button}
                 disabled={replyLoading || !reply.trim()}
               >
-                {replyLoading ? "ENVIANDO..." : "ENVIAR RESPUESTA"}
+                {replyLoading
+                  ? "ENVIANDO RESPUESTA..."
+                  : "📨 ENVIAR RESPUESTA"}
               </button>
             </form>
           )}
@@ -477,12 +650,19 @@ export default function AdminSupportPage() {
     <main style={styles.page}>
       <section style={styles.panel}>
         <header style={styles.header}>
-          <button style={styles.smallButton} onClick={() => router.push("/admin")}>
+          <button
+            type="button"
+            style={styles.smallButton}
+            onClick={() => router.push("/admin")}
+          >
             ← Panel
           </button>
+
           <div>
             <h1 style={styles.heading}>🆘 Soporte</h1>
-            <p style={styles.muted}>Administración de consultas de clientes</p>
+            <p style={styles.muted}>
+              Administración de consultas de clientes
+            </p>
           </div>
         </header>
 
@@ -493,26 +673,38 @@ export default function AdminSupportPage() {
             <strong>{tickets.length}</strong>
             <span>TODAS</span>
           </div>
+
           <div style={styles.stat}>
             <strong>{pendingCount}</strong>
             <span>PENDIENTES</span>
           </div>
+
           <div style={styles.stat}>
             <strong>{inProgressCount}</strong>
             <span>EN PROCESO</span>
           </div>
+
+          <div style={styles.stat}>
+            <strong>{completedCount}</strong>
+            <span>FINALIZADAS</span>
+          </div>
         </div>
 
         <div style={styles.filters}>
-          {([
-            ["ALL", "Todas"],
-            ["PENDING", "Pendientes"],
-            ["IN_PROGRESS", "En proceso"],
-            ["COMPLETED", "Finalizadas"],
-          ] as const).map(([value, label]) => (
+          {(
+            [
+              ["ALL", "Todas"],
+              ["PENDING", "Pendientes"],
+              ["IN_PROGRESS", "En proceso"],
+              ["COMPLETED", "Finalizadas"],
+            ] as const
+          ).map(([value, label]) => (
             <button
+              type="button"
               key={value}
-              style={filter === value ? styles.button : styles.secondary}
+              style={
+                filter === value ? styles.button : styles.secondary
+              }
               onClick={() => setFilter(value)}
             >
               {label}
@@ -523,13 +715,13 @@ export default function AdminSupportPage() {
         {ticketsLoading ? (
           <p style={styles.muted}>Cargando consultas...</p>
         ) : filteredTickets.length === 0 ? (
-          <div style={styles.card}>
+          <section style={styles.card}>
             <div style={styles.bigIcon}>📭</div>
             <h2>No hay consultas</h2>
             <p style={styles.muted}>
               No hay tickets para mostrar con este filtro.
             </p>
-          </div>
+          </section>
         ) : (
           <div style={styles.ticketList}>
             {filteredTickets.map((ticket) => (
@@ -540,13 +732,23 @@ export default function AdminSupportPage() {
                 onClick={() => openTicket(ticket)}
               >
                 <div style={styles.ticketTop}>
-                  <strong>#{ticket.id} · {ticket.subject}</strong>
-                  <span style={styles.status}>{ticket.status}</span>
+                  <strong>
+                    #{ticket.id} · {ticket.subject}
+                  </strong>
+                  <span style={styles.status}>
+                    {ticket.status}
+                  </span>
                 </div>
+
                 <p style={styles.muted}>{ticket.category}</p>
+
                 <p style={styles.muted}>
-                  Cliente: {ticket.username || ticket.email || "No identificado"}
+                  Cliente:{" "}
+                  {ticket.username ||
+                    ticket.email ||
+                    "No identificado"}
                 </p>
+
                 <small style={styles.muted}>
                   Actualizado: {formatDate(ticket.updated_at)}
                 </small>
@@ -556,18 +758,21 @@ export default function AdminSupportPage() {
         )}
 
         <button
+          type="button"
           style={styles.button}
           disabled={ticketsLoading}
           onClick={() => void loadTickets()}
         >
-          {ticketsLoading ? "ACTUALIZANDO..." : "🔄 ACTUALIZAR CONSULTAS"}
+          {ticketsLoading
+            ? "ACTUALIZANDO..."
+            : "🔄 ACTUALIZAR CONSULTAS"}
         </button>
       </section>
     </main>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
   page: {
     minHeight: "100dvh",
     background: "#050505",
@@ -595,6 +800,7 @@ const styles: Record<string, React.CSSProperties> = {
   header: {
     display: "flex",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 14,
     marginBottom: 22,
   },
@@ -648,7 +854,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   stats: {
     display: "grid",
-    gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
     gap: 9,
     marginBottom: 16,
   },
@@ -758,5 +964,15 @@ const styles: Record<string, React.CSSProperties> = {
     font: "inherit",
     fontSize: 13,
     resize: "vertical",
+  },
+  notice: {
+    margin: "12px 0",
+    padding: 12,
+    border: "1px solid #5a4545",
+    borderRadius: 10,
+    background: "#171111",
+    color: "#ffb4b8",
+    fontSize: 12,
+    lineHeight: 1.6,
   },
 };
