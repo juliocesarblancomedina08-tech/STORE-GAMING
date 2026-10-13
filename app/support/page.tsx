@@ -46,7 +46,60 @@ const SUPPORT_CATEGORIES = [
   "Otro/pregunta",
 ];
 
-const SUPPORT_CSS = ".support-page { position: relative; min-height: 100dvh; overflow-x: hidden; background: #050505; color: #fff; font-family: Arial, Helvetica, sans-serif; isolation: isolate; } .support-page, .support-page * { box-sizing: border-box; } .support-page-background { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 50% 0%, rgba(229,9,20,.18), transparent 50%), radial-gradient(ellipse at 0% 70%, rgba(120,0,8,.12), transparent 40%), #050505; } .support-content { width: min(100% - 28px, 760px); min-height: 100dvh; margin: 0 auto; padding: 22px 0 35px; } .support-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex: 0 0 auto; } .support-back-button { display: flex; flex: 0 0 42px; width: 42px; height: 42px; align-items: center; justify-content: center; border: 1px solid #303030; border-radius: 13px; background: #141414; color: #fff; font-size: 25px; cursor: pointer; } .support-back-button:hover { border-color: #e50914; } .support-header-title { display: flex; min-width: 0; align-items: center; gap: 10px; } .support-header-title > span { font-size: 25px; } .support-header-title h1 { margin: 0; color: #fff; font-size: clamp(20px, 4vw, 27px); font-weight: 900; } .support-main-card { padding: 28px 22px; border: 1px solid rgba(255,255,255,.09); border-radius: 22px; background: linear-gradient(145deg,#151515,#0b0b0b 70%); box-shadow: 0 18px 45px rgba(0,0,0,.3); text-align: center; } .support-main-icon { display: flex; width: 76px; height: 76px; align-items: center; justify-content: center; margin: 0 auto 18px; border: 1px solid rgba(255,255,255,.14); border-radius: 23px; background: linear-gradient(145deg,#e50914,#750008); font-size: 34px; } .support-main-card h2 { margin: 0 0 12px; color: #fff; font-size: clamp(20px,4vw,25px); font-weight: 900; } .support-main-card p { max-width: 480px; margin: 0 auto 22px; color: #a5a5a5; font-size: 14px; line-height: 1.7; } .support-main-button, .support-secondary-button, .support-submit-button { display: inline-flex; min-height: 46px; align-items: center; justify-content: center; gap: 8px; padding: 12px 17px; border: 1px solid rgba(255,255,255,.12); border-radius: 13px; color: #fff; font-size: 12px; font-weight: 900; cursor: pointer; transition: filter .2s, transform .2s; } .support-main-button, .support-submit-button { background: linear-gradient(135deg,#f01825,#970009); } .support-secondary-button { margin-top: 10px; background: #191919; } .support-main-button:hover, .support-secondary-button:hover, .support-submit-button:hover { filter: brightness(1.12); } .support-form { display: flex; flex-direction: column; gap: 19px; margin-top: 20px; padding: 24px; border: 1px solid rgba(255,255,255,.09); border-radius: 20px; background: #0d0d0d; } .support-field { display: flex; flex-direction: column; gap: 9px; } .support-field label { color: #e6e6e6; font-size: 11px; font-weight: 900; letter-spacing: 1px; } .support-field input, .support-field select, .support-field textarea { width: 100%; padding: 14px; border: 1px solid #303030; border-radius: 12px; outline: none; background: #151515; color: #fff; font: inherit; font-size: 14px; } .support-field select { color-scheme: dark; } .support-field textarea { min-height: 130px; resize: vertical; line-height: 1.6; } .support-field input::placeholder, .support-field textarea::placeholder { color: #666; } .support-field input:focus, .support-field select:focus, .support-field textarea:focus { border-color: #e50914; box-shadow: 0 0 0 3px rgba(229,9,20,.12); } .support-form .support-submit-button { width: 100%; min-height: 52px; } .support-error { margin: 14px 0; padding: 13px 15px; border: 1px solid rgba(229,9,20,.35); border-radius: 12px; background: rgba(229,9,20,.09); color: #ff8b91; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; } .support-tickets-list { display: flex; flex-direction: column; gap: 13px; } .support-item { display: flex; width: 100%; align-items: center; gap: 14px; padding: 17px; border: 1px solid #282828; border-radius: 16px; background: linear-gradient(135deg,#151515,#0c0c0c); color: #fff; text-align: left; cursor: pointer; } .support-item:hover { border-color: rgba(229,9,20,.7); } .support-item-icon { display: flex; flex: 0 0 44px; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 13px; background: rgba(229,9,20,.14); font-size: 22px; } .support-item-content { flex: 1; min-width: 0; } .support-item-content strong { display: block; margin-bottom: 7px; font-size: 14px; overflow-wrap: anywhere; } .support-item-content p { margin: 0 0 8px; color: #999; font-size: 12px; line-height: 1.5; } .support-item-content span { display: inline-block; padding: 5px 8px; border: 1px solid rgba(229,9,20,.25); border-radius: 7px; background: rgba(229,9,20,.09); color: #ff777e; font-size: 10px; font-weight: 800; } .support-item > b { color: #e50914; font-size: 23px; } .support-user-info { display: flex; align-items: center; gap: 13px; margin-top: 20px; padding: 16px; border: 1px solid #262626; border-radius: 15px; background: #101010; } .support-user-info > span { display: flex; width: 42px; height: 42px; flex: 0 0 42px; align-items: center; justify-content: center; border-radius: 50%; background: #222; font-size: 21px; } .support-user-info strong { color: #fff; font-size: 13px; } .support-user-info p { margin: 5px 0 0; color: #888; font-size: 12px; overflow-wrap: anywhere; } .game-service-footer { display: flex; flex-direction: column; align-items: center; gap: 7px; margin-top: 30px; padding: 20px 0; border-top: 1px solid #202020; text-align: center; } .game-service-footer strong { color: #fff; font-size: 15px; font-weight: 950; } .game-service-footer span { color: #777; font-size: 10px; letter-spacing: 2px; } .support-floating-button { position: fixed; right: max(20px,env(safe-area-inset-right)); bottom: max(20px,env(safe-area-inset-bottom)); z-index: 10; display: flex; width: 56px; height: 56px; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.2); border-radius: 50%; background: linear-gradient(135deg,#f01825,#8c0008); color: #fff; font-size: 24px; box-shadow: 0 8px 28px rgba(229,9,20,.3); cursor: pointer; } .support-chat-container { width: 100%; max-width: 620px; min-height: 0; margin: 12px auto 0; display: flex; flex: 1 1 0; flex-direction: column; overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 18px; background: rgba(7,7,7,.96); box-shadow: 0 18px 45px rgba(0,0,0,.55); } .support-chat-messages { display: flex; flex: 1 1 0; min-height: 0; flex-direction: column; gap: 8px; overflow-y: auto; overflow-x: hidden; padding: 14px 11px; scrollbar-width: thin; scrollbar-color: #373737 #0b0b0b; -webkit-overflow-scrolling: touch; } .support-chat-input-row { display: flex; width: 100%; align-items: center; gap: 8px; margin: 0; } .support-chat-input-row input:focus { border-color: #e50914 !important; box-shadow: 0 0 0 3px rgba(229,9,20,.1); } .support-send-button { cursor: pointer; } .support-admin-button:disabled, .support-send-button:disabled, .support-submit-button:disabled { opacity: .5; cursor: not-allowed; } @media(max-width:600px) { .support-content { width: calc(100% - 22px); padding-top: 14px; padding-bottom: 24px; } .support-header { gap: 10px; margin-bottom: 17px; } .support-main-card { padding: 24px 16px; border-radius: 18px; } .support-form { padding: 17px; gap: 16px; } .support-item { gap: 10px; padding: 13px; } .support-floating-button { width: 50px; height: 50px; right: 14px; bottom: 14px; } }";
+const SUPPORT_CSS = `
+.support-page{position:relative;min-height:100dvh;overflow-x:hidden;background:#050505;color:#fff;font-family:Arial,Helvetica,sans-serif;isolation:isolate}
+.support-page,.support-page *{box-sizing:border-box}
+.support-page-background{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 50% 0%,rgba(229,9,20,.18),transparent 50%),radial-gradient(ellipse at 0% 70%,rgba(120,0,8,.12),transparent 40%),#050505}
+.support-content{width:min(100% - 28px,760px);min-height:100dvh;margin:0 auto;padding:22px 0 35px}
+.support-header{display:flex;align-items:center;gap:14px;margin-bottom:24px;flex:0 0 auto}
+.support-back-button{display:flex;flex:0 0 42px;width:42px;height:42px;align-items:center;justify-content:center;border:1px solid #303030;border-radius:13px;background:#141414;color:#fff;font-size:25px;cursor:pointer}
+.support-back-button:hover{border-color:#e50914}
+.support-header-title{display:flex;min-width:0;align-items:center;gap:10px}
+.support-header-title>span{font-size:25px}
+.support-header-title h1{margin:0;color:#fff;font-size:clamp(20px,4vw,27px);font-weight:900}
+.support-main-card{padding:28px 22px;border:1px solid rgba(255,255,255,.09);border-radius:22px;background:linear-gradient(145deg,#151515,#0b0b0b 70%);box-shadow:0 18px 45px rgba(0,0,0,.3);text-align:center}
+.support-main-icon{display:flex;width:76px;height:76px;align-items:center;justify-content:center;margin:0 auto 18px;border:1px solid rgba(255,255,255,.14);border-radius:23px;background:linear-gradient(145deg,#e50914,#750008);font-size:34px}
+.support-main-card h2{margin:0 0 12px;color:#fff;font-size:clamp(20px,4vw,25px);font-weight:900}
+.support-main-card p{max-width:480px;margin:0 auto 22px;color:#a5a5a5;font-size:14px;line-height:1.7}
+.support-main-button,.support-secondary-button,.support-submit-button{display:inline-flex;min-height:46px;align-items:center;justify-content:center;gap:8px;padding:12px 17px;border:1px solid rgba(255,255,255,.12);border-radius:13px;color:#fff;font-size:12px;font-weight:900;cursor:pointer;transition:filter .2s,transform .2s}
+.support-main-button,.support-submit-button{background:linear-gradient(135deg,#f01825,#970009)}
+.support-secondary-button{margin-top:10px;background:#191919}
+.support-main-button:hover,.support-secondary-button:hover,.support-submit-button:hover{filter:brightness(1.12)}
+.support-form{display:flex;flex-direction:column;gap:19px;margin-top:20px;padding:24px;border:1px solid rgba(255,255,255,.09);border-radius:20px;background:#0d0d0d}
+.support-field{display:flex;flex-direction:column;gap:9px}
+.support-field label{color:#e6e6e6;font-size:11px;font-weight:900;letter-spacing:1px}
+.support-field input,.support-field select,.support-field textarea{width:100%;padding:14px;border:1px solid #303030;border-radius:12px;outline:none;background:#151515;color:#fff;font:inherit;font-size:14px}
+.support-field select{color-scheme:dark}
+.support-field textarea{min-height:130px;resize:vertical;line-height:1.6}
+.support-field input::placeholder,.support-field textarea::placeholder{color:#666}
+.support-field input:focus,.support-field select:focus,.support-field textarea:focus{border-color:#e50914;box-shadow:0 0 0 3px rgba(229,9,20,.12)}
+.support-form .support-submit-button{width:100%;min-height:52px}
+.support-error{margin:14px 0;padding:13px 15px;border:1px solid rgba(229,9,20,.35);border-radius:12px;background:rgba(229,9,20,.09);color:#ff8b91;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.support-tickets-list{display:flex;flex-direction:column;gap:13px}
+.support-item{display:flex;width:100%;align-items:center;gap:14px;padding:17px;border:1px solid #282828;border-radius:16px;background:linear-gradient(135deg,#151515,#0c0c0c);color:#fff;text-align:left;cursor:pointer}
+.support-item:hover{border-color:rgba(229,9,20,.7)}
+.support-item-icon{display:flex;flex:0 0 44px;width:44px;height:44px;align-items:center;justify-content:center;border-radius:13px;background:rgba(229,9,20,.14);font-size:22px}
+.support-item-content{flex:1;min-width:0}
+.support-item-content strong{display:block;margin-bottom:7px;font-size:14px;overflow-wrap:anywhere}
+.support-item-content p{margin:0 0 8px;color:#999;font-size:12px;line-height:1.5}
+.support-item-content span{display:inline-block;padding:5px 8px;border:1px solid rgba(229,9,20,.25);border-radius:7px;background:rgba(229,9,20,.09);color:#ff777e;font-size:10px;font-weight:800}
+.support-item>b{color:#e50914;font-size:23px}
+.support-user-info{display:flex;align-items:center;gap:13px;margin-top:20px;padding:16px;border:1px solid #262626;border-radius:15px;background:#101010}
+.support-user-info>span{display:flex;width:42px;height:42px;flex:0 0 42px;align-items:center;justify-content:center;border-radius:50%;background:#222;font-size:21px}
+.support-user-info strong{color:#fff;font-size:13px}
+.support-user-info p{margin:5px 0 0;color:#888;font-size:12px;overflow-wrap:anywhere}
+.game-service-footer{display:flex;flex-direction:column;align-items:center;gap:7px;margin-top:30px;padding:20px 0;border-top:1px solid #202020;text-align:center}
+.game-service-footer strong{color:#fff;font-size:15px;font-weight:950}
+.game-service-footer span{color:#777;font-size:10px;letter-spacing:2px}
+.support-floating-button{position:fixed;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:10;display:flex;width:56px;height:56px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:50%;background:linear-gradient(135deg,#f01825,#8c0008);color:#fff;font-size:24px;box-shadow:0 8px 28px rgba(229,9,20,.3);cursor:pointer}
+.support-chat-container{width:100%;max-width:620px;min-height:0;margin:12px auto 0;display:flex;flex:1 1 0;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(7,7,7,.96);box-shadow:0 18px 45px rgba(0,0,0,.55)}
+.support-chat-messages{display:flex;flex:1 1 0;min-height:0;flex-direction:column;gap:8px;overflow-y:auto;overflow-x:hidden;padding:14px 11px;scrollbar-width:thin;scrollbar-color:#373737 #0b0b0b;-webkit-overflow-scrolling:touch}
+.support-chat-input-row{display:flex;width:100%;align-items:center;gap:8px;margin:0}
+.support-chat-input-row input:focus{border-color:#e50914!important;box-shadow:0 0 0 3px rgba(229,9,20,.1)}
+.support-send-button{cursor:pointer}
+.support-admin-button:disabled,.support-send-button:disabled,.support-submit-button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:600px){.support-content{width:calc(100% - 22px);padding-top:14px;padding-bottom:24px}.support-header{gap:10px;margin-bottom:17px}.support-main-card{padding:24px 16px;border-radius:18px}.support-form{padding:17px;gap:16px}.support-item{gap:10px;padding:13px}.support-floating-button{width:50px;height:50px;right:14px;bottom:14px}}
+`;
 
 function SupportStyles() {
   return <style jsx global>{SUPPORT_CSS}</style>;
@@ -62,9 +115,7 @@ function normalizeConversation(value: unknown): ChatMessage[] {
   const seen = new Set<string>();
 
   return value
-    .filter(
-      (item: unknown) => item !== null && typeof item === "object"
-    )
+    .filter((item: unknown) => item !== null && typeof item === "object")
     .map((item: any): ChatMessage | null => {
       const rawText =
         typeof item.message === "string"
@@ -83,8 +134,8 @@ function normalizeConversation(value: unknown): ChatMessage[] {
         sender = "admin";
       } else if (
         item.sender === "ai" ||
-        item.role === "assistant" ||
-        item.sender === "assistant"
+        item.sender === "assistant" ||
+        item.role === "assistant"
       ) {
         sender = "ai";
       } else if (item.sender === "user" || item.role === "user") {
@@ -104,20 +155,15 @@ function normalizeConversation(value: unknown): ChatMessage[] {
             ? item.createdAt
             : undefined;
 
-      const message: ChatMessage = {
+      if (seen.has(String(id))) return null;
+      seen.add(String(id));
+
+      return {
         id,
         sender,
         message: rawText,
         created_at: createdAt,
       };
-
-      const deduplicationKey = String(id);
-
-      if (seen.has(deduplicationKey)) return null;
-
-      seen.add(deduplicationKey);
-
-      return message;
     })
     .filter((item): item is ChatMessage => item !== null);
 }
@@ -125,9 +171,19 @@ function normalizeConversation(value: unknown): ChatMessage[] {
 function getTicketStatus(result: any, fallback = "PENDING"): string {
   const status = result?.ticket?.status ?? result?.status;
 
-  return typeof status === "string" && status
-    ? status
-    : fallback;
+  return typeof status === "string" && status ? status : fallback;
+}
+
+function isTicketClosed(status: string): boolean {
+  return [
+    "COMPLETED",
+    "COMPLETE",
+    "CLOSED",
+    "RESOLVED",
+    "CERRADO",
+    "COMPLETADO",
+    "RESUELTO",
+  ].includes(status.trim().toUpperCase());
 }
 
 export default function SupportPage() {
@@ -172,9 +228,7 @@ export default function SupportPage() {
         `/api/support/tickets?user_id=${encodeURIComponent(finalUserId)}`,
         {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
+          headers: { Authorization: `Bearer ${session.access_token}` },
           cache: "no-store",
         }
       );
@@ -182,9 +236,7 @@ export default function SupportPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          result.error || "No se pudieron cargar las consultas."
-        );
+        throw new Error(result.error || "No se pudieron cargar las consultas.");
       }
 
       const loadedTickets: SupportTicket[] = Array.isArray(result.tickets)
@@ -200,16 +252,14 @@ export default function SupportPage() {
 
       setSelectedTicket((current) => {
         if (!current) return null;
-
-        const refreshed = loadedTickets.find(
-          (ticket) => Number(ticket.id) === Number(current.id)
+        return (
+          loadedTickets.find(
+            (ticket) => Number(ticket.id) === Number(current.id)
+          ) || current
         );
-
-        return refreshed || current;
       });
     } catch (err) {
       console.error("ERROR CARGANDO TICKETS:", err);
-
       setError(
         err instanceof Error
           ? err.message
@@ -235,15 +285,14 @@ export default function SupportPage() {
       const user = session.user;
       const metadata = user.user_metadata || {};
 
-      const username =
-        metadata.username ||
-        metadata.user_name ||
-        metadata.name ||
-        user.email?.split("@")[0] ||
-        "";
-
       setCurrentEmail(user.email || "");
-      setCurrentUsername(username);
+      setCurrentUsername(
+        metadata.username ||
+          metadata.user_name ||
+          metadata.name ||
+          user.email?.split("@")[0] ||
+          ""
+      );
 
       await loadTickets(user.id);
     } catch (err) {
@@ -257,15 +306,111 @@ export default function SupportPage() {
   }, [loadCurrentUser]);
 
   useEffect(() => {
-    if (view === "chat") {
-      requestAnimationFrame(() => {
-        chatEndRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
-        });
+    if (view !== "chat") return;
+
+    requestAnimationFrame(() => {
+      chatEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
       });
-    }
+    });
   }, [conversation, view, loading]);
+
+  /*
+   * Actualiza el chat con mensajes nuevos del servidor.
+   * Así aparecen las respuestas del administrador sin recargar la página.
+   */
+  useEffect(() => {
+    if (view !== "chat" || ticketId === null) return;
+
+    let active = true;
+
+    const refreshConversation = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!active || !session?.access_token) return;
+
+        const response = await fetch(
+          `/api/support/tickets?user_id=${encodeURIComponent(session.user.id)}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            cache: "no-store",
+          }
+        );
+
+        if (!response.ok) return;
+
+        const result = await response.json();
+
+        if (!active || !Array.isArray(result.tickets)) return;
+
+        const rawTicket = result.tickets.find(
+          (item: any) => Number(item.id) === Number(ticketId)
+        );
+
+        if (!rawTicket) return;
+
+        const freshConversation = normalizeConversation(
+          rawTicket.conversation
+        );
+
+        const freshTicket: SupportTicket = {
+          ...rawTicket,
+          id: Number(rawTicket.id),
+          conversation: freshConversation,
+          status: rawTicket.status || "PENDING",
+        };
+
+        setTicketStatus(freshTicket.status);
+
+        setSelectedTicket((current) =>
+          current && Number(current.id) === Number(ticketId)
+            ? { ...current, ...freshTicket }
+            : current
+        );
+
+        setTickets((current) =>
+          current.map((item) =>
+            Number(item.id) === Number(ticketId)
+              ? { ...item, ...freshTicket }
+              : item
+          )
+        );
+
+        setConversation((current) => {
+          const currentNormalized = normalizeConversation(current);
+
+          if (
+            JSON.stringify(currentNormalized) ===
+            JSON.stringify(freshConversation)
+          ) {
+            return current;
+          }
+
+          return freshConversation;
+        });
+      } catch (err) {
+        console.error("ERROR ACTUALIZANDO CONVERSACIÓN:", err);
+      }
+    };
+
+    void refreshConversation();
+
+    const intervalId = window.setInterval(() => {
+      void refreshConversation();
+    }, 5000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [view, ticketId]);
 
   function openNewTicket() {
     setError("");
@@ -281,9 +426,6 @@ export default function SupportPage() {
     setView("form");
   }
 
-  /*
-   * Guarda la conversación utilizando los IDs existentes.
-   */
   async function persistConversation(
     targetTicketId: number,
     messages: ChatMessage[],
@@ -308,13 +450,10 @@ export default function SupportPage() {
     const result = await response.json();
 
     if (!response.ok) {
-      throw new Error(
-        result.error || "No se pudo guardar la conversación."
-      );
+      throw new Error(result.error || "No se pudo guardar la conversación.");
     }
 
-    const newStatus = getTicketStatus(result, ticketStatus);
-    setTicketStatus(newStatus);
+    setTicketStatus(getTicketStatus(result, ticketStatus));
 
     return result;
   }
@@ -370,28 +509,31 @@ export default function SupportPage() {
         throw new Error("El soporte no devolvió una respuesta.");
       }
 
+      /*
+       * El endpoint de chat debe guardar la respuesta de la IA.
+       * No guardamos de nuevo toda la conversación desde el navegador,
+       * porque eso podría borrar una respuesta reciente del administrador.
+       */
+      if (targetTicketId !== null && result.saved === false) {
+        setError(
+          result.warning ||
+            "La respuesta se generó, pero no se pudo guardar. Actualiza la consulta."
+        );
+
+        await loadTickets(session.user.id);
+        return null;
+      }
+
       const aiMessage: ChatMessage = {
-        id: createMessageId(),
+        id: result.messageId || createMessageId(),
         sender: result.sender === "admin" ? "admin" : "ai",
         message: aiText.trim(),
-        created_at: new Date().toISOString(),
+        created_at: result.created_at || new Date().toISOString(),
       };
 
       const updatedConversation = [...messagesToSend, aiMessage];
 
       setConversation(updatedConversation);
-
-      /*
-       * Se mantiene la persistencia actual para que la respuesta
-       * también se envíe a la API de tickets.
-       */
-      if (targetTicketId !== null) {
-        await persistConversation(
-          targetTicketId,
-          updatedConversation,
-          session.access_token
-        );
-      }
 
       const lower = aiText.toLowerCase();
 
@@ -413,7 +555,7 @@ export default function SupportPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudo obtener o guardar la respuesta."
+          : "No se pudo obtener la respuesta."
       );
 
       return null;
@@ -496,28 +638,21 @@ export default function SupportPage() {
       }
 
       setTicketId(createdId);
-      setTicketStatus(
-        createdTicket?.status || result.status || "PENDING"
-      );
+      setTicketStatus(createdTicket?.status || result.status || "PENDING");
       setConversation([firstMessage]);
       setChatInput("");
       setMessage("");
       setAdminRequested(false);
       setSelectedTicket(null);
       setSubject(cleanSubject);
-      setCategory(category);
       setView("chat");
 
       await sendToSupportAI([firstMessage], createdId);
-
       await loadTickets(session.user.id);
     } catch (err) {
       console.error("ERROR CREANDO TICKET:", err);
-
       setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo crear la consulta."
+        err instanceof Error ? err.message : "No se pudo crear la consulta."
       );
     } finally {
       setTicketLoading(false);
@@ -527,11 +662,7 @@ export default function SupportPage() {
   async function handleSendChat(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (loading || ticketLoading) return;
-
-    if (ticketStatus === "COMPLETED" || ticketStatus === "CLOSED") {
-      return;
-    }
+    if (loading || ticketLoading || isTicketClosed(ticketStatus)) return;
 
     const cleanMessage = chatInput.trim();
 
@@ -569,8 +700,8 @@ export default function SupportPage() {
       }
 
       /*
-       * Primero se guarda el mensaje del usuario.
-       * Si la IA falla, el mensaje no se pierde.
+       * Se guarda el mensaje del usuario antes de llamar a la IA.
+       * La respuesta de la IA la guarda /api/support/chat.
        */
       await persistConversation(
         ticketId,
@@ -582,7 +713,6 @@ export default function SupportPage() {
       await sendToSupportAI(nextConversation, ticketId);
     } catch (err) {
       console.error("ERROR ENVIANDO MENSAJE:", err);
-
       setError(
         err instanceof Error
           ? err.message
@@ -647,11 +777,9 @@ export default function SupportPage() {
 
       setAdminRequested(false);
       setTicketStatus(getTicketStatus(result, "PENDING"));
-
       await loadTickets(session.user.id);
     } catch (err) {
       console.error("ERROR SOLICITANDO ADMIN:", err);
-
       setError(
         err instanceof Error
           ? err.message
@@ -663,9 +791,7 @@ export default function SupportPage() {
   }
 
   function openTicket(ticket: SupportTicket) {
-    const normalizedConversation = normalizeConversation(
-      ticket.conversation
-    );
+    const normalizedConversation = normalizeConversation(ticket.conversation);
 
     const finalConversation =
       normalizedConversation.length > 0
@@ -731,39 +857,29 @@ export default function SupportPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          result.error || "No se pudo reabrir la consulta."
-        );
+        throw new Error(result.error || "No se pudo reabrir la consulta.");
       }
 
       setTicketStatus(getTicketStatus(result, "PENDING"));
       await loadTickets(session.user.id);
     } catch (err) {
       console.error("ERROR REABRIENDO TICKET:", err);
-
       setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo reabrir la consulta."
+        err instanceof Error ? err.message : "No se pudo reabrir la consulta."
       );
     } finally {
       setTicketLoading(false);
     }
   }
 
-  const isClosed =
-    ticketStatus === "COMPLETED" || ticketStatus === "CLOSED";
+  const isClosed = isTicketClosed(ticketStatus);
 
   return (
     <main
       className="support-page"
       style={
         view === "chat"
-          ? {
-              height: "100dvh",
-              minHeight: "100dvh",
-              overflow: "hidden",
-            }
+          ? { height: "100dvh", minHeight: "100dvh", overflow: "hidden" }
           : undefined
       }
     >
@@ -805,11 +921,7 @@ export default function SupportPage() {
 
           <div className="support-header-title">
             <span>
-              {view === "tickets"
-                ? "📋"
-                : view === "chat"
-                  ? "💬"
-                  : "📩"}
+              {view === "tickets" ? "📋" : view === "chat" ? "💬" : "📩"}
             </span>
             <h1>
               {view === "form"
@@ -827,8 +939,8 @@ export default function SupportPage() {
               <div className="support-main-icon">📩</div>
               <h2>¿En qué podemos ayudarte?</h2>
               <p>
-                Selecciona una categoría y explica tu problema.
-                Primero te atenderá nuestro asistente.
+                Selecciona una categoría y explica tu problema. Primero te
+                atenderá nuestro asistente.
               </p>
             </section>
 
@@ -883,13 +995,9 @@ export default function SupportPage() {
               <button
                 type="submit"
                 className="support-submit-button"
-                disabled={
-                  ticketLoading || !subject.trim() || !message.trim()
-                }
+                disabled={ticketLoading || !subject.trim() || !message.trim()}
               >
-                {ticketLoading
-                  ? "CREANDO CONSULTA..."
-                  : "CREAR CONSULTA →"}
+                {ticketLoading ? "CREANDO CONSULTA..." : "CREAR CONSULTA →"}
               </button>
             </form>
           </>
@@ -937,9 +1045,7 @@ export default function SupportPage() {
                     fontSize: 10,
                   }}
                 >
-                  {isClosed
-                    ? "Consulta cerrada"
-                    : "Asistente de soporte"}
+                  {isClosed ? "Consulta cerrada" : "Asistente de soporte"}
                 </span>
               </div>
 
@@ -1018,11 +1124,7 @@ export default function SupportPage() {
                           textTransform: "uppercase",
                         }}
                       >
-                        {isUser
-                          ? "Tú"
-                          : isAdmin
-                            ? "Administrador"
-                            : "Soporte IA"}
+                        {isUser ? "Tú" : isAdmin ? "Administrador" : "Soporte IA"}
                       </span>
 
                       <div
@@ -1046,13 +1148,10 @@ export default function SupportPage() {
                             fontSize: 9,
                           }}
                         >
-                          {new Date(item.created_at).toLocaleTimeString(
-                            [],
-                            {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }
-                          )}
+                          {new Date(item.created_at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </span>
                       )}
                     </div>
@@ -1087,18 +1186,13 @@ export default function SupportPage() {
                   disabled={ticketLoading || loading || ticketId === null}
                   style={{ width: "100%" }}
                 >
-                  {ticketLoading
-                    ? "CONTACTANDO..."
-                    : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
+                  {ticketLoading ? "CONTACTANDO..." : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
                 </button>
               </div>
             )}
 
             {error && (
-              <div
-                className="support-error"
-                style={{ margin: "8px 10px 0" }}
-              >
+              <div className="support-error" style={{ margin: "8px 10px 0" }}>
                 {error}
               </div>
             )}
@@ -1112,10 +1206,7 @@ export default function SupportPage() {
                   background: "#090909",
                 }}
               >
-                <form
-                  className="support-chat-input-row"
-                  onSubmit={handleSendChat}
-                >
+                <form className="support-chat-input-row" onSubmit={handleSendChat}>
                   <input
                     type="text"
                     value={chatInput}
@@ -1142,9 +1233,7 @@ export default function SupportPage() {
                   <button
                     type="submit"
                     className="support-send-button"
-                    disabled={
-                      loading || ticketLoading || !chatInput.trim()
-                    }
+                    disabled={loading || ticketLoading || !chatInput.trim()}
                     aria-label="Enviar mensaje"
                     style={{
                       width: 45,
@@ -1159,9 +1248,7 @@ export default function SupportPage() {
                       color: "#fff",
                       fontSize: 19,
                       opacity:
-                        loading || ticketLoading || !chatInput.trim()
-                          ? 0.45
-                          : 1,
+                        loading || ticketLoading || !chatInput.trim() ? 0.45 : 1,
                     }}
                   >
                     ➤
@@ -1184,9 +1271,7 @@ export default function SupportPage() {
                   disabled={ticketLoading}
                   style={{ width: "100%" }}
                 >
-                  {ticketLoading
-                    ? "REABRIENDO..."
-                    : "↻ REABRIR CONSULTA"}
+                  {ticketLoading ? "REABRIENDO..." : "↻ REABRIR CONSULTA"}
                 </button>
               </div>
             )}
@@ -1249,8 +1334,8 @@ export default function SupportPage() {
               <div className="support-main-icon">🆘</div>
               <h2>¿Necesitas ayuda?</h2>
               <p>
-                Crea una consulta y nuestro asistente de soporte
-                intentará resolverla contigo.
+                Crea una consulta y nuestro asistente de soporte intentará
+                resolverla contigo.
               </p>
 
               <button
