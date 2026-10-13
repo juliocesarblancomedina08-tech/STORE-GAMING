@@ -56,2020 +56,498 @@ const SUPPORT_CATEGORIES = [
 const ADMIN_EMAIL =
   "juliocesarblancomedina08@gmail.com";
 
-export default function SupportPage() {
-  const router = useRouter();
+const SUPPORT_CSS = `
+  .support-page {
+    position: relative;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    background: #050505;
+    color: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+    isolation: isolate;
+  }
 
-  const [view, setView] =
-    useState<View>("closed");
+  .support-page-background {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(229,9,20,.18), transparent 50%),
+      radial-gradient(ellipse at 0% 70%, rgba(120,0,8,.12), transparent 40%),
+      #050505;
+  }
 
-  const [loading, setLoading] =
-    useState(false);
+  .support-content {
+    position: relative;
+    width: min(100% - 28px, 760px);
+    min-height: 100dvh;
+    margin: 0 auto;
+    padding: 22px 0 35px;
+    box-sizing: border-box;
+  }
 
-  const [ticketLoading, setTicketLoading] =
-    useState(false);
+  .support-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
 
-  const [error, setError] =
-    useState("");
+  .support-back-button {
+    display: flex;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #303030;
+    border-radius: 13px;
+    background: #141414;
+    color: #fff;
+    font-size: 25px;
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+  }
 
-  const [currentUserId, setCurrentUserId] =
-    useState("");
+  .support-back-button:hover {
+    background: #252525;
+    border-color: #e50914;
+  }
 
-  const [currentUsername, setCurrentUsername] =
-    useState("");
+  .support-header-title {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+  }
 
-  const [currentEmail, setCurrentEmail] =
-    useState("");
+  .support-header-title > span {
+    font-size: 25px;
+  }
 
-  const [category, setCategory] =
-    useState(
-      SUPPORT_CATEGORIES[0]
-    );
+  .support-header-title h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(20px, 4vw, 27px);
+    font-weight: 900;
+    letter-spacing: -.5px;
+  }
 
-  const [subject, setSubject] =
-    useState("");
+  .support-main-card {
+    padding: 28px 22px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 22px;
+    background: linear-gradient(145deg, #151515, #0b0b0b 70%);
+    box-shadow: 0 18px 45px rgba(0,0,0,.3);
+    text-align: center;
+  }
 
-  const [message, setMessage] =
-    useState("");
+  .support-main-icon {
+    display: flex;
+    width: 76px;
+    height: 76px;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 18px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 23px;
+    background: linear-gradient(145deg, #e50914, #750008);
+    box-shadow: 0 10px 30px rgba(229,9,20,.2);
+    font-size: 34px;
+  }
 
-  const [chatInput, setChatInput] =
-    useState("");
+  .support-main-card h2 {
+    margin: 0 0 12px;
+    color: #fff;
+    font-size: clamp(20px, 4vw, 25px);
+    font-weight: 900;
+  }
 
-  const [conversation, setConversation] =
-    useState<ChatMessage[]>([]);
+  .support-main-card p {
+    max-width: 480px;
+    margin: 0 auto 22px;
+    color: #a5a5a5;
+    font-size: 14px;
+    line-height: 1.7;
+  }
 
-  const [tickets, setTickets] =
-    useState<SupportTicket[]>([]);
+  .support-main-button,
+  .support-secondary-button,
+  .support-submit-button {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 18px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 13px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .35px;
+    cursor: pointer;
+    transition: transform .2s, filter .2s, background .2s;
+  }
 
-  const [selectedTicket, setSelectedTicket] =
-    useState<SupportTicket | null>(null);
+  .support-main-button,
+  .support-submit-button {
+    background: linear-gradient(135deg, #f01825, #970009);
+    box-shadow: 0 8px 22px rgba(229,9,20,.16);
+  }
 
-  const [ticketId, setTicketId] =
-    useState<number | null>(null);
+  .support-secondary-button {
+    margin-top: 10px;
+    background: #191919;
+  }
 
-  const [ticketStatus, setTicketStatus] =
-    useState("PENDING");
+  .support-main-button:hover,
+  .support-secondary-button:hover,
+  .support-submit-button:hover {
+    filter: brightness(1.13);
+    transform: translateY(-1px);
+  }
 
-  const [adminRequested, setAdminRequested] =
-    useState(false);
+  .support-form {
+    display: flex;
+    flex-direction: column;
+    gap: 19px;
+    margin-top: 20px;
+    padding: 24px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 20px;
+    background: #0d0d0d;
+    box-shadow: 0 15px 35px rgba(0,0,0,.24);
+  }
 
-  const chatEndRef =
-    useRef<HTMLDivElement | null>(null);
+  .support-field {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
 
-  /*
-   * ============================================================
-   * USUARIO ACTUAL
-   * ============================================================
-   */
+  .support-field label {
+    color: #e6e6e6;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1px;
+  }
 
-  useEffect(() => {
-    loadCurrentUser();
-  }, []);
+  .support-field input,
+  .support-field select,
+  .support-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    border: 1px solid #303030;
+    border-radius: 12px;
+    outline: none;
+    background: #151515;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    transition: border-color .2s, box-shadow .2s;
+  }
 
-  async function loadCurrentUser() {
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+  .support-field select {
+    color-scheme: dark;
+  }
 
-      if (
-        sessionError ||
-        !session?.user
-      ) {
-        router.replace("/");
-        return;
-      }
+  .support-field textarea {
+    min-height: 130px;
+    resize: vertical;
+    line-height: 1.6;
+  }
 
-      const user =
-        session.user;
+  .support-field input::placeholder,
+  .support-field textarea::placeholder {
+    color: #666;
+  }
 
-      setCurrentUserId(user.id);
+  .support-field input:focus,
+  .support-field select:focus,
+  .support-field textarea:focus {
+    border-color: #e50914;
+    box-shadow: 0 0 0 3px rgba(229,9,20,.12);
+  }
 
-      setCurrentEmail(
-        user.email || ""
-      );
+  .support-field input:disabled,
+  .support-field select:disabled,
+  .support-field textarea:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+  }
 
-      const metadata =
-        user.user_metadata || {};
+  .support-form .support-submit-button {
+    width: 100%;
+    min-height: 52px;
+  }
 
-      const username =
-        metadata.username ||
-        metadata.user_name ||
-        metadata.name ||
-        user.email?.split("@")[0] ||
-        "";
+  .support-error {
+    margin: 15px 0;
+    padding: 13px 15px;
+    border: 1px solid rgba(229,9,20,.35);
+    border-radius: 12px;
+    background: rgba(229,9,20,.09);
+    color: #ff8b91;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
 
-      setCurrentUsername(
-        username
-      );
+  .support-tickets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
 
-      await loadTickets(user.id);
-    } catch (err) {
-      console.error(
-        "ERROR CARGANDO USUARIO:",
-        err
-      );
+  .support-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 14px;
+    padding: 17px;
+    border: 1px solid #282828;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #151515, #0c0c0c);
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .2s, transform .2s;
+  }
+
+  .support-item:hover {
+    border-color: rgba(229,9,20,.7);
+    transform: translateY(-2px);
+  }
+
+  .support-item-icon {
+    display: flex;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 13px;
+    background: rgba(229,9,20,.14);
+    font-size: 22px;
+  }
+
+  .support-item-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .support-item-content strong {
+    display: block;
+    margin-bottom: 7px;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+  }
+
+  .support-item-content p {
+    margin: 0 0 8px;
+    color: #999;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .support-item-content span {
+    display: inline-block;
+    padding: 5px 8px;
+    border: 1px solid rgba(229,9,20,.25);
+    border-radius: 7px;
+    background: rgba(229,9,20,.09);
+    color: #ff777e;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .support-item > b {
+    color: #e50914;
+    font-size: 23px;
+  }
+
+  .support-user-info {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-top: 20px;
+    padding: 16px;
+    border: 1px solid #262626;
+    border-radius: 15px;
+    background: #101010;
+  }
+
+  .support-user-info > span {
+    display: flex;
+    width: 42px;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #222;
+    font-size: 21px;
+  }
+
+  .support-user-info strong {
+    color: #fff;
+    font-size: 13px;
+  }
+
+  .support-user-info p {
+    margin: 5px 0 0;
+    color: #888;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .game-service-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    margin-top: 30px;
+    padding: 20px 0;
+    border-top: 1px solid #202020;
+    text-align: center;
+  }
+
+  .game-service-footer strong {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 950;
+  }
+
+  .game-service-footer span {
+    color: #777;
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+
+  .support-floating-button {
+    position: fixed;
+    right: max(20px, env(safe-area-inset-right));
+    bottom: max(20px, env(safe-area-inset-bottom));
+    z-index: 10;
+    display: flex;
+    width: 56px;
+    height: 56px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f01825, #8c0008);
+    color: #fff;
+    font-size: 24px;
+    box-shadow: 0 8px 28px rgba(229,9,20,.3);
+    cursor: pointer;
+    transition: transform .2s;
+  }
+
+  .support-floating-button:hover {
+    transform: scale(1.06);
+  }
+
+  .support-admin-button {
+    cursor: pointer;
+  }
+
+  .support-admin-button:disabled,
+  .support-send-button:disabled,
+  .support-submit-button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .support-chat-container {
+    box-sizing: border-box;
+  }
+
+  .support-chat-messages {
+    scrollbar-width: thin;
+    scrollbar-color: #373737 #0b0b0b;
+  }
+
+  .support-chat-messages::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .support-chat-messages::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background: #383838;
+  }
+
+  .support-chat-input-row input:focus {
+    border-color: #e50914 !important;
+    box-shadow: 0 0 0 3px rgba(229,9,20,.1);
+  }
+
+  .support-send-button {
+    cursor: pointer;
+    transition: filter .2s, transform .2s;
+  }
+
+  .support-send-button:hover:not(:disabled) {
+    filter: brightness(1.15);
+    transform: scale(1.04);
+  }
+
+  @media (max-width: 600px) {
+    .support-content {
+      width: calc(100% - 22px);
+      padding-top: 14px;
+      padding-bottom: 24px;
+    }
+
+    .support-header {
+      gap: 10px;
+      margin-bottom: 17px;
+    }
+
+    .support-main-card {
+      padding: 24px 16px;
+      border-radius: 18px;
+    }
+
+    .support-form {
+      padding: 17px;
+      gap: 16px;
+    }
+
+    .support-item {
+      gap: 10px;
+      padding: 13px;
+    }
+
+    .support-chat-container {
+      border-radius: 15px !important;
+    }
+
+    .support-floating-button {
+      width: 50px;
+      height: 50px;
+      right: 14px;
+      bottom: 14px;
     }
   }
 
-  /*
-   * ============================================================
-   * CARGAR TICKETS DEL USUARIO
-   * ============================================================
-   */
-
-  async function loadTickets(
-    finalUserId?: string
-  ) {
-    try {
-      setTicketLoading(true);
-      setError("");
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (
-        !session?.access_token
-      ) {
-        throw new Error(
-          "Tu sesión ha expirado. Vuelve a iniciar sesión."
-        );
-      }
-
-      const userId =
-        finalUserId ||
-        session.user.id;
-
-      const response =
-        await fetch(
-          `/api/support/tickets?user_id=${encodeURIComponent(
-            userId
-          )}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-            cache: "no-store",
-          }
-        );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error ||
-            "No se pudieron cargar las consultas."
-        );
-      }
-
-      const loadedTickets =
-        Array.isArray(
-          result.tickets
-        )
-          ? result.tickets
-          : [];
-
-      setTickets(
-        loadedTickets
-      );
-    } catch (err) {
-      console.error(
-        "ERROR CARGANDO TICKETS:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudieron cargar las consultas."
-      );
-    } finally {
-      setTicketLoading(false);
+  @media (prefers-reduced-motion: reduce) {
+    .support-page *,
+    .support-page *::before,
+    .support-page *::after {
+      scroll-behavior: auto !important;
+      transition-duration: .01ms !important;
     }
   }
+`;
 
-  /*
-   * ============================================================
-   * SCROLL DEL CHAT
-   * ============================================================
-   */
-
-  useEffect(() => {
-    if (view !== "chat") {
-      return;
-    }
-
-    requestAnimationFrame(() => {
-      chatEndRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "end",
-      });
-    });
-  }, [
-    conversation,
-    view,
-  ]);
-
-  /*
-   * ============================================================
-   * CREAR NUEVA CONSULTA
-   * ============================================================
-   */
-
-  function openNewTicket() {
-    setError("");
-
-    setCategory(
-      SUPPORT_CATEGORIES[0]
-    );
-
-    setSubject("");
-
-    setMessage("");
-
-    setChatInput("");
-
-    setConversation([]);
-
-    setTicketId(null);
-
-    setSelectedTicket(null);
-
-    setTicketStatus("PENDING");
-
-    setAdminRequested(false);
-
-    setView("form");
-  }
-
-  /*
-   * ============================================================
-   * CREAR TICKET
-   * ============================================================
-   */
-
-  async function createTicket(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    if (ticketLoading) {
-      return;
-    }
-
-    const cleanSubject =
-      subject.trim();
-
-    const cleanMessage =
-      message.trim();
-
-    if (!cleanSubject) {
-      setError(
-        "Escriba el sujeto de la consulta."
-      );
-      return;
-    }
-
-    if (!cleanMessage) {
-      setError(
-        "Escriba el mensaje."
-      );
-      return;
-    }
-
-    try {
-      setTicketLoading(true);
-      setError("");
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (
-        !session?.user ||
-        !session.access_token
-      ) {
-        throw new Error(
-          "Tu sesión ha expirado. Vuelve a iniciar sesión."
-        );
-      }
-
-      const firstMessage: ChatMessage = {
-        sender: "user",
-        message: cleanMessage,
-        created_at:
-          new Date().toISOString(),
-      };
-
-      const response =
-        await fetch(
-          "/api/support/ticket",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              subject:
-                cleanSubject,
-              message:
-                cleanMessage,
-              category,
-              conversation: [
-                firstMessage,
-              ],
-            }),
-          }
-        );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error ||
-            "No se pudo crear la consulta."
-        );
-      }
-
-      const createdTicket =
-        result.ticket ||
-        result.data ||
-        null;
-
-      const createdId =
-        createdTicket?.id ||
-        result.ticketId ||
-        result.id ||
-        null;
-
-      setTicketId(
-        createdId
-      );
-
-      setTicketStatus(
-        createdTicket?.status ||
-          result.status ||
-          "PENDING"
-      );
-
-      setConversation([
-        firstMessage,
-      ]);
-
-      setChatInput("");
-
-      setMessage("");
-
-      setAdminRequested(false);
-
-      if (createdId) {
-        await sendToSupportAI(
-          [
-            firstMessage,
-          ],
-          createdId
-        );
-      }
-
-      await loadTickets(
-        session.user.id
-      );
-
-      setView("chat");
-    } catch (err) {
-      console.error(
-        "ERROR CREANDO TICKET:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo crear la consulta."
-      );
-    } finally {
-      setTicketLoading(false);
-    }
-  }
-
-  /*
-   * ============================================================
-   * ENVIAR MENSAJE AL CHAT IA
-   * ============================================================
-   */
-
-  async function sendToSupportAI(
-    messagesOverride?: ChatMessage[],
-    ticketIdOverride?: number | null
-  ) {
-    try {
-      setLoading(true);
-      setError("");
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (
-        !session?.access_token
-      ) {
-        throw new Error(
-          "Tu sesión ha expirado. Vuelve a iniciar sesión."
-        );
-      }
-
-      const messages =
-        messagesOverride ||
-        conversation;
-
-      const response =
-        await fetch(
-          "/api/support/chat",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              messages,
-              ticketId:
-                ticketIdOverride ??
-                ticketId,
-              category,
-              subject,
-            }),
-          }
-        );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error ||
-            "No se pudo obtener una respuesta del soporte."
-        );
-      }
-
-      const aiText =
-        result.message ||
-        result.response ||
-        result.answer ||
-        "";
-
-      if (!aiText) {
-        throw new Error(
-          "El soporte no devolvió una respuesta."
-        );
-      }
-
-      const aiMessage: ChatMessage = {
-        sender:
-          result.sender === "admin"
-            ? "admin"
-            : "ai",
-        message: aiText,
-        created_at:
-          new Date().toISOString(),
-      };
-
-      setConversation(
-        (current) => [
-          ...current,
-          aiMessage,
-        ]
-      );
-
-      if (
-        result.ticket
-      ) {
-        setTicketStatus(
-          result.ticket.status ||
-            "PENDING"
-        );
-      }
-
-      if (
-        result.status
-      ) {
-        setTicketStatus(
-          result.status
-        );
-      }
-
-      /*
-       * Si la IA indica que hace falta
-       * administrador, mostramos el botón.
-       */
-
-      if (
-        result.requiresAdmin === true ||
-        result.escalate === true ||
-        result.needsAdmin === true
-      ) {
-        setAdminRequested(
-          true
-        );
-      }
-
-      /*
-       * También reconocemos algunas
-       * respuestas explícitas del backend.
-       */
-
-      const lower =
-        aiText.toLowerCase();
-
-      if (
-        lower.includes(
-          "llamar al administrador"
-        ) ||
-        lower.includes(
-          "contactar al administrador"
-        ) ||
-        lower.includes(
-          "necesitas contactar"
-        )
-      ) {
-        setAdminRequested(
-          true
-        );
-      }
-    } catch (err) {
-      console.error(
-        "ERROR CHAT SOPORTE:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo obtener una respuesta."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /*
-   * ============================================================
-   * ENVIAR MENSAJE
-   * ============================================================
-   */
-
-  async function handleSendChat(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    if (
-      loading ||
-      ticketLoading
-    ) {
-      return;
-    }
-
-    if (
-      ticketStatus ===
-        "COMPLETED" ||
-      ticketStatus ===
-        "CLOSED"
-    ) {
-      return;
-    }
-
-    const cleanMessage =
-      chatInput.trim();
-
-    if (!cleanMessage) {
-      return;
-    }
-
-    setChatInput("");
-
-    const userMessage: ChatMessage = {
-      sender: "user",
-      message: cleanMessage,
-      created_at:
-        new Date().toISOString(),
-    };
-
-    const nextConversation = [
-      ...conversation,
-      userMessage,
-    ];
-
-    setConversation(
-      nextConversation
-    );
-
-    /*
-     * Actualizamos el ticket primero.
-     */
-
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (
-        !session?.access_token
-      ) {
-        throw new Error(
-          "Tu sesión ha expirado. Vuelve a iniciar sesión."
-        );
-      }
-
-            if (ticketId) {
-        await fetch(
-          "/api/support/ticket",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              ticketId,
-              message:
-                cleanMessage,
-              conversation:
-                nextConversation,
-              category,
-              subject,
-            }),
-          }
-        );
-      }
-
-      await sendToSupportAI(
-        nextConversation,
-        ticketId
-      );
-    } catch (err) {
-      console.error(
-        "ERROR ENVIANDO MENSAJE:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo enviar el mensaje."
-      );
-    }
-  }
-
-  /*
-   * ============================================================
-   * LLAMAR AL ADMINISTRADOR
-   * ============================================================
-   */
-
-  async function requestAdmin() {
-    if (
-      ticketLoading ||
-      !ticketId
-    ) {
-      return;
-    }
-
-    try {
-      setTicketLoading(true);
-      setError("");
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (
-        !session?.access_token
-      ) {
-        throw new Error(
-          "Tu sesión ha expirado."
-        );
-      }
-
-      const adminMessage: ChatMessage = {
-        sender: "user",
-        message:
-          "👨‍💻 Solicito llamar al administrador para continuar con mi consulta.",
-        created_at:
-          new Date().toISOString(),
-      };
-
-      const nextConversation = [
-        ...conversation,
-        adminMessage,
-      ];
-
-      setConversation(
-        nextConversation
-      );
-
-      const response =
-        await fetch(
-          "/api/support/ticket",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              ticketId,
-              message:
-                adminMessage.message,
-              conversation:
-                nextConversation,
-              category,
-              subject,
-              notifyAdmin: true,
-            }),
-          }
-        );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error ||
-            "No se pudo llamar al administrador."
-        );
-      }
-
-      setAdminRequested(
-        false
-      );
-
-      setTicketStatus(
-        result.status ||
-          "PENDING"
-      );
-
-      await loadTickets(
-        session.user.id
-      );
-    } catch (err) {
-      console.error(
-        "ERROR SOLICITANDO ADMIN:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo contactar al administrador."
-      );
-    } finally {
-      setTicketLoading(false);
-    }
-  }
-
-  /*
-   * ============================================================
-   * ABRIR TICKET EXISTENTE
-   * ============================================================
-   */
-
-  function openTicket(
-    ticket: SupportTicket
-  ) {
-    setSelectedTicket(
-      ticket
-    );
-
-    setTicketId(
-      ticket.id
-    );
-
-    setCategory(
-      ticket.category ||
-        "Otro/pregunta"
-    );
-
-    setSubject(
-      ticket.subject ||
-        ""
-    );
-
-    setTicketStatus(
-      ticket.status ||
-        "PENDING"
-    );
-
-    setConversation(
-      Array.isArray(
-        ticket.conversation
-      )
-        ? ticket.conversation
-        : ticket.message
-        ? [
-            {
-              sender:
-                "user",
-              message:
-                ticket.message,
-              created_at:
-                ticket.created_at,
-            },
-          ]
-        : []
-    );
-
-    setAdminRequested(
-      false
-    );
-
-    setError("");
-
-    setView("chat");
-  }
-
-  /*
-   * ============================================================
-   * REABRIR TICKET
-   * ============================================================
-   */
-
-  async function reopenTicket() {
-    if (!ticketId) {
-      return;
-    }
-
-    try {
-      setTicketLoading(true);
-      setError("");
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (
-        !session?.access_token
-      ) {
-        throw new Error(
-          "Tu sesión ha expirado."
-        );
-      }
-
-      const response =
-        await fetch(
-          "/api/support/ticket",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-              Authorization:
-                `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              ticketId,
-              status: "PENDING",
-              category,
-              subject,
-              conversation,
-            }),
-          }
-        );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error ||
-            "No se pudo reabrir la consulta."
-        );
-      }
-
-      setTicketStatus(
-        "PENDING"
-      );
-
-      await loadTickets(
-        session.user.id
-      );
-    } catch (err) {
-      console.error(
-        "ERROR REABRIENDO TICKET:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo reabrir la consulta."
-      );
-    } finally {
-      setTicketLoading(false);
-    }
-  }
-
-  /*
-   * ============================================================
-   * FORMULARIO
-   * ============================================================
-   */
-
-  if (view === "form") {
-    return (
-      <main className="support-page">
-        <div className="support-page-background" />
-
-        <div className="support-content">
-          <header className="support-header">
-            <button
-              type="button"
-              className="support-back-button"
-              onClick={() =>
-                setView("closed")
-              }
-            >
-              ←
-            </button>
-
-            <div className="support-header-title">
-              <span>📩</span>
-
-              <h1>
-                Crear nueva consulta
-              </h1>
-            </div>
-          </header>
-
-          <section className="support-main-card">
-            <div className="support-main-icon">
-              📩
-            </div>
-
-            <h2>
-              ¿En qué podemos ayudarte?
-            </h2>
-
-            <p>
-              Selecciona una categoría y
-              explica tu problema. Primero
-              te atenderá nuestro asistente.
-            </p>
-          </section>
-
-          <form
-            className="support-form"
-            onSubmit={createTicket}
-          >
-            <div className="support-field">
-              <label>
-                CATEGORÍA
-              </label>
-
-              <select
-                value={category}
-                onChange={(event) =>
-                  setCategory(
-                    event.target.value
-                  )
-                }
-                disabled={
-                  ticketLoading
-                }
-              >
-                {SUPPORT_CATEGORIES.map(
-                  (item) => (
-                    <option
-                      key={item}
-                      value={item}
-                    >
-                      {item}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            <div className="support-field">
-              <label>
-                SUJETO
-              </label>
-
-              <input
-                type="text"
-                value={subject}
-                onChange={(event) =>
-                  setSubject(
-                    event.target.value
-                  )
-                }
-                placeholder="Ejemplo: No me llegó mi recarga"
-                maxLength={120}
-                autoComplete="off"
-                disabled={
-                  ticketLoading
-                }
-              />
-            </div>
-
-            <div className="support-field">
-              <label>
-                MENSAJE
-              </label>
-
-              <textarea
-                value={message}
-                onChange={(event) =>
-                  setMessage(
-                    event.target.value
-                  )
-                }
-                placeholder="Explique detalladamente su problema..."
-                rows={6}
-                maxLength={3000}
-                disabled={
-                  ticketLoading
-                }
-              />
-            </div>
-
-            {error && (
-              <div className="support-error">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="support-submit-button"
-              disabled={
-                ticketLoading ||
-                !subject.trim() ||
-                !message.trim()
-              }
-            >
-              {ticketLoading
-                ? "CREANDO CONSULTA..."
-                : "CREAR CONSULTA →"}
-            </button>
-          </form>
-        </div>
-      </main>
-    );
-  }
-
-  /*
-   * ============================================================
-   * CHAT
-   * ============================================================
-   */
-
-  if (view === "chat") {
-    const isClosed =
-      ticketStatus ===
-        "COMPLETED" ||
-      ticketStatus ===
-        "CLOSED";
-
-    return (
-      <main
-        className="support-page"
-        style={{
-          minHeight:
-            "100dvh",
-          height:
-            "100dvh",
-          overflow:
-            "hidden",
-        }}
-      >
-        <div className="support-page-background" />
-
-        <div
-          className="support-content"
-          style={{
-            height:
-              "100dvh",
-            minHeight:
-              "100dvh",
-            paddingBottom:
-              "16px",
-            boxSizing:
-              "border-box",
-            display:
-              "flex",
-            flexDirection:
-              "column",
-            overflow:
-              "hidden",
-          }}
-        >
-          <header
-            className="support-header"
-            style={{
-              flex:
-                "0 0 auto",
-            }}
-          >
-            <button
-              type="button"
-              className="support-back-button"
-              onClick={() =>
-                setView(
-                  selectedTicket
-                    ? "tickets"
-                    : "closed"
-                )
-              }
-            >
-              ←
-            </button>
-
-            <div className="support-header-title">
-              <span>💬</span>
-
-              <h1>
-                Soporte
-              </h1>
-            </div>
-          </header>
-
-          <section
-            className="support-chat-container"
-            style={{
-              flex:
-                "1 1 0",
-              minHeight:
-                0,
-              width:
-                "100%",
-              maxWidth:
-                "620px",
-              margin:
-                "12px auto 0",
-              display:
-                "flex",
-              flexDirection:
-                "column",
-              overflow:
-                "hidden",
-              border:
-                "1px solid rgba(255,255,255,.10)",
-              borderRadius:
-                "18px",
-              background:
-                "rgba(7,7,7,.96)",
-              boxShadow:
-                "0 18px 45px rgba(0,0,0,.55)",
-            }}
-          >
-            <div
-              style={{
-                flex:
-                  "0 0 auto",
-                minHeight:
-                  "58px",
-                display:
-                  "flex",
-                alignItems:
-                  "center",
-                gap:
-                  "10px",
-                padding:
-                  "10px 13px",
-                borderBottom:
-                  "1px solid rgba(255,255,255,.08)",
-                background:
-                  "#0b0b0b",
-              }}
-            >
-              <div
-                style={{
-                  width:
-                    "38px",
-                  height:
-                    "38px",
-                  flex:
-                    "0 0 38px",
-                  display:
-                    "flex",
-                  alignItems:
-                    "center",
-                  justifyContent:
-                    "center",
-                  borderRadius:
-                    "50%",
-                  background:
-                    "linear-gradient(135deg,#e50914,#760007)",
-                  color:
-                    "#fff",
-                  fontSize:
-                    "18px",
-                }}
-              >
-                🤖
-              </div>
-
-              <div
-                style={{
-                  minWidth:
-                    0,
-                  flex:
-                    1,
-                }}
-              >
-                <strong
-                  style={{
-                    display:
-                      "block",
-                    color:
-                      "#fff",
-                    fontSize:
-                      "12px",
-                    fontWeight:
-                      950,
-                  }}
-                >
-                  STORE GAMING
-                </strong>
-
-                <span
-                  style={{
-                    display:
-                      "block",
-                    marginTop:
-                      "3px",
-                    color:
-                      "#777",
-                    fontSize:
-                      "9px",
-                  }}
-                >
-                  {isClosed
-                    ? "Consulta cerrada"
-                    : "Asistente de soporte"}
-                </span>
-              </div>
-
-              <span
-                style={{
-                  width:
-                    "8px",
-                  height:
-                    "8px",
-                  borderRadius:
-                    "50%",
-                  background:
-                    isClosed
-                      ? "#777"
-                      : "#20c55a",
-                  boxShadow:
-                    isClosed
-                      ? "none"
-                      : "0 0 9px rgba(32,197,90,.65)",
-                }}
-              />
-            </div>
-
-            <div
-              className="support-chat-messages"
-              style={{
-                flex:
-                  "1 1 0",
-                minHeight:
-                  0,
-                overflowY:
-                  "auto",
-                overflowX:
-                  "hidden",
-                padding:
-                  "14px 11px",
-                display:
-                  "flex",
-                flexDirection:
-                  "column",
-                gap:
-                  "8px",
-                WebkitOverflowScrolling:
-                  "touch",
-              }}
-            >
-              {conversation.length ===
-                0 && (
-                <div
-                  style={{
-                    margin:
-                      "auto",
-                    maxWidth:
-                      "280px",
-                    padding:
-                      "20px 15px",
-                    textAlign:
-                      "center",
-                    color:
-                      "#666",
-                    fontSize:
-                      "10px",
-                    lineHeight:
-                      1.5,
-                  }}
-                >
-                  💬
-                  <br />
-                  Escribe tu mensaje para
-                  comenzar la conversación.
-                </div>
-              )}
-
-              {conversation.map(
-                (
-                  item,
-                  index
-                ) => {
-                  const isUser =
-                    item.sender ===
-                    "user";
-
-                  const isAdmin =
-                    item.sender ===
-                    "admin";
-
-                  return (
-                    <div
-                      key={`${index}-${item.created_at || ""}`}
-                      style={{
-                        width:
-                          "100%",
-                        display:
-                          "flex",
-                        justifyContent:
-                          isUser
-                            ? "flex-end"
-                            : "flex-start",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width:
-                            "fit-content",
-                          maxWidth:
-                            "84%",
-                          minWidth:
-                            "70px",
-                          padding:
-                            "8px 10px",
-                          borderRadius:
-                            isUser
-                              ? "15px 15px 4px 15px"
-                              : "15px 15px 15px 4px",
-                          background:
-                            isUser
-                              ? "linear-gradient(135deg,#e50914,#a50008)"
-                              : isAdmin
-                              ? "linear-gradient(135deg,#242424,#151515)"
-                              : "#151515",
-                          border:
-                            isAdmin
-                              ? "1px solid rgba(255,255,255,.12)"
-                              : isUser
-                              ? "1px solid rgba(255,70,70,.28)"
-                              : "1px solid rgba(255,255,255,.06)",
-                          color:
-                            "#fff",
-                          boxShadow:
-                            "0 5px 15px rgba(0,0,0,.22)",
-                        }}
-                      >
-                        <span
-                          style={{
-                            display:
-                              "block",
-                            marginBottom:
-                              "4px",
-                            color:
-                              isUser
-                                ? "rgba(255,255,255,.72)"
-                                : isAdmin
-                                ? "#ff6d74"
-                                : "#888",
-                            fontSize:
-                              "8px",
-                            fontWeight:
-                              950,
-                            textTransform:
-                              "uppercase",
-                          }}
-                        >
-                          {isUser
-                            ? "Tú"
-                            : isAdmin
-                            ? "Administrador"
-                            : "Soporte IA"}
-                        </span>
-
-                        <div
-                          style={{
-                            whiteSpace:
-                              "pre-wrap",
-                            wordBreak:
-                              "break-word",
-                            color:
-                              "#fff",
-                            fontSize:
-                              "11px",
-                            lineHeight:
-                              1.5,
-                          }}
-                        >
-                          {item.message}
-                        </div>
-
-                        {item.created_at && (
-                          <span
-                            style={{
-                              display:
-                                "block",
-                              marginTop:
-                                "4px",
-                              textAlign:
-                                "right",
-                              color:
-                                isUser
-                                  ? "rgba(255,255,255,.5)"
-                                  : "#555",
-                              fontSize:
-                                "7px",
-                            }}
-                          >
-                            {new Date(
-                              item.created_at
-                            ).toLocaleTimeString(
-                              [],
-                              {
-                                hour:
-                                  "2-digit",
-                                minute:
-                                  "2-digit",
-                              }
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-              )}
-
-              {loading && (
-                <div
-                  style={{
-                    width:
-                      "100%",
-                    display:
-                      "flex",
-                    justifyContent:
-                      "flex-start",
-                  }}
-                >
-                  <div
-                    style={{
-                      padding:
-                        "10px 13px",
-                      borderRadius:
-                        "15px 15px 15px 4px",
-                      background:
-                        "#151515",
-                      border:
-                        "1px solid rgba(255,255,255,.06)",
-                      color:
-                        "#888",
-                      fontSize:
-                        "10px",
-                    }}
-                  >
-                    Escribiendo •••
-                  </div>
-                </div>
-              )}
-
-              <div
-                ref={
-                  chatEndRef
-                }
-              />
-            </div>
-
-            {adminRequested &&
-              !isClosed && (
-                <div
-                  style={{
-                    flex:
-                      "0 0 auto",
-                    padding:
-                      "9px 10px 0",
-                    background:
-                      "#090909",
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="support-admin-button"
-                    onClick={
-                      requestAdmin
-                    }
-                    disabled={
-                      ticketLoading
-                    }
-                    style={{
-                      width:
-                        "100%",
-                      minHeight:
-                        "42px",
-                      borderRadius:
-                        "11px",
-                      border:
-                        "1px solid rgba(229,9,20,.45)",
-                      background:
-                        "linear-gradient(135deg,#e50914,#8e0008)",
-                      color:
-                        "#fff",
-                      fontSize:
-                        "10px",
-                      fontWeight:
-                        950,
-                    }}
-                  >
-                    {ticketLoading
-                      ? "CONTACTANDO..."
-                      : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
-                  </button>
-                </div>
-              )}
-
-            {error && (
-              <div
-                style={{
-                  flex:
-                    "0 0 auto",
-                  margin:
-                    "8px 10px 0",
-                  padding:
-                    "8px 10px",
-                  border:
-                    "1px solid rgba(229,9,20,.3)",
-                  borderRadius:
-                    "10px",
-                  background:
-                    "rgba(229,9,20,.08)",
-                  color:
-                    "#ff7b82",
-                  fontSize:
-                    "9px",
-                  lineHeight:
-                    1.4,
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            {!isClosed ? (
-              <div
-                className="support-chat-input-area"
-                style={{
-                  flex:
-                    "0 0 auto",
-                  width:
-                    "100%",
-                  boxSizing:
-                    "border-box",
-                  display:
-                    "flex",
-                  alignItems:
-                    "center",
-                  gap:
-                    "8px",
-                  padding:
-                    "9px 10px",
-                  paddingBottom:
-                    "max(9px, env(safe-area-inset-bottom))",
-                  borderTop:
-                    "1px solid rgba(255,255,255,.08)",
-                  background:
-                    "#090909",
-                }}
-              >
-                <form
-                  className="support-chat-input-row"
-                  onSubmit={
-                    handleSendChat
-                  }
-                  style={{
-                    width:
-                      "100%",
-                    display:
-                      "flex",
-                    alignItems:
-                      "center",
-                    gap:
-                      "8px",
-                    margin:
-                      0,
-                  }}
-                >
-                  <input
-                    type="text"
-                    value={
-                      chatInput
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setChatInput(
-                        event.target.value
-                      )
-                    }
-                    placeholder="Escribe tu mensaje..."
-                    disabled={
-                      loading ||
-                      ticketLoading
-                    }
-                    autoComplete="off"
-                    style={{
-                      flex:
-                        "1 1 auto",
-                      minWidth:
-                        0,
-                      width:
-                        "100%",
-                      height:
-                        "45px",
-                      boxSizing:
-                        "border-box",
-                      padding:
-                        "0 13px",
-                      border:
-                        "1px solid rgba(255,255,255,.10)",
-                      borderRadius:
-                        "22px",
-                      outline:
-                        "none",
-                      background:
-                        "#151515",
-                      color:
-                        "#fff",
-                      fontFamily:
-                        "inherit",
-                      fontSize:
-                        "11px",
-                    }}
-                  />
-
-                  <button
-                    type="submit"
-                    className="support-send-button"
-                    disabled={
-                      loading ||
-                      ticketLoading ||
-                      !chatInput.trim()
-                    }
-                    aria-label="Enviar mensaje"
-                    style={{
-                      width:
-                        "45px",
-                      height:
-                        "45px",
-                      flex:
-                        "0 0 45px",
-                      display:
-                        "flex",
-                      alignItems:
-                        "center",
-                      justifyContent:
-                        "center",
-                      border:
-                        "0",
-                      borderRadius:
-                        "50%",
-                      background:
-                        "linear-gradient(135deg,#e50914,#a00008)",
-                      color:
-                        "#fff",
-                      fontSize:
-                        "19px",
-                      fontWeight:
-                        950,
-                      opacity:
-                        loading ||
-                        ticketLoading ||
-                        !chatInput.trim()
-                          ? 0.45
-                          : 1,
-                    }}
-                  >
-                    ➤
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <div
-                style={{
-                  flex:
-                    "0 0 auto",
-                  padding:
-                    "12px",
-                  borderTop:
-                    "1px solid rgba(255,255,255,.08)",
-                  background:
-                    "#090909",
-                }}
-              >
-                <button
-                  type="button"
-                  className="support-submit-button"
-                  onClick={
-                    reopenTicket
-                  }
-                  disabled={
-                    ticketLoading
-                  }
-                  style={{
-                    width:
-                      "100%",
-                    minHeight:
-                      "44px",
-                    borderRadius:
-                      "12px",
-                    border:
-                      "1px solid rgba(229,9,20,.35)",
-                    background:
-                      "linear-gradient(135deg,#e50914,#8e0008)",
-                    color:
-                      "#fff",
-                    fontSize:
-                      "10px",
-                    fontWeight:
-                      950,
-                  }}
-                >
-                  {ticketLoading
-                    ? "REABRIENDO..."
-                    : "↻ REABRIR CONSULTA"}
-                </button>
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
-    );
-  }
-
-  /*
-   * ============================================================
-   * HISTORIAL
-   * ============================================================
-   */
-
-  if (view === "tickets") {
-    return (
-      <main className="support-page">
-        <div className="support-page-background" />
-
-        <div className="support-content">
-          <header className="support-header">
-            <button
-              type="button"
-              className="support-back-button"
-              onClick={() =>
-                setView("closed")
-              }
-            >
-              ←
-            </button>
-
-            <div className="support-header-title">
-              <span>📋</span>
-
-              <h1>
-                Mis consultas
-              </h1>
-            </div>
-          </header>
-
-          <section className="support-tickets-list">
-            {tickets.length ===
-              0 ? (
-              <div className="support-main-card">
-                <div className="support-main-icon">
-                  📭
-                </div>
-
-                <h2>
-                  No tienes consultas
-                </h2>
-
-                <p>
-                  Cuando crees una
-                  consulta aparecerá aquí.
-                </p>
-
-                <button
-                  type="button"
-                  className="support-main-button"
-                  onClick={
-                    openNewTicket
-                  }
-                >
-                  CREAR CONSULTA
-                </button>
-              </div>
-            ) : (
-              <>
-                {tickets.map(
-                  (ticket) => (
-                    <button
-                      type="button"
-                      key={ticket.id}
-                      className="support-item"
-                      onClick={() =>
-                        openTicket(
-                          ticket
-                        )
-                      }
-                    >
-                      <div className="support-item-icon">
-                        💬
-                      </div>
-
-                      <div className="support-item-content">
-                        <strong>
-                          {ticket.subject}
-                        </strong>
-
-                        <p>
-                          {ticket.category ||
-                            "Otro/pregunta"}
-                        </p>
-
-                        <span>
-                          {ticket.status}
-                        </span>
-                      </div>
-
-                      <b>
-                        →
-                      </b>
-                    </button>
-                  )
-                )}
-
-                <button
-                  type="button"
-                  className="support-main-button"
-                  onClick={
-                    openNewTicket
-                  }
-                >
-                  + NUEVA CONSULTA
-                </button>
-              </>
-            )}
-          </section>
-        </div>
-      </main>
-    );
-  }
-
-  /*
-   * ============================================================
-   * INICIO SOPORTE
-   * ============================================================
-   */
-
+function SupportStyles() {
   return (
-    <main className="support-page">
-      <div className="support-page-background" />
-
-      <div className="support-content">
-        <header className="support-header">
-          <button
-            type="button"
-            className="support-back-button"
-            onClick={() =>
-              router.push("/home")
-            }
-          >
-            ←
-          </button>
-
-          <div className="support-header-title">
-            <span>📩</span>
-
-            <h1>
-              Soporte
-            </h1>
-          </div>
-        </header>
-
-        <section className="support-main-card">
-          <div className="support-main-icon">
-            🆘
-          </div>
-
-          <h2>
-            ¿Necesitas ayuda?
-          </h2>
-
-          <p>
-            Crea una consulta y nuestro
-            asistente de soporte intentará
-            resolverla contigo.
-          </p>
-
-          <button
-            type="button"
-            className="support-main-button"
-            onClick={
-              openNewTicket
-            }
-          >
-            📩 CREAR NUEVA CONSULTA
-          </button>
-
-          {tickets.length >
-            0 && (
-            <button
-              type="button"
-              className="support-secondary-button"
-              onClick={() =>
-                setView(
-                  "tickets"
-                )
-              }
-            >
-              📋 VER MIS CONSULTAS
-            </button>
-          )}
-        </section>
-
-        {error && (
-          <div className="support-error">
-            {error}
-          </div>
-        )}
-
-        <div className="support-user-info">
-          <span>
-            👤
-          </span>
-
-          <div>
-            <strong>
-              {currentUsername ||
-                "Usuario"}
-            </strong>
-
-            <p>
-              {currentEmail}
-            </p>
-          </div>
-        </div>
-
-        <footer className="game-service-footer">
-          <strong>
-            🛒STORE GAMING🎮
-          </strong>
-
-          <span>
-            CENTRO DE SOPORTE
-          </span>
-        </footer>
-      </div>
-
-      <button
-        type="button"
-        className="support-floating-button"
-        onClick={
-          openNewTicket
-        }
-        aria-label="Crear consulta"
-      >
-        📩
-      </button>
-    </main>
+    <style jsx global>
+      {SUPPORT_CSS}
+    </style>
   );
 }
