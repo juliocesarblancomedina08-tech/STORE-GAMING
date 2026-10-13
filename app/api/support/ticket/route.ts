@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
@@ -37,6 +38,16 @@ const VALID_STATUSES: SupportStatus[] = [
   "COMPLETED",
 ];
 
+function jsonError(error: string, status: number) {
+  return NextResponse.json(
+    { success: false, error },
+    {
+      status,
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    }
+  );
+}
+
 function normalizeStatus(value: unknown): SupportStatus | null {
   if (typeof value !== "string") return null;
 
@@ -49,10 +60,7 @@ function normalizeStatus(value: unknown): SupportStatus | null {
 
 function getBearerToken(request: Request): string | null {
   const authorization = request.headers.get("authorization");
-
-  if (!authorization) return null;
-
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  const match = authorization?.match(/^Bearer\s+(.+)$/i);
 
   return match?.[1]?.trim() || null;
 }
@@ -66,7 +74,7 @@ function getAdminIds(): string[] {
 
 function isSupportAdmin(user: {
   id: string;
-  email?: string;
+  email?: string | null;
 }): boolean {
   return (
     user.email?.trim().toLowerCase() ===
@@ -104,11 +112,6 @@ function getMessageDate(
     : date.toISOString();
 }
 
-/**
- * Crea un identificador estable cuando el cliente no envía uno.
- * Esto evita generar un ID diferente cada vez que se reenvía
- * la conversación completa.
- */
 function createStableMessageId(
   sender: StoredMessage["sender"],
   text: string,
@@ -129,6 +132,11 @@ function createStableMessageId(
   return `${sender}-${(hash >>> 0).toString(36)}`;
 }
 
+/**
+ * Solo acepta mensajes del cliente y del administrador.
+ * Las respuestas de IA deben guardarse exclusivamente desde
+ * la ruta del servidor que genera esas respuestas.
+ */
 function normalizeMessages(
   messages: SupportMessage[],
   isAdmin: boolean
@@ -136,42 +144,34 @@ function normalizeMessages(
   const normalized: StoredMessage[] = [];
 
   for (const message of messages
-    .filter(
-      (item) => item && typeof item === "object"
-    )
+    .filter((item) => item && typeof item === "object")
     .slice(-MAX_MESSAGES)) {
     const text = getMessageText(message);
 
     if (!text) continue;
 
-    let sender: StoredMessage["sender"] = "user";
+    const declaredSender = message.sender || message.role;
 
-    if (
-      message.sender === "ai" ||
-      message.role === "assistant"
-    ) {
-      sender = "ai";
-    } else if (
-      isAdmin &&
-      (message.sender === "admin" ||
-        message.role === "admin")
-    ) {
+    let sender: StoredMessage["sender"];
+
+    if (declaredSender === "user") {
+      sender = "user";
+    } else if (isAdmin && declaredSender === "admin") {
       sender = "admin";
+    } else {
+      // No aceptar mensajes ai/assistant desde el navegador.
+      continue;
     }
 
     const created_at = getMessageDate(message);
 
     const id =
-      typeof message.id === "string" &&
-      message.id.trim()
-        ? message.id
-        : typeof message.id === "number"
+      typeof message.id === "string" && message.id.trim()
+        ? message.id.trim()
+        : typeof message.id === "number" &&
+            Number.isSafeInteger(message.id)
           ? message.id
-          : createStableMessageId(
-              sender,
-              text,
-              created_at
-            );
+          : createStableMessageId(sender, text, created_at);
 
     normalized.push({
       id,
@@ -181,7 +181,6 @@ function normalizeMessages(
     });
   }
 
-  // Evitar mensajes repetidos dentro de la misma petición.
   const seen = new Set<string>();
 
   return normalized.filter((message) => {
@@ -201,46 +200,57 @@ function normalizeStoredConversation(
 
   const result: StoredMessage[] = [];
 
-  existing.forEach((item: any, index: number) => {
-    if (!item || typeof item !== "object") return;
+  for (const item of existing.slice(-MAX_MESSAGES)) {
+    if (!item || typeof item !== "object") continue;
+
+    const value = item as Record<string, unknown>;
 
     const text =
-      typeof item.text === "string"
-        ? item.text
-        : typeof item.message === "string"
-          ? item.message
-          : typeof item.content === "string"
-            ? item.content
+      typeof value.text === "string"
+        ? value.text
+        : typeof value.message === "string"
+          ? value.message
+          : typeof value.content === "string"
+            ? value.content
             : "";
 
-    if (!text.trim()) return;
+    if (!text.trim()) continue;
+
+    const rawSender = value.sender ?? value.role;
 
     let sender: StoredMessage["sender"];
 
-    if (["user", "ai", "admin"].includes(item.sender)) {
-      sender = item.sender;
-    } else if (item.role === "assistant") {
+    if (rawSender === "ai" || rawSender === "assistant") {
       sender = "ai";
-    } else if (
-      item.role === "user" ||
-      item.role === "admin"
-    ) {
-      sender = item.role;
+    } else if (rawSender === "admin") {
+      sender = "admin";
+    } else if (rawSender === "user") {
+      sender = "user";
     } else {
       sender = "user";
     }
 
-    const created_at = getMessageDate(item);
+    const createdAtValue =
+      typeof value.created_at === "string"
+        ? value.created_at
+        : typeof value.createdAt === "string"
+          ? value.createdAt
+          : undefined;
+
+    const created_at = createdAtValue
+      ? getMessageDate({ created_at: createdAtValue })
+      : undefined;
 
     const id =
-      typeof item.id === "string" ||
-      typeof item.id === "number"
-        ? item.id
+      typeof value.id === "string" ||
+      (typeof value.id === "number" &&
+        Number.isSafeInteger(value.id))
+        ? value.id
         : createStableMessageId(
             sender,
             text.trim(),
             created_at
-          ) || `previous-${index}`;
+          );
 
     result.push({
       id,
@@ -248,9 +258,9 @@ function normalizeStoredConversation(
       text: text.trim().slice(0, MAX_MESSAGE_LENGTH),
       ...(created_at ? { created_at } : {}),
     });
-  });
+  }
 
-  return result.slice(-MAX_MESSAGES);
+  return result;
 }
 
 function messageKey(message: StoredMessage): string {
@@ -263,16 +273,15 @@ function mergeConversations(
 ): StoredMessage[] {
   const previous = normalizeStoredConversation(existing);
   const combined = [...previous];
-
   const seen = new Set(previous.map(messageKey));
 
   for (const message of incoming) {
     const key = messageKey(message);
 
-    if (!seen.has(key)) {
-      combined.push(message);
-      seen.add(key);
-    }
+    if (seen.has(key)) continue;
+
+    combined.push(message);
+    seen.add(key);
   }
 
   return combined.slice(-MAX_MESSAGES);
@@ -328,25 +337,19 @@ async function notifyTelegram(text: string): Promise<void> {
       );
     }
   } catch (error) {
-    console.error(
-      "Error enviando notificación a Telegram:",
-      error
-    );
+    console.error("Error enviando notificación a Telegram:", error);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Validar la sesión real de Supabase.
+    // 1. Validar la sesión de Supabase.
     const accessToken = getBearerToken(request);
 
     if (!accessToken) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Debes iniciar sesión para utilizar el soporte.",
-        },
-        { status: 401 }
+      return jsonError(
+        "Debes iniciar sesión para utilizar el soporte.",
+        401
       );
     }
 
@@ -356,47 +359,37 @@ export async function POST(request: NextRequest) {
     } = await supabaseAdmin.auth.getUser(accessToken);
 
     if (authError || !user?.id) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "La sesión no es válida o ha expirado.",
-        },
-        { status: 401 }
+      return jsonError(
+        "La sesión no es válida o ha expirado.",
+        401
       );
     }
 
-    // 2. Comprobar los permisos del usuario autenticado.
-    const isAdmin = isSupportAdmin({
+    const admin = isSupportAdmin({
       id: user.id,
       email: user.email,
     });
 
-    // 3. Leer y validar el cuerpo de la petición.
-    let body: any;
+    // 2. Leer el cuerpo.
+    let body: Record<string, unknown>;
 
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "La solicitud no contiene un JSON válido.",
-        },
-        { status: 400 }
+      return jsonError(
+        "La solicitud no contiene un JSON válido.",
+        400
       );
     }
 
-    if (!body || typeof body !== "object") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "El contenido de la solicitud no es válido.",
-        },
-        { status: 400 }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return jsonError(
+        "El contenido de la solicitud no es válido.",
+        400
       );
     }
 
-    // 4. Validar el identificador del ticket.
+    // 3. Validar el ID del ticket, si existe.
     const rawTicketId = body.ticketId;
     let ticketId: string | null = null;
 
@@ -405,33 +398,29 @@ export async function POST(request: NextRequest) {
       rawTicketId !== null &&
       rawTicketId !== ""
     ) {
+      const value = String(rawTicketId).trim();
+
       if (
-        (typeof rawTicketId !== "string" &&
-          typeof rawTicketId !== "number") ||
-        !String(rawTicketId).trim()
+        !/^\d+$/.test(value) ||
+        !/^[1-9]\d*$/.test(value) ||
+        !Number.isSafeInteger(Number(value))
       ) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "El identificador del ticket no es válido.",
-          },
-          { status: 400 }
+        return jsonError(
+          "El identificador del ticket no es válido.",
+          400
         );
       }
 
-      ticketId = String(rawTicketId).trim();
+      ticketId = value;
     }
 
-    // 5. Aceptar tanto "messages" como "conversation".
-    let rawMessages: SupportMessage[] = Array.isArray(
-      body.messages
-    )
-      ? body.messages
+    // 4. Obtener los mensajes de entrada.
+    let rawMessages: SupportMessage[] = Array.isArray(body.messages)
+      ? (body.messages as SupportMessage[])
       : Array.isArray(body.conversation)
-        ? body.conversation
+        ? (body.conversation as SupportMessage[])
         : [];
 
-    // Compatibilidad con las peticiones que envían un solo mensaje.
     if (rawMessages.length === 0) {
       const singleMessage =
         typeof body.message === "string"
@@ -446,7 +435,7 @@ export async function POST(request: NextRequest) {
         rawMessages = [
           {
             id: `single-${Date.now()}`,
-            sender: isAdmin ? "admin" : "user",
+            sender: admin ? "admin" : "user",
             text: singleMessage.trim(),
             created_at: new Date().toISOString(),
           },
@@ -456,10 +445,19 @@ export async function POST(request: NextRequest) {
 
     const incomingMessages = normalizeMessages(
       rawMessages,
-      isAdmin
+      admin
     );
 
     const requestedStatus = normalizeStatus(body.status);
+
+    if (
+      body.status !== undefined &&
+      body.status !== null &&
+      body.status !== "" &&
+      !requestedStatus
+    ) {
+      return jsonError("El estado solicitado no es válido.", 400);
+    }
 
     const categoryProvided =
       typeof body.category === "string" &&
@@ -470,84 +468,70 @@ export async function POST(request: NextRequest) {
       body.subject.trim().length > 0;
 
     const category = categoryProvided
-      ? body.category.trim().slice(0, MAX_CATEGORY_LENGTH)
+      ? (body.category as string).trim().slice(0, MAX_CATEGORY_LENGTH)
       : "Otro/pregunta";
 
     const subject = subjectProvided
-      ? body.subject.trim().slice(0, MAX_SUBJECT_LENGTH)
+      ? (body.subject as string).trim().slice(0, MAX_SUBJECT_LENGTH)
       : "Solicitud de soporte";
 
-    const authenticatedUsername =
-      getAuthenticatedUsername(user);
+    const username = getAuthenticatedUsername(user);
+    const email = user.email || null;
 
-    const authenticatedEmail = user.email || null;
-
-    // 6. Actualizar un ticket existente.
+    // 5. Actualizar un ticket existente.
     if (ticketId !== null) {
-      const {
-        data: existingTicket,
-        error: findError,
-      } = await supabaseAdmin
-        .from("support_tickets")
-        .select(
-          "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
-        )
-        .eq("id", ticketId)
-        .maybeSingle();
+      const { data: existingTicket, error: findError } =
+        await supabaseAdmin
+          .from("support_tickets")
+          .select(
+            "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
+          )
+          .eq("id", ticketId)
+          .maybeSingle();
 
       if (findError) {
-        console.error(
-          "Error buscando ticket:",
-          findError.message
-        );
-
-        return NextResponse.json(
-          {
-            success: false,
-            error: "No se pudo consultar el ticket.",
-          },
-          { status: 500 }
-        );
+        console.error("Error buscando ticket:", findError.message);
+        return jsonError("No se pudo consultar el ticket.", 500);
       }
 
       if (!existingTicket) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "El ticket de soporte no existe.",
-          },
-          { status: 404 }
+        return jsonError("El ticket de soporte no existe.", 404);
+      }
+
+      if (!admin && existingTicket.user_id !== user.id) {
+        return jsonError(
+          "No tienes permiso para acceder a este ticket.",
+          403
         );
       }
 
-      // Un cliente solo puede modificar sus propios tickets.
-      if (!isAdmin && existingTicket.user_id !== user.id) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "No tienes permiso para acceder a este ticket.",
-          },
-          { status: 403 }
-        );
+      const currentStatus =
+        normalizeStatus(existingTicket.status) || "PENDING";
+
+      let finalStatus = currentStatus;
+
+      if (admin) {
+        if (requestedStatus) {
+          finalStatus = requestedStatus;
+        }
+      } else if (requestedStatus) {
+        // Un cliente solo puede reabrir su ticket completado.
+        if (
+          requestedStatus === "PENDING" &&
+          currentStatus === "COMPLETED"
+        ) {
+          finalStatus = "PENDING";
+        } else {
+          return jsonError(
+            "Solo puedes reabrir un ticket completado; los demás cambios de estado corresponden al administrador.",
+            403
+          );
+        }
       }
 
-      // Los clientes no pueden cambiar el estado.
-      if (!isAdmin && requestedStatus) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Solo el administrador puede cambiar el estado.",
-          },
-          { status: 403 }
-        );
-      }
-
-      // Si la petición incluye una conversación completa,
-      // fusionarla con la guardada sin repetir mensajes conocidos.
-      const previousConversation =
-        normalizeStoredConversation(
-          existingTicket.conversation
-        );
+      const previousConversation = normalizeStoredConversation(
+        existingTicket.conversation
+      );
 
       const previousKeys = new Set(
         previousConversation.map(messageKey)
@@ -562,22 +546,15 @@ export async function POST(request: NextRequest) {
         (message) => !previousKeys.has(messageKey(message))
       );
 
-      let finalStatus: SupportStatus =
-        normalizeStatus(existingTicket.status) || "PENDING";
-
-      if (isAdmin && requestedStatus) {
-        finalStatus = requestedStatus;
-      } else if (
-        isAdmin &&
-        newMessages.some(
-          (message) => message.sender === "admin"
-        ) &&
-        finalStatus !== "COMPLETED"
+      if (
+        admin &&
+        newMessages.some((message) => message.sender === "admin") &&
+        finalStatus !== "COMPLETED" &&
+        !requestedStatus
       ) {
         finalStatus = "IN_PROGRESS";
       }
 
-      // Identificar mensajes realmente nuevos para las notificaciones.
       const lastNewAdminMessage = [...newMessages]
         .reverse()
         .find((message) => message.sender === "admin");
@@ -586,24 +563,24 @@ export async function POST(request: NextRequest) {
         .reverse()
         .find((message) => message.sender === "user");
 
-      const statusChanged =
-        finalStatus !==
-        (normalizeStatus(existingTicket.status) || "PENDING");
+      const statusChanged = finalStatus !== currentStatus;
+
+      const shouldNotifyAdmin =
+        !admin &&
+        body.notifyAdmin === true &&
+        Boolean(lastNewUserMessage);
 
       if (
         newMessages.length === 0 &&
         !statusChanged &&
-        !requestedStatus &&
-        !(isAdmin && categoryProvided) &&
-        !(isAdmin && subjectProvided)
+        !(admin && categoryProvided) &&
+        !(admin && subjectProvided)
       ) {
-        // No fallar si el cliente vuelve a enviar una conversación
-        // que ya está guardada: devolver el ticket existente.
         return NextResponse.json(
           {
             success: true,
             ticketId: existingTicket.id,
-            status: existingTicket.status,
+            status: currentStatus,
             updated_at: existingTicket.updated_at,
             ticket: {
               ...existingTicket,
@@ -624,36 +601,28 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       };
 
-      // IMPORTANTE:
-      // No reemplazar el asunto ni la categoría con valores
-      // predeterminados cuando el administrador solo responde
-      // o cambia el estado.
-      if (isAdmin && categoryProvided) {
+      // Solo el administrador puede modificar estos campos.
+      if (admin && categoryProvided) {
         updatePayload.category = category;
       }
 
-      if (isAdmin && subjectProvided) {
+      if (admin && subjectProvided) {
         updatePayload.subject = subject;
       }
 
-      if (
-        lastNewUserMessage &&
-        !existingTicket.message
-      ) {
+      if (lastNewUserMessage && !existingTicket.message) {
         updatePayload.message = lastNewUserMessage.text;
       }
 
-      const {
-        data: updatedTicket,
-        error: updateError,
-      } = await supabaseAdmin
-        .from("support_tickets")
-        .update(updatePayload)
-        .eq("id", ticketId)
-        .select(
-          "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
-        )
-        .single();
+      const { data: updatedTicket, error: updateError } =
+        await supabaseAdmin
+          .from("support_tickets")
+          .update(updatePayload)
+          .eq("id", ticketId)
+          .select(
+            "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
+          )
+          .single();
 
       if (updateError || !updatedTicket) {
         console.error(
@@ -661,16 +630,13 @@ export async function POST(request: NextRequest) {
           updateError?.message
         );
 
-        return NextResponse.json(
-          {
-            success: false,
-            error: "No se pudo actualizar el ticket de soporte.",
-          },
-          { status: 500 }
+        return jsonError(
+          "No se pudo actualizar el ticket de soporte.",
+          500
         );
       }
 
-      if (isAdmin && lastNewAdminMessage) {
+      if (admin && lastNewAdminMessage) {
         await notifyTelegram(
           [
             "💬 RESPUESTA ADMINISTRATIVA",
@@ -678,6 +644,20 @@ export async function POST(request: NextRequest) {
             `📌 Estado: ${updatedTicket.status}`,
             "",
             lastNewAdminMessage.text,
+          ].join("\n")
+        );
+      }
+
+      if (shouldNotifyAdmin && lastNewUserMessage) {
+        await notifyTelegram(
+          [
+            "🆘 SOLICITUD DE ATENCIÓN DEL ADMINISTRADOR",
+            `🎫 Ticket: #${updatedTicket.id}`,
+            `👤 Usuario: ${username || "No identificado"}`,
+            `📧 Email: ${email || "No disponible"}`,
+            "",
+            "💬 Mensaje:",
+            lastNewUserMessage.text,
           ].join("\n")
         );
       }
@@ -703,89 +683,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7. Crear un ticket nuevo.
-    // La identidad se obtiene de la sesión, no del navegador.
-    if (incomingMessages.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Escribe un mensaje antes de crear el ticket.",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (
-      isAdmin &&
-      incomingMessages.every(
-        (message) => message.sender === "admin"
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "No se puede crear un ticket nuevo únicamente con mensajes administrativos.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const conversation = mergeConversations(
-      [],
-      incomingMessages
-    );
-
+    // 6. Crear un ticket nuevo.
     const firstUserMessage = incomingMessages.find(
       (message) => message.sender === "user"
     );
 
     if (!firstUserMessage) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "El ticket nuevo debe incluir un mensaje del cliente.",
-        },
-        { status: 400 }
+      return jsonError(
+        "Escribe un mensaje válido del cliente antes de crear el ticket.",
+        400
       );
     }
 
-    const {
-      data: ticket,
-      error: ticketError,
-    } = await supabaseAdmin
-      .from("support_tickets")
-      .insert({
-        user_id: user.id,
-        username: authenticatedUsername,
-        email: authenticatedEmail,
-        category,
-        subject,
-        message: firstUserMessage.text,
-        conversation,
-        status: "PENDING",
-      })
-      .select(
-        "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
-      )
-      .single();
+    const conversation = mergeConversations([], incomingMessages);
+
+    const { data: ticket, error: ticketError } =
+      await supabaseAdmin
+        .from("support_tickets")
+        .insert({
+          user_id: user.id,
+          username,
+          email,
+          category,
+          subject,
+          message: firstUserMessage.text,
+          conversation,
+          status: "PENDING",
+        })
+        .select(
+          "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
+        )
+        .single();
 
     if (ticketError || !ticket) {
-      console.error(
-        "Error creando ticket:",
-        ticketError?.message
-      );
+      console.error("Error creando ticket:", ticketError?.message);
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: "No se pudo crear la solicitud de soporte.",
-        },
-        { status: 500 }
+      return jsonError(
+        "No se pudo crear la solicitud de soporte.",
+        500
       );
     }
 
-    // 8. Notificar al administrador por Telegram.
     await notifyTelegram(
       [
         "🆘 NUEVO TICKET DE SOPORTE",
@@ -795,8 +733,8 @@ export async function POST(request: NextRequest) {
         "",
         `📂 Categoría: ${category}`,
         `📝 Asunto: ${subject}`,
-        `👤 Usuario: ${authenticatedUsername || "No identificado"}`,
-        `📧 Email: ${authenticatedEmail || "No disponible"}`,
+        `👤 Usuario: ${username || "No identificado"}`,
+        `📧 Email: ${email || "No disponible"}`,
         `🆔 Usuario ID: ${user.id}`,
         "",
         "💬 Mensaje del cliente:",
@@ -825,18 +763,11 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error(
-      "Error en /api/support/ticket:",
-      error
-    );
+    console.error("Error en /api/support/ticket:", error);
 
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          "Ocurrió un error al procesar la solicitud de soporte.",
-      },
-      { status: 500 }
+    return jsonError(
+      "Ocurrió un error al procesar la solicitud de soporte.",
+      500
     );
   }
 }
