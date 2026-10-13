@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
@@ -30,7 +29,12 @@ const MAX_MESSAGE_LENGTH = 4000;
 const MAX_SUBJECT_LENGTH = 200;
 const MAX_CATEGORY_LENGTH = 100;
 
-const SUPPORT_ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
+const SUPPORT_ADMIN_EMAIL = (
+  process.env.SUPPORT_ADMIN_EMAIL ||
+  "juliocesarblancomedina08@gmail.com"
+)
+  .trim()
+  .toLowerCase();
 
 const VALID_STATUSES: SupportStatus[] = [
   "PENDING",
@@ -46,6 +50,12 @@ function jsonError(error: string, status: number) {
       headers: { "Cache-Control": "no-store, max-age=0" },
     }
   );
+}
+
+function jsonSuccess(data: Record<string, unknown>) {
+  return NextResponse.json(data, {
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
 }
 
 function normalizeStatus(value: unknown): SupportStatus | null {
@@ -77,8 +87,7 @@ function isSupportAdmin(user: {
   email?: string | null;
 }): boolean {
   return (
-    user.email?.trim().toLowerCase() ===
-      SUPPORT_ADMIN_EMAIL.toLowerCase() ||
+    user.email?.trim().toLowerCase() === SUPPORT_ADMIN_EMAIL ||
     getAdminIds().includes(user.id)
   );
 }
@@ -133,9 +142,8 @@ function createStableMessageId(
 }
 
 /**
- * Solo acepta mensajes del cliente y del administrador.
- * Las respuestas de IA deben guardarse exclusivamente desde
- * la ruta del servidor que genera esas respuestas.
+ * Solo acepta mensajes del cliente y del administrador autenticado.
+ * Los mensajes de IA se guardan desde la ruta que genera las respuestas.
  */
 function normalizeMessages(
   messages: SupportMessage[],
@@ -159,7 +167,6 @@ function normalizeMessages(
     } else if (isAdmin && declaredSender === "admin") {
       sender = "admin";
     } else {
-      // No aceptar mensajes ai/assistant desde el navegador.
       continue;
     }
 
@@ -224,8 +231,6 @@ function normalizeStoredConversation(
       sender = "ai";
     } else if (rawSender === "admin") {
       sender = "admin";
-    } else if (rawSender === "user") {
-      sender = "user";
     } else {
       sender = "user";
     }
@@ -337,7 +342,10 @@ async function notifyTelegram(text: string): Promise<void> {
       );
     }
   } catch (error) {
-    console.error("Error enviando notificación a Telegram:", error);
+    console.error(
+      "Error enviando notificación a Telegram:",
+      error
+    );
   }
 }
 
@@ -370,7 +378,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
     });
 
-    // 2. Leer el cuerpo.
+    // 2. Validar el cuerpo JSON.
     let body: Record<string, unknown>;
 
     try {
@@ -382,14 +390,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
+    if (
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body)
+    ) {
       return jsonError(
         "El contenido de la solicitud no es válido.",
         400
       );
     }
 
-    // 3. Validar el ID del ticket, si existe.
+    // 3. Validar el ID del ticket.
     const rawTicketId = body.ticketId;
     let ticketId: string | null = null;
 
@@ -401,7 +413,6 @@ export async function POST(request: NextRequest) {
       const value = String(rawTicketId).trim();
 
       if (
-        !/^\d+$/.test(value) ||
         !/^[1-9]\d*$/.test(value) ||
         !Number.isSafeInteger(Number(value))
       ) {
@@ -414,12 +425,13 @@ export async function POST(request: NextRequest) {
       ticketId = value;
     }
 
-    // 4. Obtener los mensajes de entrada.
-    let rawMessages: SupportMessage[] = Array.isArray(body.messages)
-      ? (body.messages as SupportMessage[])
-      : Array.isArray(body.conversation)
-        ? (body.conversation as SupportMessage[])
-        : [];
+    // 4. Leer los mensajes enviados.
+    let rawMessages: SupportMessage[] =
+      Array.isArray(body.messages)
+        ? (body.messages as SupportMessage[])
+        : Array.isArray(body.conversation)
+          ? (body.conversation as SupportMessage[])
+          : [];
 
     if (rawMessages.length === 0) {
       const singleMessage =
@@ -456,7 +468,19 @@ export async function POST(request: NextRequest) {
       body.status !== "" &&
       !requestedStatus
     ) {
-      return jsonError("El estado solicitado no es válido.", 400);
+      return jsonError(
+        "El estado solicitado no es válido.",
+        400
+      );
+    }
+
+    // Un cliente no puede cambiar estados mediante esta ruta,
+    // excepto reabrir un ticket que ya estaba completado.
+    if (!admin && requestedStatus && ticketId === null) {
+      return jsonError(
+        "No tienes permiso para establecer el estado de un ticket nuevo.",
+        403
+      );
     }
 
     const categoryProvided =
@@ -468,11 +492,15 @@ export async function POST(request: NextRequest) {
       body.subject.trim().length > 0;
 
     const category = categoryProvided
-      ? (body.category as string).trim().slice(0, MAX_CATEGORY_LENGTH)
+      ? (body.category as string)
+          .trim()
+          .slice(0, MAX_CATEGORY_LENGTH)
       : "Otro/pregunta";
 
     const subject = subjectProvided
-      ? (body.subject as string).trim().slice(0, MAX_SUBJECT_LENGTH)
+      ? (body.subject as string)
+          .trim()
+          .slice(0, MAX_SUBJECT_LENGTH)
       : "Solicitud de soporte";
 
     const username = getAuthenticatedUsername(user);
@@ -490,12 +518,22 @@ export async function POST(request: NextRequest) {
           .maybeSingle();
 
       if (findError) {
-        console.error("Error buscando ticket:", findError.message);
-        return jsonError("No se pudo consultar el ticket.", 500);
+        console.error(
+          "Error buscando ticket:",
+          findError.message
+        );
+
+        return jsonError(
+          "No se pudo consultar el ticket.",
+          500
+        );
       }
 
       if (!existingTicket) {
-        return jsonError("El ticket de soporte no existe.", 404);
+        return jsonError(
+          "El ticket de soporte no existe.",
+          404
+        );
       }
 
       if (!admin && existingTicket.user_id !== user.id) {
@@ -515,7 +553,6 @@ export async function POST(request: NextRequest) {
           finalStatus = requestedStatus;
         }
       } else if (requestedStatus) {
-        // Un cliente solo puede reabrir su ticket completado.
         if (
           requestedStatus === "PENDING" &&
           currentStatus === "COMPLETED"
@@ -523,37 +560,31 @@ export async function POST(request: NextRequest) {
           finalStatus = "PENDING";
         } else {
           return jsonError(
-            "Solo puedes reabrir un ticket completado; los demás cambios de estado corresponden al administrador.",
+            "Solo puedes reabrir un ticket completado. Los demás cambios de estado corresponden al administrador.",
             403
           );
         }
       }
 
-      const previousConversation = normalizeStoredConversation(
-        existingTicket.conversation
-      );
+      const previousConversation =
+        normalizeStoredConversation(
+          existingTicket.conversation
+        );
 
       const previousKeys = new Set(
         previousConversation.map(messageKey)
-      );
-
-      const conversation = mergeConversations(
-        previousConversation,
-        incomingMessages
       );
 
       const newMessages = incomingMessages.filter(
         (message) => !previousKeys.has(messageKey(message))
       );
 
-      if (
-        admin &&
-        newMessages.some((message) => message.sender === "admin") &&
-        finalStatus !== "COMPLETED" &&
-        !requestedStatus
-      ) {
-        finalStatus = "IN_PROGRESS";
-      }
+      // Importante: unir los mensajes nuevos a los guardados
+      // para no sustituir la conversación completa por una copia antigua.
+      const conversation = mergeConversations(
+        previousConversation,
+        newMessages
+      );
 
       const lastNewAdminMessage = [...newMessages]
         .reverse()
@@ -576,23 +607,16 @@ export async function POST(request: NextRequest) {
         !(admin && categoryProvided) &&
         !(admin && subjectProvided)
       ) {
-        return NextResponse.json(
-          {
-            success: true,
-            ticketId: existingTicket.id,
-            status: currentStatus,
-            updated_at: existingTicket.updated_at,
-            ticket: {
-              ...existingTicket,
-              conversation: previousConversation,
-            },
+        return jsonSuccess({
+          success: true,
+          ticketId: existingTicket.id,
+          status: currentStatus,
+          updated_at: existingTicket.updated_at,
+          ticket: {
+            ...existingTicket,
+            conversation: previousConversation,
           },
-          {
-            headers: {
-              "Cache-Control": "no-store, max-age=0",
-            },
-          }
-        );
+        });
       }
 
       const updatePayload: Record<string, unknown> = {
@@ -601,7 +625,7 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       };
 
-      // Solo el administrador puede modificar estos campos.
+      // Solo el administrador puede editar categoría y asunto.
       if (admin && categoryProvided) {
         updatePayload.category = category;
       }
@@ -612,6 +636,17 @@ export async function POST(request: NextRequest) {
 
       if (lastNewUserMessage && !existingTicket.message) {
         updatePayload.message = lastNewUserMessage.text;
+      }
+
+      // Si el administrador responde, el ticket pasa a IN_PROGRESS
+      // salvo que en esta misma petición se indique otro estado.
+      if (
+        admin &&
+        lastNewAdminMessage &&
+        !requestedStatus &&
+        finalStatus !== "COMPLETED"
+      ) {
+        updatePayload.status = "IN_PROGRESS";
       }
 
       const { data: updatedTicket, error: updateError } =
@@ -662,25 +697,18 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      return NextResponse.json(
-        {
-          success: true,
-          ticketId: updatedTicket.id,
-          status: updatedTicket.status,
-          updated_at: updatedTicket.updated_at,
-          ticket: {
-            ...updatedTicket,
-            conversation: normalizeStoredConversation(
-              updatedTicket.conversation
-            ),
-          },
+      return jsonSuccess({
+        success: true,
+        ticketId: updatedTicket.id,
+        status: updatedTicket.status,
+        updated_at: updatedTicket.updated_at,
+        ticket: {
+          ...updatedTicket,
+          conversation: normalizeStoredConversation(
+            updatedTicket.conversation
+          ),
         },
-        {
-          headers: {
-            "Cache-Control": "no-store, max-age=0",
-          },
-        }
-      );
+      });
     }
 
     // 6. Crear un ticket nuevo.
@@ -695,7 +723,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const conversation = mergeConversations([], incomingMessages);
+    const conversation = mergeConversations(
+      [],
+      incomingMessages
+    );
 
     const { data: ticket, error: ticketError } =
       await supabaseAdmin
@@ -716,7 +747,10 @@ export async function POST(request: NextRequest) {
         .single();
 
     if (ticketError || !ticket) {
-      console.error("Error creando ticket:", ticketError?.message);
+      console.error(
+        "Error creando ticket:",
+        ticketError?.message
+      );
 
       return jsonError(
         "No se pudo crear la solicitud de soporte.",
@@ -742,28 +776,24 @@ export async function POST(request: NextRequest) {
       ].join("\n")
     );
 
-    return NextResponse.json(
-      {
-        success: true,
-        ticketId: ticket.id,
-        status: ticket.status,
-        updated_at: ticket.updated_at,
-        message: "Tu solicitud fue enviada al administrador.",
-        ticket: {
-          ...ticket,
-          conversation: normalizeStoredConversation(
-            ticket.conversation
-          ),
-        },
+    return jsonSuccess({
+      success: true,
+      ticketId: ticket.id,
+      status: ticket.status,
+      updated_at: ticket.updated_at,
+      message: "Tu solicitud fue enviada al administrador.",
+      ticket: {
+        ...ticket,
+        conversation: normalizeStoredConversation(
+          ticket.conversation
+        ),
       },
-      {
-        headers: {
-          "Cache-Control": "no-store, max-age=0",
-        },
-      }
-    );
+    });
   } catch (error) {
-    console.error("Error en /api/support/ticket:", error);
+    console.error(
+      "Error en /api/support/ticket:",
+      error
+    );
 
     return jsonError(
       "Ocurrió un error al procesar la solicitud de soporte.",
