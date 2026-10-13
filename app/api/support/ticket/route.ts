@@ -1,310 +1,379 @@
-import { NextResponse } from "next/server";
+
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 type SupportMessage = {
-  id?: number;
+  id?: number | string;
   sender?: "ai" | "user" | "admin";
   text?: string;
 };
 
-type SupportStatus =
-  | "PENDING"
-  | "IN_PROGRESS"
-  | "COMPLETED";
+type SupportStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
 
-export async function POST(request: Request) {
+type StoredMessage = {
+  id: number | string;
+  sender: "ai" | "user" | "admin";
+  text: string;
+};
+
+const MAX_MESSAGES = 100;
+const MAX_MESSAGE_LENGTH = 4000;
+const MAX_SUBJECT_LENGTH = 200;
+const MAX_CATEGORY_LENGTH = 100;
+
+const VALID_STATUSES: SupportStatus[] = [
+  "PENDING",
+  "IN_PROGRESS",
+  "COMPLETED",
+];
+
+function normalizeStatus(value: unknown): SupportStatus | null {
+  if (typeof value !== "string") return null;
+
+  const status = value.trim().toUpperCase();
+
+  return VALID_STATUSES.includes(status as SupportStatus)
+    ? (status as SupportStatus)
+    : null;
+}
+
+function getMessageText(message: any): string {
+  if (typeof message?.text === "string") {
+    return message.text.trim().slice(0, MAX_MESSAGE_LENGTH);
+  }
+
+  if (typeof message?.content === "string") {
+    return message.content.trim().slice(0, MAX_MESSAGE_LENGTH);
+  }
+
+  if (typeof message?.message === "string") {
+    return message.message.trim().slice(0, MAX_MESSAGE_LENGTH);
+  }
+
+  return "";
+}
+
+function normalizeMessages(
+  messages: SupportMessage[],
+  isAdmin: boolean
+): StoredMessage[] {
+  return messages
+    .filter((message) => message && typeof message === "object")
+    .slice(-MAX_MESSAGES)
+    .map((message, index) => {
+      const text = getMessageText(message);
+
+      let sender: StoredMessage["sender"] = "user";
+
+      if (message.sender === "ai") {
+        sender = "ai";
+      } else if (message.sender === "admin" && isAdmin) {
+        sender = "admin";
+      }
+
+      const id =
+        typeof message.id === "string" ||
+        typeof message.id === "number"
+          ? message.id
+          : `${Date.now()}-${index}`;
+
+      return { id, sender, text };
+    })
+    .filter((message) => message.text.length > 0);
+}
+
+function mergeConversations(
+  existing: unknown,
+  incoming: StoredMessage[],
+  isAdmin: boolean
+): StoredMessage[] {
+  const previous: StoredMessage[] = Array.isArray(existing)
+    ? existing
+        .filter(
+          (message: any) =>
+            message &&
+            typeof message.text === "string" &&
+            ["user", "ai", "admin"].includes(message.sender)
+        )
+        .map((message: any, index: number) => ({
+          id:
+            typeof message.id === "string" ||
+            typeof message.id === "number"
+              ? message.id
+              : `previous-${index}`,
+          sender: message.sender as StoredMessage["sender"],
+          text: message.text.slice(0, MAX_MESSAGE_LENGTH),
+        }))
+    : [];
+
+  // Un usuario no puede insertar mensajes que aparenten proceder
+  // del administrador.
+  const safeIncoming = incoming.map((message) => ({
+    ...message,
+    sender:
+      message.sender === "admin" && !isAdmin
+        ? ("user" as const)
+        : message.sender,
+  }));
+
+  const combined = [...previous];
+  const seen = new Set(
+    previous.map((message) => `${message.sender}:${String(message.id)}`)
+  );
+
+  for (const message of safeIncoming) {
+    const key = `${message.sender}:${String(message.id)}`;
+
+    if (!seen.has(key)) {
+      combined.push(message);
+      seen.add(key);
+    }
+  }
+
+  return combined.slice(-MAX_MESSAGES);
+}
+
+function getAdminIds(): string[] {
+  return (process.env.SUPPORT_ADMIN_USER_IDS || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // 1. Verificar la sesión de Supabase.
+    const authorization =
+      request.headers.get("authorization") || "";
 
-    /*
-     * =====================================================
-     * DATOS GENERALES
-     * =====================================================
-     */
+    const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i);
+    const accessToken = tokenMatch?.[1]?.trim();
 
-    const ticketId =
-      typeof body?.ticketId === "number"
-        ? body.ticketId
-        : typeof body?.ticketId === "string" &&
-          body.ticketId.trim()
-        ? Number(body.ticketId)
-        : null;
-
-    /*
-     * =====================================================
-     * MENSAJES RECIBIDOS
-     * =====================================================
-     *
-     * Normalmente la página envía "messages".
-     *
-     * Para la creación inicial del ticket también
-     * aceptamos "message", "initialMessage" o "text".
-     *
-     * Esto evita que la primera consulta sea rechazada
-     * simplemente porque todavía no existe una conversación.
-     */
-
-    let messages: SupportMessage[] =
-      Array.isArray(body?.messages)
-        ? body.messages
-        : [];
-
-    const fallbackMessage =
-      typeof body?.message === "string" &&
-      body.message.trim()
-        ? body.message.trim()
-        : typeof body?.initialMessage === "string" &&
-          body.initialMessage.trim()
-        ? body.initialMessage.trim()
-        : typeof body?.text === "string" &&
-          body.text.trim()
-        ? body.text.trim()
-        : "";
-
-    /*
-     * Si no llegaron mensajes pero sí llegó el
-     * mensaje inicial del cliente, lo convertimos
-     * automáticamente en el primer mensaje.
-     */
-    if (
-      messages.length === 0 &&
-      fallbackMessage
-    ) {
-      messages = [
+    if (!accessToken) {
+      return NextResponse.json(
         {
-          id: Date.now(),
-          sender: "user",
-          text: fallbackMessage,
+          success: false,
+          error: "Debes iniciar sesión para utilizar el soporte.",
         },
-      ];
+        { status: 401 }
+      );
     }
 
-    /*
-     * =====================================================
-     * DATOS DEL TICKET
-     * =====================================================
-     */
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(accessToken);
+
+    if (authError || !user?.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "La sesión no es válida o ha expirado.",
+        },
+        { status: 401 }
+      );
+    }
+
+    // La función administrativa nunca confía en body.sender.
+    const isAdmin = getAdminIds().includes(user.id);
+
+    // 2. Leer el cuerpo.
+    let body: any;
+
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "La solicitud no contiene un JSON válido.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const rawTicketId = body?.ticketId;
+
+    let ticketId: number | null = null;
+
+    if (
+      rawTicketId !== undefined &&
+      rawTicketId !== null &&
+      rawTicketId !== ""
+    ) {
+      ticketId = Number(rawTicketId);
+
+      if (!Number.isSafeInteger(ticketId) || ticketId <= 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "El identificador del ticket no es válido.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 3. Normalizar los mensajes recibidos.
+    let rawMessages: SupportMessage[] = Array.isArray(body?.messages)
+      ? body.messages
+      : [];
+
+    if (rawMessages.length === 0) {
+      const initialMessage =
+        typeof body?.message === "string"
+          ? body.message
+          : typeof body?.initialMessage === "string"
+          ? body.initialMessage
+          : typeof body?.text === "string"
+          ? body.text
+          : "";
+
+      if (initialMessage.trim()) {
+        rawMessages = [
+          {
+            id: `initial-${Date.now()}`,
+            sender: "user",
+            text: initialMessage.trim(),
+          },
+        ];
+      }
+    }
+
+    if (rawMessages.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Debes escribir un mensaje para continuar.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const incomingMessages = normalizeMessages(
+      rawMessages,
+      isAdmin
+    );
+
+    if (incomingMessages.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No se recibió ningún mensaje válido.",
+        },
+        { status: 400 }
+      );
+    }
 
     const category =
       typeof body?.category === "string" &&
       body.category.trim()
-        ? body.category.trim()
+        ? body.category.trim().slice(0, MAX_CATEGORY_LENGTH)
         : "Otro/pregunta";
 
     const subject =
       typeof body?.subject === "string" &&
       body.subject.trim()
-        ? body.subject.trim()
+        ? body.subject.trim().slice(0, MAX_SUBJECT_LENGTH)
         : "Solicitud de soporte";
 
-    const userId =
-      typeof body?.userId === "string" &&
-      body.userId.trim()
-        ? body.userId.trim()
+    const requestedStatus = normalizeStatus(body?.status);
+
+    // El nombre y el correo se obtienen de la sesión verificada.
+    const metadata = user.user_metadata || {};
+
+    const authenticatedUsername =
+      typeof metadata.username === "string"
+        ? metadata.username.slice(0, 100)
+        : typeof metadata.full_name === "string"
+        ? metadata.full_name.slice(0, 100)
         : null;
 
-    const username =
-      typeof body?.username === "string" &&
-      body.username.trim()
-        ? body.username.trim()
-        : null;
+    const authenticatedEmail = user.email || null;
 
-    const email =
-      typeof body?.email === "string" &&
-      body.email.trim()
-        ? body.email.trim()
-        : null;
-
-    /*
-     * =====================================================
-     * ESTADO
-     * =====================================================
-     */
-
-    const requestedStatus =
-      typeof body?.status === "string"
-        ? body.status.trim().toUpperCase()
-        : null;
-
-    let status: SupportStatus = "PENDING";
-
-    if (
-      requestedStatus === "PENDING" ||
-      requestedStatus === "IN_PROGRESS" ||
-      requestedStatus === "COMPLETED"
-    ) {
-      status = requestedStatus;
-    }
-
-    /*
-     * =====================================================
-     * CONVERSACIÓN NORMALIZADA
-     * =====================================================
-     */
-
-    const conversation = messages
-      .filter(
-        (message) =>
-          message &&
-          typeof message.text === "string"
-      )
-      .map((message, index) => ({
-        id:
-          typeof message.id === "number"
-            ? message.id
-            : Date.now() + index,
-
-        sender:
-          message.sender === "admin"
-            ? "admin"
-            : message.sender === "ai"
-            ? "ai"
-            : "user",
-
-        text:
-          message.text?.trim() || "",
-      }))
-      .filter(
-        (message) =>
-          message.text.length > 0
-      );
-
-    /*
-     * =====================================================
-     * VALIDACIÓN DE CONVERSACIÓN
-     * =====================================================
-     *
-     * Aquí solamente rechazamos si realmente no
-     * existe ningún mensaje de texto.
-     */
-
-    if (conversation.length === 0) {
-      return NextResponse.json(
-        {
-          error:
-            "Debes escribir un mensaje para crear la consulta.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    /*
-     * =====================================================
-     * ÚLTIMO MENSAJE DEL CLIENTE
-     * =====================================================
-     */
-
-    const userMessages =
-      conversation.filter(
-        (message) =>
-          message.sender === "user" &&
-          typeof message.text === "string" &&
-          message.text.trim()
-      );
+    // Solo los mensajes de usuario sirven como mensaje inicial.
+    const userMessages = incomingMessages.filter(
+      (message) => message.sender === "user"
+    );
 
     const lastUserMessage =
-      userMessages[
-        userMessages.length - 1
-      ]?.text?.trim() ||
+      userMessages[userMessages.length - 1]?.text ||
       "El cliente solicitó atención del administrador.";
 
-    /*
-     * =====================================================
-     * ACTUALIZAR TICKET EXISTENTE
-     * =====================================================
-     *
-     * Cuando existe ticketId NO creamos otro ticket.
-     *
-     * Esto se utiliza para:
-     *
-     * - Respuestas del administrador.
-     * - Cambiar estado.
-     * - Continuar una conversación existente.
-     */
-
-    if (
-      ticketId !== null &&
-      Number.isFinite(ticketId)
-    ) {
-      /*
-       * Primero comprobamos que el ticket exista.
-       */
-
+    // 4. Actualizar un ticket existente.
+    if (ticketId !== null) {
       const {
         data: existingTicket,
-        error: existingTicketError,
+        error: findError,
       } = await supabaseAdmin
         .from("support_tickets")
         .select(
           "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
         )
         .eq("id", ticketId)
-        .single();
+        .maybeSingle();
 
-      if (
-        existingTicketError ||
-        !existingTicket
-      ) {
-        console.error(
-          "ERROR BUSCANDO TICKET:",
-          existingTicketError
-        );
+      if (findError) {
+        console.error("Error buscando ticket:", findError.message);
 
         return NextResponse.json(
           {
-            error:
-              "El ticket de soporte no existe.",
+            success: false,
+            error: "No se pudo consultar el ticket.",
           },
-          {
-            status: 404,
-          }
+          { status: 500 }
         );
       }
 
-      /*
-       * Si el administrador está enviando
-       * una respuesta y no especificó estado,
-       * el ticket pasa automáticamente
-       * a EN PROCESO.
-       */
+      if (!existingTicket) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "El ticket de soporte no existe.",
+          },
+          { status: 404 }
+        );
+      }
 
-      const sender =
-        body?.sender === "admin"
-          ? "admin"
-          : body?.sender === "ai"
-          ? "ai"
-          : "user";
+      // Un usuario solo puede modificar sus propios tickets.
+      // Un administrador debe estar incluido en la lista autorizada.
+      if (!isAdmin && existingTicket.user_id !== user.id) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "No tienes permiso para acceder a este ticket.",
+          },
+          { status: 403 }
+        );
+      }
 
-      let finalStatus: SupportStatus =
-        status;
+      const conversation = mergeConversations(
+        existingTicket.conversation,
+        incomingMessages,
+        isAdmin
+      );
 
-      if (
-        sender === "admin" &&
-        !requestedStatus
+      // Los usuarios normales no pueden cambiar el estado.
+      let finalStatus: SupportStatus = normalizeStatus(
+        existingTicket.status
+      ) || "PENDING";
+
+      if (isAdmin && requestedStatus) {
+        finalStatus = requestedStatus;
+      } else if (
+        isAdmin &&
+        incomingMessages.some((message) => message.sender === "admin") &&
+        finalStatus !== "COMPLETED"
       ) {
         finalStatus = "IN_PROGRESS";
       }
 
-      /*
-       * Si el ticket ya estaba completado y
-       * el administrador manda otra respuesta,
-       * permitimos que vuelva a EN PROCESO.
-       */
-
-      if (
-        sender === "admin" &&
-        finalStatus === "PENDING" &&
-        existingTicket.status ===
-          "COMPLETED"
-      ) {
-        finalStatus = "IN_PROGRESS";
-      }
-
-      /*
-       * Actualizamos EL MISMO registro.
-       */
+      const lastAdminMessage = [...incomingMessages]
+        .reverse()
+        .find((message) => message.sender === "admin");
 
       const {
         data: updatedTicket,
@@ -312,41 +381,27 @@ export async function POST(request: Request) {
       } = await supabaseAdmin
         .from("support_tickets")
         .update({
-          user_id:
-            userId ||
-            existingTicket.user_id,
+          // No permitimos cambiar el propietario del ticket.
+          user_id: existingTicket.user_id,
 
-          username:
-            username ||
-            existingTicket.username,
+          username: existingTicket.username,
+          email: existingTicket.email,
 
-          email:
-            email ||
-            existingTicket.email,
+          category: isAdmin
+            ? category
+            : existingTicket.category,
 
-          category:
-            category ||
-            existingTicket.category,
-
-          subject:
-            subject ||
-            existingTicket.subject,
-
-          /*
-           * Conservamos el mensaje original
-           * del ticket.
-           */
+          subject: isAdmin
+            ? subject
+            : existingTicket.subject,
 
           message:
             existingTicket.message ||
             lastUserMessage,
 
           conversation,
-
           status: finalStatus,
-
-          updated_at:
-            new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq("id", ticketId)
         .select(
@@ -354,40 +409,90 @@ export async function POST(request: Request) {
         )
         .single();
 
-      if (updateError) {
+      if (updateError || !updatedTicket) {
         console.error(
-          "ERROR ACTUALIZANDO TICKET:",
-          updateError
+          "Error actualizando ticket:",
+          updateError?.message
         );
 
         return NextResponse.json(
           {
-            error:
-              "No se pudo actualizar el ticket de soporte.",
-            details:
-              updateError.message,
+            success: false,
+            error: "No se pudo actualizar el ticket de soporte.",
           },
-          {
-            status: 500,
-          }
+          { status: 500 }
         );
       }
 
-      return NextResponse.json({
-        success: true,
-        ticketId: updatedTicket.id,
-        status: updatedTicket.status,
-        updated_at:
-          updatedTicket.updated_at,
-        ticket: updatedTicket,
-      });
+      // Notificar respuestas administrativas sin bloquear el guardado.
+      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+      const telegramAdminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+
+      if (
+        isAdmin &&
+        lastAdminMessage &&
+        telegramBotToken &&
+        telegramAdminChatId
+      ) {
+        try {
+          await fetch(
+            `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: telegramAdminChatId,
+                text: [
+                  "💬 RESPUESTA ADMINISTRATIVA",
+                  `🎫 Ticket: #${updatedTicket.id}`,
+                  `📌 Estado: ${updatedTicket.status}`,
+                  "",
+                  lastAdminMessage.text.slice(0, 3000),
+                ].join("\n"),
+              }),
+              signal: AbortSignal.timeout(5000),
+            }
+          );
+        } catch (telegramError) {
+          console.error(
+            "Error notificando actualización por Telegram:",
+            telegramError
+          );
+        }
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          ticketId: updatedTicket.id,
+          status: updatedTicket.status,
+          updated_at: updatedTicket.updated_at,
+          ticket: updatedTicket,
+        },
+        {
+          headers: { "Cache-Control": "no-store" },
+        }
+      );
     }
 
-    /*
-     * =====================================================
-     * CREAR TICKET NUEVO
-     * =====================================================
-     */
+    // 5. Crear ticket nuevo.
+    // No permitimos que un mensaje administrativo cree tickets en nombre
+    // de otro usuario mediante datos proporcionados por el navegador.
+    if (isAdmin && incomingMessages.every((m) => m.sender === "admin")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No se puede crear un ticket nuevo solo con mensajes administrativos.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const conversation = mergeConversations(
+      [],
+      incomingMessages,
+      isAdmin
+    );
 
     const {
       data: ticket,
@@ -395,9 +500,9 @@ export async function POST(request: Request) {
     } = await supabaseAdmin
       .from("support_tickets")
       .insert({
-        user_id: userId,
-        username,
-        email,
+        user_id: user.id,
+        username: authenticatedUsername,
+        email: authenticatedEmail,
         category,
         subject,
         message: lastUserMessage,
@@ -409,46 +514,26 @@ export async function POST(request: Request) {
       )
       .single();
 
-    if (ticketError) {
+    if (ticketError || !ticket) {
       console.error(
-        "ERROR CREANDO TICKET DE SOPORTE:",
-        ticketError
+        "Error creando ticket:",
+        ticketError?.message
       );
 
       return NextResponse.json(
         {
-          error:
-            "No se pudo crear la solicitud de soporte.",
-          details:
-            ticketError.message,
+          success: false,
+          error: "No se pudo crear la solicitud de soporte.",
         },
-        {
-          status: 500,
-        }
+        { status: 500 }
       );
     }
 
-    /*
-     * =====================================================
-     * NOTIFICACIÓN TELEGRAM
-     * =====================================================
-     *
-     * Solo se envía al crear un ticket nuevo.
-     *
-     * Las respuestas del administrador NO
-     * generan nuevas notificaciones de ticket.
-     */
+    // 6. Notificar a Telegram al crear un ticket nuevo.
+    const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+    const telegramAdminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
 
-    const telegramBotToken =
-      process.env.TELEGRAM_BOT_TOKEN;
-
-    const telegramAdminChatId =
-      process.env.TELEGRAM_ADMIN_CHAT_ID;
-
-    if (
-      telegramBotToken &&
-      telegramAdminChatId
-    ) {
+    if (telegramBotToken && telegramAdminChatId) {
       const notification = [
         "🆘 NUEVO TICKET DE SOPORTE",
         "",
@@ -456,101 +541,78 @@ export async function POST(request: Request) {
         "📌 Estado: PENDIENTE",
         "",
         `📂 Categoría: ${category}`,
-        `📝 Sujeto: ${subject}`,
+        `📝 Asunto: ${subject}`,
         "",
-        username
-          ? `👤 Usuario: ${username}`
+        authenticatedUsername
+          ? `👤 Usuario: ${authenticatedUsername}`
           : "👤 Usuario: No identificado",
-
-        email
-          ? `📧 Email: ${email}`
+        authenticatedEmail
+          ? `📧 Email: ${authenticatedEmail}`
           : "",
-
-        userId
-          ? `🆔 Usuario ID: ${userId}`
-          : "",
-
+        `🆔 Usuario ID: ${user.id}`,
         "",
         "💬 Mensaje del cliente:",
-        lastUserMessage,
-        "",
-        "👉 Revisar ticket en STORE GAMING.",
+        lastUserMessage.slice(0, 3000),
       ]
         .filter(Boolean)
         .join("\n");
 
       try {
-        const telegramResponse =
-          await fetch(
-            `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                chat_id:
-                  telegramAdminChatId,
-
-                text: notification,
-              }),
-            }
-          );
+        const telegramResponse = await fetch(
+          `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: telegramAdminChatId,
+              text: notification,
+            }),
+            signal: AbortSignal.timeout(5000),
+          }
+        );
 
         if (!telegramResponse.ok) {
-          const telegramError =
-            await telegramResponse.text();
-
           console.error(
-            "ERROR NOTIFICANDO POR TELEGRAM:",
-            telegramError
+            "Telegram rechazó la notificación:",
+            telegramResponse.status
           );
         }
       } catch (telegramError) {
+        // El ticket ya se guardó; un fallo de Telegram no debe
+        // convertir la creación en un error para el usuario.
         console.error(
-          "ERROR DE CONEXIÓN CON TELEGRAM:",
+          "Error enviando notificación a Telegram:",
           telegramError
         );
       }
     } else {
       console.warn(
-        "TELEGRAM NO CONFIGURADO: faltan TELEGRAM_BOT_TOKEN o TELEGRAM_ADMIN_CHAT_ID."
+        "Telegram no está configurado: faltan TELEGRAM_BOT_TOKEN o TELEGRAM_ADMIN_CHAT_ID."
       );
     }
 
-    /*
-     * =====================================================
-     * RESPUESTA
-     * =====================================================
-     */
-
-    return NextResponse.json({
-      success: true,
-      ticketId: ticket.id,
-      status: ticket.status,
-      updated_at:
-        ticket.updated_at,
-      message:
-        "Tu solicitud fue enviada al administrador.",
-      ticket,
-    });
-  } catch (error) {
-    console.error(
-      "ERROR API SUPPORT TICKET:",
-      error
+    return NextResponse.json(
+      {
+        success: true,
+        ticketId: ticket.id,
+        status: ticket.status,
+        updated_at: ticket.updated_at,
+        message: "Tu solicitud fue enviada al administrador.",
+        ticket,
+      },
+      {
+        headers: { "Cache-Control": "no-store" },
+      }
     );
+  } catch (error) {
+    console.error("Error en /api/support/ticket:", error);
 
     return NextResponse.json(
       {
-        error:
-          "Ocurrió un error al procesar la solicitud de soporte.",
+        success: false,
+        error: "Ocurrió un error al procesar la solicitud de soporte.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
-            }
+}
