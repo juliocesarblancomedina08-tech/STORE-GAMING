@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_PAGE_SIZE = 100;
+const SUPPORT_ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -27,12 +28,9 @@ type SupportTicket = {
 function getBearerToken(request: Request): string | null {
   const authorization = request.headers.get("authorization");
 
-  if (!authorization) {
-    return null;
-  }
+  if (!authorization) return null;
 
   const match = authorization.match(/^Bearer\s+(.+)$/i);
-
   return match?.[1]?.trim() || null;
 }
 
@@ -43,9 +41,21 @@ function getAdminIds(): string[] {
     .filter(Boolean);
 }
 
+function isSupportAdmin(user: {
+  id: string;
+  email?: string;
+}): boolean {
+  const email = user.email?.trim().toLowerCase();
+
+  return (
+    email === SUPPORT_ADMIN_EMAIL.toLowerCase() ||
+    getAdminIds().includes(user.id)
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // 1. Comprobar el token de sesión.
+    // 1. Obtener el token de sesión.
     const token = getBearerToken(request);
 
     if (!token) {
@@ -58,7 +68,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 2. Validar la sesión con Supabase.
+    // 2. Validar el token con Supabase Auth.
     const {
       data: { user },
       error: userError,
@@ -74,19 +84,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. Comprobar si el usuario es administrador.
-    const isAdmin = getAdminIds().includes(user.id);
+    // 3. Verificar el administrador usando los datos autenticados.
+    const isAdmin = isSupportAdmin({
+      id: user.id,
+      email: user.email,
+    });
 
-    // 4. Leer los filtros de la solicitud.
+    // 4. Leer y validar los filtros.
     const { searchParams } = new URL(request.url);
 
     const requestedUserId =
       searchParams.get("user_id")?.trim() || null;
 
-    if (
-      requestedUserId &&
-      !UUID_PATTERN.test(requestedUserId)
-    ) {
+    if (requestedUserId && !UUID_PATTERN.test(requestedUserId)) {
       return NextResponse.json(
         {
           success: false,
@@ -96,16 +106,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Los usuarios normales solo pueden consultar sus propios tickets.
-    let finalUserId: string | null;
+    // Los clientes solo pueden consultar sus propios tickets.
+    let finalUserId: string;
 
     if (isAdmin) {
-      finalUserId = requestedUserId;
+      // El administrador puede ver todos los tickets o filtrar por usuario.
+      finalUserId = requestedUserId || "";
     } else {
-      if (
-        requestedUserId &&
-        requestedUserId !== user.id
-      ) {
+      if (requestedUserId && requestedUserId !== user.id) {
         return NextResponse.json(
           {
             success: false,
@@ -152,6 +160,8 @@ export async function GET(request: NextRequest) {
       .order("updated_at", { ascending: false })
       .range(from, to);
 
+    // Solo se filtra por user_id cuando corresponde.
+    // El administrador sin filtro obtiene tickets de todos los clientes.
     if (finalUserId) {
       query = query.eq("user_id", finalUserId);
     }
@@ -177,11 +187,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 7. Corregir el tipo inferido por TypeScript.
-    // Este tipo no sustituye la validación del esquema de la base de datos.
     const tickets = (ticketsData ?? []) as unknown as SupportTicket[];
 
-    // 8. Normalizar los datos para el panel de administración.
+    // 7. Normalizar los datos.
     const normalizedTickets = tickets.map((ticket) => ({
       id: ticket.id,
       user_id: ticket.user_id,
@@ -198,7 +206,6 @@ export async function GET(request: NextRequest) {
       updated_at: ticket.updated_at,
     }));
 
-    // 9. Preparar la respuesta.
     const total = count ?? 0;
 
     return NextResponse.json(
