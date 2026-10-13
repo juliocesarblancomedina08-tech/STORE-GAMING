@@ -1,332 +1,224 @@
-import { NextResponse } from "next/server";
+
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
-const ADMIN_EMAIL =
-  "juliocesarblancomedina08@gmail.com";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-/*
- * =====================================================
- * OBTENER TOKEN
- * =====================================================
- */
+const MAX_PAGE_SIZE = 100;
 
-function getBearerToken(request: Request) {
-  const authorization =
-    request.headers.get("authorization");
+function getBearerToken(request: Request): string | null {
+  const authorization = request.headers.get("authorization");
 
-  if (
-    !authorization ||
-    !authorization
-      .toLowerCase()
-      .startsWith("bearer ")
-  ) {
-    return null;
-  }
+  if (!authorization) return null;
 
-  const token =
-    authorization
-      .replace(/^Bearer\s+/i, "")
-      .trim();
-
-  return token || null;
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
 }
 
-/*
- * =====================================================
- * GET
- * =====================================================
- */
+function getAdminIds(): string[] {
+  return (process.env.SUPPORT_ADMIN_USER_IDS || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
 
-export async function GET(request: Request) {
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export async function GET(request: NextRequest) {
   try {
-    /*
-     * =====================================================
-     * OBTENER TOKEN
-     * =====================================================
-     */
-
-    const token =
-      getBearerToken(request);
+    // 1. Validar el token de sesión.
+    const token = getBearerToken(request);
 
     if (!token) {
       return NextResponse.json(
         {
-          error:
-            "No autorizado.",
+          success: false,
+          error: "No autorizado. Inicia sesión para continuar.",
         },
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
 
-    /*
-     * =====================================================
-     * VERIFICAR USUARIO REAL
-     * =====================================================
-     */
-
+    // 2. Verificar la identidad real del usuario en Supabase.
     const {
-      data: {
-        user,
-      },
+      data: { user },
       error: userError,
-    } =
-      await supabaseAdmin.auth.getUser(
-        token
-      );
+    } = await supabaseAdmin.auth.getUser(token);
 
-    if (
-      userError ||
-      !user ||
-      !user.email
-    ) {
-      console.error(
-        "ERROR VERIFICANDO USUARIO:",
-        userError
-      );
-
+    if (userError || !user?.id) {
       return NextResponse.json(
         {
-          error:
-            "Sesión no válida.",
+          success: false,
+          error: "La sesión no es válida o ha expirado.",
         },
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
 
-    const authenticatedUserId =
-      user.id;
+    // 3. Verificar administrador mediante el ID autenticado.
+    const isAdmin = getAdminIds().includes(user.id);
 
-    const authenticatedEmail =
-      user.email
-        .trim()
-        .toLowerCase();
-
-    /*
-     * =====================================================
-     * VERIFICAR SI ES ADMIN
-     * =====================================================
-     */
-
-    const isAdmin =
-      authenticatedEmail ===
-      ADMIN_EMAIL.toLowerCase();
-
-    /*
-     * =====================================================
-     * OBTENER user_id SOLICITADO
-     * =====================================================
-     */
-
-    const { searchParams } =
-      new URL(request.url);
+    const { searchParams } = new URL(request.url);
 
     const requestedUserId =
-      searchParams.get(
-        "user_id"
-      )?.trim() || null;
+      searchParams.get("user_id")?.trim() || null;
 
-    /*
-     * =====================================================
-     * SEGURIDAD
-     * =====================================================
-     *
-     * ADMIN:
-     * Puede consultar todos los tickets
-     * o filtrar por un usuario.
-     *
-     * USUARIO NORMAL:
-     * Solo puede consultar sus propios
-     * tickets.
-     */
+    // 4. Validar filtros y paginación.
+    if (
+      requestedUserId &&
+      !UUID_PATTERN.test(requestedUserId)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "El identificador del usuario no es válido.",
+        },
+        { status: 400 }
+      );
+    }
 
-    let finalUserId:
-      string | null = null;
+    let finalUserId: string;
 
     if (isAdmin) {
-      /*
-       * Si el administrador especifica
-       * user_id, filtramos por ese usuario.
-       *
-       * Si no lo especifica, mostramos
-       * todos los tickets.
-       */
-      finalUserId =
-        requestedUserId;
+      // El administrador puede consultar todos los tickets
+      // o filtrar por un usuario concreto.
+      finalUserId = requestedUserId || "";
     } else {
-      /*
-       * Usuario normal.
-       *
-       * Si intenta consultar otro
-       * user_id, se rechaza.
-       */
+      // Los clientes solo pueden consultar sus propios tickets.
       if (
         requestedUserId &&
-        requestedUserId !==
-          authenticatedUserId
+        requestedUserId !== user.id
       ) {
         return NextResponse.json(
           {
-            error:
-              "No tienes permiso para consultar estas conversaciones.",
+            success: false,
+            error: "No tienes permiso para consultar estos tickets.",
           },
-          {
-            status: 403,
-          }
+          { status: 403 }
         );
       }
 
-      /*
-       * Siempre usamos el ID real
-       * de la sesión.
-       */
-      finalUserId =
-        authenticatedUserId;
+      finalUserId = user.id;
     }
 
-    /*
-     * =====================================================
-     * OBTENER TICKETS
-     * =====================================================
-     */
+    const pageParam = Number.parseInt(
+      searchParams.get("page") || "1",
+      10
+    );
 
+    const limitParam = Number.parseInt(
+      searchParams.get("limit") || "50",
+      10
+    );
+
+    const page =
+      Number.isSafeInteger(pageParam) && pageParam > 0
+        ? Math.min(pageParam, 1000000)
+        : 1;
+
+    const limit =
+      Number.isSafeInteger(limitParam) && limitParam > 0
+        ? Math.min(limitParam, MAX_PAGE_SIZE)
+        : 50;
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // 5. Consultar los tickets con conteo total.
     let query = supabaseAdmin
       .from("support_tickets")
       .select(
-        "id, user_id, username, email, category, subject, message, conversation, status, created_at, updated_at"
+        [
+          "id",
+          "user_id",
+          "username",
+          "email",
+          "category",
+          "subject",
+          "message",
+          "conversation",
+          "status",
+          "created_at",
+          "updated_at",
+        ].join(", "),
+        { count: "exact" }
       )
-      .order(
-        "updated_at",
-        {
-          ascending: false,
-        }
-      );
-
-    /*
-     * Aplicar filtro de usuario
-     * cuando corresponda.
-     */
+      .order("updated_at", { ascending: false })
+      .range(from, to);
 
     if (finalUserId) {
-      query = query.eq(
-        "user_id",
-        finalUserId
-      );
+      query = query.eq("user_id", finalUserId);
     }
 
     const {
       data: tickets,
       error: ticketsError,
+      count,
     } = await query;
 
     if (ticketsError) {
       console.error(
-        "ERROR OBTENIENDO TICKETS:",
-        ticketsError
+        "Error obteniendo tickets de soporte:",
+        ticketsError.message
       );
 
       return NextResponse.json(
         {
-          error:
-            "No se pudieron obtener las consultas de soporte.",
-          details:
-            ticketsError.message,
+          success: false,
+          error: "No se pudieron obtener los tickets de soporte.",
         },
-        {
-          status: 500,
-        }
+        { status: 500 }
       );
     }
 
-    /*
-     * =====================================================
-     * NORMALIZAR RESPUESTA
-     * =====================================================
-     */
+    // 6. Normalizar los datos para el panel.
+    const normalizedTickets = (tickets || []).map((ticket) => ({
+      id: ticket.id,
+      user_id: ticket.user_id,
+      username: ticket.username,
+      email: ticket.email,
+      category: ticket.category || "Otro/pregunta",
+      subject: ticket.subject || "Solicitud de soporte",
+      message: ticket.message || "",
+      conversation: Array.isArray(ticket.conversation)
+        ? ticket.conversation
+        : [],
+      status: ticket.status || "PENDING",
+      created_at: ticket.created_at,
+      updated_at: ticket.updated_at,
+    }));
 
-    const normalizedTickets =
-      (tickets || []).map(
-        (ticket) => ({
-          id: ticket.id,
+    const total = count ?? 0;
 
-          user_id:
-            ticket.user_id,
-
-          username:
-            ticket.username,
-
-          email:
-            ticket.email,
-
-          category:
-            ticket.category ||
-            "Otro/pregunta",
-
-          subject:
-            ticket.subject ||
-            "Solicitud de soporte",
-
-          message:
-            ticket.message || "",
-
-          conversation:
-            Array.isArray(
-              ticket.conversation
-            )
-              ? ticket.conversation
-              : [],
-
-          status:
-            ticket.status ||
-            "PENDING",
-
-          created_at:
-            ticket.created_at,
-
-          updated_at:
-            ticket.updated_at,
-        })
-      );
-
-    /*
-     * =====================================================
-     * RESPUESTA
-     * =====================================================
-     */
-
+    // 7. Devolver los tickets y los datos de paginación.
     return NextResponse.json(
       {
         success: true,
-
         isAdmin,
-
-        tickets:
-          normalizedTickets,
-
-        total:
-          normalizedTickets.length,
+        tickets: normalizedTickets,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
       {
         status: 200,
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
       }
     );
   } catch (error) {
-    console.error(
-      "ERROR API SUPPORT TICKETS:",
-      error
-    );
+    console.error("Error en la API de tickets:", error);
 
     return NextResponse.json(
       {
-        error:
-          "Ocurrió un error al obtener las consultas de soporte.",
+        success: false,
+        error: "Ocurrió un error al obtener los tickets de soporte.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
