@@ -2,12 +2,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 type DepositRecord = {
   id: string;
   user_id: string;
   username: string | null;
   email: string | null;
-  amount: number;
+  amount: number | string;
   currency: string;
   payment_method: string | null;
   network: string | null;
@@ -18,30 +21,65 @@ type DepositRecord = {
   credited_at: string | null;
 };
 
+function normalizeStatus(status: string | null | undefined): string {
+  return (status || "").trim().toUpperCase();
+}
+
+function getDepositSituation(deposit: DepositRecord): string {
+  const status = normalizeStatus(deposit.status);
+
+  // La acreditación registrada tiene prioridad sobre el estado textual.
+  if (deposit.credited_at) {
+    return "DEPÓSITO ACREDITADO";
+  }
+
+  if (status === "EXPIRED") {
+    return "DEPÓSITO EXPIRADO, SIN ACREDITACIÓN REGISTRADA";
+  }
+
+  if (status === "CONFIRMED") {
+    return "CONFIRMADO, PERO SIN ACREDITACIÓN REGISTRADA";
+  }
+
+  if (
+    status === "FAILED" ||
+    status === "CANCELLED" ||
+    status === "CANCELED"
+  ) {
+    return "DEPÓSITO FALLIDO O CANCELADO";
+  }
+
+  if (status === "PENDING") {
+    return "DEPÓSITO PENDIENTE";
+  }
+
+  if (status === "REFUNDED") {
+    return "DEPÓSITO MARCADO COMO REEMBOLSADO";
+  }
+
+  return "ESTADO PENDIENTE DE REVISIÓN";
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // 1. Verificar la sesión del usuario
+    // 1. Comprobar el token de sesión.
     const authorization =
       request.headers.get("authorization") || "";
 
-    if (!authorization.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { success: false, error: "No autorizado." },
-        { status: 401 }
-      );
-    }
-
-    const accessToken = authorization
-      .slice("Bearer ".length)
-      .trim();
+    const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i);
+    const accessToken = tokenMatch?.[1]?.trim();
 
     if (!accessToken) {
       return NextResponse.json(
-        { success: false, error: "No autorizado." },
+        {
+          success: false,
+          error: "No autorizado.",
+        },
         { status: 401 }
       );
     }
 
+    // 2. Verificar la sesión con Supabase.
     const {
       data: { user },
       error: userError,
@@ -57,7 +95,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 2. Leer filtros de consulta
+    // 3. Leer y validar los parámetros.
     const { searchParams } = new URL(request.url);
 
     const depositId =
@@ -74,7 +112,22 @@ export async function GET(request: NextRequest) {
 
     limit = Math.min(limit, 500);
 
-    // 3. Consultar solo depósitos del usuario autenticado
+    if (depositId) {
+      const uuidPattern =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+      if (!uuidPattern.test(depositId)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "El identificador del depósito no es válido.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 4. Consultar exclusivamente los depósitos del usuario autenticado.
     let query = supabaseAdmin
       .from("deposits")
       .select(
@@ -98,28 +151,17 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    // Buscar un depósito específico si se proporciona su UUID
     if (depositId) {
-      const uuidPattern =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-      if (!uuidPattern.test(depositId)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "El identificador del depósito no es válido.",
-          },
-          { status: 400 }
-        );
-      }
-
       query = query.eq("id", depositId);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error("Error consultando depósitos:", error);
+      console.error(
+        "Error consultando depósitos de soporte:",
+        error.message
+      );
 
       return NextResponse.json(
         {
@@ -130,79 +172,75 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const deposits = (data ?? []) as DepositRecord[];
+    // Corrección del error de TypeScript de Vercel.
+    const deposits = (data ?? []) as unknown as DepositRecord[];
 
-    // 4. Normalizar estados sin confundir confirmación con acreditación
-    const formattedDeposits = deposits.map((deposit) => {
-      const status = deposit.status.toUpperCase();
+    // 5. Preparar los registros para el agente de soporte.
+    const formattedDeposits = deposits.map((deposit) => ({
+      id: deposit.id,
+      amount: Number(deposit.amount),
+      currency: deposit.currency,
+      payment_method: deposit.payment_method,
+      network: deposit.network,
+      status: deposit.status,
+      created_at: deposit.created_at,
+      confirmed_at: deposit.confirmed_at,
+      expires_at: deposit.expires_at,
+      credited_at: deposit.credited_at,
+      situation: getDepositSituation(deposit),
+    }));
 
-      let situation = "ESTADO PENDIENTE DE REVISIÓN";
-
-      if (deposit.credited_at) {
-        situation = "DEPÓSITO ACREDITADO";
-      } else if (status === "EXPIRED") {
-        situation = "DEPÓSITO EXPIRADO, NO ACREDITADO";
-      } else if (status === "CONFIRMED") {
-        situation = "CONFIRMADO, PERO SIN ACREDITACIÓN REGISTRADA";
-      } else if (
-        status === "FAILED" ||
-        status === "CANCELLED" ||
-        status === "CANCELED"
-      ) {
-        situation = "DEPÓSITO FALLIDO O CANCELADO";
-      } else if (status === "PENDING") {
-        situation = "DEPÓSITO PENDIENTE";
-      }
-
-      return {
-        id: deposit.id,
-        amount: deposit.amount,
-        currency: deposit.currency,
-        payment_method: deposit.payment_method,
-        network: deposit.network,
-        status: deposit.status,
-        created_at: deposit.created_at,
-        confirmed_at: deposit.confirmed_at,
-        expires_at: deposit.expires_at,
-        credited_at: deposit.credited_at,
-        situation,
-      };
-    });
-
-    // 5. Resumen del historial consultado
+    // 6. Crear un resumen del historial consultado.
     const summary = {
       total: formattedDeposits.length,
+
       credited: formattedDeposits.filter(
-        (deposit) => deposit.credited_at !== null
+        (deposit) => Boolean(deposit.credited_at)
       ).length,
+
       confirmedNotCredited: formattedDeposits.filter(
         (deposit) =>
-          deposit.status.toUpperCase() === "CONFIRMED" &&
-          deposit.credited_at === null
+          normalizeStatus(deposit.status) === "CONFIRMED" &&
+          !deposit.credited_at
       ).length,
+
       expiredNotCredited: formattedDeposits.filter(
         (deposit) =>
-          deposit.status.toUpperCase() === "EXPIRED" &&
-          deposit.credited_at === null
+          normalizeStatus(deposit.status) === "EXPIRED" &&
+          !deposit.credited_at
       ).length,
+
       pending: formattedDeposits.filter(
         (deposit) =>
-          deposit.status.toUpperCase() === "PENDING" &&
-          deposit.credited_at === null
+          normalizeStatus(deposit.status) === "PENDING" &&
+          !deposit.credited_at
+      ).length,
+
+      failedOrCancelled: formattedDeposits.filter((deposit) =>
+        ["FAILED", "CANCELLED", "CANCELED"].includes(
+          normalizeStatus(deposit.status)
+        )
       ).length,
     };
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email || null,
+    // No se devuelve el correo ni otros datos personales innecesarios.
+    return NextResponse.json(
+      {
+        success: true,
+        summary,
+        deposits: formattedDeposits,
       },
-      summary,
-      deposits: formattedDeposits,
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
   } catch (error) {
-    console.error("Error inesperado consultando depósitos:", error);
+    console.error(
+      "Error inesperado en /api/support/tools/deposits:",
+      error
+    );
 
     return NextResponse.json(
       {
