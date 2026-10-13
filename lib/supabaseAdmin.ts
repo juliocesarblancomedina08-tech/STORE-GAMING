@@ -1,3 +1,4 @@
+
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -6,13 +7,13 @@ const supabaseServiceRoleKey =
 
 if (!supabaseUrl) {
   throw new Error(
-    "NEXT_PUBLIC_SUPABASE_URL no está configurada."
+    "Falta configurar NEXT_PUBLIC_SUPABASE_URL."
   );
 }
 
 if (!supabaseServiceRoleKey) {
   throw new Error(
-    "SUPABASE_SERVICE_ROLE_KEY no está configurada."
+    "Falta configurar SUPABASE_SERVICE_ROLE_KEY."
   );
 }
 
