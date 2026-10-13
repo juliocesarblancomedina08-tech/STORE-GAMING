@@ -11,9 +11,11 @@ import {
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
+type ChatSender = "ai" | "user" | "admin";
+
 type ChatMessage = {
   id?: string | number;
-  sender: "ai" | "user" | "admin";
+  sender: ChatSender;
   text?: string;
   message?: string;
   created_at?: string;
@@ -37,42 +39,125 @@ type SupportTicket = {
 
 const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
+function normalizeStatus(value: unknown): TicketStatus {
+  const status = String(value ?? "PENDING").trim().toUpperCase();
+
+  if (
+    ["COMPLETED", "COMPLETE", "CLOSED", "RESOLVED", "CERRADO",
+      "COMPLETADO", "RESUELTO"].includes(status)
+  ) {
+    return "COMPLETED";
+  }
+
+  if (["IN_PROGRESS", "IN PROGRESS", "EN_PROCESO"].includes(status)) {
+    return "IN_PROGRESS";
+  }
+
+  return "PENDING";
+}
+
 function normalizeMessage(
-  message: ChatMessage,
+  value: unknown,
   index: number
 ): ChatMessage {
+  const message =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+
+  const rawSender = String(
+    message.sender ?? message.role ?? "ai"
+  ).toLowerCase();
+
+  const sender: ChatSender =
+    rawSender === "admin" || rawSender === "administrator"
+      ? "admin"
+      : rawSender === "user" || rawSender === "customer"
+        ? "user"
+        : "ai";
+
+  const text =
+    typeof message.message === "string"
+      ? message.message
+      : typeof message.text === "string"
+        ? message.text
+        : typeof message.content === "string"
+          ? message.content
+          : "";
+
   return {
-    id: message.id ?? `${message.created_at ?? "message"}-${index}`,
-    sender: ["ai", "user", "admin"].includes(message.sender)
-      ? message.sender
-      : "ai",
-    text: message.text ?? message.message ?? "",
-    created_at: message.created_at,
+    id:
+      typeof message.id === "string" ||
+      typeof message.id === "number"
+        ? message.id
+        : `${String(message.created_at ?? "message")}-${index}`,
+    sender,
+    text,
+    message: text,
+    created_at:
+      typeof message.created_at === "string"
+        ? message.created_at
+        : typeof message.createdAt === "string"
+          ? message.createdAt
+          : undefined,
   };
 }
 
-function normalizeTicket(ticket: SupportTicket): SupportTicket {
+function normalizeTicket(value: unknown): SupportTicket {
+  const ticket =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+
   return {
-    ...ticket,
-    category: ticket.category || "Otro/pregunta",
-    subject: ticket.subject || "Solicitud de soporte",
-    message: ticket.message || "",
+    id: String(ticket.id ?? ""),
+    user_id:
+      typeof ticket.user_id === "string" ? ticket.user_id : null,
+    username:
+      typeof ticket.username === "string" ? ticket.username : null,
+    email: typeof ticket.email === "string" ? ticket.email : null,
+    category:
+      typeof ticket.category === "string" && ticket.category
+        ? ticket.category
+        : "Otro/pregunta",
+    subject:
+      typeof ticket.subject === "string" && ticket.subject
+        ? ticket.subject
+        : "Solicitud de soporte",
+    message:
+      typeof ticket.message === "string" ? ticket.message : "",
     conversation: Array.isArray(ticket.conversation)
-      ? ticket.conversation.map((message, index) =>
-          normalizeMessage(message, index)
-        )
+      ? ticket.conversation.map(normalizeMessage)
       : [],
-    status: ticket.status || "PENDING",
+    status: normalizeStatus(ticket.status),
+    created_at:
+      typeof ticket.created_at === "string"
+        ? ticket.created_at
+        : "",
+    updated_at:
+      typeof ticket.updated_at === "string"
+        ? ticket.updated_at
+        : "",
   };
 }
 
-function getErrorMessage(data: any, fallback: string): string {
-  return typeof data?.error === "string" ? data.error : fallback;
+function getErrorMessage(data: unknown, fallback: string): string {
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in data &&
+    typeof data.error === "string"
+  ) {
+    return data.error;
+  }
+
+  return fallback;
 }
 
 export default function AdminSupportPage() {
   const router = useRouter();
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const selectedTicketIdRef = useRef<string | null>(null);
 
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -86,7 +171,12 @@ export default function AdminSupportPage() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"ALL" | TicketStatus>("ALL");
 
-  // Obtener el token real de la sesión de Supabase.
+  useEffect(() => {
+    selectedTicketIdRef.current = selectedTicket
+      ? String(selectedTicket.id)
+      : null;
+  }, [selectedTicket]);
+
   const getAccessToken = useCallback(async () => {
     const {
       data: { session },
@@ -95,14 +185,13 @@ export default function AdminSupportPage() {
 
     if (sessionError || !session?.access_token) {
       throw new Error(
-        "Tu sesión ha expirado. Cierra sesión e inicia sesión nuevamente."
+        "Tu sesión ha expirado. Inicia sesión nuevamente."
       );
     }
 
     return session.access_token;
   }, []);
 
-  // Todas las llamadas a la API incluyen autenticación.
   const apiFetch = useCallback(
     async (url: string, init: RequestInit = {}) => {
       const token = await getAccessToken();
@@ -123,64 +212,69 @@ export default function AdminSupportPage() {
     [getAccessToken]
   );
 
-  // Cargar tickets y mantener sincronizada la conversación abierta.
-  const loadTickets = useCallback(async () => {
-    try {
-      setTicketsLoading(true);
-      setError("");
+  const loadTickets = useCallback(
+    async (showLoader = true) => {
+      try {
+        if (showLoader) setTicketsLoading(true);
 
-      const response = await apiFetch("/api/support/tickets", {
-        method: "GET",
-      });
+        const response = await apiFetch("/api/support/tickets", {
+          method: "GET",
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(
-          getErrorMessage(data, "No se pudieron cargar los tickets.")
+        if (!response.ok) {
+          throw new Error(
+            getErrorMessage(
+              data,
+              "No se pudieron cargar las consultas."
+            )
+          );
+        }
+
+        if (data?.isAdmin === false) {
+          throw new Error(
+            "El servidor no reconoce esta cuenta como administradora."
+          );
+        }
+
+        if (!Array.isArray(data?.tickets)) {
+          throw new Error(
+            "La API no devolvió una lista válida de consultas."
+          );
+        }
+
+        const loadedTickets: SupportTicket[] =
+          data.tickets.map(normalizeTicket);
+
+        setTickets(loadedTickets);
+
+        const selectedId = selectedTicketIdRef.current;
+
+        if (selectedId !== null) {
+          const refreshed = loadedTickets.find(
+            (ticket) => String(ticket.id) === selectedId
+          );
+
+          if (refreshed) {
+            setSelectedTicket(refreshed);
+          }
+        }
+      } catch (err) {
+        console.error("ERROR CARGANDO SOPORTE ADMIN:", err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No se pudieron cargar las consultas."
         );
+      } finally {
+        if (showLoader) setTicketsLoading(false);
       }
+    },
+    [apiFetch]
+  );
 
-      if (data?.isAdmin === false) {
-        throw new Error(
-          "El servidor no reconoce esta cuenta como administradora."
-        );
-      }
-
-      if (!Array.isArray(data?.tickets)) {
-        throw new Error(
-          "La API no devolvió una lista válida de tickets."
-        );
-      }
-
-      const loadedTickets: SupportTicket[] =
-        data.tickets.map(normalizeTicket);
-
-      setTickets(loadedTickets);
-
-      setSelectedTicket((current) => {
-        if (!current) return null;
-
-        const refreshed = loadedTickets.find(
-          (ticket) => String(ticket.id) === String(current.id)
-        );
-
-        return refreshed ?? current;
-      });
-    } catch (err) {
-      console.error("ERROR CARGANDO SOPORTE ADMIN:", err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudieron cargar los tickets."
-      );
-    } finally {
-      setTicketsLoading(false);
-    }
-  }, [apiFetch]);
-
-  // Comprobar la cuenta antes de mostrar el panel.
   useEffect(() => {
     let active = true;
 
@@ -209,10 +303,10 @@ export default function AdminSupportPage() {
           return;
         }
 
-        if (active) {
-          setAuthorized(true);
-          await loadTickets();
-        }
+        if (!active) return;
+
+        setAuthorized(true);
+        await loadTickets();
       } catch (err) {
         console.error("ERROR VERIFICANDO ADMIN:", err);
 
@@ -224,9 +318,7 @@ export default function AdminSupportPage() {
           );
         }
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
 
@@ -237,6 +329,18 @@ export default function AdminSupportPage() {
     };
   }, [loadTickets, router]);
 
+  // Actualizar los tickets periódicamente para recibir respuestas
+  // nuevas de los clientes y reflejar cambios de estado.
+  useEffect(() => {
+    if (!authorized) return;
+
+    const intervalId = window.setInterval(() => {
+      void loadTickets(false);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [authorized, loadTickets]);
+
   useEffect(() => {
     if (selectedTicket) {
       chatEndRef.current?.scrollIntoView({
@@ -244,13 +348,8 @@ export default function AdminSupportPage() {
         block: "end",
       });
     }
-  }, [
-    selectedTicket?.id,
-    selectedTicket?.conversation,
-  ]);
+  }, [selectedTicket?.id, selectedTicket?.conversation]);
 
-  // Enviar solamente el mensaje nuevo.
-  // La API debe guardarlo en la conversación de Supabase.
   async function sendReply() {
     const text = reply.trim();
 
@@ -269,6 +368,12 @@ export default function AdminSupportPage() {
       setReplyLoading(true);
       setError("");
 
+      /*
+       * La API debe comprobar que esta sesión es administradora.
+       * El mensaje se envía como respuesta del administrador.
+       * No enviamos la conversación completa desde el navegador,
+       * para evitar sobrescribir mensajes recientes del cliente o IA.
+       */
       const response = await apiFetch("/api/support/ticket", {
         method: "POST",
         body: JSON.stringify({
@@ -281,19 +386,19 @@ export default function AdminSupportPage() {
 
       if (!response.ok || data?.success !== true) {
         throw new Error(
-          getErrorMessage(data, "No se pudo enviar la respuesta.")
+          getErrorMessage(
+            data,
+            "No se pudo enviar la respuesta. Comprueba la API de tickets."
+          )
         );
       }
 
-      // No borrar el texto hasta que el servidor confirme el envío.
       setReply("");
 
-      // Mostrar el ticket devuelto por el servidor.
       if (data.ticket) {
         const updated = normalizeTicket(data.ticket);
 
         setSelectedTicket(updated);
-
         setTickets((current) =>
           current.map((ticket) =>
             String(ticket.id) === String(updated.id)
@@ -303,8 +408,7 @@ export default function AdminSupportPage() {
         );
       }
 
-      // Confirmar la conversación guardada en el servidor.
-      await loadTickets();
+      await loadTickets(false);
     } catch (err) {
       console.error("ERROR RESPONDIENDO TICKET:", err);
 
@@ -318,7 +422,6 @@ export default function AdminSupportPage() {
     }
   }
 
-  // Cambiar estado sin necesidad de enviar un mensaje.
   async function changeStatus(status: TicketStatus) {
     if (
       !selectedTicket ||
@@ -354,7 +457,6 @@ export default function AdminSupportPage() {
         const updated = normalizeTicket(data.ticket);
 
         setSelectedTicket(updated);
-
         setTickets((current) =>
           current.map((ticket) =>
             String(ticket.id) === String(updated.id)
@@ -362,22 +464,9 @@ export default function AdminSupportPage() {
               : ticket
           )
         );
-      } else if (data.status) {
-        setSelectedTicket((current) =>
-          current &&
-          String(current.id) === String(ticketId)
-            ? {
-                ...current,
-                status: data.status as TicketStatus,
-                updated_at:
-                  data.updated_at || new Date().toISOString(),
-              }
-            : current
-        );
       }
 
-      // Volver a consultar para comprobar el estado persistido.
-      await loadTickets();
+      await loadTickets(false);
     } catch (err) {
       console.error("ERROR ACTUALIZANDO ESTADO:", err);
 
@@ -393,6 +482,7 @@ export default function AdminSupportPage() {
 
   function openTicket(ticket: SupportTicket) {
     setSelectedTicket(ticket);
+    selectedTicketIdRef.current = String(ticket.id);
     setReply("");
     setError("");
   }
@@ -408,8 +498,7 @@ export default function AdminSupportPage() {
   }
 
   const filteredTickets = tickets.filter(
-    (ticket) =>
-      filter === "ALL" || ticket.status === filter
+    (ticket) => filter === "ALL" || ticket.status === filter
   );
 
   const pendingCount = tickets.filter(
@@ -446,6 +535,7 @@ export default function AdminSupportPage() {
             {error || "No se pudo verificar el acceso al panel."}
           </p>
           <button
+            type="button"
             style={styles.button}
             onClick={() => router.push("/home")}
           >
@@ -466,13 +556,14 @@ export default function AdminSupportPage() {
               style={styles.smallButton}
               onClick={() => {
                 setSelectedTicket(null);
+                selectedTicketIdRef.current = null;
                 setError("");
               }}
             >
               ← Volver
             </button>
 
-            <div>
+            <div style={{ flex: 1, minWidth: 140 }}>
               <h1 style={styles.heading}>
                 Consulta #{selectedTicket.id}
               </h1>
@@ -569,10 +660,7 @@ export default function AdminSupportPage() {
               disabled={statusLoading}
               onClick={() => void changeStatus("PENDING")}
             >
-              {statusLoading &&
-              selectedTicket.status !== "PENDING"
-                ? "ACTUALIZANDO..."
-                : "PENDIENTE"}
+              PENDIENTE
             </button>
 
             <button
@@ -607,8 +695,8 @@ export default function AdminSupportPage() {
 
           {selectedTicket.status === "COMPLETED" && (
             <div style={styles.notice}>
-              Este ticket está finalizado. Si necesitas contestar,
-              cambia primero su estado a pendiente o en proceso.
+              Esta consulta está finalizada. Para responder, cambia
+              primero su estado a pendiente o en proceso.
             </div>
           )}
 
@@ -628,6 +716,7 @@ export default function AdminSupportPage() {
                 maxLength={4000}
                 style={styles.textarea}
                 disabled={replyLoading}
+                required
               />
 
               <button
@@ -735,18 +824,18 @@ export default function AdminSupportPage() {
                   <strong>
                     #{ticket.id} · {ticket.subject}
                   </strong>
-                  <span style={styles.status}>
-                    {ticket.status}
-                  </span>
+                  <span style={styles.status}>{ticket.status}</span>
                 </div>
 
                 <p style={styles.muted}>{ticket.category}</p>
 
                 <p style={styles.muted}>
                   Cliente:{" "}
-                  {ticket.username ||
-                    ticket.email ||
-                    "No identificado"}
+                  {ticket.username || ticket.email || "No identificado"}
+                </p>
+
+                <p style={styles.muted}>
+                  Correo: {ticket.email || "No disponible"}
                 </p>
 
                 <small style={styles.muted}>
@@ -813,6 +902,7 @@ const styles: Record<string, CSSProperties> = {
     color: "#999",
     fontSize: 12,
     lineHeight: 1.6,
+    overflowWrap: "anywhere",
   },
   smallButton: {
     padding: "10px 13px",
