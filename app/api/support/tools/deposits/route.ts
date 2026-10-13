@@ -1,65 +1,47 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../../lib/supabase-admin";
 
-type OrderRecord = {
+type DepositRecord = {
   id: string;
   user_id: string;
   username: string | null;
   email: string | null;
-  game: string | null;
-  category_id: string | null;
-  offer_id: string | null;
-  offer_name: string | null;
-  player_id: string | null;
-  retail_price: number | null;
-  supplier_price: number | null;
-  currency: string | null;
-  status: string | null;
-  idempotency_key: string | null;
-  supplier_fields: unknown;
-  supplier_order_id: string | null;
-  supplier_response: unknown;
-  refunded_at: string | null;
-  completed_at: string | null;
-  failed_at: string | null;
-  created_at: string | null;
-  updated_at: string | null;
+  amount: number;
+  currency: string;
+  payment_method: string | null;
+  network: string | null;
+  status: string;
+  created_at: string;
+  confirmed_at: string | null;
+  expires_at: string;
+  credited_at: string | null;
 };
 
 export async function GET(request: NextRequest) {
   try {
+    // 1. Verificar la sesión del usuario
     const authorization =
       request.headers.get("authorization") || "";
 
     if (!authorization.startsWith("Bearer ")) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "No autorizado.",
-        },
+        { success: false, error: "No autorizado." },
         { status: 401 }
       );
     }
 
     const accessToken = authorization
-      .replace("Bearer ", "")
+      .slice("Bearer ".length)
       .trim();
 
     if (!accessToken) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "No autorizado.",
-        },
+        { success: false, error: "No autorizado." },
         { status: 401 }
       );
     }
 
-    /*
-     * IMPORTANTE:
-     * El usuario se obtiene directamente del token.
-     * Nunca confiamos en un user_id enviado por el cliente.
-     */
     const {
       data: { user },
       error: userError,
@@ -69,251 +51,165 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "La sesión no es válida o ha expirado.",
+          error: "La sesión no es válida o ha expirado.",
         },
         { status: 401 }
       );
     }
 
-    const userId = user.id;
-
+    // 2. Leer filtros de consulta
     const { searchParams } = new URL(request.url);
 
-    const orderId =
-      searchParams.get("order_id")?.trim() || "";
+    const depositId =
+      searchParams.get("deposit_id")?.trim() || "";
 
-    /*
-     * Permitimos consultar historial amplio.
-     * Por defecto se revisan los últimos 100 pedidos.
-     */
     const limitParam =
       searchParams.get("limit")?.trim() || "100";
 
     let limit = Number.parseInt(limitParam, 10);
 
-    if (!Number.isFinite(limit) || limit <= 0) {
+    if (!Number.isFinite(limit) || limit < 1) {
       limit = 100;
     }
 
-    if (limit > 500) {
-      limit = 500;
-    }
+    limit = Math.min(limit, 500);
 
+    // 3. Consultar solo depósitos del usuario autenticado
     let query = supabaseAdmin
-      .from("topup_orders")
+      .from("deposits")
       .select(
         [
           "id",
           "user_id",
           "username",
           "email",
-          "game",
-          "category_id",
-          "offer_id",
-          "offer_name",
-          "player_id",
-          "retail_price",
-          "supplier_price",
+          "amount",
           "currency",
+          "payment_method",
+          "network",
           "status",
-          "idempotency_key",
-          "supplier_fields",
-          "supplier_order_id",
-          "supplier_response",
-          "refunded_at",
-          "completed_at",
-          "failed_at",
           "created_at",
-          "updated_at",
+          "confirmed_at",
+          "expires_at",
+          "credited_at",
         ].join(", ")
       )
-      .eq("user_id", userId)
-      .order("created_at", {
-        ascending: false,
-      })
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
       .limit(limit);
 
-    /*
-     * Si el cliente/IA proporciona un número de pedido,
-     * buscamos específicamente ese pedido.
-     */
-    if (orderId) {
-      query = query.eq("id", orderId);
+    // Buscar un depósito específico si se proporciona su UUID
+    if (depositId) {
+      const uuidPattern =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+      if (!uuidPattern.test(depositId)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "El identificador del depósito no es válido.",
+          },
+          { status: 400 }
+        );
+      }
+
+      query = query.eq("id", depositId);
     }
 
-    const {
-      data: orders,
-      error: ordersError,
-    } = await query;
+    const { data, error } = await query;
 
-    if (ordersError) {
-      console.error(
-        "Error buscando pedidos de soporte:",
-        ordersError
-      );
+    if (error) {
+      console.error("Error consultando depósitos:", error);
 
       return NextResponse.json(
         {
           success: false,
-          error:
-            "No fue posible consultar los pedidos.",
+          error: "No fue posible consultar los depósitos.",
         },
         { status: 500 }
       );
     }
 
-    const orderRecords =
-      (orders ?? []) as unknown as OrderRecord[];
+    const deposits = (data ?? []) as DepositRecord[];
 
-    const formattedOrders = orderRecords.map(
-      (order) => {
-        const status =
-          order.status?.toUpperCase() || "";
+    // 4. Normalizar estados sin confundir confirmación con acreditación
+    const formattedDeposits = deposits.map((deposit) => {
+      const status = deposit.status.toUpperCase();
 
-        let situation =
-          "PEDIDO EN PROCESO";
+      let situation = "ESTADO PENDIENTE DE REVISIÓN";
 
-        if (
-          status === "COMPLETED" ||
-          order.completed_at
-        ) {
-          situation = "PEDIDO COMPLETADO";
-        } else if (
-          status === "CANCELLED" ||
-          status === "CANCELED"
-        ) {
-          situation = "PEDIDO CANCELADO";
-        } else if (
-          status === "FAILED" ||
-          order.failed_at
-        ) {
-          situation = "PEDIDO FALLIDO";
-        } else if (
-          status === "REFUNDED" ||
-          order.refunded_at
-        ) {
-          situation = "PEDIDO REEMBOLSADO";
-        } else if (
-          status === "PENDING"
-        ) {
-          situation = "PEDIDO PENDIENTE";
-        } else if (
-          status === "PROCESSING"
-        ) {
-          situation = "PEDIDO EN PROCESO";
-        }
-
-        return {
-          id: order.id,
-          game: order.game,
-          category_id: order.category_id,
-          offer_id: order.offer_id,
-          offer_name: order.offer_name,
-          player_id: order.player_id,
-          retail_price: order.retail_price,
-          supplier_price: order.supplier_price,
-          currency: order.currency,
-          status: order.status,
-          supplier_order_id:
-            order.supplier_order_id,
-          supplier_fields:
-            order.supplier_fields,
-          refunded_at: order.refunded_at,
-          completed_at: order.completed_at,
-          failed_at: order.failed_at,
-          created_at: order.created_at,
-          updated_at: order.updated_at,
-          situation,
-        };
+      if (deposit.credited_at) {
+        situation = "DEPÓSITO ACREDITADO";
+      } else if (status === "EXPIRED") {
+        situation = "DEPÓSITO EXPIRADO, NO ACREDITADO";
+      } else if (status === "CONFIRMED") {
+        situation = "CONFIRMADO, PERO SIN ACREDITACIÓN REGISTRADA";
+      } else if (
+        status === "FAILED" ||
+        status === "CANCELLED" ||
+        status === "CANCELED"
+      ) {
+        situation = "DEPÓSITO FALLIDO O CANCELADO";
+      } else if (status === "PENDING") {
+        situation = "DEPÓSITO PENDIENTE";
       }
-    );
 
-    const total =
-      formattedOrders.length;
+      return {
+        id: deposit.id,
+        amount: deposit.amount,
+        currency: deposit.currency,
+        payment_method: deposit.payment_method,
+        network: deposit.network,
+        status: deposit.status,
+        created_at: deposit.created_at,
+        confirmed_at: deposit.confirmed_at,
+        expires_at: deposit.expires_at,
+        credited_at: deposit.credited_at,
+        situation,
+      };
+    });
 
-    const pending =
-      formattedOrders.filter(
-        (order) =>
-          order.status?.toUpperCase() ===
-            "PENDING" ||
-          order.status?.toUpperCase() ===
-            "PROCESSING"
-      ).length;
-
-    const completed =
-      formattedOrders.filter(
-        (order) =>
-          order.status?.toUpperCase() ===
-            "COMPLETED" ||
-          order.completed_at !== null
-      ).length;
-
-    const cancelled =
-      formattedOrders.filter(
-        (order) => {
-          const status =
-            order.status?.toUpperCase();
-
-          return (
-            status === "CANCELLED" ||
-            status === "CANCELED"
-          );
-        }
-      ).length;
-
-    const failed =
-      formattedOrders.filter(
-        (order) =>
-          order.status?.toUpperCase() ===
-            "FAILED" ||
-          order.failed_at !== null
-      ).length;
-
-    const refunded =
-      formattedOrders.filter(
-        (order) =>
-          order.status?.toUpperCase() ===
-            "REFUNDED" ||
-          order.refunded_at !== null
-      ).length;
+    // 5. Resumen del historial consultado
+    const summary = {
+      total: formattedDeposits.length,
+      credited: formattedDeposits.filter(
+        (deposit) => deposit.credited_at !== null
+      ).length,
+      confirmedNotCredited: formattedDeposits.filter(
+        (deposit) =>
+          deposit.status.toUpperCase() === "CONFIRMED" &&
+          deposit.credited_at === null
+      ).length,
+      expiredNotCredited: formattedDeposits.filter(
+        (deposit) =>
+          deposit.status.toUpperCase() === "EXPIRED" &&
+          deposit.credited_at === null
+      ).length,
+      pending: formattedDeposits.filter(
+        (deposit) =>
+          deposit.status.toUpperCase() === "PENDING" &&
+          deposit.credited_at === null
+      ).length,
+    };
 
     return NextResponse.json({
       success: true,
-
       user: {
         id: user.id,
         email: user.email || null,
       },
-
-      summary: {
-        total,
-        pending,
-        completed,
-        cancelled,
-        failed,
-        refunded,
-      },
-
-      /*
-       * Aquí están incluidos también los pedidos
-       * creados ANTES de existir la IA.
-       */
-      orders: formattedOrders,
+      summary,
+      deposits: formattedDeposits,
     });
   } catch (error) {
-    console.error(
-      "Error inesperado en herramienta de pedidos:",
-      error
-    );
+    console.error("Error inesperado consultando depósitos:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error:
-          "Ocurrió un error al consultar los pedidos.",
+        error: "Ocurrió un error al consultar los depósitos.",
       },
       { status: 500 }
     );
   }
-      }
+}
