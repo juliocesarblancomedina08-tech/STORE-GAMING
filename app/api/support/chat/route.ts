@@ -58,11 +58,15 @@ falta y recomienda que el caso sea revisado por soporte humano.
 `;
 
 function getMessageText(message: ConversationMessage): string {
-  const value = message.text ?? message.message ?? message.content ?? "";
+  const value =
+    message.text ?? message.message ?? message.content ?? "";
+
   return typeof value === "string" ? value : "";
 }
 
-function normalizeConversation(value: unknown): ConversationMessage[] {
+function normalizeConversation(
+  value: unknown
+): ConversationMessage[] {
   if (!Array.isArray(value)) return [];
 
   return value
@@ -83,10 +87,11 @@ function getFallbackMessage(reason: string): string {
   if (reason === "insufficient_quota") {
     return (
       "Gracias por contactar con el soporte de STORE GAMING. " +
-      "En este momento nuestro asistente automático no está disponible. " +
-      "Tu consulta se ha recibido, pero todavía no hemos podido generar " +
-      "una respuesta automática. Puedes volver a intentarlo más tarde " +
-      "o solicitar que un administrador revise tu caso."
+      "Nuestro asistente automático no está disponible temporalmente " +
+      "porque el servicio de respuestas no tiene créditos disponibles. " +
+      "Tu consulta se ha recibido, pero no hemos podido generar una " +
+      "respuesta automática. Puedes intentarlo más tarde o solicitar " +
+      "que un administrador revise tu caso."
     );
   }
 
@@ -94,7 +99,7 @@ function getFallbackMessage(reason: string): string {
     "Gracias por contactar con STORE GAMING. " +
     "En este momento no podemos generar una respuesta automática. " +
     "Tu consulta se ha recibido; inténtalo de nuevo más tarde o solicita " +
-    "la revisión de un administrador si necesitas ayuda urgente."
+    "la revisión de un administrador si necesitas ayuda."
   );
 }
 
@@ -108,51 +113,51 @@ async function getSupportContext(
     Authorization: `Bearer ${accessToken}`,
   };
 
-  const results = await Promise.allSettled([
-    fetch(`${origin}/api/support/tools/deposits?limit=100`, {
-      method: "GET",
-      headers,
-      cache: "no-store",
-    }),
-    fetch(`${origin}/api/support/tools/orders?limit=100`, {
-      method: "GET",
-      headers,
-      cache: "no-store",
-    }),
-  ]);
+  const endpoints = [
+    {
+      name: "deposits",
+      url: `${origin}/api/support/tools/deposits?limit=100`,
+    },
+    {
+      name: "orders",
+      url: `${origin}/api/support/tools/orders?limit=100`,
+    },
+  ];
+
+  const results = await Promise.allSettled(
+    endpoints.map((endpoint) =>
+      fetch(endpoint.url, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(12000),
+      })
+    )
+  );
 
   const context: Record<string, unknown> = {};
 
-  if (results[0].status === "fulfilled") {
-    const response = results[0].value;
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const name = endpoints[i].name;
 
-    if (response.ok) {
-      try {
-        context.deposits = await response.json();
-      } catch {
-        context.deposits = "No se pudieron interpretar los datos.";
-      }
-    } else {
-      context.deposits = "Datos de depósitos no disponibles.";
+    if (result.status !== "fulfilled") {
+      context[name] = "No se pudieron consultar estos datos.";
+      continue;
     }
-  } else {
-    context.deposits = "No se pudieron consultar los depósitos.";
-  }
 
-  if (results[1].status === "fulfilled") {
-    const response = results[1].value;
+    const response = result.value;
 
-    if (response.ok) {
-      try {
-        context.orders = await response.json();
-      } catch {
-        context.orders = "No se pudieron interpretar los datos.";
-      }
-    } else {
-      context.orders = "Datos de pedidos no disponibles.";
+    if (!response.ok) {
+      context[name] = "Estos datos no están disponibles.";
+      continue;
     }
-  } else {
-    context.orders = "No se pudieron consultar los pedidos.";
+
+    try {
+      context[name] = await response.json();
+    } catch {
+      context[name] = "No se pudieron interpretar estos datos.";
+    }
   }
 
   return JSON.stringify(context);
@@ -173,17 +178,14 @@ async function generateAIResponse(
 
   const input = conversation
     .slice(-30)
-    .map((message) => {
-      const role =
-        message.sender === "assistant" || message.sender === "bot"
-          ? "assistant"
-          : "user";
-
-      return {
-        role,
-        content: getMessageText(message),
-      };
-    })
+    .map((message) => ({
+      role:
+        message.sender === "assistant" ||
+        message.sender === "bot"
+          ? ("assistant" as const)
+          : ("user" as const),
+      content: getMessageText(message),
+    }))
     .filter((message) => message.content.trim().length > 0);
 
   if (input.length === 0) {
@@ -197,23 +199,26 @@ async function generateAIResponse(
   let response: Response;
 
   try {
-    response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        instructions:
-          SUPPORT_INSTRUCTIONS +
-          "\n\nCONTEXTO DE SOPORTE VERIFICADO:\n" +
-          supportContext,
-        input,
-        max_output_tokens: 800,
-      }),
-      signal: AbortSignal.timeout(45000),
-    });
+    response = await fetch(
+      "https://api.openai.com/v1/responses",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          instructions:
+            SUPPORT_INSTRUCTIONS +
+            "\n\nCONTEXTO DE SOPORTE:\n" +
+            supportContext,
+          input,
+          max_output_tokens: 800,
+        }),
+        signal: AbortSignal.timeout(45000),
+      }
+    );
   } catch (error) {
     console.error("No se pudo conectar con OpenAI:", error);
 
@@ -246,7 +251,7 @@ async function generateAIResponse(
         reason = "insufficient_quota";
       }
     } catch {
-      // La respuesta de error no era JSON válido.
+      // Se utiliza el mensaje genérico de respaldo.
     }
 
     return {
@@ -255,60 +260,71 @@ async function generateAIResponse(
     };
   }
 
-  let data: {
-    output_text?: string;
-    output?: Array<{
-      content?: Array<{
-        type?: string;
-        text?: string;
-      }>;
-    }>;
-  };
-
   try {
-    data = await response.json();
-  } catch {
-    console.error("OpenAI devolvió una respuesta JSON inválida.");
+    const data = await response.json();
+
+    let answer =
+      typeof data.output_text === "string"
+        ? data.output_text.trim()
+        : "";
+
+    if (!answer && Array.isArray(data.output)) {
+      answer = data.output
+        .flatMap(
+          (item: {
+            content?: Array<{
+              type?: string;
+              text?: string;
+            }>;
+          }) => item.content || []
+        )
+        .filter(
+          (item: { type?: string }) =>
+            item.type === "output_text"
+        )
+        .map(
+          (item: { text?: string }) => item.text || ""
+        )
+        .join("\n")
+        .trim();
+    }
+
+    if (!answer) {
+      console.error("OpenAI no devolvió texto.");
+
+      return {
+        answer: getFallbackMessage("api_error"),
+        fallback: true,
+      };
+    }
+
+    return {
+      answer,
+      fallback: false,
+    };
+  } catch (error) {
+    console.error("Error leyendo la respuesta de OpenAI:", error);
 
     return {
       answer: getFallbackMessage("api_error"),
       fallback: true,
     };
   }
-
-  let answer =
-    typeof data.output_text === "string" ? data.output_text.trim() : "";
-
-  if (!answer && Array.isArray(data.output)) {
-    answer = data.output
-      .flatMap((item) => item.content || [])
-      .filter((item) => item.type === "output_text")
-      .map((item) => item.text || "")
-      .join("\n")
-      .trim();
-  }
-
-  if (!answer) {
-    console.error("OpenAI no devolvió texto para el usuario.");
-
-    return {
-      answer: getFallbackMessage("api_error"),
-      fallback: true,
-    };
-  }
-
-  return { answer, fallback: false };
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const authorization = request.headers.get("authorization") || "";
+    const authorization =
+      request.headers.get("authorization") || "";
+
     const match = authorization.match(/^Bearer\s+(.+)$/i);
     const accessToken = match?.[1]?.trim();
 
     if (!accessToken) {
       return NextResponse.json(
-        { error: "Debes iniciar sesión para utilizar el soporte." },
+        {
+          error: "Debes iniciar sesión para utilizar el soporte.",
+        },
         { status: 401 }
       );
     }
@@ -322,15 +338,16 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "La sesión no es válida. Inicia sesión nuevamente." },
+        {
+          error:
+            "La sesión no es válida. Inicia sesión nuevamente.",
+        },
         { status: 401 }
       );
     }
 
     let body: {
       ticketId?: string | number;
-      category?: string;
-      subject?: string;
     };
 
     try {
@@ -345,29 +362,40 @@ export async function POST(request: NextRequest) {
     const rawTicketId = String(body.ticketId ?? "").trim();
     const numericTicketId = Number(rawTicketId);
 
-    // Evita BigInt y funciona con configuraciones TypeScript inferiores a ES2020.
     if (
       !rawTicketId ||
       !Number.isSafeInteger(numericTicketId) ||
       numericTicketId <= 0
     ) {
       return NextResponse.json(
-        { error: "El identificador de la consulta no es válido." },
+        {
+          error:
+            "El identificador de la consulta no es válido.",
+        },
         { status: 400 }
       );
     }
 
-    const { data: ticket, error: ticketError } = await supabaseAdmin
+    const {
+      data: ticket,
+      error: ticketError,
+    } = await supabaseAdmin
       .from("support_tickets")
       .select("*")
       .eq("id", numericTicketId)
       .maybeSingle();
 
     if (ticketError) {
-      console.error("Error consultando el ticket:", ticketError);
+      console.error(
+        "Error consultando el ticket:",
+        ticketError
+      );
 
       return NextResponse.json(
-        { error: "No se pudo consultar la solicitud de soporte." },
+        {
+          error:
+            "No se pudo consultar la solicitud de soporte.",
+        },
         { status: 500 }
       );
     }
@@ -379,7 +407,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userEmail = (user.email || "").trim().toLowerCase();
+    const userEmail = (user.email || "")
+      .trim()
+      .toLowerCase();
 
     const isAdmin =
       (SUPPORT_ADMIN_EMAIL !== "" &&
@@ -392,7 +422,10 @@ export async function POST(request: NextRequest) {
 
     if (!ownsTicket && !isAdmin) {
       return NextResponse.json(
-        { error: "No tienes permiso para acceder a esta consulta." },
+        {
+          error:
+            "No tienes permiso para acceder a esta consulta.",
+        },
         { status: 403 }
       );
     }
@@ -400,23 +433,23 @@ export async function POST(request: NextRequest) {
     const status = String(ticket.status || "").toUpperCase();
 
     if (status === "COMPLETED" || status === "CLOSED") {
-      return NextResponse.json(
-        {
-          message:
-            "Esta consulta está cerrada. Si necesitas más ayuda, abre una nueva solicitud.",
-          response:
-            "Esta consulta está cerrada. Si necesitas más ayuda, abre una nueva solicitud.",
-          answer:
-            "Esta consulta está cerrada. Si necesitas más ayuda, abre una nueva solicitud.",
-          needsAdmin: false,
-          showAdminButton: false,
-          fallback: false,
-        },
-        { status: 200 }
-      );
+      const closedMessage =
+        "Esta consulta está cerrada. Si necesitas más ayuda, abre una nueva solicitud.";
+
+      return NextResponse.json({
+        message: closedMessage,
+        response: closedMessage,
+        answer: closedMessage,
+        needsAdmin: false,
+        showAdminButton: false,
+        fallback: false,
+        saved: true,
+      });
     }
 
-    const conversation = normalizeConversation(ticket.conversation);
+    const conversation = normalizeConversation(
+      ticket.conversation
+    );
 
     if (conversation.length === 0) {
       return NextResponse.json(
@@ -428,8 +461,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const lastMessage = conversation[conversation.length - 1];
+    const lastMessage =
+      conversation[conversation.length - 1];
 
+    // Evita añadir otra respuesta si ya existe una respuesta final.
     if (
       lastMessage.sender === "assistant" ||
       lastMessage.sender === "bot"
@@ -444,6 +479,7 @@ export async function POST(request: NextRequest) {
           needsAdmin: false,
           showAdminButton: false,
           fallback: false,
+          saved: true,
         });
       }
     }
@@ -452,9 +488,14 @@ export async function POST(request: NextRequest) {
       request,
       accessToken
     ).catch((error) => {
-      console.error("Error recopilando contexto de soporte:", error);
+      console.error(
+        "Error recopilando contexto de soporte:",
+        error
+      );
+
       return JSON.stringify({
-        warning: "Los datos de pedidos o depósitos no están disponibles.",
+        warning:
+          "Los datos de pedidos o depósitos no están disponibles.",
       });
     });
 
@@ -475,7 +516,6 @@ export async function POST(request: NextRequest) {
       assistantMessage,
     ];
 
-    // Guardar la respuesta para que permanezca al volver a abrir el ticket.
     let updateQuery = supabaseAdmin
       .from("support_tickets")
       .update({
@@ -484,19 +524,23 @@ export async function POST(request: NextRequest) {
       .eq("id", numericTicketId);
 
     if (ticket.user_id != null) {
-      updateQuery = updateQuery.eq("user_id", ticket.user_id);
+      updateQuery = updateQuery.eq(
+        "user_id",
+        ticket.user_id
+      );
     }
 
-    const { error: updateError } = await updateQuery.select("id");
+    const {
+      data: updatedRows,
+      error: updateError,
+    } = await updateQuery.select("id");
 
-    if (updateError) {
+    if (updateError || !updatedRows?.length) {
       console.error(
-        "No se pudo guardar la respuesta del soporte:",
+        "No se pudo confirmar el guardado de la respuesta:",
         updateError
       );
 
-      // La respuesta se devuelve aunque falle el guardado, para no dejar
-      // al usuario esperando. El error queda registrado para investigarlo.
       return NextResponse.json({
         message: result.answer,
         response: result.answer,
@@ -506,7 +550,7 @@ export async function POST(request: NextRequest) {
         fallback: result.fallback,
         saved: false,
         warning:
-          "La respuesta se generó, pero no se pudo confirmar su guardado.",
+          "La respuesta se generó, pero no se pudo confirmar su guardado. Actualiza la consulta antes de volver a enviarla.",
       });
     }
 
@@ -520,11 +564,15 @@ export async function POST(request: NextRequest) {
       saved: true,
     });
   } catch (error) {
-    console.error("Error inesperado en /api/support/chat:", error);
+    console.error(
+      "Error inesperado en /api/support/chat:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Ocurrió un error inesperado al procesar tu consulta.",
+        error:
+          "Ocurrió un error inesperado al procesar tu consulta.",
         fallback: true,
       },
       { status: 500 }
