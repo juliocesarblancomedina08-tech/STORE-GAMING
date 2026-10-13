@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
@@ -315,7 +314,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Leer el cuerpo y exigir el ID del ticket.
+    // 2. Leer el cuerpo de la solicitud.
     let body: Record<string, unknown>;
 
     try {
@@ -336,6 +335,8 @@ export async function POST(request: NextRequest) {
 
     const rawTicketId = body.ticketId;
 
+    // CORRECCIÓN: validar el ID sin BigInt ni literales 0n,
+    // compatibles con configuraciones de TypeScript anteriores a ES2020.
     const ticketId =
       typeof rawTicketId === "number" &&
       Number.isSafeInteger(rawTicketId) &&
@@ -343,7 +344,8 @@ export async function POST(request: NextRequest) {
         ? String(rawTicketId)
         : typeof rawTicketId === "string" &&
             /^\d+$/.test(rawTicketId.trim()) &&
-            BigInt(rawTicketId.trim()) > 0n
+            Number.isSafeInteger(Number(rawTicketId.trim())) &&
+            Number(rawTicketId.trim()) > 0
           ? rawTicketId.trim()
           : null;
 
@@ -378,8 +380,7 @@ export async function POST(request: NextRequest) {
       return jsonError("El ticket no existe.", 404);
     }
 
-    // 4. Comprobar permisos. El service role omite RLS,
-    // por eso esta comprobación en el servidor es imprescindible.
+    // 4. Comprobar permisos.
     const admin = await isSupportAdmin(user);
 
     if (!admin && ticket.user_id !== user.id) {
@@ -389,15 +390,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (ticket.status === "COMPLETED") {
+    if (
+      ticket.status === "COMPLETED" ||
+      ticket.status === "CLOSED"
+    ) {
       return jsonError(
-        "Este ticket está completado. Reábrelo antes de enviar otro mensaje.",
+        "Este ticket está cerrado. Reábrelo antes de enviar otro mensaje.",
         409
       );
     }
 
-    // 5. Usar el historial guardado, no los mensajes que envía
-    // el navegador como si fueran una conversación confiable.
+    // 5. Leer el historial guardado en Supabase.
     const storedConversation = normalizeStoredConversation(
       ticket.conversation
     );
@@ -443,8 +446,7 @@ export async function POST(request: NextRequest) {
         ? ticket.subject.trim().slice(0, 200)
         : "Consulta de soporte";
 
-    // 6. Consultar datos privados mediante rutas que validan
-    // la misma sesión del usuario.
+    // 6. Consultar los datos del usuario autenticado.
     const [depositsData, ordersData] = await Promise.all([
       fetchUserSupportData(
         request,
@@ -547,7 +549,10 @@ Si una consulta de datos falla, dilo claramente.
     const answer = extractResponseText(openaiData);
 
     if (!answer) {
-      console.error("OpenAI no devolvió una respuesta de texto.");
+      console.error(
+        "OpenAI no devolvió una respuesta de texto.",
+        rawText.slice(0, 1200)
+      );
 
       return jsonError(
         "El asistente no generó una respuesta. Inténtalo nuevamente.",
@@ -555,8 +560,7 @@ Si una consulta de datos falla, dilo claramente.
       );
     }
 
-    // 8. Guardar la respuesta generada directamente en Supabase.
-    // La conversación existente conserva sus mensajes anteriores.
+    // 8. Guardar la respuesta generada en Supabase.
     const createdAt = new Date().toISOString();
     const messageId = `ai-${randomUUID()}`;
 
@@ -592,13 +596,14 @@ Si una consulta de datos falla, dilo claramente.
       );
     }
 
-    // 9. Devolver la respuesta ya guardada.
+    // 9. Devolver la respuesta al navegador.
     const needsAdmin = detectNeedsAdmin(answer);
 
     return NextResponse.json(
       {
         success: true,
         answer,
+        message: answer,
         messageId,
         created_at: createdAt,
         needsAdmin,
