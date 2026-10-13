@@ -5,129 +5,166 @@ import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+type ChatSender = "user" | "ai" | "assistant" | "admin" | "system";
+
+interface ChatMessage {
+  id?: string | number;
+  sender: ChatSender;
+  message?: string;
+  text?: string;
+  content?: string;
+  created_at?: string;
+}
+
+interface ChatRequestBody {
+  message?: string;
+  text?: string;
+  messages?: ChatMessage[];
+  ticketId?: string | number | null;
+  category?: string;
+  subject?: string;
+}
+
+interface TicketRow {
+  id: string | number;
+  user_id?: string | null;
+  username?: string | null;
+  email?: string | null;
+  category?: string | null;
+  subject?: string | null;
+  message?: string | null;
+  conversation?: unknown;
+  status?: string | null;
+}
+
+const OPENAI_URL = "https://api.openai.com/v1/responses";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
-const SUPPORT_ADMIN_EMAIL = process.env.SUPPORT_ADMIN_EMAIL;
-const SUPPORT_ADMIN_USER_IDS = (
-  process.env.SUPPORT_ADMIN_USER_IDS || ""
-)
-  .split(",")
-  .map((value) => value.trim())
-  .filter(Boolean);
+const SUPPORT_SYSTEM_PROMPT = `
+Eres el asistente de atención al cliente de STORE GAMING.
 
-type ChatMessage = {
-  id?: string | number;
-  sender: string;
-  text: string;
-  created_at?: string;
-};
+Responde en español, de forma amable, clara y breve.
+Ayuda con recargas gamer, tarjetas de regalo, pedidos,
+pagos y problemas relacionados con la tienda.
 
-function jsonError(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+Utiliza solamente la información disponible en la conversación.
+No inventes pagos recibidos, pedidos entregados, saldos,
+transacciones, reembolsos ni confirmaciones.
+
+Si necesitas que una persona revise el caso, explica que
+el equipo de soporte debe comprobarlo.
+
+Nunca solicites contraseñas, claves privadas, frases semilla
+ni códigos de autenticación.
+No afirmes que has realizado una operación si no existe
+una confirmación verificable.
+`.trim();
+
+function jsonError(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+function getMessageText(item: ChatMessage): string {
+  const value = item.message ?? item.text ?? item.content ?? "";
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function normalizeConversation(value: unknown): ChatMessage[] {
-  if (!Array.isArray(value)) return [];
+  if (!Array.isArray(value)) {
+    return [];
+  }
 
   return value
     .filter(
       (item): item is Record<string, unknown> =>
-        !!item && typeof item === "object"
+        typeof item === "object" && item !== null
     )
     .map((item) => {
-      const rawText =
-        typeof item.text === "string"
-          ? item.text
-          : typeof item.message === "string"
-            ? item.message
-            : typeof item.content === "string"
-              ? item.content
-              : "";
+      const rawSender =
+        typeof item.sender === "string" ? item.sender.toLowerCase() : "";
 
-      const rawSender = String(
-        item.sender || item.role || "user"
-      ).toLowerCase();
+      let sender: ChatSender = "ai";
 
-      let sender = "user";
-
-      if (rawSender === "assistant" || rawSender === "ai") {
-        sender = "assistant";
+      if (rawSender === "user") {
+        sender = "user";
       } else if (rawSender === "admin") {
         sender = "admin";
+      } else if (rawSender === "system") {
+        sender = "system";
+      } else if (
+        rawSender === "assistant" ||
+        rawSender === "ai" ||
+        rawSender === "bot"
+      ) {
+        sender = "ai";
       }
+
+      const message = getMessageText({
+        sender,
+        message:
+          typeof item.message === "string" ? item.message : undefined,
+        text: typeof item.text === "string" ? item.text : undefined,
+        content:
+          typeof item.content === "string" ? item.content : undefined,
+      });
 
       return {
         id:
-          typeof item.id === "string" ||
-          typeof item.id === "number"
+          typeof item.id === "string" || typeof item.id === "number"
             ? item.id
             : undefined,
         sender,
-        text: rawText.trim(),
+        message,
         created_at:
           typeof item.created_at === "string"
             ? item.created_at
             : undefined,
       };
     })
-    .filter((item) => item.text.length > 0);
+    .filter((item) => item.message.length > 0);
 }
 
-function extractLastUserMessage(
-  body: Record<string, unknown>
-): string {
-  // La página actual envía el historial bajo "messages".
-  if (Array.isArray(body.messages)) {
-    const messages = normalizeConversation(body.messages);
+function sameMessage(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
 
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].sender === "user") {
-        return messages[i].text;
+function extractLatestUserMessage(
+  body: ChatRequestBody,
+  conversation: ChatMessage[]
+): string {
+  const directMessage =
+    typeof body.message === "string"
+      ? body.message.trim()
+      : typeof body.text === "string"
+        ? body.text.trim()
+        : "";
+
+  if (directMessage) {
+    return directMessage;
+  }
+
+  if (Array.isArray(body.messages)) {
+    for (let index = body.messages.length - 1; index >= 0; index--) {
+      const item = body.messages[index];
+
+      if (item && item.sender === "user") {
+        const message = getMessageText(item);
+
+        if (message) {
+          return message;
+        }
       }
     }
   }
 
-  // Compatibilidad con peticiones que envían un mensaje individual.
-  const fields = [
-    body.message,
-    body.text,
-    body.content,
-    body.userMessage,
-    body.user_message,
-    body.prompt,
-    body.input,
-    body.messageText,
-    body.message_text,
-    body.newMessage,
-    body.new_message,
-  ];
+  for (let index = conversation.length - 1; index >= 0; index--) {
+    const item = conversation[index];
 
-  for (const value of fields) {
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-  }
+    if (item.sender === "user") {
+      const message = getMessageText(item);
 
-  // Compatibilidad con un objeto data anidado.
-  if (
-    body.data &&
-    typeof body.data === "object" &&
-    !Array.isArray(body.data)
-  ) {
-    const data = body.data as Record<string, unknown>;
-
-    for (const key of [
-      "message",
-      "text",
-      "content",
-      "userMessage",
-      "user_message",
-    ]) {
-      const value = data[key];
-
-      if (typeof value === "string" && value.trim()) {
-        return value.trim();
+      if (message) {
+        return message;
       }
     }
   }
@@ -135,489 +172,421 @@ function extractLastUserMessage(
   return "";
 }
 
-function extractTicketId(
-  body: Record<string, unknown>
-): number {
-  const values = [
-    body.ticketId,
-    body.ticket_id,
-    body.ticketID,
-    body.id,
-    body.ticket,
-  ];
+function getOpenAIText(data: unknown): string {
+  if (!data || typeof data !== "object") {
+    return "";
+  }
 
-  for (const value of values) {
-    const candidate =
-      value && typeof value === "object"
-        ? (value as Record<string, unknown>).id
-        : value;
+  const result = data as {
+    output_text?: unknown;
+    output?: Array<{
+      content?: Array<{
+        type?: string;
+        text?: string;
+      }>;
+    }>;
+  };
 
-    if (
-      (typeof candidate === "string" ||
-        typeof candidate === "number") &&
-      String(candidate).trim()
-    ) {
-      const id = Number(candidate);
+  if (
+    typeof result.output_text === "string" &&
+    result.output_text.trim()
+  ) {
+    return result.output_text.trim();
+  }
 
-      if (Number.isSafeInteger(id) && id > 0) {
-        return id;
+  const parts: string[] = [];
+
+  if (Array.isArray(result.output)) {
+    for (const outputItem of result.output) {
+      if (!Array.isArray(outputItem.content)) {
+        continue;
+      }
+
+      for (const contentItem of outputItem.content) {
+        if (
+          contentItem.type === "output_text" &&
+          typeof contentItem.text === "string"
+        ) {
+          parts.push(contentItem.text);
+        }
       }
     }
   }
 
-  return 0;
+  return parts.join("\n").trim();
 }
 
-function isAdmin(user: {
-  id: string;
-  email?: string;
-}): boolean {
-  const emailMatches =
-    !!SUPPORT_ADMIN_EMAIL &&
-    user.email?.toLowerCase() ===
-      SUPPORT_ADMIN_EMAIL.toLowerCase();
+function isOpenAIQuotaError(data: unknown): boolean {
+  if (!data || typeof data !== "object") {
+    return false;
+  }
+
+  const error = (data as {
+    error?: { code?: string; type?: string; message?: string };
+  }).error;
+
+  if (!error) {
+    return false;
+  }
+
+  const details = [
+    error.code,
+    error.type,
+    error.message,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
   return (
-    emailMatches ||
-    SUPPORT_ADMIN_USER_IDS.includes(user.id)
+    details.includes("insufficient_quota") ||
+    details.includes("credit_balance_exhausted") ||
+    details.includes("billing")
   );
 }
 
-function fallbackAnswer(): string {
-  return (
-    "He recibido tu consulta, pero el asistente automático " +
-    "no está disponible en este momento. Tu mensaje permanece " +
-    "en el ticket. Inténtalo de nuevo más tarde o solicita " +
-    "ayuda al administrador."
-  );
+async function saveConversation(
+  ticketId: string | number,
+  messages: ChatMessage[]
+): Promise<boolean> {
+  const storedConversation = messages.map((item) => ({
+    id: item.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    sender: item.sender === "ai" ? "assistant" : item.sender,
+    text: getMessageText(item),
+    created_at: item.created_at ?? new Date().toISOString(),
+  }));
+
+  const { error } = await supabaseAdmin
+    .from("support_tickets")
+    .update({
+      conversation: storedConversation,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", ticketId);
+
+  if (error) {
+    console.error(
+      "[support/chat] Error guardando conversación:",
+      error.message
+    );
+    return false;
+  }
+
+  return true;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    let parsed: unknown;
+    let body: ChatRequestBody;
 
     try {
-      parsed = await request.json();
+      body = (await request.json()) as ChatRequestBody;
     } catch {
-      return jsonError("La petición no contiene JSON válido.", 400);
+      return jsonError("El cuerpo de la solicitud no es un JSON válido.", 400);
     }
+
+    const ticketId = body.ticketId;
 
     if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
+      ticketId !== undefined &&
+      ticketId !== null &&
+      !(
+        (typeof ticketId === "number" &&
+          Number.isSafeInteger(ticketId) &&
+          ticketId > 0) ||
+        (typeof ticketId === "string" &&
+          /^\d+$/.test(ticketId) &&
+          Number(ticketId) > 0)
+      )
     ) {
-      return jsonError("Los datos enviados no son válidos.", 400);
+      return jsonError("El identificador del ticket no es válido.", 400);
     }
 
-    const body = parsed as Record<string, unknown>;
-    const ticketId = extractTicketId(body);
-    const userMessage = extractLastUserMessage(body);
-
-    if (!ticketId) {
-      return jsonError(
-        "No se recibió un ID de ticket válido.",
-        400
-      );
-    }
-
-    if (!userMessage) {
-      console.warn(
-        "Soporte: no se encontró un mensaje de usuario.",
-        {
-          fields: Object.keys(body),
-          messagesIsArray: Array.isArray(body.messages),
-        }
-      );
-
-      return jsonError(
-        "No se encontró el texto del mensaje. Comprueba que escribiste el mensaje e inténtalo de nuevo.",
-        400
-      );
-    }
-
-    if (userMessage.length > 6000) {
-      return jsonError(
-        "El mensaje supera el máximo de 6000 caracteres.",
-        400
-      );
-    }
-
-    const authorization =
-      request.headers.get("authorization") || "";
-
-    const accessToken = authorization.startsWith("Bearer ")
+    const authorization = request.headers.get("authorization");
+    const accessToken = authorization?.startsWith("Bearer ")
       ? authorization.slice(7).trim()
       : "";
 
-    if (!accessToken) {
-      return jsonError(
-        "Tu sesión ha expirado. Inicia sesión de nuevo.",
-        401
-      );
+    let authenticatedUserId: string | null = null;
+
+    if (accessToken) {
+      const { data: authData, error: authError } =
+        await supabaseAdmin.auth.getUser(accessToken);
+
+      if (authError || !authData.user) {
+        return jsonError(
+          "Tu sesión ha expirado. Inicia sesión nuevamente.",
+          401
+        );
+      }
+
+      authenticatedUserId = authData.user.id;
     }
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(accessToken);
+    let ticket: TicketRow | null = null;
+    let conversation: ChatMessage[] = [];
 
-    if (authError || !user) {
-      return jsonError(
-        "La sesión no es válida. Inicia sesión de nuevo.",
-        401
-      );
-    }
-
-    const { data: ticket, error: ticketError } =
-      await supabaseAdmin
+    if (ticketId !== undefined && ticketId !== null) {
+      const { data, error } = await supabaseAdmin
         .from("support_tickets")
-        .select("*")
+        .select(
+          "id, user_id, username, email, category, subject, message, conversation, status"
+        )
         .eq("id", ticketId)
         .maybeSingle();
 
-    if (ticketError) {
-      console.error(
-        "Error consultando support_tickets:",
-        ticketError
-      );
-
-      return jsonError(
-        "No se pudo consultar el ticket.",
-        500
-      );
-    }
-
-    if (!ticket) {
-      return jsonError(
-        "No se encontró el ticket solicitado.",
-        404
-      );
-    }
-
-    const ownerId = String(
-      ticket.user_id ?? ticket.customer_id ?? ""
-    );
-
-    if (ownerId !== user.id && !isAdmin(user)) {
-      return jsonError(
-        "No tienes permiso para acceder a este ticket.",
-        403
-      );
-    }
-
-    const status = String(ticket.status || "").toUpperCase();
-
-    if (
-      ["CLOSED", "COMPLETED", "CANCELLED"].includes(status)
-    ) {
-      return jsonError(
-        "Este ticket está cerrado. Abre una nueva consulta.",
-        409
-      );
-    }
-
-    /*
-     * La página guarda primero la conversación mediante
-     * /api/support/ticket. Por eso leemos la conversación
-     * actual y no agregamos dos veces el último mensaje.
-     */
-    let conversation = normalizeConversation(
-      ticket.conversation
-    );
-
-    const lastMessage = conversation[conversation.length - 1];
-
-    if (
-      !lastMessage ||
-      lastMessage.sender !== "user" ||
-      lastMessage.text.trim() !== userMessage
-    ) {
-      conversation = [
-        ...conversation,
-        {
-          id: crypto.randomUUID(),
-          sender: "user",
-          text: userMessage,
-          created_at: new Date().toISOString(),
-        },
-      ];
-    }
-
-    async function saveConversation(
-      messages: ChatMessage[]
-    ): Promise<boolean> {
-      const storedConversation = messages.map((item) => ({
-        id: item.id ?? crypto.randomUUID(),
-        sender: item.sender,
-        text: item.text,
-        created_at:
-          item.created_at || new Date().toISOString(),
-      }));
-
-      const { data, error } = await supabaseAdmin
-        .from("support_tickets")
-        .update({ conversation: storedConversation })
-        .eq("id", ticketId)
-        .select("id");
-
       if (error) {
         console.error(
-          "Error guardando la conversación:",
-          error
+          "[support/chat] Error consultando ticket:",
+          error.message
         );
-
-        return false;
+        return jsonError("No se pudo consultar el ticket de soporte.", 500);
       }
 
-      return !!data?.length;
+      if (!data) {
+        return jsonError("El ticket de soporte no existe.", 404);
+      }
+
+      ticket = data as TicketRow;
+
+      const adminEmails = (process.env.SUPPORT_ADMIN_EMAIL || "")
+        .split(",")
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean);
+
+      const adminUserIds = (process.env.SUPPORT_ADMIN_USER_IDS || "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+
+      let isAdmin = false;
+
+      if (authenticatedUserId) {
+        const { data: userData } =
+          await supabaseAdmin.auth.admin.getUserById(
+            authenticatedUserId
+          );
+
+        const userEmail = userData.user?.email?.toLowerCase() ?? "";
+
+        isAdmin =
+          adminUserIds.includes(authenticatedUserId) ||
+          (userEmail !== "" && adminEmails.includes(userEmail));
+      }
+
+      if (!authenticatedUserId && ticket.user_id) {
+        return jsonError(
+          "Debes iniciar sesión para acceder a este ticket.",
+          401
+        );
+      }
+
+      if (
+        ticket.user_id &&
+        authenticatedUserId !== ticket.user_id &&
+        !isAdmin
+      ) {
+        return jsonError(
+          "No tienes permiso para acceder a este ticket.",
+          403
+        );
+      }
+
+      const status = (ticket.status || "").toLowerCase();
+
+      if (
+        ["closed", "completed", "resolved", "cerrado", "completado", "resuelto"].includes(
+          status
+        )
+      ) {
+        return jsonError(
+          "Este ticket está cerrado. Abre uno nuevo para continuar.",
+          409
+        );
+      }
+
+      conversation = normalizeConversation(ticket.conversation);
     }
 
-    const userSaved = await saveConversation(conversation);
+    const clientMessages = normalizeConversation(body.messages);
 
-    if (!userSaved) {
+    // El frontend puede enviar el mensaje dentro de "messages",
+    // sin incluir un campo "message" independiente.
+    const latestUserMessage = extractLatestUserMessage(
+      body,
+      clientMessages.length > 0 ? clientMessages : conversation
+    );
+
+    if (!latestUserMessage) {
       return jsonError(
-        "No se pudo guardar el mensaje en la consulta.",
-        500
+        "Escribe un mensaje antes de enviarlo.",
+        400
       );
     }
 
-    async function returnFallback() {
-      const answer = fallbackAnswer();
+    // Se conserva la conversación guardada en la base de datos.
+    // Si el frontend ya guardó el último mensaje, no lo duplicamos.
+    if (clientMessages.length > 0) {
+      for (const item of clientMessages) {
+        const text = getMessageText(item);
 
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: "assistant",
-        text: answer,
+        if (!text) {
+          continue;
+        }
+
+        const exists = conversation.some(
+          (saved) =>
+            saved.sender === item.sender &&
+            sameMessage(getMessageText(saved), text)
+        );
+
+        if (!exists) {
+          conversation.push({
+            sender: item.sender,
+            message: text,
+            created_at: item.created_at ?? new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    const latestMessageAlreadyExists = conversation.some(
+      (item) =>
+        item.sender === "user" &&
+        sameMessage(getMessageText(item), latestUserMessage)
+    );
+
+    if (!latestMessageAlreadyExists) {
+      conversation.push({
+        sender: "user",
+        message: latestUserMessage,
         created_at: new Date().toISOString(),
-      };
-
-      const saved = await saveConversation([
-        ...conversation,
-        assistantMessage,
-      ]);
-
-      return NextResponse.json({
-        success: true,
-        saved,
-        fallback: true,
-        message: answer,
-        response: answer,
-        answer,
-        needsAdmin: true,
-        showAdminButton: true,
       });
     }
 
-    if (!OPENAI_API_KEY) {
-      console.error(
-        "Falta OPENAI_API_KEY en las variables de Vercel."
-      );
+    const apiKey = process.env.OPENAI_API_KEY;
+    let assistantReply = "";
 
-      return await returnFallback();
-    }
+    if (!apiKey) {
+      assistantReply =
+        "Gracias por contactar con STORE GAMING. En este momento, el asistente automático no está configurado. Tu mensaje puede quedar registrado en el ticket para que el equipo de soporte lo revise.";
+    } else {
+      const history = conversation
+        .filter(
+          (item) =>
+            item.sender === "user" ||
+            item.sender === "ai" ||
+            item.sender === "assistant" ||
+            item.sender === "admin"
+        )
+        .slice(-20)
+        .map((item) => ({
+          role:
+            item.sender === "user" ? "user" : "assistant",
+          content: getMessageText(item),
+        }))
+        .filter((item) => item.content.length > 0);
 
-    let supportContext = "";
+      const ticketContext = [
+        `Categoría: ${ticket?.category || body.category || "General"}`,
+        `Asunto: ${ticket?.subject || body.subject || "Consulta de soporte"}`,
+        `Ticket: ${ticket?.id ?? "Sin ticket asociado"}`,
+      ].join("\n");
 
-    try {
-      const baseUrl = request.nextUrl.origin;
-
-      const headers = {
-        Authorization: `Bearer ${accessToken}`,
-      };
-
-      const [depositsResponse, ordersResponse] =
-        await Promise.all([
-          fetch(
-            `${baseUrl}/api/support/tools/deposits?limit=100`,
-            {
-              headers,
-              cache: "no-store",
-            }
-          ),
-          fetch(
-            `${baseUrl}/api/support/tools/orders?limit=100`,
-            {
-              headers,
-              cache: "no-store",
-            }
-          ),
-        ]);
-
-      const deposits = depositsResponse.ok
-        ? await depositsResponse.text()
-        : "Información de depósitos no disponible.";
-
-      const orders = ordersResponse.ok
-        ? await ordersResponse.text()
-        : "Información de pedidos no disponible.";
-
-      supportContext = `
-DEPÓSITOS:
-${deposits.slice(0, 10000)}
-
-PEDIDOS:
-${orders.slice(0, 10000)}
-`;
-    } catch (error) {
-      console.error(
-        "Error consultando los datos del soporte:",
-        error
-      );
-    }
-
-    const conversationText = conversation
-      .slice(-20)
-      .map((item) => {
-        const name =
-          item.sender === "assistant"
-            ? "Asistente"
-            : item.sender === "admin"
-              ? "Administrador"
-              : "Cliente";
-
-        return `${name}: ${item.text}`;
-      })
-      .join("\n");
-
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      25000
-    );
-
-    let openAIResponse: Response;
-
-    try {
-      openAIResponse = await fetch(
-        "https://api.openai.com/v1/responses",
-        {
+      try {
+        const openAIResponse = await fetch(OPENAI_URL, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
-          signal: controller.signal,
           body: JSON.stringify({
             model: OPENAI_MODEL,
-            instructions: `
-Eres el asistente oficial de soporte de STORE GAMING.
-Responde en español, de forma clara, breve y amable.
-Utiliza los datos disponibles como contexto, pero no inventes
-depósitos, pedidos, pagos, reembolsos ni estados.
-No confirmes pagos sin pruebas verificables.
-Si no tienes información suficiente, explícalo y recomienda
-continuar mediante el ticket o solicitar un administrador.
-Nunca pidas contraseñas, claves privadas ni frases semilla.
-            `.trim(),
-            input: `
-TICKET: ${ticketId}
-
-CONTEXTO DEL SISTEMA:
-${supportContext}
-
-CONVERSACIÓN:
-${conversationText}
-
-Responde al último mensaje del cliente.
-            `.trim(),
+            instructions: `${SUPPORT_SYSTEM_PROMPT}\n\nContexto del ticket:\n${ticketContext}`,
+            input: history,
+            max_output_tokens: 500,
           }),
-        }
-      );
-    } finally {
-      clearTimeout(timeout);
-    }
+          cache: "no-store",
+        });
 
-    const openAIData = await openAIResponse
-      .json()
-      .catch(() => ({}));
+        const responseData: unknown = await openAIResponse.json();
 
-    if (!openAIResponse.ok) {
-      console.error(
-        "Error de OpenAI:",
-        openAIResponse.status,
-        openAIData
-      );
+        if (!openAIResponse.ok) {
+          if (isOpenAIQuotaError(responseData)) {
+            assistantReply =
+              "Gracias por escribir a STORE GAMING. El asistente automático no puede responder en este momento porque el servicio de IA necesita revisar su facturación o sus créditos. Tu consulta se conservará en el ticket para su revisión.";
+          } else {
+            console.error(
+              "[support/chat] Error de OpenAI:",
+              JSON.stringify(responseData)
+            );
 
-      return await returnFallback();
-    }
-
-    let answer =
-      typeof openAIData.output_text === "string"
-        ? openAIData.output_text.trim()
-        : "";
-
-    if (!answer && Array.isArray(openAIData.output)) {
-      answer = openAIData.output
-        .flatMap((item: { content?: unknown[] }) =>
-          Array.isArray(item.content) ? item.content : []
-        )
-        .map((content: unknown) => {
-          if (
-            content &&
-            typeof content === "object" &&
-            "text" in content &&
-            typeof content.text === "string"
-          ) {
-            return content.text;
+            assistantReply =
+              "He recibido tu mensaje, pero ahora mismo no puedo generar una respuesta automática. Tu consulta puede quedar registrada para que el equipo de soporte la revise.";
           }
+        } else {
+          assistantReply = getOpenAIText(responseData);
 
-          return "";
-        })
-        .filter(Boolean)
-        .join("\n")
-        .trim();
+          if (!assistantReply) {
+            assistantReply =
+              "He recibido tu mensaje, pero no he podido generar una respuesta. Inténtalo nuevamente más tarde.";
+          }
+        }
+      } catch (error) {
+        console.error("[support/chat] Error conectando con OpenAI:", error);
+
+        assistantReply =
+          "He recibido tu mensaje, pero el servicio de respuestas automáticas no está disponible en este momento. Inténtalo más tarde.";
+      }
     }
 
-    if (!answer) {
-      console.error(
-        "OpenAI no devolvió texto en la respuesta."
-      );
-
-      return await returnFallback();
-    }
-
-    const assistantMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      sender: "assistant",
-      text: answer,
+    conversation.push({
+      sender: "ai",
+      message: assistantReply,
       created_at: new Date().toISOString(),
-    };
-
-    const saved = await saveConversation([
-      ...conversation,
-      assistantMessage,
-    ]);
-
-    return NextResponse.json({
-      success: true,
-      saved,
-      fallback: false,
-      message: answer,
-      response: answer,
-      answer,
-      needsAdmin: false,
-      showAdminButton: false,
     });
-  } catch (error) {
-    console.error(
-      "Error en /api/support/chat:",
-      error
-    );
 
-    if (
-      error instanceof Error &&
-      error.name === "AbortError"
-    ) {
-      return jsonError(
-        "El asistente tardó demasiado en responder. Inténtalo de nuevo.",
-        504
-      );
+    let saved = false;
+
+    if (ticketId !== undefined && ticketId !== null) {
+      saved = await saveConversation(ticketId, conversation);
+
+      if (!saved) {
+        return NextResponse.json(
+          {
+            message: assistantReply,
+            response: assistantReply,
+            answer: assistantReply,
+            sender: "ai",
+            saved: false,
+            warning:
+              "La respuesta se generó, pero no se pudo guardar la conversación.",
+          },
+          { status: 200 }
+        );
+      }
     }
 
-    return jsonError(
-      "Ocurrió un error interno al procesar el mensaje.",
-      500
+    return NextResponse.json(
+      {
+        message: assistantReply,
+        response: assistantReply,
+        answer: assistantReply,
+        sender: "ai",
+        ticketId: ticketId ?? null,
+        saved,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("[support/chat] Error inesperado:", error);
+
+    return NextResponse.json(
+      {
+        error:
+          "Ocurrió un error interno al procesar tu mensaje. Inténtalo nuevamente.",
+      },
+      { status: 500 }
     );
   }
 }
