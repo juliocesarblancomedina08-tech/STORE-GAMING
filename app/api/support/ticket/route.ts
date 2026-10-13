@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
@@ -12,6 +11,8 @@ type SupportMessage = {
   text?: string;
   content?: string;
   message?: string;
+  created_at?: string;
+  createdAt?: string;
 };
 
 type SupportStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
@@ -20,6 +21,7 @@ type StoredMessage = {
   id: number | string;
   sender: "ai" | "user" | "admin";
   text: string;
+  created_at?: string;
 };
 
 const MAX_MESSAGES = 100;
@@ -77,79 +79,195 @@ function getMessageText(message: SupportMessage): string {
   const value =
     typeof message.text === "string"
       ? message.text
-      : typeof message.content === "string"
-        ? message.content
-        : typeof message.message === "string"
-          ? message.message
+      : typeof message.message === "string"
+        ? message.message
+        : typeof message.content === "string"
+          ? message.content
           : "";
 
   return value.trim().slice(0, MAX_MESSAGE_LENGTH);
+}
+
+function getMessageDate(
+  message: SupportMessage
+): string | undefined {
+  const value = message.created_at ?? message.createdAt;
+
+  if (typeof value !== "string" || !value.trim()) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? undefined
+    : date.toISOString();
+}
+
+/**
+ * Crea un identificador estable cuando el cliente no envía uno.
+ * Esto evita generar un ID diferente cada vez que se reenvía
+ * la conversación completa.
+ */
+function createStableMessageId(
+  sender: StoredMessage["sender"],
+  text: string,
+  createdAt?: string
+): string {
+  if (createdAt) {
+    return `${sender}-${createdAt}`;
+  }
+
+  let hash = 2166136261;
+  const value = `${sender}:${text}`;
+
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return `${sender}-${(hash >>> 0).toString(36)}`;
 }
 
 function normalizeMessages(
   messages: SupportMessage[],
   isAdmin: boolean
 ): StoredMessage[] {
-  return messages
-    .filter((message) => message && typeof message === "object")
-    .slice(-MAX_MESSAGES)
-    .map((message, index) => {
-      const text = getMessageText(message);
+  const normalized: StoredMessage[] = [];
 
-      let sender: StoredMessage["sender"] = "user";
+  for (const message of messages
+    .filter(
+      (item) => item && typeof item === "object"
+    )
+    .slice(-MAX_MESSAGES)) {
+    const text = getMessageText(message);
 
-      if (message.sender === "ai" || message.role === "assistant") {
-        sender = "ai";
-      } else if (
-        (message.sender === "admin" || message.role === "admin") &&
-        isAdmin
-      ) {
-        sender = "admin";
-      }
+    if (!text) continue;
 
-      const id =
-        typeof message.id === "string" ||
-        typeof message.id === "number"
+    let sender: StoredMessage["sender"] = "user";
+
+    if (
+      message.sender === "ai" ||
+      message.role === "assistant"
+    ) {
+      sender = "ai";
+    } else if (
+      isAdmin &&
+      (message.sender === "admin" ||
+        message.role === "admin")
+    ) {
+      sender = "admin";
+    }
+
+    const created_at = getMessageDate(message);
+
+    const id =
+      typeof message.id === "string" &&
+      message.id.trim()
+        ? message.id
+        : typeof message.id === "number"
           ? message.id
-          : `${Date.now()}-${index}`;
+          : createStableMessageId(
+              sender,
+              text,
+              created_at
+            );
 
-      return { id, sender, text };
-    })
-    .filter((message) => message.text.length > 0);
+    normalized.push({
+      id,
+      sender,
+      text,
+      ...(created_at ? { created_at } : {}),
+    });
+  }
+
+  // Evitar mensajes repetidos dentro de la misma petición.
+  const seen = new Set<string>();
+
+  return normalized.filter((message) => {
+    const key = `${message.sender}:${String(message.id)}`;
+
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeStoredConversation(
+  existing: unknown
+): StoredMessage[] {
+  if (!Array.isArray(existing)) return [];
+
+  const result: StoredMessage[] = [];
+
+  existing.forEach((item: any, index: number) => {
+    if (!item || typeof item !== "object") return;
+
+    const text =
+      typeof item.text === "string"
+        ? item.text
+        : typeof item.message === "string"
+          ? item.message
+          : typeof item.content === "string"
+            ? item.content
+            : "";
+
+    if (!text.trim()) return;
+
+    let sender: StoredMessage["sender"];
+
+    if (["user", "ai", "admin"].includes(item.sender)) {
+      sender = item.sender;
+    } else if (item.role === "assistant") {
+      sender = "ai";
+    } else if (
+      item.role === "user" ||
+      item.role === "admin"
+    ) {
+      sender = item.role;
+    } else {
+      sender = "user";
+    }
+
+    const created_at = getMessageDate(item);
+
+    const id =
+      typeof item.id === "string" ||
+      typeof item.id === "number"
+        ? item.id
+        : createStableMessageId(
+            sender,
+            text.trim(),
+            created_at
+          ) || `previous-${index}`;
+
+    result.push({
+      id,
+      sender,
+      text: text.trim().slice(0, MAX_MESSAGE_LENGTH),
+      ...(created_at ? { created_at } : {}),
+    });
+  });
+
+  return result.slice(-MAX_MESSAGES);
+}
+
+function messageKey(message: StoredMessage): string {
+  return `${message.sender}:${String(message.id)}`;
 }
 
 function mergeConversations(
   existing: unknown,
   incoming: StoredMessage[]
 ): StoredMessage[] {
-  const previous: StoredMessage[] = Array.isArray(existing)
-    ? existing
-        .filter(
-          (message: any) =>
-            message &&
-            typeof message.text === "string" &&
-            ["user", "ai", "admin"].includes(message.sender)
-        )
-        .map((message: any, index: number) => ({
-          id:
-            typeof message.id === "string" ||
-            typeof message.id === "number"
-              ? message.id
-              : `previous-${index}`,
-          sender: message.sender as StoredMessage["sender"],
-          text: message.text.slice(0, MAX_MESSAGE_LENGTH),
-        }))
-    : [];
-
+  const previous = normalizeStoredConversation(existing);
   const combined = [...previous];
-  const seen = new Set(
-    previous.map(
-      (message) => `${message.sender}:${String(message.id)}`
-    )
-  );
+
+  const seen = new Set(previous.map(messageKey));
 
   for (const message of incoming) {
-    const key = `${message.sender}:${String(message.id)}`;
+    const key = messageKey(message);
 
     if (!seen.has(key)) {
       combined.push(message);
@@ -210,7 +328,10 @@ async function notifyTelegram(text: string): Promise<void> {
       );
     }
   } catch (error) {
-    console.error("Error enviando notificación a Telegram:", error);
+    console.error(
+      "Error enviando notificación a Telegram:",
+      error
+    );
   }
 }
 
@@ -244,13 +365,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Verificar permisos desde la identidad autenticada.
+    // 2. Comprobar los permisos del usuario autenticado.
     const isAdmin = isSupportAdmin({
       id: user.id,
       email: user.email,
     });
 
-    // 3. Leer el cuerpo.
+    // 3. Leer y validar el cuerpo de la petición.
     let body: any;
 
     try {
@@ -265,9 +386,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "El contenido de la solicitud no es válido.",
+        },
+        { status: 400 }
+      );
+    }
+
     // 4. Validar el identificador del ticket.
-    // Se conserva como string para no alterar IDs UUID.
-    const rawTicketId = body?.ticketId;
+    const rawTicketId = body.ticketId;
     let ticketId: string | null = null;
 
     if (
@@ -292,49 +422,64 @@ export async function POST(request: NextRequest) {
       ticketId = String(rawTicketId).trim();
     }
 
-    // 5. Recibir los mensajes.
-    let rawMessages: SupportMessage[] = Array.isArray(body?.messages)
+    // 5. Aceptar tanto "messages" como "conversation".
+    let rawMessages: SupportMessage[] = Array.isArray(
+      body.messages
+    )
       ? body.messages
-      : Array.isArray(body?.conversation)
+      : Array.isArray(body.conversation)
         ? body.conversation
         : [];
 
+    // Compatibilidad con las peticiones que envían un solo mensaje.
     if (rawMessages.length === 0) {
-      const initialMessage =
-        typeof body?.message === "string"
+      const singleMessage =
+        typeof body.message === "string"
           ? body.message
-          : typeof body?.initialMessage === "string"
+          : typeof body.initialMessage === "string"
             ? body.initialMessage
-            : typeof body?.text === "string"
+            : typeof body.text === "string"
               ? body.text
               : "";
 
-      if (initialMessage.trim()) {
+      if (singleMessage.trim()) {
         rawMessages = [
           {
-            id: `message-${Date.now()}`,
+            id: `single-${Date.now()}`,
             sender: isAdmin ? "admin" : "user",
-            text: initialMessage.trim(),
+            text: singleMessage.trim(),
+            created_at: new Date().toISOString(),
           },
         ];
       }
     }
 
-    const incomingMessages = normalizeMessages(rawMessages, isAdmin);
+    const incomingMessages = normalizeMessages(
+      rawMessages,
+      isAdmin
+    );
 
-    const requestedStatus = normalizeStatus(body?.status);
+    const requestedStatus = normalizeStatus(body.status);
 
-    const category =
-      typeof body?.category === "string" && body.category.trim()
-        ? body.category.trim().slice(0, MAX_CATEGORY_LENGTH)
-        : "Otro/pregunta";
+    const categoryProvided =
+      typeof body.category === "string" &&
+      body.category.trim().length > 0;
 
-    const subject =
-      typeof body?.subject === "string" && body.subject.trim()
-        ? body.subject.trim().slice(0, MAX_SUBJECT_LENGTH)
-        : "Solicitud de soporte";
+    const subjectProvided =
+      typeof body.subject === "string" &&
+      body.subject.trim().length > 0;
 
-    const authenticatedUsername = getAuthenticatedUsername(user);
+    const category = categoryProvided
+      ? body.category.trim().slice(0, MAX_CATEGORY_LENGTH)
+      : "Otro/pregunta";
+
+    const subject = subjectProvided
+      ? body.subject.trim().slice(0, MAX_SUBJECT_LENGTH)
+      : "Solicitud de soporte";
+
+    const authenticatedUsername =
+      getAuthenticatedUsername(user);
+
     const authenticatedEmail = user.email || null;
 
     // 6. Actualizar un ticket existente.
@@ -351,7 +496,10 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (findError) {
-        console.error("Error buscando ticket:", findError.message);
+        console.error(
+          "Error buscando ticket:",
+          findError.message
+        );
 
         return NextResponse.json(
           {
@@ -372,7 +520,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Los clientes solo pueden acceder a sus propios tickets.
+      // Un cliente solo puede modificar sus propios tickets.
       if (!isAdmin && existingTicket.user_id !== user.id) {
         return NextResponse.json(
           {
@@ -383,8 +531,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Los clientes no pueden cambiar el estado ni escribir
-      // mensajes haciéndose pasar por el administrador.
+      // Los clientes no pueden cambiar el estado.
       if (!isAdmin && requestedStatus) {
         return NextResponse.json(
           {
@@ -395,9 +542,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Si la petición incluye una conversación completa,
+      // fusionarla con la guardada sin repetir mensajes conocidos.
+      const previousConversation =
+        normalizeStoredConversation(
+          existingTicket.conversation
+        );
+
+      const previousKeys = new Set(
+        previousConversation.map(messageKey)
+      );
+
       const conversation = mergeConversations(
-        existingTicket.conversation,
+        previousConversation,
         incomingMessages
+      );
+
+      const newMessages = incomingMessages.filter(
+        (message) => !previousKeys.has(messageKey(message))
       );
 
       let finalStatus: SupportStatus =
@@ -407,28 +569,52 @@ export async function POST(request: NextRequest) {
         finalStatus = requestedStatus;
       } else if (
         isAdmin &&
-        incomingMessages.some((message) => message.sender === "admin") &&
+        newMessages.some(
+          (message) => message.sender === "admin"
+        ) &&
         finalStatus !== "COMPLETED"
       ) {
         finalStatus = "IN_PROGRESS";
       }
 
-      const lastAdminMessage = [...incomingMessages]
+      // Identificar mensajes realmente nuevos para las notificaciones.
+      const lastNewAdminMessage = [...newMessages]
         .reverse()
         .find((message) => message.sender === "admin");
 
-      const lastUserMessage = [...incomingMessages]
+      const lastNewUserMessage = [...newMessages]
         .reverse()
         .find((message) => message.sender === "user");
 
-      // Un cambio de estado no necesita incluir mensajes nuevos.
-      if (incomingMessages.length === 0 && !requestedStatus) {
+      const statusChanged =
+        finalStatus !==
+        (normalizeStatus(existingTicket.status) || "PENDING");
+
+      if (
+        newMessages.length === 0 &&
+        !statusChanged &&
+        !requestedStatus &&
+        !(isAdmin && categoryProvided) &&
+        !(isAdmin && subjectProvided)
+      ) {
+        // No fallar si el cliente vuelve a enviar una conversación
+        // que ya está guardada: devolver el ticket existente.
         return NextResponse.json(
           {
-            success: false,
-            error: "Debes enviar un mensaje o un estado válido.",
+            success: true,
+            ticketId: existingTicket.id,
+            status: existingTicket.status,
+            updated_at: existingTicket.updated_at,
+            ticket: {
+              ...existingTicket,
+              conversation: previousConversation,
+            },
           },
-          { status: 400 }
+          {
+            headers: {
+              "Cache-Control": "no-store, max-age=0",
+            },
+          }
         );
       }
 
@@ -438,14 +624,23 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       };
 
-      // Solo el administrador puede editar categoría y asunto.
-      if (isAdmin) {
+      // IMPORTANTE:
+      // No reemplazar el asunto ni la categoría con valores
+      // predeterminados cuando el administrador solo responde
+      // o cambia el estado.
+      if (isAdmin && categoryProvided) {
         updatePayload.category = category;
+      }
+
+      if (isAdmin && subjectProvided) {
         updatePayload.subject = subject;
       }
 
-      if (lastUserMessage && !existingTicket.message) {
-        updatePayload.message = lastUserMessage.text;
+      if (
+        lastNewUserMessage &&
+        !existingTicket.message
+      ) {
+        updatePayload.message = lastNewUserMessage.text;
       }
 
       const {
@@ -475,14 +670,14 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (isAdmin && lastAdminMessage) {
+      if (isAdmin && lastNewAdminMessage) {
         await notifyTelegram(
           [
             "💬 RESPUESTA ADMINISTRATIVA",
             `🎫 Ticket: #${updatedTicket.id}`,
             `📌 Estado: ${updatedTicket.status}`,
             "",
-            lastAdminMessage.text,
+            lastNewAdminMessage.text,
           ].join("\n")
         );
       }
@@ -493,16 +688,23 @@ export async function POST(request: NextRequest) {
           ticketId: updatedTicket.id,
           status: updatedTicket.status,
           updated_at: updatedTicket.updated_at,
-          ticket: updatedTicket,
+          ticket: {
+            ...updatedTicket,
+            conversation: normalizeStoredConversation(
+              updatedTicket.conversation
+            ),
+          },
         },
         {
-          headers: { "Cache-Control": "no-store, max-age=0" },
+          headers: {
+            "Cache-Control": "no-store, max-age=0",
+          },
         }
       );
     }
 
-    // 7. Crear un ticket nuevo para el usuario autenticado.
-    // No se confía en user_id, email ni username enviados por el navegador.
+    // 7. Crear un ticket nuevo.
+    // La identidad se obtiene de la sesión, no del navegador.
     if (incomingMessages.length === 0) {
       return NextResponse.json(
         {
@@ -513,7 +715,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (isAdmin && incomingMessages.every((m) => m.sender === "admin")) {
+    if (
+      isAdmin &&
+      incomingMessages.every(
+        (message) => message.sender === "admin"
+      )
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -524,7 +731,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const conversation = mergeConversations([], incomingMessages);
+    const conversation = mergeConversations(
+      [],
+      incomingMessages
+    );
 
     const firstUserMessage = incomingMessages.find(
       (message) => message.sender === "user"
@@ -561,7 +771,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (ticketError || !ticket) {
-      console.error("Error creando ticket:", ticketError?.message);
+      console.error(
+        "Error creando ticket:",
+        ticketError?.message
+      );
 
       return NextResponse.json(
         {
@@ -572,7 +785,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 8. Notificar al administrador por Telegram, si está configurado.
+    // 8. Notificar al administrador por Telegram.
     await notifyTelegram(
       [
         "🆘 NUEVO TICKET DE SOPORTE",
@@ -598,19 +811,30 @@ export async function POST(request: NextRequest) {
         status: ticket.status,
         updated_at: ticket.updated_at,
         message: "Tu solicitud fue enviada al administrador.",
-        ticket,
+        ticket: {
+          ...ticket,
+          conversation: normalizeStoredConversation(
+            ticket.conversation
+          ),
+        },
       },
       {
-        headers: { "Cache-Control": "no-store, max-age=0" },
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
       }
     );
   } catch (error) {
-    console.error("Error en /api/support/ticket:", error);
+    console.error(
+      "Error en /api/support/ticket:",
+      error
+    );
 
     return NextResponse.json(
       {
         success: false,
-        error: "Ocurrió un error al procesar la solicitud de soporte.",
+        error:
+          "Ocurrió un error al procesar la solicitud de soporte.",
       },
       { status: 500 }
     );
