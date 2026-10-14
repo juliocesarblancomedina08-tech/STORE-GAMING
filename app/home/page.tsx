@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
@@ -728,7 +729,6 @@ export default function HomePage() {
                 <span className="menu-arrow">›</span>
               </button>
 
-              {/* NUEVO ACCESO A AJUSTES */}
               <button
                 type="button"
                 className="side-menu-item"
@@ -1136,6 +1136,122 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ANUNCIO DE REFERIDOS */}
+
+      <section
+        aria-label="Programa de referidos"
+        style={{
+          maxWidth: "1100px",
+          margin: "18px auto",
+          padding: "0 10px",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            minHeight: "210px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            gap: "14px",
+            padding: "24px 20px",
+            borderRadius: "18px",
+            border: "1px solid rgba(255,255,255,.16)",
+            background:
+              "linear-gradient(90deg,rgba(5,8,16,.94),rgba(5,8,16,.65)), url('/referidos-banner.jpg') center / cover no-repeat",
+            boxShadow: "0 12px 30px rgba(0,0,0,.3)",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              maxWidth: "620px",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                padding: "6px 10px",
+                borderRadius: "20px",
+                background: "rgba(34,197,94,.16)",
+                border: "1px solid rgba(74,222,128,.4)",
+                color: "#86efac",
+                fontSize: "10px",
+                fontWeight: 900,
+                letterSpacing: "1px",
+                marginBottom: "12px",
+              }}
+            >
+              🎁 PROGRAMA DE REFERIDOS
+            </span>
+
+            <h2
+              style={{
+                margin: "0 0 8px",
+                color: "#fff",
+                fontSize: "clamp(25px,5vw,36px)",
+                fontWeight: 1000,
+                lineHeight: 1.15,
+                textShadow: "0 2px 12px rgba(0,0,0,.5)",
+              }}
+            >
+              ¡INVITA Y GANA!
+            </h2>
+
+            <p
+              style={{
+                margin: "0 0 8px",
+                color: "#86efac",
+                fontSize: "clamp(14px,3vw,19px)",
+                fontWeight: 900,
+              }}
+            >
+              GANA 0.10 POR CADA AMIGO
+            </p>
+
+            <p
+              style={{
+                margin: "0 0 18px",
+                color: "#f3f4f6",
+                fontSize: "12px",
+                lineHeight: 1.7,
+                maxWidth: "480px",
+              }}
+            >
+              Comparte tu enlace de STORE GAMING. Cuando tu referido
+              complete su primera compra válida, recibirás 0.10 de saldo
+              en tu billetera.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => goTo("/referidos")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                width: "100%",
+                maxWidth: "280px",
+                padding: "13px 18px",
+                border: "1px solid rgba(134,239,172,.5)",
+                borderRadius: "10px",
+                background: "linear-gradient(135deg,#22c55e,#15803d)",
+                color: "#fff",
+                fontSize: "12px",
+                fontWeight: 900,
+                cursor: "pointer",
+                boxShadow: "0 5px 18px rgba(22,163,74,.25)",
+              }}
+            >
+              👥 VER MIS REFERIDOS <span>→</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* SERVICIOS */}
 
       <section
@@ -1260,7 +1376,6 @@ export default function HomePage() {
             <span style={cardArrow}>›</span>
           </button>
 
-          {/* NUEVA TARJETA DE AJUSTES */}
           <button
             type="button"
             style={cardStyle}
