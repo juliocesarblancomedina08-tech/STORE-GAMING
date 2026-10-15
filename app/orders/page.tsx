@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -18,9 +19,6 @@ type TopupOrderRow = {
   supplier_price: number | string;
   currency: string;
   status: string;
-  canonical_status?: string | null;
-  status_label?: string | null;
-  status_icon?: string | null;
   supplier_order_id: string | null;
   supplier_fields: Record<string, unknown> | null;
   supplier_response: Record<string, unknown> | null;
@@ -64,196 +62,49 @@ type Filter =
  * ============================================================
  * IMÁGENES DE LOS JUEGOS
  * ============================================================
- *
- * Estas rutas corresponden a las imágenes que están dentro de:
- *
- * public/images/
- *
- * IMPORTANTE:
- * Battle Royale NO se utiliza como imagen de ningún juego.
- * Solamente queda como imagen de respaldo si aparece una
- * categoría desconocida.
  */
 
 const GAME_IMAGES: Record<string, string> = {
-  /*
-   * BLOOD STRIKE
-   */
-  blood_strike:
-    "/images/blood-strike.jpg",
-
-  /*
-   * FREE FIRE
-   */
-  free_fire_latam:
-    "/images/free-fire-latam.jpg",
-
-  free_fire:
-    "/images/free-fire-latam.jpg",
-
-  /*
-   * MOBILE LEGENDS
-   */
-  mobile_legends_united_states:
-    "/images/mobile-legends.jpg",
-
-  mobile_legends:
-    "/images/mobile-legends.jpg",
-
-  /*
-   * DELTA FORCE
-   */
-  delta_force:
-    "/images/delta-force.jpg",
-
-  /*
-   * EA FC MOBILE
-   */
-  eafc_mobile_id:
-    "/images/fc-mobile.jpg",
-
-  fc_mobile:
-    "/images/fc-mobile.jpg",
-
-  /*
-   * CALL OF DUTY MOBILE
-   *
-   * El nombre real del archivo en GitHub es:
-   * call-of-duty-mobile.jpg
-   */
-  codm_activision_us:
-    "/images/call-of-duty-mobile.jpg",
-
-  call_of_duty_mobile:
-    "/images/call-of-duty-mobile.jpg",
-
-  call_of_duty:
-    "/images/call-of-duty-mobile.jpg",
-
-  cod_mobile:
-    "/images/call-of-duty-mobile.jpg",
-
-  /*
-   * HONOR OF KINGS
-   */
-  honor_of_kings:
-    "/images/honor-of-kings.jpg",
-
-  honor_of_kings_global:
-    "/images/honor-of-kings.jpg",
-
-  /*
-   * LEAGUE OF LEGENDS
-   */
-  league_of_legends:
-    "/images/league-of-legends.jpg",
-
-  lol:
-    "/images/league-of-legends.jpg",
-
-  /*
-   * MODERN WARSHIPS
-   */
-  modern_warships:
-    "/images/modern-warships.jpg",
-
-  /*
-   * SAUSAGE MAN
-   */
-  sausage_man:
-    "/images/sausage-man.jpg",
-
-  /*
-   * ARENA BREAKOUT
-   */
-  arena_breakout:
-    "/images/arena-breakout.jpg",
-
-  arena_breakout_global:
-    "/images/arena-breakout.jpg",
-
-  /*
-   * TELEGRAM STARS
-   *
-   * Se mantiene porque ya estaba configurado en el proyecto.
-   * Si esta imagen existe en public/images, se utilizará.
-   */
-  telegram_stars:
-    "/images/telegram-stars.jpg",
+  blood_strike: "/images/blood-strike.jpg",
+  free_fire_latam: "/images/free-fire-latam.jpg",
+  free_fire: "/images/free-fire-latam.jpg",
+  mobile_legends_united_states: "/images/mobile-legends.jpg",
+  mobile_legends: "/images/mobile-legends.jpg",
+  delta_force: "/images/delta-force.jpg",
+  eafc_mobile_id: "/images/fc-mobile.jpg",
+  fc_mobile: "/images/fc-mobile.jpg",
+  codm_activision_us: "/images/call-of-duty-mobile.jpg",
+  call_of_duty_mobile: "/images/call-of-duty-mobile.jpg",
+  call_of_duty: "/images/call-of-duty-mobile.jpg",
+  cod_mobile: "/images/call-of-duty-mobile.jpg",
+  honor_of_kings: "/images/honor-of-kings.jpg",
+  honor_of_kings_global: "/images/honor-of-kings.jpg",
+  league_of_legends: "/images/league-of-legends.jpg",
+  lol: "/images/league-of-legends.jpg",
+  modern_warships: "/images/modern-warships.jpg",
+  sausage_man: "/images/sausage-man.jpg",
+  arena_breakout: "/images/arena-breakout.jpg",
+  arena_breakout_global: "/images/arena-breakout.jpg",
+  telegram_stars: "/images/telegram-stars.jpg",
 };
 
-/*
- * Imagen de respaldo.
- *
- * Battle Royale queda únicamente como respaldo para una
- * categoría que todavía no esté registrada.
- *
- * NO se utiliza para Blood Strike ni para los juegos
- * registrados arriba.
- */
-const DEFAULT_GAME_IMAGE =
-  "/images/battle-royale-bg.jpg";
+const DEFAULT_GAME_IMAGE = "/images/battle-royale-bg.jpg";
 
-/*
- * ============================================================
- * OBTENER IMAGEN DEL JUEGO
- * ============================================================
- */
-
-function getGameImage(
-  categoryId: string,
-  game: string
-): string {
-  /*
-   * Primero buscamos directamente por category_id.
-   *
-   * Ejemplo:
-   *
-   * blood_strike
-   * ↓
-   * /images/blood-strike.jpg
-   */
-
-  const directImage =
-    GAME_IMAGES[categoryId];
+function getGameImage(categoryId: string, game: string): string {
+  const directImage = GAME_IMAGES[categoryId];
 
   if (directImage) {
     return directImage;
   }
 
-  /*
-   * Si no encontramos el category_id,
-   * intentamos identificar el juego por su nombre.
-   */
+  const normalized = game
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
-  const normalized =
-    game
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(
-        /[\u0300-\u036f]/g,
-        ""
-      );
-
-  /*
-   * ==========================================================
-   * BLOOD STRIKE
-   * ==========================================================
-   */
-
-  if (
-    normalized.includes(
-      "blood strike"
-    )
-  ) {
+  if (normalized.includes("blood strike")) {
     return "/images/blood-strike.jpg";
   }
-
-  /*
-   * ==========================================================
-   * FREE FIRE
-   * ==========================================================
-   */
 
   if (
     normalized.includes("free") &&
@@ -262,176 +113,76 @@ function getGameImage(
     return "/images/free-fire-latam.jpg";
   }
 
-  /*
-   * ==========================================================
-   * MOBILE LEGENDS
-   * ==========================================================
-   */
-
-  if (
-    normalized.includes(
-      "mobile legends"
-    )
-  ) {
+  if (normalized.includes("mobile legends")) {
     return "/images/mobile-legends.jpg";
   }
 
-  /*
-   * ==========================================================
-   * DELTA FORCE
-   * ==========================================================
-   */
-
-  if (
-    normalized.includes(
-      "delta force"
-    )
-  ) {
+  if (normalized.includes("delta force")) {
     return "/images/delta-force.jpg";
   }
 
-  /*
-   * ==========================================================
-   * EA FC MOBILE
-   * ==========================================================
-   */
-
   if (
-    normalized.includes(
-      "fc mobile"
-    ) ||
-    normalized.includes(
-      "eafc mobile"
-    ) ||
-    normalized.includes(
-      "ea fc"
-    )
+    normalized.includes("fc mobile") ||
+    normalized.includes("eafc mobile") ||
+    normalized.includes("ea fc")
   ) {
     return "/images/fc-mobile.jpg";
   }
 
-  /*
-   * ==========================================================
-   * CALL OF DUTY MOBILE
-   * ==========================================================
-   */
-
   if (
-    normalized.includes(
-      "call of duty"
-    ) ||
-    normalized.includes(
-      "cod mobile"
-    ) ||
-    normalized.includes(
-      "codm"
-    )
+    normalized.includes("call of duty") ||
+    normalized.includes("cod mobile") ||
+    normalized.includes("codm")
   ) {
     return "/images/call-of-duty-mobile.jpg";
   }
 
-  /*
-   * ==========================================================
-   * HONOR OF KINGS
-   * ==========================================================
-   */
-
-  if (
-    normalized.includes(
-      "honor of kings"
-    )
-  ) {
+  if (normalized.includes("honor of kings")) {
     return "/images/honor-of-kings.jpg";
   }
 
-  /*
-   * ==========================================================
-   * LEAGUE OF LEGENDS
-   * ==========================================================
-   */
-
   if (
-    normalized.includes(
-      "league of legends"
-    ) ||
+    normalized.includes("league of legends") ||
     normalized === "lol"
   ) {
     return "/images/league-of-legends.jpg";
   }
 
-  /*
-   * ==========================================================
-   * MODERN WARSHIPS
-   * ==========================================================
-   */
-
-  if (
-    normalized.includes(
-      "modern warships"
-    )
-  ) {
+  if (normalized.includes("modern warships")) {
     return "/images/modern-warships.jpg";
   }
 
-  /*
-   * ==========================================================
-   * SAUSAGE MAN
-   * ==========================================================
-   */
-
-  if (
-    normalized.includes(
-      "sausage man"
-    )
-  ) {
+  if (normalized.includes("sausage man")) {
     return "/images/sausage-man.jpg";
   }
 
-  /*
-   * ==========================================================
-   * ARENA BREAKOUT
-   * ==========================================================
-   */
-
-  if (
-    normalized.includes(
-      "arena breakout"
-    )
-  ) {
+  if (normalized.includes("arena breakout")) {
     return "/images/arena-breakout.jpg";
   }
 
-  /*
-   * ==========================================================
-   * TELEGRAM
-   * ==========================================================
-   */
-
   if (
-    normalized.includes(
-      "telegram"
-    ) ||
-    normalized.includes(
-      "stars"
-    )
+    normalized.includes("telegram") ||
+    normalized.includes("stars")
   ) {
     return "/images/telegram-stars.jpg";
   }
 
-  /*
-   * ==========================================================
-   * RESPALDO
-   * ==========================================================
-   *
-   * Solamente se llega aquí si aparece un juego nuevo
-   * que todavía no hemos registrado.
-   */
-
   return DEFAULT_GAME_IMAGE;
 }
 
+/*
+ * ============================================================
+ * ESTADOS Y ETIQUETAS
+ * ============================================================
+ */
+
+function normalizeStatus(status: string | null | undefined): string {
+  return String(status || "PENDING").trim().toUpperCase();
+}
+
 function getOrderStatusLabel(status: string | null | undefined): string {
-  const normalized = String(status || "PENDING").trim().toUpperCase();
+  const normalized = normalizeStatus(status);
+
   const labels: Record<string, string> = {
     RESERVED: "Procesando",
     PENDING: "Pendiente",
@@ -445,11 +196,13 @@ function getOrderStatusLabel(status: string | null | undefined): string {
     CANCELLED: "Cancelado",
     CANCELED: "Cancelado",
   };
+
   return labels[normalized] || normalized.replaceAll("_", " ");
 }
 
 function getOrderStatusIcon(status: string | null | undefined): string {
-  const normalized = String(status || "PENDING").trim().toUpperCase();
+  const normalized = normalizeStatus(status);
+
   const icons: Record<string, string> = {
     RESERVED: "🕜",
     PENDING: "🕜",
@@ -463,48 +216,40 @@ function getOrderStatusIcon(status: string | null | undefined): string {
     CANCELLED: "🚫",
     CANCELED: "🚫",
   };
+
   return icons[normalized] || "🕜";
 }
 
 export default function OrdersPage() {
   const router = useRouter();
 
-  const [orders, setOrders] =
-    useState<Order[]>([]);
-
-  const [filter, setFilter] =
-    useState<Filter>("TODAS");
-
-  const [loading, setLoading] =
-    useState(true);
-
-  /*
-   * Esta variable sirve para entrar
-   * a una pantalla exclusiva de la orden.
-   */
-  const [selectedOrder, setSelectedOrder] =
-    useState<Order | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [filter, setFilter] = useState<Filter>("TODAS");
+  const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   /*
    * ============================================================
-   * CARGAR ÓRDENES
+   * CARGAR Y ACTUALIZAR ÓRDENES
    * ============================================================
    */
 
   useEffect(() => {
     let mounted = true;
+    let loadingOrders = false;
 
     async function loadOrders() {
+      if (loadingOrders || !mounted) return;
+
+      loadingOrders = true;
+
       try {
         const {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
 
-        if (
-          sessionError ||
-          !session?.user
-        ) {
+        if (sessionError || !session?.user) {
           if (mounted) {
             setLoading(false);
             router.replace("/login");
@@ -513,202 +258,139 @@ export default function OrdersPage() {
           return;
         }
 
-        const userId =
-          session.user.id;
-
-        const { data, error } =
-          await supabase
-            .from("topup_orders")
-            .select(
-              `
-                id,
-                user_id,
-                username,
-                email,
-                game,
-                category_id,
-                offer_id,
-                offer_name,
-                player_id,
-                retail_price,
-                supplier_price,
-                currency,
-                status,
-                supplier_order_id,
-                supplier_fields,
-                supplier_response,
-                refunded_at,
-                completed_at,
-                failed_at,
-                created_at,
-                updated_at
-              `
-            )
-            .eq(
-              "user_id",
-              userId
-            )
-            .order(
-              "created_at",
-              {
-                ascending: false,
-              }
-            );
+        const { data, error } = await supabase
+          .from("topup_orders")
+          .select(`
+            id,
+            user_id,
+            username,
+            email,
+            game,
+            category_id,
+            offer_id,
+            offer_name,
+            player_id,
+            retail_price,
+            supplier_price,
+            currency,
+            status,
+            supplier_order_id,
+            supplier_fields,
+            supplier_response,
+            refunded_at,
+            completed_at,
+            failed_at,
+            created_at,
+            updated_at
+          `)
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false });
 
         if (error) {
-          console.error(
-            "ERROR CARGANDO ÓRDENES:",
-            error
-          );
+          console.error("ERROR CARGANDO ÓRDENES:", error);
 
           if (mounted) {
-            setOrders([]);
             setLoading(false);
           }
 
           return;
         }
 
-        const rows =
-          (data ||
-            []) as TopupOrderRow[];
+        const rows = (data || []) as TopupOrderRow[];
 
-        const mappedOrders: Order[] =
-          rows.map((row) => {
-            const fields =
-              row.supplier_fields ||
-              {};
+        const mappedOrders: Order[] = rows.map((row) => {
+          const fields = row.supplier_fields || {};
 
-            /*
-             * Mobile Legends utiliza server_id.
-             *
-             * Dejamos compatibilidad con:
-             * server_id
-             * id_servidor
-             * serverId
-             */
+          const serverIdValue =
+            fields.server_id ??
+            fields.id_servidor ??
+            fields.serverId;
 
-            const serverIdValue =
-              fields.server_id ??
-              fields.id_servidor ??
-              fields.serverId;
+          const realStatus = normalizeStatus(row.status);
 
-            /*
-             * OBTENEMOS LA IMAGEN REAL
-             * DEL JUEGO.
-             */
+          return {
+            id: row.id,
+            user_id: row.user_id,
+            email: row.email || undefined,
+            username: row.username || undefined,
+            game: row.game,
+            categoryId: row.category_id,
+            product: row.offer_name,
+            displayProduct: row.offer_name,
+            price: Number(row.retail_price) || 0,
+            total: Number(row.retail_price) || 0,
+            playerId: row.player_id,
 
-            const gameImage =
-              getGameImage(
-                row.category_id,
-                row.game
-              );
+            serverId:
+              serverIdValue !== undefined &&
+              serverIdValue !== null
+                ? String(serverIdValue)
+                : undefined,
 
-            return {
-              id: row.id,
+            // El estado actual de la base de datos es la referencia.
+            status: realStatus,
+            canonicalStatus: realStatus,
+            statusLabel: getOrderStatusLabel(realStatus),
+            statusIcon: getOrderStatusIcon(realStatus),
 
-              user_id:
-                row.user_id,
-
-              email:
-                row.email ||
-                undefined,
-
-              username:
-                row.username ||
-                undefined,
-
-              game:
-                row.game,
-
-              categoryId:
-                row.category_id,
-
-              product:
-                row.offer_name,
-
-              displayProduct:
-                row.offer_name,
-
-              price:
-                Number(
-                  row.retail_price
-                ) || 0,
-
-              total:
-                Number(
-                  row.retail_price
-                ) || 0,
-
-              playerId:
-                row.player_id,
-
-              serverId:
-                serverIdValue !==
-                  undefined &&
-                serverIdValue !==
-                  null
-                  ? String(
-                      serverIdValue
-                    )
-                  : undefined,
-
-              status:
-                row.status,
-
-              canonicalStatus:
-                row.canonical_status || row.status || "PENDING",
-
-              statusLabel:
-                row.status_label || getOrderStatusLabel(row.canonical_status || row.status),
-
-              statusIcon:
-                row.status_icon || getOrderStatusIcon(row.canonical_status || row.status),
-
-              createdAt:
-                row.created_at,
-
-              supplierOrderId:
-                row.supplier_order_id ||
-                undefined,
-
-              currency:
-                row.currency ||
-                "USD",
-
-              /*
-               * AQUÍ SE GUARDA LA FOTO
-               * ESPECÍFICA DEL JUEGO.
-               */
-              image:
-                gameImage,
-            };
-          });
+            createdAt: row.created_at,
+            supplierOrderId: row.supplier_order_id || undefined,
+            currency: row.currency || "USD",
+            image: getGameImage(row.category_id, row.game),
+          };
+        });
 
         if (mounted) {
-          setOrders(
-            mappedOrders
-          );
+          setOrders(mappedOrders);
+
+          // Actualizar también los detalles si una orden está abierta.
+          setSelectedOrder((current) => {
+            if (!current) return null;
+
+            return (
+              mappedOrders.find((order) => order.id === current.id) ||
+              current
+            );
+          });
 
           setLoading(false);
         }
       } catch (error) {
-        console.error(
-          "ERROR INESPERADO CARGANDO ÓRDENES:",
-          error
-        );
+        console.error("ERROR INESPERADO CARGANDO ÓRDENES:", error);
 
         if (mounted) {
-          setOrders([]);
           setLoading(false);
         }
+      } finally {
+        loadingOrders = false;
       }
     }
 
     loadOrders();
 
+    // Consultar estados nuevos cada 15 segundos.
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadOrders();
+      }
+    }, 15000);
+
+    // Actualizar al volver a la pestaña.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadOrders();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       mounted = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
     };
   }, [router]);
 
@@ -718,19 +400,12 @@ export default function OrdersPage() {
    * ============================================================
    */
 
-  function normalizeStatus(status: string) {
-    return String(status || "").trim().toUpperCase();
-  }
-
   function getCanonicalStatus(order: Order) {
-    return normalizeStatus(
-      order.canonicalStatus || order.status
-    );
+    return normalizeStatus(order.status);
   }
 
   function isCompleted(status: string) {
-    const normalized = normalizeStatus(status);
-    return normalized === "COMPLETED";
+    return normalizeStatus(status) === "COMPLETED";
   }
 
   function isConfirmed(status: string) {
@@ -738,7 +413,8 @@ export default function OrdersPage() {
   }
 
   function isCancelled(status: string) {
-    return normalizeStatus(status) === "CANCELLED";
+    const normalized = normalizeStatus(status);
+    return normalized === "CANCELLED" || normalized === "CANCELED";
   }
 
   function isFailed(status: string) {
@@ -746,64 +422,66 @@ export default function OrdersPage() {
   }
 
   function isRefunded(status: string) {
-    return normalizeStatus(status) === "REFUNDED";
+    const normalized = normalizeStatus(status);
+    return normalized === "REFUNDED" || normalized === "REFUND";
   }
 
   function isProcessing(status: string) {
-    return normalizeStatus(status) === "PROCESSING";
+    const normalized = normalizeStatus(status);
+    return normalized === "PROCESSING" || normalized === "RESERVED";
   }
 
   function isPending(status: string) {
-    return normalizeStatus(status) === "PENDING";
+    const normalized = normalizeStatus(status);
+    return normalized === "PENDING" || normalized === "SUPPLIER_PENDING";
   }
 
   function isCancelledOrFailed(status: string) {
-    return isCancelled(status) || isFailed(status);
+    return (
+      isCancelled(status) ||
+      isFailed(status) ||
+      isRefunded(status)
+    );
   }
 
   function getStatusClass(order: Order) {
     const status = getCanonicalStatus(order);
 
     if (status === "COMPLETED") return "status-completed";
-    if (status === "REFUNDED") return "status-refunded";
-    if (status === "CANCELLED") return "status-cancelled";
+    if (isRefunded(status)) return "status-refunded";
+    if (isCancelled(status)) return "status-cancelled";
     if (status === "FAILED") return "status-failed";
-    if (status === "PROCESSING") return "status-processing";
+    if (isProcessing(status)) return "status-processing";
     if (status === "CONFIRMED") return "status-confirmed";
+
     return "status-pending";
   }
 
   function getStatusText(order: Order) {
     const status = getCanonicalStatus(order);
 
-    // Los dos estados se muestran al cliente simplemente como "Pendiente".
-    if (status === "PENDING" || status === "SUPPLIER_PENDING") {
-      return "PENDIENTE";
-    }
+    if (isPending(status)) return "PENDIENTE";
+    if (isRefunded(status)) return "REEMBOLSADO";
 
-    return (
-      order.statusLabel ||
-      "Pendiente"
-    ).toUpperCase();
+    return (order.statusLabel || getOrderStatusLabel(status)).toUpperCase();
   }
 
   function getStatusIcon(order: Order) {
-    return order.statusIcon || "🕜";
+    return getOrderStatusIcon(getCanonicalStatus(order));
   }
 
   function isClockStatus(order: Order) {
     const status = getCanonicalStatus(order);
+
     return (
-      status === "PENDING" ||
-      status === "SUPPLIER_PENDING" ||
-      status === "PROCESSING" ||
+      isPending(status) ||
+      isProcessing(status) ||
       status === "CONFIRMED"
     );
   }
 
   function isAnimatedPending(order: Order) {
-    const status = getCanonicalStatus(order);
-    return status === "PENDING" || status === "SUPPLIER_PENDING";
+    return isPending(getCanonicalStatus(order));
   }
 
   function renderStatusIcon(order: Order) {
@@ -825,22 +503,15 @@ export default function OrdersPage() {
    * ============================================================
    */
 
-  function formatDate(
-    date: string
-  ) {
+  function formatDate(date: string) {
     try {
-      return new Date(
-        date
-      ).toLocaleString(
-        "es-ES",
-        {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        }
-      );
+      return new Date(date).toLocaleString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch {
       return date;
     }
@@ -852,56 +523,37 @@ export default function OrdersPage() {
    * ============================================================
    */
 
-  const filteredOrders =
-    useMemo(() => {
-      if (
-        filter ===
-        "TODAS"
-      ) {
-        return orders;
-      }
-
-      if (
-        filter ===
-        "PENDIENTES"
-      ) {
-        return orders.filter(
-          (order) =>
-            isPending(getCanonicalStatus(order)) ||
-            isProcessing(getCanonicalStatus(order)) ||
-            isConfirmed(getCanonicalStatus(order))
-        );
-      }
-
-      if (
-        filter ===
-        "COMPLETADAS"
-      ) {
-        return orders.filter(
-          (order) =>
-            isCompleted(
-              getCanonicalStatus(order)
-            )
-        );
-      }
-
-      if (
-        filter ===
-        "CANCELADAS"
-      ) {
-        return orders.filter(
-          (order) =>
-            isCancelledOrFailed(
-              getCanonicalStatus(order)
-            )
-        );
-      }
-
+  const filteredOrders = useMemo(() => {
+    if (filter === "TODAS") {
       return orders;
-    }, [
-      orders,
-      filter,
-    ]);
+    }
+
+    if (filter === "PENDIENTES") {
+      return orders.filter((order) => {
+        const status = getCanonicalStatus(order);
+
+        return (
+          isPending(status) ||
+          isProcessing(status) ||
+          isConfirmed(status)
+        );
+      });
+    }
+
+    if (filter === "COMPLETADAS") {
+      return orders.filter((order) =>
+        isCompleted(getCanonicalStatus(order))
+      );
+    }
+
+    if (filter === "CANCELADAS") {
+      return orders.filter((order) =>
+        isCancelledOrFailed(getCanonicalStatus(order))
+      );
+    }
+
+    return orders;
+  }, [orders, filter]);
 
   /*
    * ============================================================
@@ -909,62 +561,41 @@ export default function OrdersPage() {
    * ============================================================
    */
 
-  const totalOrders =
-    orders.length;
+  const totalOrders = orders.length;
 
-  const totalAmount =
-    orders.reduce(
-      (
-        sum,
-        order
-      ) =>
-        sum +
-        (Number(
-          order.total
-        ) ||
-          Number(
-            order.price
-          ) ||
-          0),
-      0
+  const totalAmount = orders.reduce(
+    (sum, order) =>
+      sum +
+      (Number(order.total) || Number(order.price) || 0),
+    0
+  );
+
+  const completedOrders = orders.filter((order) =>
+    isCompleted(getCanonicalStatus(order))
+  ).length;
+
+  const pendingOrders = orders.filter((order) => {
+    const status = getCanonicalStatus(order);
+
+    return (
+      isPending(status) ||
+      isProcessing(status) ||
+      isConfirmed(status)
     );
+  }).length;
 
-  const completedOrders =
-    orders.filter(
-      (order) =>
-        isCompleted(
-          getCanonicalStatus(order)
-        )
-    ).length;
-
-  const pendingOrders =
-    orders.filter(
-      (order) =>
-        isPending(getCanonicalStatus(order)) ||
-        isProcessing(getCanonicalStatus(order)) ||
-        isConfirmed(getCanonicalStatus(order))
-    ).length;
-
-  const cancelledOrders =
-    orders.filter(
-      (order) =>
-        isCancelledOrFailed(
-          getCanonicalStatus(order)
-        )
-    ).length;
+  const cancelledOrders = orders.filter((order) =>
+    isCancelledOrFailed(getCanonicalStatus(order))
+  ).length;
 
   /*
    * ============================================================
-   * ABRIR ORDEN
+   * ABRIR Y CERRAR ORDEN
    * ============================================================
    */
 
-  function openOrder(
-    order: Order
-  ) {
-    setSelectedOrder(
-      order
-    );
+  function openOrder(order: Order) {
+    setSelectedOrder(order);
 
     window.scrollTo({
       top: 0,
@@ -972,16 +603,8 @@ export default function OrdersPage() {
     });
   }
 
-  /*
-   * ============================================================
-   * REGRESAR AL HISTORIAL
-   * ============================================================
-   */
-
   function closeOrder() {
-    setSelectedOrder(
-      null
-    );
+    setSelectedOrder(null);
 
     window.scrollTo({
       top: 0,
@@ -999,19 +622,11 @@ export default function OrdersPage() {
     return (
       <main className="orders-page">
         <div className="orders-loading">
+          <div className="orders-loading-spinner">⏳</div>
 
-          <div className="orders-loading-spinner">
-            ⏳
-          </div>
+          <strong>CARGANDO TUS ÓRDENES...</strong>
 
-          <strong>
-            CARGANDO TUS ÓRDENES...
-          </strong>
-
-          <span>
-            Un momento por favor
-          </span>
-
+          <span>Un momento por favor</span>
         </div>
       </main>
     );
@@ -1023,122 +638,44 @@ export default function OrdersPage() {
    * ============================================================
    */
 
-  if (
-    selectedOrder
-  ) {
+  if (selectedOrder) {
     return (
-      <main
-        className="
-          orders-page
-          order-detail-page
-        "
-      >
-
-        <section
-          className="
-            order-detail-screen
-          "
-        >
-
-          {/* ==================================================
-              ENCABEZADO DE LA COMPRA
-              ================================================== */}
-
-          <header
-            className="
-              order-detail-screen-header
-            "
-          >
-
+      <main className="orders-page order-detail-page">
+        <section className="order-detail-screen">
+          <header className="order-detail-screen-header">
             <button
               type="button"
-              className="
-                order-detail-back
-              "
-              onClick={
-                closeOrder
-              }
-              aria-label="
-                Regresar al historial
-              "
+              className="order-detail-back"
+              onClick={closeOrder}
+              aria-label="Regresar al historial"
             >
               ←
             </button>
 
-            <div
-              className="
-                order-detail-game-image
-              "
-            >
+            <div className="order-detail-game-image">
               <img
-                src={
-                  selectedOrder.image
-                }
-                alt={
-                  selectedOrder.game
-                }
-                onError={(
-                  event
-                ) => {
-                  const image =
-                    event.currentTarget;
+                src={selectedOrder.image}
+                alt={selectedOrder.game}
+                onError={(event) => {
+                  const image = event.currentTarget;
 
-                  if (
-                    image.src.endsWith(
-                      DEFAULT_GAME_IMAGE
-                    )
-                  ) {
-                    return;
-                  }
+                  if (image.src.endsWith(DEFAULT_GAME_IMAGE)) return;
 
-                  image.src =
-                    DEFAULT_GAME_IMAGE;
+                  image.src = DEFAULT_GAME_IMAGE;
                 }}
               />
             </div>
 
-            <div
-              className="
-                order-detail-heading
-              "
-            >
+            <div className="order-detail-heading">
+              <strong>DETALLES DE LA COMPRA</strong>
 
-              <strong>
-                DETALLES DE LA COMPRA
-              </strong>
-
-              <span>
-                ORDEN #
-                {
-                  selectedOrder.id
-                }
-              </span>
-
+              <span>ORDEN #{selectedOrder.id}</span>
             </div>
-
           </header>
 
-          {/* ==================================================
-              ESTADO
-              ================================================== */}
-
-          <div
-            className="
-              order-detail-hero
-            "
-          >
-
-            <div
-              className="
-                order-detail-status
-              "
-            >
-
-              <span
-                className={`order-status ${getStatusClass(
-                  selectedOrder
-                )}`}
-              >
+          <div className="order-detail-hero">
+            <div className="order-detail-status">
+              <span className={`order-status ${getStatusClass(selectedOrder)}`}>
                 <span
                   className={
                     isClockStatus(selectedOrder)
@@ -1149,180 +686,75 @@ export default function OrdersPage() {
                 >
                   {renderStatusIcon(selectedOrder)}
                 </span>
-                <span>
-                  {getStatusText(selectedOrder)}
-                </span>
-              </span>
 
+                <span>{getStatusText(selectedOrder)}</span>
+              </span>
             </div>
 
-            {/* ==================================================
-                INFORMACIÓN DE LA COMPRA
-                ================================================== */}
+            <div className="order-detail-content">
+              <div className="order-detail-row">
+                <span>🎮 Juego</span>
+                <strong>{selectedOrder.game}</strong>
+              </div>
 
-            <div
-              className="
-                order-detail-content
-              "
-            >
-
-              <div
-                className="
-                  order-detail-row
-                "
-              >
-                <span>
-                  🎮 Juego
-                </span>
-
+              <div className="order-detail-row">
+                <span>📦 Producto</span>
                 <strong>
-                  {selectedOrder.game}
+                  {selectedOrder.displayProduct || selectedOrder.product}
                 </strong>
               </div>
 
-              <div
-                className="
-                  order-detail-row
-                "
-              >
-                <span>
-                  📦 Producto
-                </span>
-
-                <strong>
-                  {selectedOrder.displayProduct ||
-                    selectedOrder.product}
-                </strong>
-              </div>
-
-              <div
-                className="
-                  order-detail-row
-                "
-              >
-                <span>
-                  🆔 ID del jugador
-                </span>
-
-                <strong>
-                  {selectedOrder.playerId}
-                </strong>
+              <div className="order-detail-row">
+                <span>🆔 ID del jugador</span>
+                <strong>{selectedOrder.playerId}</strong>
               </div>
 
               {selectedOrder.serverId && (
-                <div
-                  className="
-                    order-detail-row
-                  "
-                >
-                  <span>
-                    🌐 ID del servidor
-                  </span>
-
-                  <strong>
-                    {selectedOrder.serverId}
-                  </strong>
+                <div className="order-detail-row">
+                  <span>🌐 ID del servidor</span>
+                  <strong>{selectedOrder.serverId}</strong>
                 </div>
               )}
 
-              <div
-                className="
-                  order-detail-row
-                "
-              >
-                <span>
-                  💵 Precio
-                </span>
-
-                <strong>
-                  ${selectedOrder.price.toFixed(2)}
-                </strong>
+              <div className="order-detail-row">
+                <span>💵 Precio</span>
+                <strong>${selectedOrder.price.toFixed(2)}</strong>
               </div>
 
-              <div
-                className="
-                  order-detail-row
-                "
-              >
-                <span>
-                  💳 Moneda
-                </span>
-
-                <strong>
-                  {selectedOrder.currency || "USD"}
-                </strong>
+              <div className="order-detail-row">
+                <span>💳 Moneda</span>
+                <strong>{selectedOrder.currency || "USD"}</strong>
               </div>
 
-              <div
-                className="
-                  order-detail-row
-                "
-              >
-                <span>
-                  📅 Fecha
-                </span>
-
-                <strong>
-                  {formatDate(
-                    selectedOrder.createdAt
-                  )}
-                </strong>
+              <div className="order-detail-row">
+                <span>📅 Fecha</span>
+                <strong>{formatDate(selectedOrder.createdAt)}</strong>
               </div>
 
-              <div
-                className="
-                  order-detail-row
-                "
-              >
-                <span>
-                  🔢 Número de orden
-                </span>
-
-                <strong
-                  className="
-                    order-id-value
-                  "
-                >
+              <div className="order-detail-row">
+                <span>🔢 Número de orden</span>
+                <strong className="order-id-value">
                   {selectedOrder.id}
                 </strong>
               </div>
 
               {selectedOrder.supplierOrderId && (
-                <div
-                  className="
-                    order-detail-row
-                  "
-                >
-                  <span>
-                    ⚙️ Referencia
-                  </span>
-
-                  <strong>
-                    {selectedOrder.supplierOrderId}
-                  </strong>
+                <div className="order-detail-row">
+                  <span>⚙️ Referencia</span>
+                  <strong>{selectedOrder.supplierOrderId}</strong>
                 </div>
               )}
-
             </div>
-
           </div>
-
-          {/* ==================================================
-              BOTÓN REGRESAR
-              ================================================== */}
 
           <button
             type="button"
-            className="
-              order-detail-return
-            "
+            className="order-detail-return"
             onClick={closeOrder}
           >
             ← REGRESAR A MIS ÓRDENES
           </button>
-
         </section>
-
       </main>
     );
   }
@@ -1335,87 +767,33 @@ export default function OrdersPage() {
 
   return (
     <main className="orders-page">
-
-      {/* ======================================================
-          ENCABEZADO
-          ====================================================== */}
-
-      <header
-        className="
-          orders-header
-        "
-      >
-
+      <header className="orders-header">
         <button
           type="button"
-          className="
-            orders-back-button
-          "
-          onClick={() =>
-            router.back()
-          }
+          className="orders-back-button"
+          onClick={() => router.back()}
           aria-label="Volver"
         >
           ←
         </button>
 
-        <div
-          className="
-            orders-header-title
-          "
-        >
-          <span>
-            🛒
-          </span>
-
-          <strong>
-            MIS ÓRDENES
-          </strong>
+        <div className="orders-header-title">
+          <span>🛒</span>
+          <strong>MIS ÓRDENES</strong>
         </div>
 
-        <div
-          className="
-            orders-header-space
-          "
-        />
-
+        <div className="orders-header-space" />
       </header>
 
-      {/* ======================================================
-          HERO
-          ====================================================== */}
+      <section className="orders-hero">
+        <div className="orders-hero-glow" />
 
-      <section
-        className="
-          orders-hero
-        "
-      >
-
-        <div
-          className="
-            orders-hero-glow
-          "
-        />
-
-        <div
-          className="
-            orders-hero-content
-          "
-        >
-
-          <span
-            className="
-              orders-hero-label
-            "
-          >
-            STORE GAMING
-          </span>
+        <div className="orders-hero-content">
+          <span className="orders-hero-label">STORE GAMING</span>
 
           <h1>
             HISTORIAL
-            <strong>
-              DE ÓRDENES
-            </strong>
+            <strong>DE ÓRDENES</strong>
           </h1>
 
           <p>
@@ -1423,492 +801,195 @@ export default function OrdersPage() {
             productos y el estado
             de cada pedido.
           </p>
-
         </div>
 
-        <div
-          className="
-            orders-total-box
-          "
-        >
-
-          <span>
-            PEDIDOS
-          </span>
-
-          <strong>
-            {totalOrders}
-          </strong>
-
-          <small>
-            REGISTRADOS
-          </small>
-
+        <div className="orders-total-box">
+          <span>PEDIDOS</span>
+          <strong>{totalOrders}</strong>
+          <small>REGISTRADOS</small>
         </div>
-
       </section>
 
-      {/* ======================================================
-          ESTADÍSTICAS
-          ====================================================== */}
-
-      <section
-        className="
-          orders-stats
-        "
-      >
-
-        <div
-          className="
-            orders-stat-card
-          "
-        >
-          <span
-            className="
-              orders-stat-icon
-            "
-          >
-            📦
-          </span>
-
-          <strong>
-            {totalOrders}
-          </strong>
-
-          <small>
-            PEDIDOS
-          </small>
+      <section className="orders-stats">
+        <div className="orders-stat-card">
+          <span className="orders-stat-icon">📦</span>
+          <strong>{totalOrders}</strong>
+          <small>PEDIDOS</small>
         </div>
 
-        <div
-          className="
-            orders-stat-card
-          "
-        >
-          <span
-            className="
-              orders-stat-icon
-            "
-          >
-            💵
-          </span>
-
-          <strong>
-            ${totalAmount.toFixed(2)}
-          </strong>
-
-          <small>
-            TOTAL
-          </small>
+        <div className="orders-stat-card">
+          <span className="orders-stat-icon">💵</span>
+          <strong>${totalAmount.toFixed(2)}</strong>
+          <small>TOTAL</small>
         </div>
 
-        <div
-          className="
-            orders-stat-card
-          "
-        >
-          <span
-            className="
-              orders-stat-icon
-            "
-          >
-            ✅
-          </span>
-
-          <strong>
-            {completedOrders}
-          </strong>
-
-          <small>
-            COMPLETADOS
-          </small>
+        <div className="orders-stat-card">
+          <span className="orders-stat-icon">✅</span>
+          <strong>{completedOrders}</strong>
+          <small>COMPLETADOS</small>
         </div>
 
-        <div
-          className="
-            orders-stat-card
-          "
-        >
-          <span
-            className="
-              orders-stat-icon
-            "
-          >
-            ❌
-          </span>
-
-          <strong>
-            {cancelledOrders}
-          </strong>
-
-          <small>
-            CANCELADOS
-          </small>
+        <div className="orders-stat-card">
+          <span className="orders-stat-icon">❌</span>
+          <strong>{cancelledOrders}</strong>
+          <small>CANCELADOS</small>
         </div>
 
-        <div
-          className="
-            orders-stat-card
-          "
-        >
-          <span
-            className="
-              orders-stat-icon
-            "
-          >
-            ⏳
-          </span>
-
-          <strong>
-            {pendingOrders}
-          </strong>
-
-          <small>
-            PENDIENTES
-          </small>
+        <div className="orders-stat-card">
+          <span className="orders-stat-icon">⏳</span>
+          <strong>{pendingOrders}</strong>
+          <small>PENDIENTES</small>
         </div>
-
       </section>
 
-      {/* ======================================================
-          FILTROS
-          ====================================================== */}
-
-      <section
-        className="
-          orders-filters
-        "
-      >
-
+      <section className="orders-filters">
         <button
           type="button"
-          className={
-            filter === "TODAS"
-              ? "orders-filter active"
-              : "orders-filter"
-          }
-          onClick={() =>
-            setFilter("TODAS")
-          }
+          className={filter === "TODAS" ? "orders-filter active" : "orders-filter"}
+          onClick={() => setFilter("TODAS")}
         >
           TODAS
         </button>
 
         <button
           type="button"
-          className={
-            filter === "PENDIENTES"
-              ? "orders-filter active"
-              : "orders-filter"
-          }
-          onClick={() =>
-            setFilter("PENDIENTES")
-          }
+          className={filter === "PENDIENTES" ? "orders-filter active" : "orders-filter"}
+          onClick={() => setFilter("PENDIENTES")}
         >
           PENDIENTES
         </button>
 
         <button
           type="button"
-          className={
-            filter === "COMPLETADAS"
-              ? "orders-filter active"
-              : "orders-filter"
-          }
-          onClick={() =>
-            setFilter("COMPLETADAS")
-          }
+          className={filter === "COMPLETADAS" ? "orders-filter active" : "orders-filter"}
+          onClick={() => setFilter("COMPLETADAS")}
         >
           COMPLETADAS
         </button>
 
         <button
           type="button"
-          className={
-            filter === "CANCELADAS"
-              ? "orders-filter active"
-              : "orders-filter"
-          }
-          onClick={() =>
-            setFilter("CANCELADAS")
-          }
+          className={filter === "CANCELADAS" ? "orders-filter active" : "orders-filter"}
+          onClick={() => setFilter("CANCELADAS")}
         >
           CANCELADAS
         </button>
-
       </section>
 
-      {/* ======================================================
-          HISTORIAL
-          ====================================================== */}
-
-      <section
-        className="
-          orders-history
-        "
-      >
-
-        <div
-          className="
-            orders-section-title
-          "
-        >
-
+      <section className="orders-history">
+        <div className="orders-section-title">
           <div>
-            <span>
-              📋
-            </span>
-
-            <strong>
-              HISTORIAL
-            </strong>
+            <span>📋</span>
+            <strong>HISTORIAL</strong>
           </div>
 
           <small>
             {filteredOrders.length}{" "}
-            {filteredOrders.length === 1
-              ? "orden"
-              : "órdenes"}
+            {filteredOrders.length === 1 ? "orden" : "órdenes"}
           </small>
-
         </div>
 
         {filteredOrders.length === 0 ? (
+          <div className="orders-empty">
+            <div className="orders-empty-icon">📭</div>
 
-          <div
-            className="
-              orders-empty
-            "
-          >
+            <strong>NO HAY ÓRDENES</strong>
 
-            <div
-              className="
-                orders-empty-icon
-              "
-            >
-              📭
-            </div>
-
-            <strong>
-              NO HAY ÓRDENES
-            </strong>
-
-            <p>
-              No encontramos órdenes
-              en esta categoría.
-            </p>
+            <p>No encontramos órdenes en esta categoría.</p>
 
             {filter !== "TODAS" && (
               <button
                 type="button"
-                onClick={() =>
-                  setFilter("TODAS")
-                }
+                onClick={() => setFilter("TODAS")}
               >
                 VER TODAS LAS ÓRDENES
               </button>
             )}
-
           </div>
-
         ) : (
+          <div className="orders-list">
+            {filteredOrders.map((order) => (
+              <button
+                key={order.id}
+                type="button"
+                className="order-card"
+                onClick={() => openOrder(order)}
+              >
+                <div className="order-card-left">
+                  <div className="order-game-icon">
+                    <img
+                      src={order.image}
+                      alt={order.game}
+                      loading="lazy"
+                      onError={(event) => {
+                        const image = event.currentTarget;
 
-          <div
-            className="
-              orders-list
-            "
-          >
+                        if (image.src.endsWith(DEFAULT_GAME_IMAGE)) return;
 
-            {filteredOrders.map(
-              (order) => (
-
-                <button
-                  key={order.id}
-                  type="button"
-                  className="
-                    order-card
-                  "
-                  onClick={() =>
-                    openOrder(order)
-                  }
-                >
-
-                  {/* ==========================================
-                      IMAGEN DEL JUEGO
-                      ========================================== */}
-
-                  <div
-                    className="
-                      order-card-left
-                    "
-                  >
-
-                    <div
-                      className="
-                        order-game-icon
-                      "
-                    >
-
-                      <img
-                        src={order.image}
-                        alt={order.game}
-                        loading="lazy"
-                        onError={(event) => {
-                          const image =
-                            event.currentTarget;
-
-                          if (
-                            image.src.endsWith(
-                              DEFAULT_GAME_IMAGE
-                            )
-                          ) {
-                            return;
-                          }
-
-                          image.src =
-                            DEFAULT_GAME_IMAGE;
-                        }}
-                      />
-
-                    </div>
-
-                    <div
-                      className="
-                        order-card-info
-                      "
-                    >
-
-                      <strong>
-                        {order.displayProduct ||
-                          order.product}
-                      </strong>
-
-                      <span>
-                        {order.game}
-                      </span>
-
-                      <small>
-                        ID: {order.playerId}
-                      </small>
-
-                      <small>
-                        {formatDate(
-                          order.createdAt
-                        )}
-                      </small>
-
-                    </div>
-
+                        image.src = DEFAULT_GAME_IMAGE;
+                      }}
+                    />
                   </div>
 
-                  {/* ==========================================
-                      PRECIO Y ESTADO
-                      ========================================== */}
-
-                  <div
-                    className="
-                      order-card-right
-                    "
-                  >
-
+                  <div className="order-card-info">
                     <strong>
-                      ${order.price.toFixed(2)}
+                      {order.displayProduct || order.product}
                     </strong>
 
-                    <span
-                      className={`order-status ${getStatusClass(
-                        order
-                      )}`}
-                    >
-                      <span
-                        className={
-                          isClockStatus(order)
-                            ? "order-status-clock"
-                            : "order-status-icon"
-                        }
-                        aria-hidden="true"
-                      >
-                        {renderStatusIcon(order)}
-                      </span>
-                      <span>
-                        {getStatusText(order)}
-                      </span>
-                    </span>
+                    <span>{order.game}</span>
 
-                    <span
-                      className="
-                        order-card-arrow
-                      "
-                    >
-                      ›
-                    </span>
+                    <small>ID: {order.playerId}</small>
 
+                    <small>{formatDate(order.createdAt)}</small>
                   </div>
+                </div>
 
-                </button>
+                <div className="order-card-right">
+                  <strong>${order.price.toFixed(2)}</strong>
 
-              )
-            )}
+                  <span className={`order-status ${getStatusClass(order)}`}>
+                    <span
+                      className={
+                        isClockStatus(order)
+                          ? "order-status-clock"
+                          : "order-status-icon"
+                      }
+                      aria-hidden="true"
+                    >
+                      {renderStatusIcon(order)}
+                    </span>
 
+                    <span>{getStatusText(order)}</span>
+                  </span>
+
+                  <span className="order-card-arrow">›</span>
+                </div>
+              </button>
+            ))}
           </div>
-
         )}
-
       </section>
 
-      {/* ======================================================
-          SEGURIDAD
-          ====================================================== */}
-
-      <section
-        className="
-          orders-security
-        "
-      >
-
+      <section className="orders-security">
         <div>
-
-          <span>
-            🔒
-          </span>
+          <span>🔒</span>
 
           <div>
-
-            <strong>
-              TUS ÓRDENES ESTÁN REGISTRADAS
-            </strong>
+            <strong>TUS ÓRDENES ESTÁN REGISTRADAS</strong>
 
             <p>
               Guarda el número de orden
               para consultar cualquier
               compra.
             </p>
-
           </div>
-
         </div>
-
       </section>
 
-      {/* ======================================================
-          PIE DE PÁGINA
-          ====================================================== */}
+      <footer className="orders-footer">
+        <strong>🛒TIENDA DE JUEGOS🎮</strong>
 
-      <footer
-        className="
-          orders-footer
-        "
-      >
-
-        <strong>
-          🛒TIENDA DE JUEGOS🎮
-        </strong>
-
-        <span>
-          TU MEJOR OPCIÓN PARA
-          RECARGAS GAMING
-        </span>
-
+        <span>TU MEJOR OPCIÓN PARA RECARGAS GAMING</span>
       </footer>
 
       <style jsx>{`
@@ -1952,8 +1033,13 @@ export default function OrdersPage() {
         }
 
         @keyframes orders-pending-clock-spin {
-          from { transform: translateX(-50%) rotate(0deg); }
-          to { transform: translateX(-50%) rotate(360deg); }
+          from {
+            transform: translateX(-50%) rotate(0deg);
+          }
+
+          to {
+            transform: translateX(-50%) rotate(360deg);
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -1963,7 +1049,6 @@ export default function OrdersPage() {
           }
         }
       `}</style>
-
     </main>
   );
-                        }
+}
