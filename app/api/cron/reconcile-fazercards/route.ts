@@ -5,13 +5,17 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const FAZER_API_BASE = (
-  process.env.FAZERCARDS_API_URL || "https://api.fzr.cards/api/v2"
+  process.env.FAZERCARDS_API_URL ||
+  "https://api.fzr.cards/api/v2"
 ).replace(/\/+$/, "");
 
 const FAZER_API_KEY = process.env.FAZERCARDS_API_KEY;
-const FAZERCARDS_CRON_SECRET = process.env.FAZERCARDS_CRON_SECRET;
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const FAZERCARDS_CRON_SECRET =
+  process.env.FAZERCARDS_CRON_SECRET;
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const PENDING_STATUSES = [
   "SUPPLIER_PENDING",
@@ -20,6 +24,9 @@ const PENDING_STATUSES = [
   "CONFIRMED",
 ];
 
+const TARGET_ORDER_ID =
+  "95242a1a-336f-4197-8f5e-0e4e4f3bcdc7";
+
 function normalizeStatus(value: unknown): string {
   return String(value ?? "")
     .trim()
@@ -27,7 +34,9 @@ function normalizeStatus(value: unknown): string {
     .replace(/[\s-]+/g, "_");
 }
 
-function asObject(value: unknown): Record<string, any> | null {
+function asObject(
+  value: unknown
+): Record<string, any> | null {
   return value !== null &&
     typeof value === "object" &&
     !Array.isArray(value)
@@ -35,7 +44,9 @@ function asObject(value: unknown): Record<string, any> | null {
     : null;
 }
 
-function getSupplierOrderId(order: Record<string, any>): string {
+function getSupplierOrderId(
+  order: Record<string, any>
+): string {
   const saved = asObject(order.supplier_response);
 
   const candidates = [
@@ -114,7 +125,9 @@ function isRefundWorthyFailureStatus(
   ].includes(status);
 }
 
-function getNextPendingStatus(status: string): string {
+function getNextPendingStatus(
+  status: string
+): string {
   switch (status) {
     case "processing":
       return "PROCESSING";
@@ -209,7 +222,10 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json(
-      { ok: false, error: "No se pudieron leer las órdenes." },
+      {
+        ok: false,
+        error: "No se pudieron leer las órdenes.",
+      },
       { status: 500 }
     );
   }
@@ -237,7 +253,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        error: "No se pudieron leer las respuestas de proveedor.",
+        error:
+          "No se pudieron leer las respuestas de proveedor.",
       },
       { status: 500 }
     );
@@ -252,6 +269,21 @@ export async function GET(request: NextRequest) {
     mergedOrders.set(order.id, order);
   }
 
+  // Diagnóstico específico de la orden atascada.
+  const targetOrder = mergedOrders.get(TARGET_ORDER_ID);
+
+  console.info("FAZERCARDS_CRON_DIAGNOSTIC", {
+    version: "diagnostic-2026-10-15",
+    apiBase: FAZER_API_BASE,
+    selectedOrders: mergedOrders.size,
+    targetOrderIncluded: Boolean(targetOrder),
+    targetSupplierId: targetOrder
+      ? getSupplierOrderId(targetOrder)
+      : null,
+    targetStatus: targetOrder?.status ?? null,
+    targetUpdatedAt: targetOrder?.updated_at ?? null,
+  });
+
   let checked = 0;
   let completed = 0;
   let refunded = 0;
@@ -260,18 +292,37 @@ export async function GET(request: NextRequest) {
 
   const failures: Array<{
     orderId: string;
+    supplierId?: string;
     message: string;
   }> = [];
 
-  for (const order of Array.from(mergedOrders.values())) {
+  for (const order of Array.from(
+    mergedOrders.values()
+  )) {
     const supplierId = getSupplierOrderId(order);
+    const isTargetOrder = order.id === TARGET_ORDER_ID;
 
     if (!supplierId) {
       missingSupplierId += 1;
+
+      if (isTargetOrder) {
+        console.error(
+          "DIAGNÓSTICO: la orden objetivo no tiene ID válido de FazerCards."
+        );
+      }
+
       continue;
     }
 
     try {
+      if (isTargetOrder) {
+        console.info(
+          "DIAGNÓSTICO: consultando orden objetivo en FazerCards:",
+          order.id,
+          supplierId
+        );
+      }
+
       const response = await fetch(
         `${FAZER_API_BASE}/orders/${encodeURIComponent(
           supplierId
@@ -320,10 +371,19 @@ export async function GET(request: NextRequest) {
         status
       );
 
-      /*
-       * Guardamos la respuesta actual del proveedor.
-       * El estado final se procesa a continuación.
-       */
+      if (isTargetOrder) {
+        console.info(
+          "DIAGNÓSTICO: estado recibido para orden objetivo:",
+          {
+            orderId: order.id,
+            supplierId,
+            providerStatus: status,
+            httpStatus: response.status,
+          }
+        );
+      }
+
+      // Guardar la respuesta actual del proveedor.
       const {
         data: savedRows,
         error: saveError,
@@ -344,11 +404,14 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      /*
-       * Si no se actualizó ninguna fila, el pedido ya no tiene
-       * un estado pendiente. No intentamos volver a procesarlo.
-       */
       if (!savedRows?.length) {
+        if (isTargetOrder) {
+          console.warn(
+            "DIAGNÓSTICO: no se guardó la respuesta porque la orden ya no tiene un estado pendiente:",
+            order.id
+          );
+        }
+
         continue;
       }
 
@@ -389,20 +452,30 @@ export async function GET(request: NextRequest) {
         }
 
         refunded += 1;
+
+        if (isTargetOrder) {
+          console.info(
+            "DIAGNÓSTICO: función de reembolso ejecutada sin error:",
+            order.id,
+            supplierId
+          );
+        }
+
         continue;
       }
 
       const nextStatus = getNextPendingStatus(status);
 
-      const { error: statusError } =
-        await supabaseAdmin
-          .from("topup_orders")
-          .update({
-            status: nextStatus,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order.id)
-          .in("status", PENDING_STATUSES);
+      const {
+        error: statusError,
+      } = await supabaseAdmin
+        .from("topup_orders")
+        .update({
+          status: nextStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", order.id)
+        .in("status", PENDING_STATUSES);
 
       if (statusError) {
         throw new Error(
@@ -423,12 +496,13 @@ export async function GET(request: NextRequest) {
 
       failures.push({
         orderId: order.id,
+        supplierId,
         message,
       });
     }
   }
 
-  return NextResponse.json({
+  const result = {
     ok: failures.length === 0,
     checked,
     completed,
@@ -436,5 +510,9 @@ export async function GET(request: NextRequest) {
     stillPending,
     missingSupplierId,
     failures,
-  });
-       }
+  };
+
+  console.info("FAZERCARDS_CRON_RESULT", result);
+
+  return NextResponse.json(result);
+}
