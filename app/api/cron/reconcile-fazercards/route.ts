@@ -1,8 +1,10 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const FAZER_API_BASE = (
   process.env.FAZERCARDS_API_URL ||
@@ -24,8 +26,9 @@ const PENDING_STATUSES = [
   "CONFIRMED",
 ];
 
-const TARGET_ORDER_ID =
-  "95242a1a-336f-4197-8f5e-0e4e4f3bcdc7";
+// Límite por ejecución para evitar exceder el tiempo de Vercel.
+// Las órdenes pendientes se vuelven a ordenar en ejecuciones posteriores.
+const MAX_ORDERS_PER_RUN = 100;
 
 function normalizeStatus(value: unknown): string {
   return String(value ?? "")
@@ -48,6 +51,7 @@ function getSupplierOrderId(
   order: Record<string, any>
 ): string {
   const saved = asObject(order.supplier_response);
+  const reconciliation = asObject(saved?.reconciliation);
 
   const candidates = [
     order.supplier_order_id,
@@ -56,6 +60,11 @@ function getSupplierOrderId(
     saved?.data?.order_id,
     saved?.order_id,
     saved?.data?.id,
+    reconciliation?.order?.id,
+    reconciliation?.data?.order?.id,
+    reconciliation?.data?.order_id,
+    reconciliation?.order_id,
+    reconciliation?.data?.id,
   ];
 
   for (const candidate of candidates) {
@@ -125,9 +134,7 @@ function isRefundWorthyFailureStatus(
   ].includes(status);
 }
 
-function getNextPendingStatus(
-  status: string
-): string {
+function getNextPendingStatus(status: string): string {
   switch (status) {
     case "processing":
       return "PROCESSING";
@@ -140,6 +147,27 @@ function getNextPendingStatus(
     default:
       return "SUPPLIER_PENDING";
   }
+}
+
+async function readPendingOrders(
+  supabaseAdmin: ReturnType<typeof createClient>
+) {
+  const { data, error } = await supabaseAdmin
+    .from("topup_orders")
+    .select(
+      "id, supplier_order_id, supplier_response, status, updated_at"
+    )
+    .in("status", PENDING_STATUSES)
+    .order("updated_at", { ascending: true })
+    .limit(MAX_ORDERS_PER_RUN);
+
+  if (error) {
+    throw new Error(
+      `Error leyendo órdenes pendientes: ${error.message}`
+    );
+  }
+
+  return data ?? [];
 }
 
 export async function GET(request: NextRequest) {
@@ -157,9 +185,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const authorization =
+    request.headers.get("authorization") ?? "";
+
   if (
-    request.headers.get("authorization") !==
-    `Bearer ${FAZERCARDS_CRON_SECRET}`
+    authorization !== `Bearer ${FAZERCARDS_CRON_SECRET}`
   ) {
     return NextResponse.json(
       { ok: false, error: "No autorizado." },
@@ -178,10 +208,6 @@ export async function GET(request: NextRequest) {
   }
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error(
-      "Faltan variables de entorno de Supabase para el cron."
-    );
-
     return NextResponse.json(
       {
         ok: false,
@@ -202,86 +228,28 @@ export async function GET(request: NextRequest) {
     }
   );
 
-  const {
-    data: ordersWithColumnId,
-    error: columnQueryError,
-  } = await supabaseAdmin
-    .from("topup_orders")
-    .select(
-      "id, supplier_order_id, supplier_response, status, updated_at"
-    )
-    .in("status", PENDING_STATUSES)
-    .not("supplier_order_id", "is", null)
-    .order("updated_at", { ascending: true })
-    .limit(100);
+  let orders: any[];
 
-  if (columnQueryError) {
-    console.error(
-      "Error leyendo órdenes con ID de proveedor:",
-      columnQueryError
-    );
+  try {
+    orders = await readPendingOrders(supabaseAdmin);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    console.error(message);
 
     return NextResponse.json(
-      {
-        ok: false,
-        error: "No se pudieron leer las órdenes.",
-      },
+      { ok: false, error: message },
       { status: 500 }
     );
   }
 
-  const {
-    data: ordersWithResponseOnly,
-    error: responseQueryError,
-  } = await supabaseAdmin
-    .from("topup_orders")
-    .select(
-      "id, supplier_order_id, supplier_response, status, updated_at"
-    )
-    .in("status", PENDING_STATUSES)
-    .is("supplier_order_id", null)
-    .not("supplier_response", "is", null)
-    .order("updated_at", { ascending: true })
-    .limit(100);
-
-  if (responseQueryError) {
-    console.error(
-      "Error leyendo respuestas de proveedor:",
-      responseQueryError
-    );
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "No se pudieron leer las respuestas de proveedor.",
-      },
-      { status: 500 }
-    );
-  }
-
-  const mergedOrders = new Map<string, any>();
-
-  for (const order of [
-    ...(ordersWithColumnId ?? []),
-    ...(ordersWithResponseOnly ?? []),
-  ]) {
-    mergedOrders.set(order.id, order);
-  }
-
-  // Diagnóstico específico de la orden atascada.
-  const targetOrder = mergedOrders.get(TARGET_ORDER_ID);
-
-  console.info("FAZERCARDS_CRON_DIAGNOSTIC", {
-    version: "diagnostic-2026-10-15",
+  console.info("FAZERCARDS_CRON_START", {
     apiBase: FAZER_API_BASE,
-    selectedOrders: mergedOrders.size,
-    targetOrderIncluded: Boolean(targetOrder),
-    targetSupplierId: targetOrder
-      ? getSupplierOrderId(targetOrder)
-      : null,
-    targetStatus: targetOrder?.status ?? null,
-    targetUpdatedAt: targetOrder?.updated_at ?? null,
+    selectedOrders: orders.length,
+    maxOrdersPerRun: MAX_ORDERS_PER_RUN,
   });
 
   let checked = 0;
@@ -296,33 +264,21 @@ export async function GET(request: NextRequest) {
     message: string;
   }> = [];
 
-  for (const order of Array.from(
-    mergedOrders.values()
-  )) {
+  for (const order of orders) {
     const supplierId = getSupplierOrderId(order);
-    const isTargetOrder = order.id === TARGET_ORDER_ID;
 
     if (!supplierId) {
       missingSupplierId += 1;
 
-      if (isTargetOrder) {
-        console.error(
-          "DIAGNÓSTICO: la orden objetivo no tiene ID válido de FazerCards."
-        );
-      }
+      console.warn(
+        "Orden pendiente sin ID válido de FazerCards:",
+        order.id
+      );
 
       continue;
     }
 
     try {
-      if (isTargetOrder) {
-        console.info(
-          "DIAGNÓSTICO: consultando orden objetivo en FazerCards:",
-          order.id,
-          supplierId
-        );
-      }
-
       const response = await fetch(
         `${FAZER_API_BASE}/orders/${encodeURIComponent(
           supplierId
@@ -352,51 +308,52 @@ export async function GET(request: NextRequest) {
 
       if (!response.ok) {
         throw new Error(
-          `FazerCards HTTP ${response.status}`
+          `FazerCards respondió HTTP ${response.status}: ${text.slice(0, 300)}`
         );
       }
 
-      const status = getProviderStatus(payload);
+      const providerStatus = getProviderStatus(payload);
 
-      if (!status) {
+      if (!providerStatus) {
         throw new Error(
           "FazerCards no devolvió un estado reconocible."
         );
       }
 
-      console.info(
-        "Estado FazerCards consultado:",
-        order.id,
+      console.info("FAZERCARDS_ORDER_STATUS", {
+        orderId: order.id,
         supplierId,
-        status
-      );
+        providerStatus,
+      });
 
-      if (isTargetOrder) {
-        console.info(
-          "DIAGNÓSTICO: estado recibido para orden objetivo:",
-          {
-            orderId: order.id,
-            supplierId,
-            providerStatus: status,
-            httpStatus: response.status,
-          }
-        );
-      }
+      // Conservar la respuesta inicial de creación y guardar
+      // la consulta más reciente por separado.
+      const previousResponse =
+        asObject(order.supplier_response) ?? {};
 
-      // Guardar la respuesta actual del proveedor.
-      const {
-        data: savedRows,
-        error: saveError,
-      } = await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          supplier_order_id: supplierId,
-          supplier_response: payload,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", order.id)
-        .in("status", PENDING_STATUSES)
-        .select("id");
+      const previousReconciliation =
+        asObject(previousResponse.reconciliation) ?? {};
+
+      const savedResponse = {
+        ...previousResponse,
+        reconciliation: {
+          ...previousReconciliation,
+          ...((asObject(payload) ?? {}) as Record<string, any>),
+          checked_at: new Date().toISOString(),
+        },
+      };
+
+      const { data: savedRows, error: saveError } =
+        await supabaseAdmin
+          .from("topup_orders")
+          .update({
+            supplier_order_id: supplierId,
+            supplier_response: savedResponse,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id)
+          .in("status", PENDING_STATUSES)
+          .select("id");
 
       if (saveError) {
         throw new Error(
@@ -404,20 +361,20 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // Otra ejecución pudo modificar la orden mientras
+      // consultábamos al proveedor. No sobrescribir su estado.
       if (!savedRows?.length) {
-        if (isTargetOrder) {
-          console.warn(
-            "DIAGNÓSTICO: no se guardó la respuesta porque la orden ya no tiene un estado pendiente:",
-            order.id
-          );
-        }
+        console.warn(
+          "Orden omitida porque su estado cambió durante la consulta:",
+          order.id
+        );
 
         continue;
       }
 
       checked += 1;
 
-      if (isCompletedStatus(status)) {
+      if (isCompletedStatus(providerStatus)) {
         const { error: rpcError } =
           await supabaseAdmin.rpc(
             "complete_topup_order",
@@ -436,7 +393,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      if (isRefundWorthyFailureStatus(status)) {
+      if (isRefundWorthyFailureStatus(providerStatus)) {
         const { error: rpcError } =
           await supabaseAdmin.rpc(
             "refund_topup_balance",
@@ -452,30 +409,21 @@ export async function GET(request: NextRequest) {
         }
 
         refunded += 1;
-
-        if (isTargetOrder) {
-          console.info(
-            "DIAGNÓSTICO: función de reembolso ejecutada sin error:",
-            order.id,
-            supplierId
-          );
-        }
-
         continue;
       }
 
-      const nextStatus = getNextPendingStatus(status);
+      const nextStatus =
+        getNextPendingStatus(providerStatus);
 
-      const {
-        error: statusError,
-      } = await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          status: nextStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", order.id)
-        .in("status", PENDING_STATUSES);
+      const { error: statusError } =
+        await supabaseAdmin
+          .from("topup_orders")
+          .update({
+            status: nextStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id)
+          .in("status", PENDING_STATUSES);
 
       if (statusError) {
         throw new Error(
@@ -484,13 +432,16 @@ export async function GET(request: NextRequest) {
       }
 
       stillPending += 1;
-    } catch (e) {
+    } catch (error) {
       const message =
-        e instanceof Error ? e.message : String(e);
+        error instanceof Error
+          ? error.message
+          : String(error);
 
       console.error(
         "Error reconciliando orden FazerCards:",
         order.id,
+        supplierId,
         message
       );
 
@@ -504,6 +455,7 @@ export async function GET(request: NextRequest) {
 
   const result = {
     ok: failures.length === 0,
+    selected: orders.length,
     checked,
     completed,
     refunded,
