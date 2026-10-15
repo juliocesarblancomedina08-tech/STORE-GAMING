@@ -115,6 +115,14 @@ const games: Game[] = [
     route: "/games/sausage-man",
     tag: "RECARGAS",
   },
+
+  {
+    name: "LORDS MOBILE",
+    description: "Diamantes y pases para Lords Mobile.",
+    image: "/images/lords-mobile.jpg",
+    route: "/games/lords-mobile",
+    tag: "DIAMANTES",
+  },
 ];
 
 export default function TopUpPage() {
@@ -138,13 +146,8 @@ export default function TopUpPage() {
 
   return (
     <main className="top-up-page">
-
-      {/* =========================
-          HEADER
-      ========================== */}
-
+      {/* HEADER */}
       <header className="top-up-header">
-
         <button
           type="button"
           className="top-up-back-button"
@@ -155,57 +158,28 @@ export default function TopUpPage() {
         </button>
 
         <div className="top-up-header-title">
-
-          <span>
-            STORE GAMING
-          </span>
-
-          <h1>
-            RECARGAS TOP UP
-          </h1>
-
+          <span>STORE GAMING</span>
+          <h1>RECARGAS TOP UP</h1>
         </div>
-
       </header>
 
-
-      {/* =========================
-          CATÁLOGO
-      ========================== */}
-
+      {/* CATÁLOGO */}
       <section className="top-up-games-section">
-
         <div className="top-up-catalog-header">
-
           <div>
-
-            <span>
-              GAMING SERVICES
-            </span>
-
-            <h2>
-              ELIGE TU JUEGO
-            </h2>
-
+            <span>GAMING SERVICES</span>
+            <h2>ELIGE TU JUEGO</h2>
           </div>
 
           <div className="top-up-catalog-decoration">
-
             <i />
             <i />
             <i />
-
           </div>
-
         </div>
 
-
-        {/* =========================
-            BUSCADOR
-        ========================== */}
-
+        {/* BUSCADOR */}
         <div className="top-up-search-wrapper">
-
           <span
             className="top-up-search-icon"
             aria-hidden="true"
@@ -216,9 +190,7 @@ export default function TopUpPage() {
           <input
             type="search"
             value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar juego u oferta..."
             className="top-up-search-input"
             aria-label="Buscar juego u oferta"
@@ -235,31 +207,20 @@ export default function TopUpPage() {
               ×
             </button>
           )}
-
         </div>
 
-
-        {/* =========================
-            RESULTADOS
-        ========================== */}
-
+        {/* RESULTADOS */}
         {filteredGames.length > 0 ? (
-
           <div className="top-up-games-grid">
-
             {filteredGames.map((game) => (
-
               <button
                 key={game.name}
                 type="button"
                 className="top-up-game-card"
                 onClick={() => router.push(game.route)}
               >
-
                 {/* IMAGEN */}
-
                 <div className="top-up-game-image-container">
-
                   {game.image ? (
                     <img
                       src={game.image}
@@ -281,57 +242,29 @@ export default function TopUpPage() {
                   <div className="top-up-game-open">
                     VER OFERTAS →
                   </div>
-
                 </div>
-
 
                 {/* INFORMACIÓN */}
-
                 <div className="top-up-game-info">
+                  <h3>{game.name}</h3>
 
-                  <h3>
-                    {game.name}
-                  </h3>
-
-                  <p>
-                    {game.description}
-                  </p>
+                  <p>{game.description}</p>
 
                   <div className="top-up-game-bottom">
-
-                    <span>
-                      TOP UP
-                    </span>
-
-                    <strong>
-                      →
-                    </strong>
-
+                    <span>TOP UP</span>
+                    <strong>→</strong>
                   </div>
-
                 </div>
-
               </button>
-
             ))}
-
           </div>
-
         ) : (
-
           <div className="top-up-search-empty">
+            <span>🔍</span>
 
-            <span>
-              🔍
-            </span>
+            <strong>NO ENCONTRAMOS RESULTADOS</strong>
 
-            <strong>
-              NO ENCONTRAMOS RESULTADOS
-            </strong>
-
-            <p>
-              Prueba con otro nombre de juego.
-            </p>
+            <p>Prueba con otro nombre de juego.</p>
 
             <button
               type="button"
@@ -339,30 +272,15 @@ export default function TopUpPage() {
             >
               VER TODOS LOS JUEGOS
             </button>
-
           </div>
-
         )}
-
       </section>
 
-
-      {/* =========================
-          FOOTER
-      ========================== */}
-
+      {/* FOOTER */}
       <footer className="top-up-footer">
-
-        <strong>
-          STORE GAMING
-        </strong>
-
-        <span>
-          RECARGAS GAMING RÁPIDAS Y SEGURAS
-        </span>
-
+        <strong>STORE GAMING</strong>
+        <span>RECARGAS GAMING RÁPIDAS Y SEGURAS</span>
       </footer>
-
     </main>
   );
-        }
+}
