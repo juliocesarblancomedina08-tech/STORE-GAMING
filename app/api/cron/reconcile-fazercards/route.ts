@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -14,8 +13,10 @@ const FAZER_API_BASE = (
 const FAZER_API_KEY = process.env.FAZERCARDS_API_KEY;
 const FAZERCARDS_CRON_SECRET =
   process.env.FAZERCARDS_CRON_SECRET;
+
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL;
+
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -28,6 +29,8 @@ const PENDING_STATUSES = [
 
 const MAX_ORDERS_PER_RUN = 100;
 
+type GenericOrder = Record<string, any>;
+
 function normalizeStatus(value: unknown): string {
   return String(value ?? "")
     .trim()
@@ -37,16 +40,20 @@ function normalizeStatus(value: unknown): string {
 
 function asObject(
   value: unknown
-): Record<string, any> | null {
-  return value !== null &&
+): GenericOrder | null {
+  if (
+    value !== null &&
     typeof value === "object" &&
     !Array.isArray(value)
-    ? (value as Record<string, any>)
-    : null;
+  ) {
+    return value as GenericOrder;
+  }
+
+  return null;
 }
 
 function getSupplierOrderId(
-  order: Record<string, any>
+  order: GenericOrder
 ): string {
   const saved = asObject(order.supplier_response);
   const reconciliation = asObject(saved?.reconciliation);
@@ -83,7 +90,7 @@ function getSupplierOrderId(
 
 function getProviderOrder(
   payload: unknown
-): Record<string, any> {
+): GenericOrder {
   const root = asObject(payload) ?? {};
   const data = asObject(root.data);
 
@@ -147,11 +154,13 @@ function getNextPendingStatus(status: string): string {
   }
 }
 
-// Se usa any en el cliente para evitar la incompatibilidad
-// de tipos genéricos de Supabase que detenía la compilación.
+/**
+ * Usa any para evitar la incompatibilidad entre los
+ * genéricos del cliente Supabase y el parámetro de la función.
+ */
 async function readPendingOrders(
   supabaseAdmin: any
-): Promise<any[]> {
+): Promise<GenericOrder[]> {
   const { data, error } = await supabaseAdmin
     .from("topup_orders")
     .select(
@@ -167,7 +176,7 @@ async function readPendingOrders(
     );
   }
 
-  return data ?? [];
+  return (data ?? []) as GenericOrder[];
 }
 
 export async function GET(request: NextRequest) {
@@ -221,7 +230,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabaseAdmin = createClient(
+  // El tipo explícito evita el error de incompatibilidad
+  // de tipos que apareció en la compilación de Vercel.
+  const supabaseAdmin: any = createClient(
     SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY,
     {
@@ -232,7 +243,7 @@ export async function GET(request: NextRequest) {
     }
   );
 
-  let orders: any[];
+  let orders: GenericOrder[];
 
   try {
     orders = await readPendingOrders(supabaseAdmin);
@@ -333,8 +344,7 @@ export async function GET(request: NextRequest) {
         providerStatus,
       });
 
-      // Conserva la respuesta original y almacena por separado
-      // la última consulta realizada al proveedor.
+      // Conservar la respuesta original del proveedor.
       const previousResponse =
         asObject(order.supplier_response) ?? {};
 
@@ -370,8 +380,8 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Si otra ejecución cambió la orden, no continuar
-      // con esta copia potencialmente desactualizada.
+      // Si la orden ya cambió de estado, no continuar
+      // con los datos potencialmente desactualizados.
       if (!savedRows?.length) {
         console.warn(
           "Orden omitida porque su estado cambió durante la consulta:",
