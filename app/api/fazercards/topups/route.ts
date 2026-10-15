@@ -9,6 +9,9 @@ const FAZERCARDS_API =
 
 const API_KEY = process.env.FAZERCARDS_API_KEY;
 
+// Categoría predeterminada: Lords Mobile
+const DEFAULT_CATEGORY_ID = "lords_mobile";
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
@@ -26,6 +29,7 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           ok: false,
+          supplier: "FazerCards",
           error: "Falta FAZERCARDS_API_KEY.",
         },
         { status: 500 }
@@ -34,19 +38,10 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
 
-    const categoryId = searchParams.get("category_id");
-
-    if (!categoryId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Falta category_id.",
-          ejemplo:
-            "/api/fazercards/topups?category_id=lol_id",
-        },
-        { status: 400 }
-      );
-    }
+    // Si no se especifica categoría, consulta Lords Mobile.
+    const categoryId =
+      searchParams.get("category_id")?.trim() ||
+      DEFAULT_CATEGORY_ID;
 
     const supplierUrl =
       `${FAZERCARDS_API}/topups/offers?category_id=` +
@@ -54,7 +49,7 @@ export async function GET(request: Request) {
 
     console.log(
       "[FazerCards Offers]",
-      supplierUrl.replace(API_KEY, "***")
+      supplierUrl
     );
 
     const response = await fetch(supplierUrl, {
@@ -90,7 +85,7 @@ export async function GET(request: Request) {
       );
     }
 
-    if (!data) {
+    if (data === null) {
       return NextResponse.json(
         {
           ok: false,
@@ -107,6 +102,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       supplier: "FazerCards",
+      game: "Lords Mobile",
       category_id: categoryId,
       catalog: data,
     });
