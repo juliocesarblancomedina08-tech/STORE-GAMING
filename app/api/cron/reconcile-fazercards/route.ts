@@ -26,8 +26,6 @@ const PENDING_STATUSES = [
   "CONFIRMED",
 ];
 
-// Límite por ejecución para evitar exceder el tiempo de Vercel.
-// Las órdenes pendientes se vuelven a ordenar en ejecuciones posteriores.
 const MAX_ORDERS_PER_RUN = 100;
 
 function normalizeStatus(value: unknown): string {
@@ -149,9 +147,11 @@ function getNextPendingStatus(status: string): string {
   }
 }
 
+// Se usa any en el cliente para evitar la incompatibilidad
+// de tipos genéricos de Supabase que detenía la compilación.
 async function readPendingOrders(
-  supabaseAdmin: ReturnType<typeof createClient>
-) {
+  supabaseAdmin: any
+): Promise<any[]> {
   const { data, error } = await supabaseAdmin
     .from("topup_orders")
     .select(
@@ -208,6 +208,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error(
+      "Faltan variables de entorno de Supabase."
+    );
+
     return NextResponse.json(
       {
         ok: false,
@@ -238,7 +242,10 @@ export async function GET(request: NextRequest) {
         ? error.message
         : String(error);
 
-    console.error(message);
+    console.error(
+      "Error leyendo órdenes para reconciliación:",
+      message
+    );
 
     return NextResponse.json(
       { ok: false, error: message },
@@ -326,8 +333,8 @@ export async function GET(request: NextRequest) {
         providerStatus,
       });
 
-      // Conservar la respuesta inicial de creación y guardar
-      // la consulta más reciente por separado.
+      // Conserva la respuesta original y almacena por separado
+      // la última consulta realizada al proveedor.
       const previousResponse =
         asObject(order.supplier_response) ?? {};
 
@@ -338,22 +345,24 @@ export async function GET(request: NextRequest) {
         ...previousResponse,
         reconciliation: {
           ...previousReconciliation,
-          ...((asObject(payload) ?? {}) as Record<string, any>),
+          last_response: payload,
           checked_at: new Date().toISOString(),
         },
       };
 
-      const { data: savedRows, error: saveError } =
-        await supabaseAdmin
-          .from("topup_orders")
-          .update({
-            supplier_order_id: supplierId,
-            supplier_response: savedResponse,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order.id)
-          .in("status", PENDING_STATUSES)
-          .select("id");
+      const {
+        data: savedRows,
+        error: saveError,
+      } = await supabaseAdmin
+        .from("topup_orders")
+        .update({
+          supplier_order_id: supplierId,
+          supplier_response: savedResponse,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", order.id)
+        .in("status", PENDING_STATUSES)
+        .select("id");
 
       if (saveError) {
         throw new Error(
@@ -361,8 +370,8 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Otra ejecución pudo modificar la orden mientras
-      // consultábamos al proveedor. No sobrescribir su estado.
+      // Si otra ejecución cambió la orden, no continuar
+      // con esta copia potencialmente desactualizada.
       if (!savedRows?.length) {
         console.warn(
           "Orden omitida porque su estado cambió durante la consulta:",
