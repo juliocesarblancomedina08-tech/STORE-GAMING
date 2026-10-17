@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -27,20 +28,21 @@ const PENDING_STATUSES = [
   "CONFIRMED",
 ];
 
+const TERMINAL_STATUSES = [
+  "COMPLETED",
+  "SUCCESS",
+  "SUCCESSFUL",
+  "FAILED",
+  "REFUNDED",
+  "CANCELLED",
+  "CANCELED",
+];
+
 const MAX_ORDERS_PER_RUN = 100;
 
 type GenericOrder = Record<string, any>;
 
-function normalizeStatus(value: unknown): string {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-}
-
-function asObject(
-  value: unknown
-): GenericOrder | null {
+function asObject(value: unknown): GenericOrder | null {
   if (
     value !== null &&
     typeof value === "object" &&
@@ -52,9 +54,14 @@ function asObject(
   return null;
 }
 
-function getSupplierOrderId(
-  order: GenericOrder
-): string {
+function normalizeStatus(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function getSupplierOrderId(order: GenericOrder): string {
   const saved = asObject(order.supplier_response);
   const reconciliation = asObject(saved?.reconciliation);
 
@@ -88,9 +95,7 @@ function getSupplierOrderId(
   return "";
 }
 
-function getProviderOrder(
-  payload: unknown
-): GenericOrder {
+function getProviderOrder(payload: unknown): GenericOrder {
   const root = asObject(payload) ?? {};
   const data = asObject(root.data);
 
@@ -124,9 +129,7 @@ function isCompletedStatus(status: string): boolean {
   ].includes(status);
 }
 
-function isRefundWorthyFailureStatus(
-  status: string
-): boolean {
+function isRefundWorthyFailureStatus(status: string): boolean {
   return [
     "failed",
     "failure",
@@ -154,10 +157,14 @@ function getNextPendingStatus(status: string): string {
   }
 }
 
-/**
- * Usa any para evitar la incompatibilidad entre los
- * genéricos del cliente Supabase y el parámetro de la función.
- */
+function isPendingStatus(status: unknown): boolean {
+  return PENDING_STATUSES.includes(String(status ?? ""));
+}
+
+function isTerminalStatus(status: unknown): boolean {
+  return TERMINAL_STATUSES.includes(String(status ?? "").toUpperCase());
+}
+
 async function readPendingOrders(
   supabaseAdmin: any
 ): Promise<GenericOrder[]> {
@@ -167,7 +174,8 @@ async function readPendingOrders(
       "id, supplier_order_id, supplier_response, status, updated_at"
     )
     .in("status", PENDING_STATUSES)
-    .order("updated_at", { ascending: true })
+    // Priorizar órdenes actualizadas recientemente.
+    .order("updated_at", { ascending: false })
     .limit(MAX_ORDERS_PER_RUN);
 
   if (error) {
@@ -179,17 +187,81 @@ async function readPendingOrders(
   return (data ?? []) as GenericOrder[];
 }
 
+async function readCurrentOrder(
+  supabaseAdmin: any,
+  orderId: string
+): Promise<GenericOrder | null> {
+  const { data, error } = await supabaseAdmin
+    .from("topup_orders")
+    .select(
+      "id, supplier_order_id, supplier_response, status, updated_at"
+    )
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Error consultando el estado actual de ${orderId}: ${error.message}`
+    );
+  }
+
+  return (data as GenericOrder | null) ?? null;
+}
+
+async function saveReconciliationResponse(
+  supabaseAdmin: any,
+  orderId: string,
+  supplierId: string,
+  payload: unknown
+): Promise<void> {
+  // Leer la respuesta más reciente antes de fusionar.
+  const current = await readCurrentOrder(
+    supabaseAdmin,
+    orderId
+  );
+
+  if (!current) {
+    throw new Error(
+      `La orden ${orderId} ya no existe en STORE GAMING.`
+    );
+  }
+
+  const previousResponse =
+    asObject(current.supplier_response) ?? {};
+
+  const previousReconciliation =
+    asObject(previousResponse.reconciliation) ?? {};
+
+  const savedResponse = {
+    ...previousResponse,
+    reconciliation: {
+      ...previousReconciliation,
+      last_response: payload,
+      checked_at: new Date().toISOString(),
+    },
+  };
+
+  const { error } = await supabaseAdmin
+    .from("topup_orders")
+    .update({
+      supplier_order_id: supplierId,
+      supplier_response: savedResponse,
+    })
+    .eq("id", orderId);
+
+  if (error) {
+    throw new Error(
+      `No se guardó la respuesta de FazerCards: ${error.message}`
+    );
+  }
+}
+
 export async function GET(request: NextRequest) {
   if (!FAZERCARDS_CRON_SECRET) {
-    console.error(
-      "Falta configurar FAZERCARDS_CRON_SECRET."
-    );
+    console.error("Falta FAZERCARDS_CRON_SECRET.");
 
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Cron de FazerCards no configurado.",
-      },
+      { ok: false, error: "Cron de FazerCards no configurado." },
       { status: 500 }
     );
   }
@@ -197,9 +269,7 @@ export async function GET(request: NextRequest) {
   const authorization =
     request.headers.get("authorization") ?? "";
 
-  if (
-    authorization !== `Bearer ${FAZERCARDS_CRON_SECRET}`
-  ) {
+  if (authorization !== `Bearer ${FAZERCARDS_CRON_SECRET}`) {
     return NextResponse.json(
       { ok: false, error: "No autorizado." },
       { status: 401 }
@@ -208,30 +278,20 @@ export async function GET(request: NextRequest) {
 
   if (!FAZER_API_KEY) {
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Falta FAZERCARDS_API_KEY.",
-      },
+      { ok: false, error: "Falta FAZERCARDS_API_KEY." },
       { status: 500 }
     );
   }
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error(
-      "Faltan variables de entorno de Supabase."
-    );
+    console.error("Faltan variables de entorno de Supabase.");
 
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Supabase no está configurado para el cron.",
-      },
+      { ok: false, error: "Supabase no está configurado para el cron." },
       { status: 500 }
     );
   }
 
-  // El tipo explícito evita el error de incompatibilidad
-  // de tipos que apareció en la compilación de Vercel.
   const supabaseAdmin: any = createClient(
     SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY,
@@ -249,14 +309,9 @@ export async function GET(request: NextRequest) {
     orders = await readPendingOrders(supabaseAdmin);
   } catch (error) {
     const message =
-      error instanceof Error
-        ? error.message
-        : String(error);
+      error instanceof Error ? error.message : String(error);
 
-    console.error(
-      "Error leyendo órdenes para reconciliación:",
-      message
-    );
+    console.error("Error leyendo órdenes para reconciliación:", message);
 
     return NextResponse.json(
       { ok: false, error: message },
@@ -265,7 +320,6 @@ export async function GET(request: NextRequest) {
   }
 
   console.info("FAZERCARDS_CRON_START", {
-    apiBase: FAZER_API_BASE,
     selectedOrders: orders.length,
     maxOrdersPerRun: MAX_ORDERS_PER_RUN,
   });
@@ -275,6 +329,7 @@ export async function GET(request: NextRequest) {
   let refunded = 0;
   let stillPending = 0;
   let missingSupplierId = 0;
+  let skippedChanged = 0;
 
   const failures: Array<{
     orderId: string;
@@ -288,19 +343,23 @@ export async function GET(request: NextRequest) {
     if (!supplierId) {
       missingSupplierId += 1;
 
-      console.warn(
-        "Orden pendiente sin ID válido de FazerCards:",
-        order.id
-      );
+      console.warn("Orden pendiente sin ID válido de FazerCards:", {
+        orderId: order.id,
+        status: order.status,
+      });
 
       continue;
     }
 
     try {
+      console.info("FAZERCARDS_ORDER_CHECK_START", {
+        orderId: order.id,
+        supplierId,
+        selectedStatus: order.status,
+      });
+
       const response = await fetch(
-        `${FAZER_API_BASE}/orders/${encodeURIComponent(
-          supplierId
-        )}`,
+        `${FAZER_API_BASE}/orders/${encodeURIComponent(supplierId)}`,
         {
           method: "GET",
           headers: {
@@ -344,63 +403,65 @@ export async function GET(request: NextRequest) {
         providerStatus,
       });
 
-      // Conservar la respuesta original del proveedor.
-      const previousResponse =
-        asObject(order.supplier_response) ?? {};
+      // Guardar la respuesta del proveedor incluso si la orden
+      // cambió de estado mientras se hacía la consulta.
+      await saveReconciliationResponse(
+        supabaseAdmin,
+        order.id,
+        supplierId,
+        payload
+      );
 
-      const previousReconciliation =
-        asObject(previousResponse.reconciliation) ?? {};
+      checked += 1;
 
-      const savedResponse = {
-        ...previousResponse,
-        reconciliation: {
-          ...previousReconciliation,
-          last_response: payload,
-          checked_at: new Date().toISOString(),
-        },
-      };
+      // Volver a leer el estado actual; no confiar en el estado
+      // que tenía la orden al inicio de esta ejecución.
+      const currentOrder = await readCurrentOrder(
+        supabaseAdmin,
+        order.id
+      );
 
-      const {
-        data: savedRows,
-        error: saveError,
-      } = await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          supplier_order_id: supplierId,
-          supplier_response: savedResponse,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", order.id)
-        .in("status", PENDING_STATUSES)
-        .select("id");
+      if (!currentOrder) {
+        skippedChanged += 1;
 
-      if (saveError) {
-        throw new Error(
-          `No se guardó la respuesta: ${saveError.message}`
-        );
-      }
-
-      // Si la orden ya cambió de estado, no continuar
-      // con los datos potencialmente desactualizados.
-      if (!savedRows?.length) {
-        console.warn(
-          "Orden omitida porque su estado cambió durante la consulta:",
-          order.id
-        );
+        console.warn("Orden ya no existe tras consultar proveedor:", {
+          orderId: order.id,
+          supplierId,
+        });
 
         continue;
       }
 
-      checked += 1;
+      const currentStatus = String(currentOrder.status ?? "");
+
+      console.info("FAZERCARDS_CURRENT_STORE_STATUS", {
+        orderId: order.id,
+        supplierId,
+        currentStatus,
+        providerStatus,
+      });
+
+      if (!isPendingStatus(currentStatus)) {
+        skippedChanged += 1;
+
+        console.info("FAZERCARDS_ORDER_NOT_PENDING", {
+          orderId: order.id,
+          supplierId,
+          currentStatus,
+          providerStatus,
+          terminal: isTerminalStatus(currentStatus),
+        });
+
+        // No sobrescribir el estado de STORE GAMING ni volver
+        // a completar/reembolsar una orden que ya cambió.
+        continue;
+      }
 
       if (isCompletedStatus(providerStatus)) {
         const { error: rpcError } =
-          await supabaseAdmin.rpc(
-            "complete_topup_order",
-            {
-              p_supplier_order_id: supplierId,
-            }
-          );
+          await supabaseAdmin.rpc("complete_topup_order", {
+            p_supplier_order_id: supplierId,
+          });
 
         if (rpcError) {
           throw new Error(
@@ -413,13 +474,34 @@ export async function GET(request: NextRequest) {
       }
 
       if (isRefundWorthyFailureStatus(providerStatus)) {
-        const { error: rpcError } =
-          await supabaseAdmin.rpc(
-            "refund_topup_balance",
+        // Última comprobación antes de solicitar el reembolso.
+        const latestOrder = await readCurrentOrder(
+          supabaseAdmin,
+          order.id
+        );
+
+        if (
+          !latestOrder ||
+          !isPendingStatus(latestOrder.status)
+        ) {
+          skippedChanged += 1;
+
+          console.warn(
+            "Reembolso omitido porque la orden ya cambió:",
             {
-              p_order_id: order.id,
+              orderId: order.id,
+              supplierId,
+              currentStatus: latestOrder?.status ?? "NOT_FOUND",
             }
           );
+
+          continue;
+        }
+
+        const { error: rpcError } =
+          await supabaseAdmin.rpc("refund_topup_balance", {
+            p_order_id: order.id,
+          });
 
         if (rpcError) {
           throw new Error(
@@ -431,10 +513,9 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const nextStatus =
-        getNextPendingStatus(providerStatus);
+      const nextStatus = getNextPendingStatus(providerStatus);
 
-      const { error: statusError } =
+      const { data: updatedRows, error: statusError } =
         await supabaseAdmin
           .from("topup_orders")
           .update({
@@ -442,7 +523,8 @@ export async function GET(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", order.id)
-          .in("status", PENDING_STATUSES);
+          .in("status", PENDING_STATUSES)
+          .select("id");
 
       if (statusError) {
         throw new Error(
@@ -450,12 +532,25 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      if (!updatedRows?.length) {
+        skippedChanged += 1;
+
+        console.info(
+          "Estado no cambiado porque otra operación actualizó la orden:",
+          {
+            orderId: order.id,
+            supplierId,
+            providerStatus,
+          }
+        );
+
+        continue;
+      }
+
       stillPending += 1;
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : String(error);
+        error instanceof Error ? error.message : String(error);
 
       console.error(
         "Error reconciliando orden FazerCards:",
@@ -480,6 +575,7 @@ export async function GET(request: NextRequest) {
     refunded,
     stillPending,
     missingSupplierId,
+    skippedChanged,
     failures,
   };
 
