@@ -168,13 +168,6 @@ function isTerminalStatus(status: unknown): boolean {
   );
 }
 
-/**
- * Lee órdenes por lotes hasta encontrar suficientes IDs válidos
- * o hasta agotar las órdenes pendientes.
- *
- * Las órdenes sin ID se cuentan, pero no ocupan el cupo de
- * reconciliación reservado para órdenes consultables.
- */
 async function readPendingOrders(
   supabaseAdmin: any
 ): Promise<{
@@ -282,13 +275,6 @@ async function readCurrentOrder(
   return (data as GenericOrder | null) ?? null;
 }
 
-/**
- * Confirma que el ID del proveedor identifica exclusivamente
- * a la orden que se está procesando.
- *
- * Si existen duplicados o la orden no coincide, no se llama
- * a la función que completa el pedido.
- */
 async function assertUniqueSupplierOrder(
   supabaseAdmin: any,
   orderId: string,
@@ -456,9 +442,17 @@ export async function GET(request: NextRequest) {
     missingSamples,
   } = selection;
 
+  const selectedOrders = orders.map((order) => ({
+    orderId: String(order.id),
+    supplierId: getSupplierOrderId(order),
+    status: String(order.status ?? ""),
+    updatedAt: order.updated_at ?? null,
+  }));
+
   console.info("FAZERCARDS_CRON_START", {
     scannedPendingOrders: scanned,
     selectedValidOrders: orders.length,
+    selectedOrders,
     missingSupplierId,
     maxOrdersPerRun: MAX_ORDERS_PER_RUN,
     missingSamples,
@@ -476,11 +470,25 @@ export async function GET(request: NextRequest) {
     message: string;
   }> = [];
 
+  const outcomes: Array<{
+    orderId: string;
+    supplierId: string;
+    result: string;
+    providerStatus?: string;
+    currentStatus?: string;
+    message?: string;
+  }> = [];
+
   for (const order of orders) {
     const supplierId = getSupplierOrderId(order);
 
     if (!supplierId) {
-      // Protección adicional por si los datos cambian inesperadamente.
+      outcomes.push({
+        orderId: String(order.id),
+        supplierId: "",
+        result: "SKIPPED_MISSING_SUPPLIER_ID",
+      });
+
       continue;
     }
 
@@ -553,6 +561,13 @@ export async function GET(request: NextRequest) {
       if (!currentOrder) {
         skippedChanged += 1;
 
+        outcomes.push({
+          orderId: String(order.id),
+          supplierId,
+          result: "SKIPPED_ORDER_NOT_FOUND",
+          providerStatus,
+        });
+
         console.warn("FAZERCARDS_ORDER_MISSING", {
           orderId: order.id,
           supplierId,
@@ -575,6 +590,14 @@ export async function GET(request: NextRequest) {
       if (!isPendingStatus(currentStatus)) {
         skippedChanged += 1;
 
+        outcomes.push({
+          orderId: String(order.id),
+          supplierId,
+          result: "SKIPPED_NOT_PENDING",
+          providerStatus,
+          currentStatus,
+        });
+
         console.info("FAZERCARDS_ORDER_NOT_PENDING", {
           orderId: order.id,
           supplierId,
@@ -585,8 +608,6 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // La función RPC busca por supplier_order_id.
-      // No la invocamos si ese ID no identifica una sola orden.
       if (isCompletedStatus(providerStatus)) {
         await assertUniqueSupplierOrder(
           supabaseAdmin,
@@ -594,7 +615,6 @@ export async function GET(request: NextRequest) {
           supplierId
         );
 
-        // Comprobación final del estado antes de llamar a la RPC.
         const latestOrder = await readCurrentOrder(
           supabaseAdmin,
           order.id
@@ -606,6 +626,16 @@ export async function GET(request: NextRequest) {
           String(latestOrder.supplier_order_id ?? "") !== supplierId
         ) {
           skippedChanged += 1;
+
+          outcomes.push({
+            orderId: String(order.id),
+            supplierId,
+            result: "COMPLETION_SKIPPED_STATE_CHANGED",
+            providerStatus,
+            currentStatus: String(
+              latestOrder?.status ?? "NOT_FOUND"
+            ),
+          });
 
           console.warn("FAZERCARDS_COMPLETION_SKIPPED", {
             orderId: order.id,
@@ -627,8 +657,6 @@ export async function GET(request: NextRequest) {
           );
         }
 
-        // Verificar el resultado real, no solo que la RPC
-        // haya respondido sin error.
         const afterCompletion = await readCurrentOrder(
           supabaseAdmin,
           order.id
@@ -644,6 +672,14 @@ export async function GET(request: NextRequest) {
         }
 
         completed += 1;
+
+        outcomes.push({
+          orderId: String(order.id),
+          supplierId,
+          result: "COMPLETED",
+          providerStatus,
+          currentStatus: String(afterCompletion.status),
+        });
 
         console.info("FAZERCARDS_ORDER_COMPLETED", {
           orderId: order.id,
@@ -665,6 +701,16 @@ export async function GET(request: NextRequest) {
         ) {
           skippedChanged += 1;
 
+          outcomes.push({
+            orderId: String(order.id),
+            supplierId,
+            result: "REFUND_SKIPPED_STATE_CHANGED",
+            providerStatus,
+            currentStatus: String(
+              latestOrder?.status ?? "NOT_FOUND"
+            ),
+          });
+
           console.warn("FAZERCARDS_REFUND_SKIPPED", {
             orderId: order.id,
             supplierId,
@@ -674,8 +720,6 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Solo se reembolsa si el proveedor devuelve un estado
-        // explícito de fallo reconocido por la lista anterior.
         const { error: rpcError } =
           await supabaseAdmin.rpc("refund_topup_balance", {
             p_order_id: order.id,
@@ -702,6 +746,14 @@ export async function GET(request: NextRequest) {
         }
 
         refunded += 1;
+
+        outcomes.push({
+          orderId: String(order.id),
+          supplierId,
+          result: "REFUNDED",
+          providerStatus,
+          currentStatus: String(afterRefund.status),
+        });
 
         console.warn("FAZERCARDS_ORDER_REFUNDED", {
           orderId: order.id,
@@ -733,32 +785,60 @@ export async function GET(request: NextRequest) {
       if (!updatedRows?.length) {
         skippedChanged += 1;
 
+        const latestOrder = await readCurrentOrder(
+          supabaseAdmin,
+          order.id
+        );
+
+        outcomes.push({
+          orderId: String(order.id),
+          supplierId,
+          result: "STATUS_UPDATE_SKIPPED",
+          providerStatus,
+          currentStatus: String(
+            latestOrder?.status ?? "NOT_FOUND"
+          ),
+        });
+
         console.info("FAZERCARDS_STATUS_UPDATE_SKIPPED", {
           orderId: order.id,
           supplierId,
           providerStatus,
+          currentStatus: latestOrder?.status ?? "NOT_FOUND",
         });
 
         continue;
       }
 
       stillPending += 1;
+
+      outcomes.push({
+        orderId: String(order.id),
+        supplierId,
+        result: "STILL_PENDING",
+        providerStatus,
+        currentStatus: nextStatus,
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : String(error);
 
-      console.error(
-        "FAZERCARDS_RECONCILIATION_ERROR",
-        {
-          orderId: order.id,
-          supplierId,
-          message,
-        }
-      );
+      console.error("FAZERCARDS_RECONCILIATION_ERROR", {
+        orderId: order.id,
+        supplierId,
+        message,
+      });
 
       failures.push({
         orderId: String(order.id),
         supplierId,
+        message,
+      });
+
+      outcomes.push({
+        orderId: String(order.id),
+        supplierId,
+        result: "ERROR",
         message,
       });
     }
@@ -768,12 +848,15 @@ export async function GET(request: NextRequest) {
     ok: failures.length === 0,
     scannedPendingOrders: scanned,
     selected: orders.length,
+    selectedOrders,
     checked,
     completed,
     refunded,
     stillPending,
     missingSupplierId,
+    missingSamples,
     skippedChanged,
+    outcomes,
     failures,
   };
 
