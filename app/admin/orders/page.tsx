@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -37,11 +36,14 @@ type Filter =
 
 type ApiResponse = {
   ok?: boolean;
+  order?: Partial<Order>;
   orders?: Order[];
   totalOrders?: number;
   totalAmount?: number;
   error?: string;
 };
+
+type EditableStatus = "PENDING" | "COMPLETED" | "REFUNDED" | "CANCELLED";
 
 const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
@@ -64,18 +66,23 @@ function getGameImage(categoryId: string, game: string) {
   if (normalized.includes("free") && normalized.includes("fire")) {
     return "/images/free-fire-latam.jpg";
   }
+
   if (normalized.includes("mobile legends")) {
     return "/images/mobile-legends.jpg";
   }
+
   if (normalized.includes("delta")) {
     return "/images/delta-force.jpg";
   }
+
   if (normalized.includes("ea") || normalized.includes("fc mobile")) {
     return "/images/fc-mobile.jpg";
   }
+
   if (normalized.includes("call") || normalized.includes("cod")) {
     return "/images/call-of-duty.jpg";
   }
+
   if (normalized.includes("telegram")) {
     return "/images/telegram-stars.jpg";
   }
@@ -83,7 +90,28 @@ function getGameImage(categoryId: string, game: string) {
   return DEFAULT_GAME_IMAGE;
 }
 
-/* Estilos integrados en este mismo archivo */
+function normalizeStatus(status: string): string {
+  const value = status.trim().toUpperCase();
+
+  if (["SUCCESS", "SUCCESSFUL", "CONFIRMADO", "CONFIRMADA", "COMPLETADA"].includes(value)) {
+    return "COMPLETED";
+  }
+
+  if (["CANCELED", "CANCELADA", "FAILED"].includes(value)) {
+    return "CANCELLED";
+  }
+
+  if (["REEMBOLSADA", "REFUND"].includes(value)) {
+    return "REFUNDED";
+  }
+
+  if (["PENDIENTE"].includes(value)) {
+    return "PENDING";
+  }
+
+  return value;
+}
+
 function AdminOrdersStyles() {
   return (
     <style jsx global>{`
@@ -413,7 +441,8 @@ function AdminOrdersStyles() {
 
       .status-completed,
       .status-cancelled,
-      .status-pending {
+      .status-pending,
+      .status-refunded {
         display: inline-flex;
         max-width: 100%;
         padding: 6px 9px;
@@ -436,6 +465,12 @@ function AdminOrdersStyles() {
         color: #ff6b72;
         background: rgba(229, 9, 20, .12);
         border: 1px solid rgba(229, 9, 20, .25);
+      }
+
+      .status-refunded {
+        color: #c9a7ff;
+        background: rgba(130, 70, 220, .13);
+        border: 1px solid rgba(160, 100, 255, .3);
       }
 
       .status-pending {
@@ -645,6 +680,78 @@ function AdminOrdersStyles() {
         letter-spacing: 1px;
       }
 
+      .admin-status-editor {
+        margin-bottom: 18px;
+        padding: 16px;
+        background: #151515;
+        border: 1px solid #393939;
+        border-radius: 12px;
+      }
+
+      .admin-status-editor label {
+        display: block;
+        margin-bottom: 10px;
+        color: #ff3a44;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 1.3px;
+      }
+
+      .admin-status-editor select {
+        width: 100%;
+        min-height: 47px;
+        padding: 12px;
+        color: #fff;
+        background: #090909;
+        border: 1px solid #383838;
+        border-radius: 9px;
+        outline: none;
+        font-size: 13px;
+      }
+
+      .admin-status-editor select:focus {
+        border-color: #e50914;
+      }
+
+      .admin-status-save {
+        width: 100%;
+        min-height: 47px;
+        margin-top: 12px;
+        border: 0;
+        border-radius: 10px;
+        color: #fff;
+        background: #e50914;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .7px;
+        cursor: pointer;
+      }
+
+      .admin-status-save:hover:not(:disabled) {
+        background: #bd0710;
+      }
+
+      .admin-status-save:disabled {
+        opacity: .5;
+        cursor: wait;
+      }
+
+      .admin-status-message {
+        margin: 10px 0 0;
+        color: #aaa;
+        font-size: 12px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+
+      .admin-status-message.success {
+        color: #5ff0a0;
+      }
+
+      .admin-status-message.error {
+        color: #ff6b72;
+      }
+
       .admin-order-detail-section,
       .admin-order-json-section {
         margin-top: 15px;
@@ -847,7 +954,8 @@ function AdminOrdersStyles() {
 
         .status-completed,
         .status-cancelled,
-        .status-pending {
+        .status-pending,
+        .status-refunded {
           padding: 5px 6px;
           font-size: 8px;
         }
@@ -891,31 +999,30 @@ function AdminOrdersStyles() {
           padding: 8px;
         }
 
-        
-.admin-order-card-content small {
-  font-size: 8px;
-}
+        .admin-order-card-content small {
+          font-size: 8px;
+        }
 
-.admin-order-card-right > strong {
-  font-size: 12px;
-}
+        .admin-order-card-right > strong {
+          font-size: 12px;
+        }
 
-.admin-order-summary strong {
-  font-size: 18px;
-}
-}
+        .admin-order-summary strong {
+          font-size: 18px;
+        }
+      }
 
-@media (prefers-reduced-motion: reduce) {
-  .admin-page *,
-  .admin-page *::before,
-  .admin-page *::after {
-    scroll-behavior: auto !important;
-    animation: none !important;
-    transition: none !important;
-  }
-}
-`}</style>
-);
+      @media (prefers-reduced-motion: reduce) {
+        .admin-page *,
+        .admin-page *::before,
+        .admin-page *::after {
+          scroll-behavior: auto !important;
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    `}</style>
+  );
 }
 
 export default function AdminOrdersPage() {
@@ -929,6 +1036,11 @@ export default function AdminOrdersPage() {
   const [filter, setFilter] = useState<Filter>("TODAS");
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+
+  const [newStatus, setNewStatus] = useState<EditableStatus>("PENDING");
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusMessageType, setStatusMessageType] = useState<"success" | "error">("success");
 
   useEffect(() => {
     let mounted = true;
@@ -1001,12 +1113,21 @@ export default function AdminOrdersPage() {
       const data = (await response.json()) as ApiResponse;
 
       if (!response.ok) {
-        throw new Error(
-          data.error || "No se pudieron cargar las órdenes."
-        );
+        throw new Error(data.error || "No se pudieron cargar las órdenes.");
       }
 
       setOrders(data.orders || []);
+
+      if (selectedOrder) {
+        const refreshed = (data.orders || []).find(
+          (order) => order.id === selectedOrder.id
+        );
+
+        if (refreshed) {
+          setSelectedOrder(refreshed);
+          setNewStatus(normalizeStatus(refreshed.status) as EditableStatus);
+        }
+      }
     } catch (err) {
       console.error("ERROR CARGANDO ÓRDENES ADMIN:", err);
 
@@ -1022,6 +1143,18 @@ export default function AdminOrdersPage() {
 
   function goBack() {
     router.push("/admin");
+  }
+
+  function openOrder(order: Order) {
+    setSelectedOrder(order);
+    setNewStatus(normalizeStatus(order.status) as EditableStatus);
+    setStatusMessage("");
+    setStatusMessageType("success");
+  }
+
+  function closeOrder() {
+    setSelectedOrder(null);
+    setStatusMessage("");
   }
 
   function formatDate(value: string | null) {
@@ -1055,13 +1188,18 @@ export default function AdminOrdersPage() {
     ].includes(status.toUpperCase());
   }
 
+  function isRefunded(status: string) {
+    return ["REFUNDED", "REFUND", "REEMBOLSADA"].includes(
+      status.toUpperCase()
+    );
+  }
+
   function isCancelled(status: string) {
     return [
       "CANCELLED",
       "CANCELED",
       "CANCELADA",
       "FAILED",
-      "REFUNDED",
     ].includes(status.toUpperCase());
   }
 
@@ -1079,9 +1217,9 @@ export default function AdminOrdersPage() {
   function getStatusText(status: string) {
     const normalized = status.toUpperCase();
 
-    if (isCompleted(status)) return "COMPLETADA";
-    if (normalized === "REFUNDED") return "REEMBOLSADA";
-    if (isCancelled(status)) return "CANCELADA";
+    if (isRefunded(normalized)) return "REFUND / REEMBOLSADA";
+    if (isCompleted(normalized)) return "COMPLETADA";
+    if (isCancelled(normalized)) return "CANCELADA";
     if (normalized === "SUPPLIER_PENDING") return "PROCESANDO";
     if (normalized === "REFUND_PENDING") return "REEMBOLSO PENDIENTE";
 
@@ -1089,6 +1227,7 @@ export default function AdminOrdersPage() {
   }
 
   function getStatusClass(status: string) {
+    if (isRefunded(status)) return "status-refunded";
     if (isCompleted(status)) return "status-completed";
     if (isCancelled(status)) return "status-cancelled";
     return "status-pending";
@@ -1096,10 +1235,7 @@ export default function AdminOrdersPage() {
 
   function getServerId(order: Order) {
     const fields = order.supplier_fields || {};
-    const value =
-      fields.server_id ??
-      fields.id_servidor ??
-      fields.serverId;
+    const value = fields.server_id ?? fields.id_servidor ?? fields.serverId;
 
     if (value === undefined || value === null || value === "") {
       return null;
@@ -1120,10 +1256,93 @@ export default function AdminOrdersPage() {
       order.offer_name,
       order.player_id,
       order.supplier_order_id,
+      order.status,
     ]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
+  }
+
+  async function updateOrderStatus() {
+    if (!selectedOrder || savingStatus) return;
+
+    const currentStatus = normalizeStatus(selectedOrder.status);
+
+    if (newStatus === currentStatus) {
+      setStatusMessage("La orden ya tiene ese estado.");
+      setStatusMessageType("error");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `¿Seguro que quieres cambiar el estado de esta orden a ${getStatusText(newStatus)}?`
+    );
+
+    if (!confirmed) return;
+
+    setSavingStatus(true);
+    setStatusMessage("");
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        router.replace("/login");
+        return;
+      }
+
+      const response = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderId: selectedOrder.id,
+          status: newStatus,
+        }),
+        cache: "no-store",
+      });
+
+      const data = (await response.json()) as ApiResponse;
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(
+          data.error ||
+            "No se pudo actualizar el estado. Comprueba que la API admita PATCH."
+        );
+      }
+
+      const updatedOrder: Order = {
+        ...selectedOrder,
+        ...(data.order || {}),
+        status: data.order?.status || newStatus,
+      };
+
+      setOrders((previous) =>
+        previous.map((order) =>
+          order.id === updatedOrder.id ? updatedOrder : order
+        )
+      );
+
+      setSelectedOrder(updatedOrder);
+      setNewStatus(normalizeStatus(updatedOrder.status) as EditableStatus);
+      setStatusMessage("Estado actualizado correctamente.");
+      setStatusMessageType("success");
+    } catch (err) {
+      console.error("ERROR ACTUALIZANDO ESTADO DE ORDEN:", err);
+
+      setStatusMessage(
+        err instanceof Error
+          ? err.message
+          : "Error al actualizar el estado."
+      );
+      setStatusMessageType("error");
+    } finally {
+      setSavingStatus(false);
+    }
   }
 
   const filteredOrders = useMemo(() => {
@@ -1141,7 +1360,7 @@ export default function AdminOrdersPage() {
       }
 
       if (filter === "CANCELADAS") {
-        matchesFilter = isCancelled(order.status);
+        matchesFilter = isCancelled(order.status) || isRefunded(order.status);
       }
 
       if (!matchesFilter) return false;
@@ -1166,8 +1385,8 @@ export default function AdminOrdersPage() {
     isCompleted(order.status)
   ).length;
 
-  const cancelledOrders = orders.filter((order) =>
-    isCancelled(order.status)
+  const cancelledOrders = orders.filter(
+    (order) => isCancelled(order.status) || isRefunded(order.status)
   ).length;
 
   if (loading) {
@@ -1201,7 +1420,7 @@ export default function AdminOrdersPage() {
           <button
             type="button"
             className="admin-back-button"
-            onClick={() => setSelectedOrder(null)}
+            onClick={closeOrder}
             aria-label="Volver a órdenes"
           >
             ←
@@ -1236,10 +1455,52 @@ export default function AdminOrdersPage() {
           </div>
 
           <div className="admin-order-status-box">
-            <span>ESTADO</span>
+            <span>ESTADO ACTUAL</span>
             <strong className={getStatusClass(selectedOrder.status)}>
               {getStatusText(selectedOrder.status)}
             </strong>
+          </div>
+
+          <div className="admin-status-editor">
+            <label htmlFor="order-status">
+              CAMBIAR ESTADO MANUALMENTE
+            </label>
+
+            <select
+              id="order-status"
+              value={newStatus}
+              onChange={(event) => {
+                setNewStatus(event.target.value as EditableStatus);
+                setStatusMessage("");
+              }}
+              disabled={savingStatus}
+            >
+              <option value="PENDING">PENDIENTE</option>
+              <option value="COMPLETED">COMPLETADA</option>
+              <option value="REFUNDED">REFUND / REEMBOLSADA</option>
+              <option value="CANCELLED">CANCELADA</option>
+            </select>
+
+            <button
+              type="button"
+              className="admin-status-save"
+              onClick={updateOrderStatus}
+              disabled={
+                savingStatus ||
+                newStatus === normalizeStatus(selectedOrder.status)
+              }
+            >
+              {savingStatus ? "GUARDANDO..." : "GUARDAR NUEVO ESTADO"}
+            </button>
+
+            {statusMessage && (
+              <p
+                className={`admin-status-message ${statusMessageType}`}
+                role="status"
+              >
+                {statusMessage}
+              </p>
+            )}
           </div>
 
           <div className="admin-order-detail-section">
@@ -1361,7 +1622,7 @@ export default function AdminOrdersPage() {
           <button
             type="button"
             className="admin-order-return"
-            onClick={() => setSelectedOrder(null)}
+            onClick={closeOrder}
           >
             ← VOLVER A ÓRDENES
           </button>
@@ -1431,7 +1692,7 @@ export default function AdminOrdersPage() {
         <div>
           <span>❌</span>
           <strong>{cancelledOrders}</strong>
-          <small>CANCELADAS</small>
+          <small>CANCELADAS / REFUND</small>
         </div>
       </section>
 
@@ -1505,7 +1766,7 @@ export default function AdminOrdersPage() {
               key={order.id}
               type="button"
               className="admin-order-card"
-              onClick={() => setSelectedOrder(order)}
+              onClick={() => openOrder(order)}
             >
               <div className="admin-order-image">
                 <img
@@ -1557,5 +1818,4 @@ export default function AdminOrdersPage() {
       </footer>
     </main>
   );
-    }
-          
+}
