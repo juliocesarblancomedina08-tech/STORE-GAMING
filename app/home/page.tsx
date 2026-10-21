@@ -36,8 +36,6 @@ type MenuIconName =
 
 const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 
-/* ICONOS DE LÍNEAS PARA EL MENÚ LATERAL */
-
 function MenuLineIcon({ name }: { name: MenuIconName }) {
   const common = {
     fill: "none",
@@ -48,13 +46,7 @@ function MenuLineIcon({ name }: { name: MenuIconName }) {
   };
 
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="19"
-      height="19"
-      aria-hidden="true"
-      {...common}
-    >
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" {...common}>
       {name === "home" && (
         <>
           <path d="m3 10 9-7 9 7" />
@@ -254,6 +246,7 @@ function getOrderAmount(order: StoreOrder): number {
     "price_usd",
     "cost",
     "subtotal",
+    "retail_price",
   ];
 
   for (const field of amountFields) {
@@ -267,6 +260,21 @@ function getOrderAmount(order: StoreOrder): number {
   }
 
   return 0;
+}
+
+function isCompletedOrder(order: StoreOrder): boolean {
+  const status = String(order.status || "")
+    .trim()
+    .toUpperCase();
+
+  return [
+    "COMPLETED",
+    "COMPLETE",
+    "SUCCESS",
+    "SUCCESSFUL",
+    "COMPLETADA",
+    "COMPLETADO",
+  ].includes(status);
 }
 
 export default function HomePage() {
@@ -376,7 +384,9 @@ export default function HomePage() {
 
       setOrdersCreated(orders.length);
 
-      const sum = orders.reduce(
+      const completedOrders = orders.filter(isCompletedOrder);
+
+      const sum = completedOrders.reduce(
         (total, order) => total + getOrderAmount(order),
         0
       );
@@ -452,6 +462,7 @@ export default function HomePage() {
         )
         .subscribe();
 
+      // Actualiza las estadísticas cuando cambien las órdenes de esta tabla.
       ordersChannel = supabase
         .channel(`home-orders-${userId}`)
         .on(
@@ -459,7 +470,7 @@ export default function HomePage() {
           {
             event: "*",
             schema: "public",
-            table: "topup_orders",
+            table: "store_gaming_orders",
             filter: `user_id=eq.${userId}`,
           },
           () => {
@@ -542,8 +553,6 @@ export default function HomePage() {
           "linear-gradient(rgba(5,7,12,.78),rgba(5,7,12,.91)), url('/images/battle-royale-bg.jpg') center center / cover fixed no-repeat",
       }}
     >
-      {/* MENÚ LATERAL */}
-
       {menuOpen && (
         <>
           <button
@@ -588,18 +597,13 @@ export default function HomePage() {
               </div>
             </div>
 
-            <nav
-              className="side-menu-nav"
-              style={{ position: "relative", zIndex: 2 }}
-            >
+            <nav className="side-menu-nav" style={{ position: "relative", zIndex: 2 }}>
               <button
                 type="button"
                 className="side-menu-item active"
                 onClick={() => goTo("/home")}
               >
-                <span className="menu-icon">
-                  <MenuLineIcon name="home" />
-                </span>
+                <span className="menu-icon"><MenuLineIcon name="home" /></span>
                 <span>Hogar</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -608,38 +612,20 @@ export default function HomePage() {
                 <span /> SERVICIOS <span />
               </div>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/top-up")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="gamepad" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/top-up")}>
+                <span className="menu-icon"><MenuLineIcon name="gamepad" /></span>
                 <span>Recargas TOP UP</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/gift-cards")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="gift" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/gift-cards")}>
+                <span className="menu-icon"><MenuLineIcon name="gift" /></span>
                 <span>Tarjetas de regalo</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => setMenuOpen(false)}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="phone" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => setMenuOpen(false)}>
+                <span className="menu-icon"><MenuLineIcon name="phone" /></span>
                 <span style={{ flex: 1, textAlign: "left", fontSize: "13px" }}>
                   Venta de saldo móvil
                 </span>
@@ -661,26 +647,14 @@ export default function HomePage() {
                 </span>
               </button>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/crypto")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="coins" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/crypto")}>
+                <span className="menu-icon"><MenuLineIcon name="coins" /></span>
                 <span>Compra y venta de cripto</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/telegram-stars")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="star" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/telegram-stars")}>
+                <span className="menu-icon"><MenuLineIcon name="star" /></span>
                 <span>Estrellas de Telegram</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -689,26 +663,14 @@ export default function HomePage() {
                 <span /> FINANZAS <span />
               </div>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/balance")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="wallet" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/balance")}>
+                <span className="menu-icon"><MenuLineIcon name="wallet" /></span>
                 <span>Billetera</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => setMenuOpen(false)}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="chart" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => setMenuOpen(false)}>
+                <span className="menu-icon"><MenuLineIcon name="chart" /></span>
                 <span>Estadísticas</span>
                 <span className="menu-arrow">›</span>
               </button>
@@ -717,55 +679,29 @@ export default function HomePage() {
                 <span /> CUENTA <span />
               </div>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/profile")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="user" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/profile")}>
+                <span className="menu-icon"><MenuLineIcon name="user" /></span>
                 <span>Mi perfil</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/ajustes")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="settings" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/ajustes")}>
+                <span className="menu-icon"><MenuLineIcon name="settings" /></span>
                 <span>Ajustes</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/orders")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="package" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/orders")}>
+                <span className="menu-icon"><MenuLineIcon name="package" /></span>
                 <span>Mis pedidos</span>
                 <span className="menu-arrow">›</span>
               </button>
 
-              <button
-                type="button"
-                className="side-menu-item"
-                onClick={() => goTo("/support")}
-              >
-                <span className="menu-icon">
-                  <MenuLineIcon name="headphones" />
-                </span>
+              <button type="button" className="side-menu-item" onClick={() => goTo("/support")}>
+                <span className="menu-icon"><MenuLineIcon name="headphones" /></span>
                 <span>Soporte</span>
                 <span className="menu-arrow">›</span>
               </button>
-
-              {/* SOLO EL ADMIN PUEDE VER ESTAS OPCIONES */}
 
               {isAdmin && (
                 <>
@@ -773,26 +709,14 @@ export default function HomePage() {
                     <span /> ADMINISTRACIÓN <span />
                   </div>
 
-                  <button
-                    type="button"
-                    className="side-menu-item"
-                    onClick={() => goTo("/admin")}
-                  >
-                    <span className="menu-icon">
-                      <MenuLineIcon name="settings" />
-                    </span>
+                  <button type="button" className="side-menu-item" onClick={() => goTo("/admin")}>
+                    <span className="menu-icon"><MenuLineIcon name="settings" /></span>
                     <span>ADM PANEL</span>
                     <span className="menu-arrow">›</span>
                   </button>
 
-                  <button
-                    type="button"
-                    className="side-menu-item"
-                    onClick={() => goTo("/admin/manual-orders")}
-                  >
-                    <span className="menu-icon">
-                      <MenuLineIcon name="clipboard" />
-                    </span>
+                  <button type="button" className="side-menu-item" onClick={() => goTo("/admin/manual-orders")}>
+                    <span className="menu-icon"><MenuLineIcon name="clipboard" /></span>
                     <span>ÓRDENES ADM</span>
                     <span className="menu-arrow">›</span>
                   </button>
@@ -801,11 +725,7 @@ export default function HomePage() {
             </nav>
 
             <div className="side-menu-bottom">
-              <button
-                type="button"
-                className="side-menu-logout"
-                onClick={logout}
-              >
+              <button type="button" className="side-menu-logout" onClick={logout}>
                 <span>🚪</span>
                 <strong>Cerrar sesión</strong>
               </button>
@@ -814,7 +734,7 @@ export default function HomePage() {
         </>
       )}
 
-      {/* CABECERA */}
+      {/* CABECERA Y NOTIFICACIONES */}
 
       <header className="store-header">
         <button
@@ -859,17 +779,51 @@ export default function HomePage() {
           </button>
 
           {notificationsOpen && (
-            <div className="notification-panel">
-              <div className="notification-panel-header">
-                <div>
-                  <span>STORE GAMING</span>
-                  <strong>NOTIFICACIONES</strong>
+            <div
+              className="notification-panel"
+              style={{
+                overflow: "hidden",
+                border: "1px solid rgba(255,255,255,.12)",
+                borderRadius: "15px",
+                background: "linear-gradient(160deg,#10131d,#07090f)",
+                boxShadow: "0 18px 50px rgba(0,0,0,.55)",
+              }}
+            >
+              <div
+                className="notification-panel-header"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  padding: "15px",
+                  borderBottom: "1px solid rgba(255,255,255,.09)",
+                  background: "linear-gradient(100deg,rgba(229,9,20,.17),transparent)",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <span style={{ color: "#ff5964", fontSize: "9px", fontWeight: 900, letterSpacing: "1.4px" }}>
+                    STORE GAMING
+                  </span>
+                  <strong style={{ color: "#fff", fontSize: "13px", fontWeight: 900 }}>
+                    NOTIFICACIONES
+                  </strong>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setNotificationsOpen(false)}
                   aria-label="Cerrar notificaciones"
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    border: "1px solid rgba(255,255,255,.12)",
+                    borderRadius: "8px",
+                    background: "rgba(255,255,255,.05)",
+                    color: "#fff",
+                    fontSize: "21px",
+                    cursor: "pointer",
+                  }}
                 >
                   ×
                 </button>
@@ -880,8 +834,9 @@ export default function HomePage() {
                   style={{
                     display: "flex",
                     justifyContent: "flex-end",
-                    padding: "8px 12px",
+                    padding: "9px 12px",
                     borderBottom: "1px solid rgba(255,255,255,.07)",
+                    background: "rgba(255,255,255,.015)",
                   }}
                 >
                   <button
@@ -890,7 +845,7 @@ export default function HomePage() {
                     style={{
                       border: "none",
                       background: "transparent",
-                      color: "#e50914",
+                      color: "#ff5964",
                       fontSize: "11px",
                       fontWeight: 800,
                       cursor: "pointer",
@@ -903,17 +858,24 @@ export default function HomePage() {
 
               <div className="notification-list">
                 {notificationsLoading ? (
-                  <div className="notification-empty">
-                    <div className="notification-empty-icon">🔔</div>
+                  <div
+                    className="notification-empty"
+                    style={{ padding: "28px 16px", color: "#c4cad5", textAlign: "center" }}
+                  >
+                    <div style={{ fontSize: "24px", marginBottom: "8px" }}>🔔</div>
                     <strong>Cargando notificaciones...</strong>
                   </div>
                 ) : notifications.length === 0 ? (
-                  <div className="notification-empty">
-                    <div className="notification-empty-icon">🔔</div>
-                    <strong>No tienes notificaciones</strong>
-                    <p>
-                      Aquí aparecerán las novedades de tus pedidos y
-                      movimientos de saldo.
+                  <div
+                    className="notification-empty"
+                    style={{ padding: "28px 16px", color: "#c4cad5", textAlign: "center" }}
+                  >
+                    <div style={{ fontSize: "24px", marginBottom: "8px" }}>🔔</div>
+                    <strong style={{ color: "#fff", fontSize: "12px" }}>
+                      No tienes notificaciones
+                    </strong>
+                    <p style={{ fontSize: "11px", lineHeight: 1.6 }}>
+                      Aquí aparecerán las novedades de tus pedidos y movimientos de saldo.
                     </p>
                   </div>
                 ) : (
@@ -931,15 +893,86 @@ export default function HomePage() {
                           void markNotificationAsRead(notification.id);
                         }
                       }}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "12px",
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "14px 12px",
+                        margin: 0,
+                        border: "none",
+                        borderBottom: "1px solid rgba(255,255,255,.07)",
+                        borderLeft: notification.is_read
+                          ? "3px solid rgba(255,255,255,.12)"
+                          : "3px solid #e50914",
+                        borderRadius: 0,
+                        background: notification.is_read
+                          ? "rgba(15,18,28,.72)"
+                          : "linear-gradient(100deg,rgba(229,9,20,.15),rgba(15,18,28,.92))",
+                        color: "#fff",
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
                     >
-                      <div className="notification-item-icon">
+                      <div
+                        className="notification-item-icon"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "35px",
+                          height: "35px",
+                          minWidth: "35px",
+                          borderRadius: "10px",
+                          border: notification.is_read
+                            ? "1px solid rgba(255,255,255,.1)"
+                            : "1px solid rgba(229,9,20,.3)",
+                          background: notification.is_read
+                            ? "rgba(255,255,255,.05)"
+                            : "rgba(229,9,20,.16)",
+                          color: notification.is_read ? "#aab3c5" : "#ff5964",
+                          fontSize: "16px",
+                        }}
+                      >
                         {notification.is_read ? "✓" : "🔔"}
                       </div>
 
-                      <div className="notification-item-content">
-                        <strong>{notification.title}</strong>
-                        <p>{notification.message}</p>
-                        <small>
+                      <div
+                        className="notification-item-content"
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "5px",
+                        }}
+                      >
+                        <strong
+                          style={{
+                            color: notification.is_read ? "#d1d5df" : "#fff",
+                            fontSize: "12px",
+                            lineHeight: 1.45,
+                            overflowWrap: "anywhere",
+                          }}
+                        >
+                          {notification.title}
+                        </strong>
+
+                        <p
+                          style={{
+                            margin: 0,
+                            color: "#b8c0cf",
+                            fontSize: "11px",
+                            lineHeight: 1.6,
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
+                          }}
+                        >
+                          {notification.message}
+                        </p>
+
+                        <small style={{ color: "#818b9d", fontSize: "9px", marginTop: "2px" }}>
                           {new Date(notification.created_at).toLocaleString(
                             "es-ES",
                             { dateStyle: "short", timeStyle: "short" }
@@ -948,7 +981,18 @@ export default function HomePage() {
                       </div>
 
                       {!notification.is_read && (
-                        <span className="notification-unread-dot" />
+                        <span
+                          className="notification-unread-dot"
+                          style={{
+                            width: "7px",
+                            height: "7px",
+                            minWidth: "7px",
+                            borderRadius: "50%",
+                            background: "#ff3948",
+                            boxShadow: "0 0 9px rgba(229,9,20,.7)",
+                            marginTop: "5px",
+                          }}
+                        />
                       )}
                     </button>
                   ))
@@ -980,54 +1024,19 @@ export default function HomePage() {
             ⚡ STORE GAMING
           </div>
 
-          <h1
-            className="hero-title"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "5px",
-              margin: 0,
-            }}
-          >
-            <span
-              style={{
-                fontSize: "clamp(19px,4vw,28px)",
-                fontWeight: 900,
-              }}
-            >
+          <h1 className="hero-title" style={{ display: "flex", flexDirection: "column", gap: "5px", margin: 0 }}>
+            <span style={{ fontSize: "clamp(19px,4vw,28px)", fontWeight: 900 }}>
               BIENVENIDO A
             </span>
-
-            <span
-              style={{
-                color: "#ff3948",
-                fontSize: "clamp(25px,5vw,38px)",
-                fontWeight: 1000,
-              }}
-            >
+            <span style={{ color: "#ff3948", fontSize: "clamp(25px,5vw,38px)", fontWeight: 1000 }}>
               STORE GAMING
             </span>
-
-            <span
-              style={{
-                color: "#b5bdca",
-                fontSize: "11px",
-                fontWeight: 700,
-              }}
-            >
+            <span style={{ color: "#b5bdca", fontSize: "11px", fontWeight: 700 }}>
               USUARIO: @{username}
             </span>
           </h1>
 
-          <p
-            className="hero-text"
-            style={{
-              margin: "12px 0 17px",
-              color: "#e0e4ed",
-              fontSize: "12px",
-              lineHeight: 1.6,
-            }}
-          >
+          <p className="hero-text" style={{ margin: "12px 0 17px", color: "#e0e4ed", fontSize: "12px", lineHeight: 1.6 }}>
             Seleccione la opción o servicio que desee utilizar.
           </p>
 
@@ -1045,7 +1054,6 @@ export default function HomePage() {
               className="hero-stat-card"
               style={{
                 ...cardStyle,
-                cursor: "pointer",
                 flexDirection: "column",
                 alignItems: "flex-start",
                 gap: "6px",
@@ -1053,21 +1061,10 @@ export default function HomePage() {
               }}
             >
               <span style={{ fontSize: "23px" }}>💳</span>
-              <span
-                style={{
-                  color: "#aab3c5",
-                  fontSize: "9px",
-                  fontWeight: 800,
-                }}
-              >
+              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>
                 BILLETERA
               </span>
-              <b
-                style={{
-                  fontSize: "clamp(12px,3vw,16px)",
-                  overflowWrap: "anywhere",
-                }}
-              >
+              <b style={{ fontSize: "clamp(12px,3vw,16px)", overflowWrap: "anywhere" }}>
                 ${deposited.toFixed(2)}
               </b>
             </button>
@@ -1078,7 +1075,6 @@ export default function HomePage() {
               className="hero-stat-card"
               style={{
                 ...cardStyle,
-                cursor: "pointer",
                 flexDirection: "column",
                 alignItems: "flex-start",
                 gap: "6px",
@@ -1086,21 +1082,10 @@ export default function HomePage() {
               }}
             >
               <span style={{ fontSize: "23px" }}>💸</span>
-              <span
-                style={{
-                  color: "#aab3c5",
-                  fontSize: "9px",
-                  fontWeight: 800,
-                }}
-              >
+              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>
                 GASTO TOTAL
               </span>
-              <b
-                style={{
-                  fontSize: "clamp(12px,3vw,16px)",
-                  overflowWrap: "anywhere",
-                }}
-              >
+              <b style={{ fontSize: "clamp(12px,3vw,16px)", overflowWrap: "anywhere" }}>
                 ${totalSpent.toFixed(2)}
               </b>
             </button>
@@ -1111,7 +1096,6 @@ export default function HomePage() {
               className="hero-stat-card"
               style={{
                 ...cardStyle,
-                cursor: "pointer",
                 flexDirection: "column",
                 alignItems: "flex-start",
                 gap: "6px",
@@ -1119,13 +1103,7 @@ export default function HomePage() {
               }}
             >
               <span style={{ fontSize: "23px" }}>📦</span>
-              <span
-                style={{
-                  color: "#aab3c5",
-                  fontSize: "9px",
-                  fontWeight: 800,
-                }}
-              >
+              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>
                 ÓRDENES
               </span>
               <b style={{ fontSize: "clamp(12px,3vw,16px)" }}>
@@ -1140,11 +1118,7 @@ export default function HomePage() {
 
       <section
         aria-label="Programa de referidos"
-        style={{
-          maxWidth: "1100px",
-          margin: "18px auto",
-          padding: "0 10px",
-        }}
+        style={{ maxWidth: "1100px", margin: "18px auto", padding: "0 10px" }}
       >
         <div
           style={{
@@ -1159,17 +1133,11 @@ export default function HomePage() {
             borderRadius: "18px",
             border: "1px solid rgba(255,255,255,.16)",
             background:
-              "linear-gradient(90deg,rgba(5,8,16,.94),rgba(5,8,16,.65)), url('/referidos-banner.jpg') center / cover no-repeat",
+              "linear-gradient(90deg,rgba(5,8,16,.82),rgba(5,8,16,.42)), url('/referidos-banner.jpg') center / cover no-repeat",
             boxShadow: "0 12px 30px rgba(0,0,0,.3)",
           }}
         >
-          <div
-            style={{
-              position: "relative",
-              zIndex: 1,
-              maxWidth: "620px",
-            }}
-          >
+          <div style={{ position: "relative", zIndex: 1, maxWidth: "620px" }}>
             <span
               style={{
                 display: "inline-block",
@@ -1200,29 +1168,12 @@ export default function HomePage() {
               ¡INVITA Y GANA!
             </h2>
 
-            <p
-              style={{
-                margin: "0 0 8px",
-                color: "#86efac",
-                fontSize: "clamp(14px,3vw,19px)",
-                fontWeight: 900,
-              }}
-            >
+            <p style={{ margin: "0 0 8px", color: "#86efac", fontSize: "clamp(14px,3vw,19px)", fontWeight: 900 }}>
               GANA 0.10 POR CADA AMIGO
             </p>
 
-            <p
-              style={{
-                margin: "0 0 18px",
-                color: "#f3f4f6",
-                fontSize: "12px",
-                lineHeight: 1.7,
-                maxWidth: "480px",
-              }}
-            >
-              Comparte tu enlace de STORE GAMING. Cuando tu referido
-              complete su primera compra válida, recibirás 0.10 de saldo
-              en tu billetera.
+            <p style={{ margin: "0 0 18px", color: "#f3f4f6", fontSize: "12px", lineHeight: 1.7, maxWidth: "480px" }}>
+              Comparte tu enlace de STORE GAMING. Cuando tu referido complete su primera compra válida, recibirás 0.10 de saldo en tu billetera.
             </p>
 
             <button
@@ -1254,10 +1205,7 @@ export default function HomePage() {
 
       {/* SERVICIOS */}
 
-      <section
-        className="services-section"
-        style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 10px" }}
-      >
+      <section className="services-section" style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 10px" }}>
         <div style={sectionHeading}>
           <div>
             <span style={sectionLabel}>EXPLORA LA TIENDA</span>
@@ -1267,59 +1215,24 @@ export default function HomePage() {
         </div>
 
         <div style={cardGrid}>
-          <button
-            type="button"
-            className="service-card"
-            style={cardStyle}
-            onClick={() => goTo("/top-up")}
-          >
-            <span style={cardIcon}>🎮</span>
-            <span style={cardText}>SERVICIOS TOP UP</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" className="service-card" style={cardStyle} onClick={() => goTo("/top-up")}>
+            <span style={cardIcon}>🎮</span><span style={cardText}>SERVICIOS TOP UP</span><span style={cardArrow}>›</span>
           </button>
 
-          <button
-            type="button"
-            className="service-card"
-            style={cardStyle}
-            onClick={() => goTo("/gift-cards")}
-          >
-            <span style={cardIcon}>🎁</span>
-            <span style={cardText}>TARJETAS DE REGALO</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" className="service-card" style={cardStyle} onClick={() => goTo("/gift-cards")}>
+            <span style={cardIcon}>🎁</span><span style={cardText}>TARJETAS DE REGALO</span><span style={cardArrow}>›</span>
           </button>
 
-          <button
-            type="button"
-            className="service-card"
-            style={cardStyle}
-            onClick={() => goTo("/telegram-stars")}
-          >
-            <span style={cardIcon}>⭐</span>
-            <span style={cardText}>ESTRELLAS DE TELEGRAM</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" className="service-card" style={cardStyle} onClick={() => goTo("/telegram-stars")}>
+            <span style={cardIcon}>⭐</span><span style={cardText}>ESTRELLAS DE TELEGRAM</span><span style={cardArrow}>›</span>
           </button>
 
-          <button
-            type="button"
-            className="service-card"
-            style={cardStyle}
-            onClick={() => goTo("/crypto")}
-          >
-            <span style={cardIcon}>🪙</span>
-            <span style={cardText}>COMPRA Y VENTA DE CRIPTO</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" className="service-card" style={cardStyle} onClick={() => goTo("/crypto")}>
+            <span style={cardIcon}>🪙</span><span style={cardText}>COMPRA Y VENTA DE CRIPTO</span><span style={cardArrow}>›</span>
           </button>
 
-          <button
-            type="button"
-            className="service-card"
-            style={cardStyle}
-            onClick={() => setMenuOpen(true)}
-          >
-            <span style={cardIcon}>📱</span>
-            <span style={cardText}>VENTA DE SALDO MÓVIL</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" className="service-card" style={cardStyle} onClick={() => setMenuOpen(true)}>
+            <span style={cardIcon}>📱</span><span style={cardText}>VENTA DE SALDO MÓVIL</span><span style={cardArrow}>›</span>
           </button>
         </div>
       </section>
@@ -1336,56 +1249,24 @@ export default function HomePage() {
         </div>
 
         <div style={cardGrid}>
-          <button
-            type="button"
-            style={cardStyle}
-            onClick={() => goTo("/orders")}
-          >
-            <span style={cardIcon}>📦</span>
-            <span style={cardText}>PEDIDOS</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" style={cardStyle} onClick={() => goTo("/orders")}>
+            <span style={cardIcon}>📦</span><span style={cardText}>PEDIDOS</span><span style={cardArrow}>›</span>
           </button>
 
-          <button
-            type="button"
-            style={cardStyle}
-            onClick={() => goTo("/balance")}
-          >
-            <span style={cardIcon}>💳</span>
-            <span style={cardText}>BILLETERA</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" style={cardStyle} onClick={() => goTo("/balance")}>
+            <span style={cardIcon}>💳</span><span style={cardText}>BILLETERA</span><span style={cardArrow}>›</span>
           </button>
 
-          <button
-            type="button"
-            style={cardStyle}
-            onClick={() => goTo("/transfers")}
-          >
-            <span style={cardIcon}>🔄</span>
-            <span style={cardText}>TRANSFERENCIAS</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" style={cardStyle} onClick={() => goTo("/transfers")}>
+            <span style={cardIcon}>🔄</span><span style={cardText}>TRANSFERENCIAS</span><span style={cardArrow}>›</span>
           </button>
 
-          <button
-            type="button"
-            style={cardStyle}
-            onClick={() => goTo("/profile")}
-          >
-            <span style={cardIcon}>👤</span>
-            <span style={cardText}>PERFIL</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" style={cardStyle} onClick={() => goTo("/profile")}>
+            <span style={cardIcon}>👤</span><span style={cardText}>PERFIL</span><span style={cardArrow}>›</span>
           </button>
 
-          <button
-            type="button"
-            style={cardStyle}
-            onClick={() => goTo("/ajustes")}
-          >
-            <span style={cardIcon}>
-              <MenuLineIcon name="settings" />
-            </span>
-            <span style={cardText}>AJUSTES</span>
-            <span style={cardArrow}>›</span>
+          <button type="button" style={cardStyle} onClick={() => goTo("/ajustes")}>
+            <span style={cardIcon}><MenuLineIcon name="settings" /></span><span style={cardText}>AJUSTES</span><span style={cardArrow}>›</span>
           </button>
         </div>
       </section>
@@ -1441,13 +1322,7 @@ export default function HomePage() {
           <span style={{ fontSize: "22px" }}>⚡</span>
           <div>
             <strong style={{ fontSize: "10px" }}>ENTREGA RÁPIDA</strong>
-            <p
-              style={{
-                fontSize: "10px",
-                color: "#aab3c5",
-                margin: "4px 0 0",
-              }}
-            >
+            <p style={{ fontSize: "10px", color: "#aab3c5", margin: "4px 0 0" }}>
               Procesamos tus pedidos rápidamente.
             </p>
           </div>
@@ -1457,13 +1332,7 @@ export default function HomePage() {
           <span style={{ fontSize: "22px" }}>🛡️</span>
           <div>
             <strong style={{ fontSize: "10px" }}>COMPRA SEGURA</strong>
-            <p
-              style={{
-                fontSize: "10px",
-                color: "#aab3c5",
-                margin: "4px 0 0",
-              }}
-            >
+            <p style={{ fontSize: "10px", color: "#aab3c5", margin: "4px 0 0" }}>
               Tu pedido queda registrado.
             </p>
           </div>
@@ -1474,21 +1343,12 @@ export default function HomePage() {
 
       <footer
         className="store-footer"
-        style={{
-          padding: "22px 12px",
-          textAlign: "center",
-          color: "#aab3c5",
-        }}
+        style={{ padding: "22px 12px", textAlign: "center", color: "#aab3c5" }}
       >
-        <div
-          className="footer-brand"
-          style={{ color: "#fff", fontWeight: 900 }}
-        >
+        <div className="footer-brand" style={{ color: "#fff", fontWeight: 900 }}>
           🛒 STORE GAMING 🎮
         </div>
-        <p style={{ fontSize: "10px" }}>
-          TU MEJOR OPCIÓN PARA RECARGAS GAMING
-        </p>
+        <p style={{ fontSize: "10px" }}>TU MEJOR OPCIÓN PARA RECARGAS GAMING</p>
         <small>© 2026 STORE GAMING</small>
       </footer>
     </main>
