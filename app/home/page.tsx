@@ -462,7 +462,6 @@ export default function HomePage() {
         )
         .subscribe();
 
-      // Actualiza las estadísticas cuando cambien las órdenes de esta tabla.
       ordersChannel = supabase
         .channel(`home-orders-${userId}`)
         .on(
@@ -1005,39 +1004,121 @@ export default function HomePage() {
 
       {/* BIENVENIDA Y ESTADÍSTICAS */}
 
-      <section className="store-hero" style={panelStyle}>
-        <div className="hero-content">
+      <section
+        className="store-hero"
+        style={{
+          ...panelStyle,
+          position: "relative",
+          overflow: "hidden",
+          isolation: "isolate",
+          padding: "clamp(18px,4vw,30px)",
+          border: "1px solid rgba(65,130,255,.42)",
+          background:
+            "linear-gradient(90deg,rgba(3,7,20,.91) 0%,rgba(3,8,25,.76) 52%,rgba(3,7,20,.56) 100%), url('/bienvenida-store-gaming.png') center / cover no-repeat",
+          boxShadow:
+            "0 12px 36px rgba(0,0,0,.38), inset 0 0 35px rgba(25,85,255,.08)",
+        }}
+      >
+        <div
+          className="hero-content"
+          style={{ position: "relative", zIndex: 1 }}
+        >
           <div
             className="hero-badge"
             style={{
-              display: "inline-block",
-              padding: "6px 11px",
-              borderRadius: "20px",
-              background: "rgba(229,9,20,.16)",
-              color: "#ff6570",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "7px",
+              padding: "7px 12px",
+              borderRadius: "30px",
+              background: "rgba(20,75,210,.2)",
+              border: "1px solid rgba(80,145,255,.48)",
+              color: "#b9d6ff",
               fontSize: "10px",
               fontWeight: 900,
-              letterSpacing: "1px",
-              marginBottom: "12px",
+              letterSpacing: "1.5px",
+              marginBottom: "15px",
+              boxShadow: "0 0 18px rgba(35,100,255,.13)",
             }}
           >
-            ⚡ STORE GAMING
+            <span style={{ color: "#55a5ff", fontSize: "14px" }}>✦</span>
+            STORE GAMING
           </div>
 
-          <h1 className="hero-title" style={{ display: "flex", flexDirection: "column", gap: "5px", margin: 0 }}>
-            <span style={{ fontSize: "clamp(19px,4vw,28px)", fontWeight: 900 }}>
-              BIENVENIDO A
+          <h1
+            className="hero-title"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: "5px",
+              margin: 0,
+            }}
+          >
+            <span
+              style={{
+                color: "#f4f7ff",
+                fontSize: "clamp(18px,4vw,27px)",
+                fontWeight: 800,
+                letterSpacing: "1px",
+                textShadow: "0 3px 14px rgba(0,0,0,.8)",
+              }}
+            >
+              ¡BIENVENIDO A
             </span>
-            <span style={{ color: "#ff3948", fontSize: "clamp(25px,5vw,38px)", fontWeight: 1000 }}>
+
+            <span
+              style={{
+                fontSize: "clamp(27px,6vw,43px)",
+                fontWeight: 1000,
+                lineHeight: 1.12,
+                letterSpacing: "-1px",
+                background:
+                  "linear-gradient(100deg,#ffffff 0%,#b9d7ff 35%,#3987ff 72%,#7b9dff 100%)",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                filter: "drop-shadow(0 3px 12px rgba(20,85,255,.35))",
+              }}
+            >
               STORE GAMING
             </span>
-            <span style={{ color: "#b5bdca", fontSize: "11px", fontWeight: 700 }}>
+
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "7px",
+                marginTop: "8px",
+                padding: "6px 10px",
+                borderRadius: "7px",
+                borderLeft: "3px solid #428cff",
+                background: "rgba(3,10,27,.66)",
+                color: "#d5e5ff",
+                fontSize: "11px",
+                fontWeight: 700,
+                letterSpacing: ".5px",
+                overflowWrap: "anywhere",
+              }}
+            >
+              <span style={{ color: "#5ca5ff" }}>●</span>
               USUARIO: @{username}
             </span>
           </h1>
 
-          <p className="hero-text" style={{ margin: "12px 0 17px", color: "#e0e4ed", fontSize: "12px", lineHeight: 1.6 }}>
-            Seleccione la opción o servicio que desee utilizar.
+          <p
+            className="hero-text"
+            style={{
+              margin: "15px 0 20px",
+              maxWidth: "430px",
+              color: "#e1e9f8",
+              fontSize: "12px",
+              lineHeight: 1.8,
+              textShadow: "0 2px 8px rgba(0,0,0,.9)",
+            }}
+          >
+            Tu próxima experiencia gaming comienza aquí.
+            Selecciona el servicio que necesitas y disfruta.
           </p>
 
           <div
@@ -1056,15 +1137,35 @@ export default function HomePage() {
                 ...cardStyle,
                 flexDirection: "column",
                 alignItems: "flex-start",
-                gap: "6px",
+                gap: "7px",
                 minHeight: "104px",
+                padding: "11px 9px",
+                border: "1px solid rgba(91,151,255,.34)",
+                background:
+                  "linear-gradient(145deg,rgba(14,38,83,.88),rgba(7,12,27,.91))",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+                backdropFilter: "blur(8px)",
               }}
             >
-              <span style={{ fontSize: "23px" }}>💳</span>
-              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>
+              <span style={{ fontSize: "22px" }}>💳</span>
+              <span
+                style={{
+                  color: "#b9cce9",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                  letterSpacing: ".5px",
+                }}
+              >
                 BILLETERA
               </span>
-              <b style={{ fontSize: "clamp(12px,3vw,16px)", overflowWrap: "anywhere" }}>
+              <b
+                style={{
+                  color: "#fff",
+                  fontSize: "clamp(11px,3vw,16px)",
+                  overflowWrap: "anywhere",
+                  textShadow: "0 0 12px rgba(65,140,255,.3)",
+                }}
+              >
                 ${deposited.toFixed(2)}
               </b>
             </button>
@@ -1077,15 +1178,35 @@ export default function HomePage() {
                 ...cardStyle,
                 flexDirection: "column",
                 alignItems: "flex-start",
-                gap: "6px",
+                gap: "7px",
                 minHeight: "104px",
+                padding: "11px 9px",
+                border: "1px solid rgba(91,151,255,.34)",
+                background:
+                  "linear-gradient(145deg,rgba(14,38,83,.88),rgba(7,12,27,.91))",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+                backdropFilter: "blur(8px)",
               }}
             >
-              <span style={{ fontSize: "23px" }}>💸</span>
-              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>
+              <span style={{ fontSize: "22px" }}>💸</span>
+              <span
+                style={{
+                  color: "#b9cce9",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                  letterSpacing: ".5px",
+                }}
+              >
                 GASTO TOTAL
               </span>
-              <b style={{ fontSize: "clamp(12px,3vw,16px)", overflowWrap: "anywhere" }}>
+              <b
+                style={{
+                  color: "#fff",
+                  fontSize: "clamp(11px,3vw,16px)",
+                  overflowWrap: "anywhere",
+                  textShadow: "0 0 12px rgba(65,140,255,.3)",
+                }}
+              >
                 ${totalSpent.toFixed(2)}
               </b>
             </button>
@@ -1098,15 +1219,34 @@ export default function HomePage() {
                 ...cardStyle,
                 flexDirection: "column",
                 alignItems: "flex-start",
-                gap: "6px",
+                gap: "7px",
                 minHeight: "104px",
+                padding: "11px 9px",
+                border: "1px solid rgba(91,151,255,.34)",
+                background:
+                  "linear-gradient(145deg,rgba(14,38,83,.88),rgba(7,12,27,.91))",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+                backdropFilter: "blur(8px)",
               }}
             >
-              <span style={{ fontSize: "23px" }}>📦</span>
-              <span style={{ color: "#aab3c5", fontSize: "9px", fontWeight: 800 }}>
+              <span style={{ fontSize: "22px" }}>📦</span>
+              <span
+                style={{
+                  color: "#b9cce9",
+                  fontSize: "9px",
+                  fontWeight: 800,
+                  letterSpacing: ".5px",
+                }}
+              >
                 ÓRDENES
               </span>
-              <b style={{ fontSize: "clamp(12px,3vw,16px)" }}>
+              <b
+                style={{
+                  color: "#fff",
+                  fontSize: "clamp(12px,3vw,16px)",
+                  textShadow: "0 0 12px rgba(65,140,255,.3)",
+                }}
+              >
                 {ordersCreated}
               </b>
             </button>
