@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -109,6 +108,53 @@ function createMessageId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
+/**
+ * Evita que una solicitud se quede esperando indefinidamente.
+ * Si se supera el tiempo, cancela la petición y muestra un error manejable.
+ */
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = 20000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(
+        "El servidor tardó demasiado en responder. Comprueba tu conexión e inténtalo de nuevo."
+      );
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+/** Lee JSON de forma segura, incluso si el servidor devuelve una página de error. */
+async function readJsonSafely(response: Response): Promise<any> {
+  const text = await response.text();
+
+  if (!text.trim()) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(
+      response.ok
+        ? "El servidor devolvió una respuesta no válida."
+        : `El servidor respondió con un error HTTP ${response.status}.`
+    );
+  }
+}
+
 function normalizeConversation(value: unknown): ChatMessage[] {
   if (!Array.isArray(value)) return [];
 
@@ -168,6 +214,69 @@ function normalizeConversation(value: unknown): ChatMessage[] {
     .filter((item): item is ChatMessage => item !== null);
 }
 
+/**
+ * Combina mensajes locales y del servidor sin descartar los que todavía
+ * no hayan aparecido en la siguiente actualización automática.
+ */
+function mergeConversations(
+  ...conversations: ChatMessage[][]
+): ChatMessage[] {
+  const merged: ChatMessage[] = [];
+  const ids = new Set<string>();
+
+  for (const conversation of conversations) {
+    for (const rawMessage of conversation) {
+      const message = rawMessage;
+      const id =
+        message.id !== undefined && message.id !== null
+          ? String(message.id)
+          : "";
+
+      if (id && ids.has(id)) continue;
+
+      const duplicateWithoutId = merged.some((existing) => {
+        if (
+          existing.sender !== message.sender ||
+          existing.message !== message.message
+        ) {
+          return false;
+        }
+
+        if (existing.created_at && message.created_at) {
+          return existing.created_at === message.created_at;
+        }
+
+        return !existing.created_at || !message.created_at;
+      });
+
+      if (duplicateWithoutId) continue;
+
+      merged.push(message);
+      if (id) ids.add(id);
+    }
+  }
+
+  return merged
+    .map((message, index) => ({ message, index }))
+    .sort((a, b) => {
+      const aTime = a.message.created_at
+        ? new Date(a.message.created_at).getTime()
+        : Number.NaN;
+      const bTime = b.message.created_at
+        ? new Date(b.message.created_at).getTime()
+        : Number.NaN;
+
+      if (Number.isFinite(aTime) && Number.isFinite(bTime)) {
+        return aTime - bTime || a.index - b.index;
+      }
+
+      if (Number.isFinite(aTime)) return -1;
+      if (Number.isFinite(bTime)) return 1;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.message);
+}
+
 function getTicketStatus(result: any, fallback = "PENDING"): string {
   const status = result?.ticket?.status ?? result?.status;
 
@@ -224,16 +333,17 @@ export default function SupportPage() {
 
       const finalUserId = userId || session.user.id;
 
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `/api/support/tickets?user_id=${encodeURIComponent(finalUserId)}`,
         {
           method: "GET",
           headers: { Authorization: `Bearer ${session.access_token}` },
           cache: "no-store",
-        }
+        },
+        15000
       );
 
-      const result = await response.json();
+      const result = await readJsonSafely(response);
 
       if (!response.ok) {
         throw new Error(result.error || "No se pudieron cargar las consultas.");
@@ -308,24 +418,39 @@ export default function SupportPage() {
   useEffect(() => {
     if (view !== "chat") return;
 
-    requestAnimationFrame(() => {
+    const frame = window.requestAnimationFrame(() => {
       chatEndRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "end",
       });
     });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [conversation, view, loading]);
 
   /*
-   * Actualiza el chat con mensajes nuevos del servidor.
-   * Así aparecen las respuestas del administrador sin recargar la página.
+   * Sincronización del historial.
+   * Se pausa durante los envíos y operaciones para evitar que una respuesta
+   * antigua del servidor sobrescriba mensajes que el usuario acaba de enviar.
    */
   useEffect(() => {
-    if (view !== "chat" || ticketId === null) return;
+    if (
+      view !== "chat" ||
+      ticketId === null ||
+      loading ||
+      ticketLoading
+    ) {
+      return;
+    }
 
     let active = true;
+    let requestInProgress = false;
 
     const refreshConversation = async () => {
+      if (!active || requestInProgress) return;
+
+      requestInProgress = true;
+
       try {
         const {
           data: { session },
@@ -333,7 +458,7 @@ export default function SupportPage() {
 
         if (!active || !session?.access_token) return;
 
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `/api/support/tickets?user_id=${encodeURIComponent(session.user.id)}`,
           {
             method: "GET",
@@ -341,12 +466,13 @@ export default function SupportPage() {
               Authorization: `Bearer ${session.access_token}`,
             },
             cache: "no-store",
-          }
+          },
+          12000
         );
 
         if (!response.ok) return;
 
-        const result = await response.json();
+        const result = await readJsonSafely(response);
 
         if (!active || !Array.isArray(result.tickets)) return;
 
@@ -384,19 +510,21 @@ export default function SupportPage() {
         );
 
         setConversation((current) => {
-          const currentNormalized = normalizeConversation(current);
+          const combined = mergeConversations(
+            freshConversation,
+            current
+          );
 
-          if (
-            JSON.stringify(currentNormalized) ===
-            JSON.stringify(freshConversation)
-          ) {
-            return current;
-          }
-
-          return freshConversation;
+          return JSON.stringify(current) === JSON.stringify(combined)
+            ? current
+            : combined;
         });
       } catch (err) {
-        console.error("ERROR ACTUALIZANDO CONVERSACIÓN:", err);
+        if (active) {
+          console.error("ERROR ACTUALIZANDO CONVERSACIÓN:", err);
+        }
+      } finally {
+        requestInProgress = false;
       }
     };
 
@@ -410,7 +538,7 @@ export default function SupportPage() {
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [view, ticketId]);
+  }, [view, ticketId, loading, ticketLoading]);
 
   function openNewTicket() {
     setError("");
@@ -432,22 +560,26 @@ export default function SupportPage() {
     accessToken: string,
     extra: Record<string, unknown> = {}
   ) {
-    const response = await fetch("/api/support/ticket", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
+    const response = await fetchWithTimeout(
+      "/api/support/ticket",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          ticketId: targetTicketId,
+          conversation: messages,
+          category,
+          subject,
+          ...extra,
+        }),
       },
-      body: JSON.stringify({
-        ticketId: targetTicketId,
-        conversation: messages,
-        category,
-        subject,
-        ...extra,
-      }),
-    });
+      20000
+    );
 
-    const result = await response.json();
+    const result = await readJsonSafely(response);
 
     if (!response.ok) {
       throw new Error(result.error || "No se pudo guardar la conversación.");
@@ -480,21 +612,29 @@ export default function SupportPage() {
 
       const targetTicketId = ticketIdOverride ?? ticketId;
 
-      const response = await fetch("/api/support/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+      /*
+       * El tiempo máximo evita que el indicador "Escribiendo" quede
+       * activo indefinidamente si la API no responde.
+       */
+      const response = await fetchWithTimeout(
+        "/api/support/chat",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            messages: messagesToSend,
+            ticketId: targetTicketId,
+            category,
+            subject,
+          }),
         },
-        body: JSON.stringify({
-          messages: messagesToSend,
-          ticketId: targetTicketId,
-          category,
-          subject,
-        }),
-      });
+        45000
+      );
 
-      const result = await response.json();
+      const result = await readJsonSafely(response);
 
       if (!response.ok) {
         throw new Error(
@@ -510,9 +650,8 @@ export default function SupportPage() {
       }
 
       /*
-       * El endpoint de chat debe guardar la respuesta de la IA.
-       * No guardamos de nuevo toda la conversación desde el navegador,
-       * porque eso podría borrar una respuesta reciente del administrador.
+       * Si la API informa que no pudo guardar, no fingimos que la
+       * respuesta quedó guardada. Mostramos el aviso y recargamos tickets.
        */
       if (targetTicketId !== null && result.saved === false) {
         setError(
@@ -531,9 +670,14 @@ export default function SupportPage() {
         created_at: result.created_at || new Date().toISOString(),
       };
 
-      const updatedConversation = [...messagesToSend, aiMessage];
+      const updatedConversation = mergeConversations(
+        messagesToSend,
+        [aiMessage]
+      );
 
-      setConversation(updatedConversation);
+      setConversation((current) =>
+        mergeConversations(current, updatedConversation)
+      );
 
       const lower = aiText.toLowerCase();
 
@@ -560,6 +704,7 @@ export default function SupportPage() {
 
       return null;
     } finally {
+      // Siempre se apaga el indicador, también ante errores y tiempos agotados.
       setLoading(false);
     }
   }
@@ -601,21 +746,25 @@ export default function SupportPage() {
         created_at: new Date().toISOString(),
       };
 
-      const response = await fetch("/api/support/ticket", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+      const response = await fetchWithTimeout(
+        "/api/support/ticket",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            subject: cleanSubject,
+            message: cleanMessage,
+            category,
+            conversation: [firstMessage],
+          }),
         },
-        body: JSON.stringify({
-          subject: cleanSubject,
-          message: cleanMessage,
-          category,
-          conversation: [firstMessage],
-        }),
-      });
+        20000
+      );
 
-      const result = await response.json();
+      const result = await readJsonSafely(response);
 
       if (!response.ok) {
         throw new Error(result.error || "No se pudo crear la consulta.");
@@ -683,10 +832,10 @@ export default function SupportPage() {
       created_at: new Date().toISOString(),
     };
 
-    const nextConversation = [
-      ...normalizeConversation(conversation),
-      userMessage,
-    ];
+    const nextConversation = mergeConversations(
+      normalizeConversation(conversation),
+      [userMessage]
+    );
 
     setConversation(nextConversation);
 
@@ -700,8 +849,8 @@ export default function SupportPage() {
       }
 
       /*
-       * Se guarda el mensaje del usuario antes de llamar a la IA.
-       * La respuesta de la IA la guarda /api/support/chat.
+       * Primero guardamos el mensaje del usuario. Después consultamos
+       * la API de chat, que se encarga de guardar su respuesta.
        */
       await persistConversation(
         ticketId,
@@ -744,30 +893,34 @@ export default function SupportPage() {
         created_at: new Date().toISOString(),
       };
 
-      const nextConversation = [
-        ...normalizeConversation(conversation),
-        adminMessage,
-      ];
+      const nextConversation = mergeConversations(
+        normalizeConversation(conversation),
+        [adminMessage]
+      );
 
       setConversation(nextConversation);
 
-      const response = await fetch("/api/support/ticket", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+      const response = await fetchWithTimeout(
+        "/api/support/ticket",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            ticketId,
+            message: adminMessage.message,
+            conversation: nextConversation,
+            category,
+            subject,
+            notifyAdmin: true,
+          }),
         },
-        body: JSON.stringify({
-          ticketId,
-          message: adminMessage.message,
-          conversation: nextConversation,
-          category,
-          subject,
-          notifyAdmin: true,
-        }),
-      });
+        20000
+      );
 
-      const result = await response.json();
+      const result = await readJsonSafely(response);
 
       if (!response.ok) {
         throw new Error(
@@ -839,22 +992,26 @@ export default function SupportPage() {
         throw new Error("Tu sesión ha expirado.");
       }
 
-      const response = await fetch("/api/support/ticket", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+      const response = await fetchWithTimeout(
+        "/api/support/ticket",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            ticketId,
+            status: "PENDING",
+            category,
+            subject,
+            conversation: normalizeConversation(conversation),
+          }),
         },
-        body: JSON.stringify({
-          ticketId,
-          status: "PENDING",
-          category,
-          subject,
-          conversation: normalizeConversation(conversation),
-        }),
-      });
+        20000
+      );
 
-      const result = await response.json();
+      const result = await readJsonSafely(response);
 
       if (!response.ok) {
         throw new Error(result.error || "No se pudo reabrir la consulta.");
@@ -1169,6 +1326,8 @@ export default function SupportPage() {
                     color: "#aaa",
                     fontSize: 11,
                   }}
+                  role="status"
+                  aria-live="polite"
                 >
                   Escribiendo •••
                 </div>
