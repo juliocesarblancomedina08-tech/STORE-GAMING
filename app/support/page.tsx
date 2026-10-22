@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -91,7 +92,7 @@ const SUPPORT_CSS = `
 .game-service-footer strong{color:#fff;font-size:15px;font-weight:950}
 .game-service-footer span{color:#777;font-size:10px;letter-spacing:2px}
 .support-floating-button{position:fixed;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:10;display:flex;width:56px;height:56px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2);border-radius:50%;background:linear-gradient(135deg,#f01825,#8c0008);color:#fff;font-size:24px;box-shadow:0 8px 28px rgba(229,9,20,.3);cursor:pointer}
-.support-chat-container{width:100%;max-width:620px;min-height:0;margin:12px auto 0;display:flex;flex:1 1 0;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(7,7,7,.96);box-shadow:0 18px 45px rgba(0,0,0,.55)}
+.support-chat-container{width:100%;max-width:620px;min-height:0;height:100%;margin:12px auto 0;display:flex;flex:1 1 0;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(7,7,7,.96);box-shadow:0 18px 45px rgba(0,0,0,.55)}
 .support-chat-messages{display:flex;flex:1 1 0;min-height:0;flex-direction:column;gap:8px;overflow-y:auto;overflow-x:hidden;padding:14px 11px;scrollbar-width:thin;scrollbar-color:#373737 #0b0b0b;-webkit-overflow-scrolling:touch}
 .support-chat-input-row{display:flex;width:100%;align-items:center;gap:8px;margin:0}
 .support-chat-input-row input:focus{border-color:#e50914!important;box-shadow:0 0 0 3px rgba(229,9,20,.1)}
@@ -108,17 +109,16 @@ function createMessageId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
-/**
- * Evita que una solicitud se quede esperando indefinidamente.
- * Si se supera el tiempo, cancela la petición y muestra un error manejable.
- */
 async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit = {},
   timeoutMs = 20000
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    timeoutMs
+  );
 
   try {
     return await fetch(input, {
@@ -138,7 +138,6 @@ async function fetchWithTimeout(
   }
 }
 
-/** Lee JSON de forma segura, incluso si el servidor devuelve una página de error. */
 async function readJsonSafely(response: Response): Promise<any> {
   const text = await response.text();
 
@@ -161,7 +160,9 @@ function normalizeConversation(value: unknown): ChatMessage[] {
   const seen = new Set<string>();
 
   return value
-    .filter((item: unknown) => item !== null && typeof item === "object")
+    .filter(
+      (item: unknown) => item !== null && typeof item === "object"
+    )
     .map((item: any): ChatMessage | null => {
       const rawText =
         typeof item.message === "string"
@@ -214,10 +215,6 @@ function normalizeConversation(value: unknown): ChatMessage[] {
     .filter((item): item is ChatMessage => item !== null);
 }
 
-/**
- * Combina mensajes locales y del servidor sin descartar los que todavía
- * no hayan aparecido en la siguiente actualización automática.
- */
 function mergeConversations(
   ...conversations: ChatMessage[][]
 ): ChatMessage[] {
@@ -225,8 +222,7 @@ function mergeConversations(
   const ids = new Set<string>();
 
   for (const conversation of conversations) {
-    for (const rawMessage of conversation) {
-      const message = rawMessage;
+    for (const message of conversation) {
       const id =
         message.id !== undefined && message.id !== null
           ? String(message.id)
@@ -234,7 +230,7 @@ function mergeConversations(
 
       if (id && ids.has(id)) continue;
 
-      const duplicateWithoutId = merged.some((existing) => {
+      const duplicate = merged.some((existing) => {
         if (
           existing.sender !== message.sender ||
           existing.message !== message.message
@@ -246,10 +242,10 @@ function mergeConversations(
           return existing.created_at === message.created_at;
         }
 
-        return !existing.created_at || !message.created_at;
+        return false;
       });
 
-      if (duplicateWithoutId) continue;
+      if (duplicate) continue;
 
       merged.push(message);
       if (id) ids.add(id);
@@ -280,7 +276,9 @@ function mergeConversations(
 function getTicketStatus(result: any, fallback = "PENDING"): string {
   const status = result?.ticket?.status ?? result?.status;
 
-  return typeof status === "string" && status ? status : fallback;
+  return typeof status === "string" && status
+    ? status
+    : fallback;
 }
 
 function isTicketClosed(status: string): boolean {
@@ -317,18 +315,25 @@ export default function SupportPage() {
   const [adminRequested, setAdminRequested] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const sendLockRef = useRef(false);
+  const activeTicketRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    activeTicketRef.current = ticketId;
+  }, [ticketId]);
 
   const loadTickets = useCallback(async (userId?: string) => {
     try {
       setTicketLoading(true);
-      setError("");
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
+        throw new Error(
+          "Tu sesión ha expirado. Vuelve a iniciar sesión."
+        );
       }
 
       const finalUserId = userId || session.user.id;
@@ -337,7 +342,9 @@ export default function SupportPage() {
         `/api/support/tickets?user_id=${encodeURIComponent(finalUserId)}`,
         {
           method: "GET",
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
           cache: "no-store",
         },
         15000
@@ -346,7 +353,9 @@ export default function SupportPage() {
       const result = await readJsonSafely(response);
 
       if (!response.ok) {
-        throw new Error(result.error || "No se pudieron cargar las consultas.");
+        throw new Error(
+          result.error || "No se pudieron cargar las consultas."
+        );
       }
 
       const loadedTickets: SupportTicket[] = Array.isArray(result.tickets)
@@ -362,9 +371,10 @@ export default function SupportPage() {
 
       setSelectedTicket((current) => {
         if (!current) return null;
+
         return (
           loadedTickets.find(
-            (ticket) => Number(ticket.id) === Number(current.id)
+            (ticket) => ticket.id === current.id
           ) || current
         );
       });
@@ -429,9 +439,8 @@ export default function SupportPage() {
   }, [conversation, view, loading]);
 
   /*
-   * Sincronización del historial.
-   * Se pausa durante los envíos y operaciones para evitar que una respuesta
-   * antigua del servidor sobrescriba mensajes que el usuario acaba de enviar.
+   * La sincronización solo incorpora mensajes nuevos del servidor.
+   * Se pausa mientras se envía un mensaje para evitar carreras.
    */
   useEffect(() => {
     if (
@@ -447,7 +456,7 @@ export default function SupportPage() {
     let requestInProgress = false;
 
     const refreshConversation = async () => {
-      if (!active || requestInProgress) return;
+      if (!active || requestInProgress || sendLockRef.current) return;
 
       requestInProgress = true;
 
@@ -496,23 +505,35 @@ export default function SupportPage() {
         setTicketStatus(freshTicket.status);
 
         setSelectedTicket((current) =>
-          current && Number(current.id) === Number(ticketId)
+          current && current.id === ticketId
             ? { ...current, ...freshTicket }
             : current
         );
 
         setTickets((current) =>
           current.map((item) =>
-            Number(item.id) === Number(ticketId)
+            item.id === ticketId
               ? { ...item, ...freshTicket }
               : item
           )
         );
 
         setConversation((current) => {
+          /*
+           * El servidor es la fuente de verdad. Solo mantenemos mensajes
+           * locales que aún no estén reflejados en la respuesta reciente.
+           */
           const combined = mergeConversations(
             freshConversation,
-            current
+            current.filter((item) => {
+              if (item.id === undefined) return false;
+
+              return !freshConversation.some(
+                (fresh) =>
+                  fresh.id !== undefined &&
+                  String(fresh.id) === String(item.id)
+              );
+            })
           );
 
           return JSON.stringify(current) === JSON.stringify(combined)
@@ -554,46 +575,14 @@ export default function SupportPage() {
     setView("form");
   }
 
-  async function persistConversation(
-    targetTicketId: number,
-    messages: ChatMessage[],
-    accessToken: string,
-    extra: Record<string, unknown> = {}
-  ) {
-    const response = await fetchWithTimeout(
-      "/api/support/ticket",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          ticketId: targetTicketId,
-          conversation: messages,
-          category,
-          subject,
-          ...extra,
-        }),
-      },
-      20000
-    );
-
-    const result = await readJsonSafely(response);
-
-    if (!response.ok) {
-      throw new Error(result.error || "No se pudo guardar la conversación.");
-    }
-
-    setTicketStatus(getTicketStatus(result, ticketStatus));
-
-    return result;
-  }
-
   async function sendToSupportAI(
     messagesOverride?: ChatMessage[],
     ticketIdOverride?: number | null
   ) {
+    if (sendLockRef.current) return null;
+
+    sendLockRef.current = true;
+
     try {
       setLoading(true);
       setError("");
@@ -603,7 +592,9 @@ export default function SupportPage() {
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
+        throw new Error(
+          "Tu sesión ha expirado. Vuelve a iniciar sesión."
+        );
       }
 
       const messagesToSend = normalizeConversation(
@@ -612,10 +603,10 @@ export default function SupportPage() {
 
       const targetTicketId = ticketIdOverride ?? ticketId;
 
-      /*
-       * El tiempo máximo evita que el indicador "Escribiendo" quede
-       * activo indefinidamente si la API no responde.
-       */
+      if (targetTicketId === null) {
+        throw new Error("No se encontró el identificador de la consulta.");
+      }
+
       const response = await fetchWithTimeout(
         "/api/support/chat",
         {
@@ -642,44 +633,42 @@ export default function SupportPage() {
         );
       }
 
-      const aiText =
-        result.message || result.response || result.answer || "";
+      const answer = String(
+        result.message || result.response || result.answer || ""
+      ).trim();
 
-      if (typeof aiText !== "string" || !aiText.trim()) {
+      if (!answer) {
         throw new Error("El soporte no devolvió una respuesta.");
       }
 
-      /*
-       * Si la API informa que no pudo guardar, no fingimos que la
-       * respuesta quedó guardada. Mostramos el aviso y recargamos tickets.
-       */
-      if (targetTicketId !== null && result.saved === false) {
-        setError(
-          result.warning ||
-            "La respuesta se generó, pero no se pudo guardar. Actualiza la consulta."
+      if (result.saved === false) {
+        throw new Error(
+          result.error ||
+            "La respuesta no se pudo guardar. Actualiza la consulta."
         );
-
-        await loadTickets(session.user.id);
-        return null;
       }
 
-      const aiMessage: ChatMessage = {
+      const responseMessage: ChatMessage = {
         id: result.messageId || createMessageId(),
         sender: result.sender === "admin" ? "admin" : "ai",
-        message: aiText.trim(),
+        message: answer,
         created_at: result.created_at || new Date().toISOString(),
       };
 
-      const updatedConversation = mergeConversations(
-        messagesToSend,
-        [aiMessage]
+      const serverConversation = normalizeConversation(
+        result.conversation
       );
 
-      setConversation((current) =>
-        mergeConversations(current, updatedConversation)
-      );
+      const finalConversation =
+        serverConversation.length > 0
+          ? mergeConversations(serverConversation, [responseMessage])
+          : mergeConversations(messagesToSend, [responseMessage]);
 
-      const lower = aiText.toLowerCase();
+      if (activeTicketRef.current === targetTicketId) {
+        setConversation(finalConversation);
+      }
+
+      const lower = answer.toLowerCase();
 
       if (
         result.requiresAdmin === true ||
@@ -687,12 +676,12 @@ export default function SupportPage() {
         result.needsAdmin === true ||
         lower.includes("llamar al administrador") ||
         lower.includes("contactar al administrador") ||
-        lower.includes("necesitas contactar")
+        lower.includes("solicitar al administrador")
       ) {
         setAdminRequested(true);
       }
 
-      return updatedConversation;
+      return finalConversation;
     } catch (err) {
       console.error("ERROR CHAT SOPORTE:", err);
 
@@ -704,7 +693,7 @@ export default function SupportPage() {
 
       return null;
     } finally {
-      // Siempre se apaga el indicador, también ante errores y tiempos agotados.
+      sendLockRef.current = false;
       setLoading(false);
     }
   }
@@ -736,7 +725,9 @@ export default function SupportPage() {
       } = await supabase.auth.getSession();
 
       if (!session?.user || !session.access_token) {
-        throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
+        throw new Error(
+          "Tu sesión ha expirado. Vuelve a iniciar sesión."
+        );
       }
 
       const firstMessage: ChatMessage = {
@@ -767,27 +758,34 @@ export default function SupportPage() {
       const result = await readJsonSafely(response);
 
       if (!response.ok) {
-        throw new Error(result.error || "No se pudo crear la consulta.");
+        throw new Error(
+          result.error || "No se pudo crear la consulta."
+        );
       }
 
       const createdTicket = result.ticket || result.data || null;
-      const rawId = createdTicket?.id ?? result.ticketId ?? result.id;
+      const rawId =
+        createdTicket?.id ?? result.ticketId ?? result.id;
 
       const createdId =
         rawId !== undefined &&
         rawId !== null &&
-        Number.isFinite(Number(rawId))
+        Number.isSafeInteger(Number(rawId)) &&
+        Number(rawId) > 0
           ? Number(rawId)
           : null;
 
       if (createdId === null) {
         throw new Error(
-          "La consulta se creó, pero el servidor no devolvió su identificador. Actualiza tus consultas antes de volver a enviarla."
+          "La consulta se creó, pero el servidor no devolvió un identificador válido. Actualiza tus consultas antes de volver a intentarlo."
         );
       }
 
       setTicketId(createdId);
-      setTicketStatus(createdTicket?.status || result.status || "PENDING");
+      activeTicketRef.current = createdId;
+      setTicketStatus(
+        createdTicket?.status || result.status || "PENDING"
+      );
       setConversation([firstMessage]);
       setChatInput("");
       setMessage("");
@@ -796,12 +794,18 @@ export default function SupportPage() {
       setSubject(cleanSubject);
       setView("chat");
 
+      /*
+       * La API del chat guarda el mensaje inicial y la respuesta.
+       * No guardamos de nuevo el mismo mensaje desde la página.
+       */
       await sendToSupportAI([firstMessage], createdId);
       await loadTickets(session.user.id);
     } catch (err) {
       console.error("ERROR CREANDO TICKET:", err);
       setError(
-        err instanceof Error ? err.message : "No se pudo crear la consulta."
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la consulta."
       );
     } finally {
       setTicketLoading(false);
@@ -811,7 +815,14 @@ export default function SupportPage() {
   async function handleSendChat(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (loading || ticketLoading || isTicketClosed(ticketStatus)) return;
+    if (
+      sendLockRef.current ||
+      loading ||
+      ticketLoading ||
+      isTicketClosed(ticketStatus)
+    ) {
+      return;
+    }
 
     const cleanMessage = chatInput.trim();
 
@@ -822,8 +833,7 @@ export default function SupportPage() {
       return;
     }
 
-    setChatInput("");
-    setError("");
+    const targetTicketId = ticketId;
 
     const userMessage: ChatMessage = {
       id: createMessageId(),
@@ -837,41 +847,25 @@ export default function SupportPage() {
       [userMessage]
     );
 
+    setChatInput("");
+    setError("");
     setConversation(nextConversation);
 
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.access_token) {
-        throw new Error("Tu sesión ha expirado. Vuelve a iniciar sesión.");
-      }
-
-      /*
-       * Primero guardamos el mensaje del usuario. Después consultamos
-       * la API de chat, que se encarga de guardar su respuesta.
-       */
-      await persistConversation(
-        ticketId,
-        nextConversation,
-        session.access_token,
-        { message: cleanMessage }
-      );
-
-      await sendToSupportAI(nextConversation, ticketId);
-    } catch (err) {
-      console.error("ERROR ENVIANDO MENSAJE:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo enviar o guardar el mensaje."
-      );
-    }
+    /*
+     * Una única petición gestiona el mensaje y la respuesta.
+     * No llamar a persistConversation aquí evita el doble guardado.
+     */
+    await sendToSupportAI(nextConversation, targetTicketId);
   }
 
   async function requestAdmin() {
-    if (ticketLoading || loading || ticketId === null) return;
+    if (
+      ticketLoading ||
+      loading ||
+      ticketId === null
+    ) {
+      return;
+    }
 
     try {
       setTicketLoading(true);
@@ -897,8 +891,6 @@ export default function SupportPage() {
         normalizeConversation(conversation),
         [adminMessage]
       );
-
-      setConversation(nextConversation);
 
       const response = await fetchWithTimeout(
         "/api/support/ticket",
@@ -928,8 +920,10 @@ export default function SupportPage() {
         );
       }
 
+      setConversation(nextConversation);
       setAdminRequested(false);
       setTicketStatus(getTicketStatus(result, "PENDING"));
+
       await loadTickets(session.user.id);
     } catch (err) {
       console.error("ERROR SOLICITANDO ADMIN:", err);
@@ -944,7 +938,9 @@ export default function SupportPage() {
   }
 
   function openTicket(ticket: SupportTicket) {
-    const normalizedConversation = normalizeConversation(ticket.conversation);
+    const normalizedConversation = normalizeConversation(
+      ticket.conversation
+    );
 
     const finalConversation =
       normalizedConversation.length > 0
@@ -960,13 +956,15 @@ export default function SupportPage() {
             ]
           : [];
 
-    setSelectedTicket({
+    const normalizedTicket = {
       ...ticket,
       id: Number(ticket.id),
       conversation: finalConversation,
-    });
+    };
 
-    setTicketId(Number(ticket.id));
+    setSelectedTicket(normalizedTicket);
+    setTicketId(normalizedTicket.id);
+    activeTicketRef.current = normalizedTicket.id;
     setCategory(ticket.category || "Otro/pregunta");
     setSubject(ticket.subject || "");
     setTicketStatus(ticket.status || "PENDING");
@@ -1014,7 +1012,9 @@ export default function SupportPage() {
       const result = await readJsonSafely(response);
 
       if (!response.ok) {
-        throw new Error(result.error || "No se pudo reabrir la consulta.");
+        throw new Error(
+          result.error || "No se pudo reabrir la consulta."
+        );
       }
 
       setTicketStatus(getTicketStatus(result, "PENDING"));
@@ -1022,7 +1022,9 @@ export default function SupportPage() {
     } catch (err) {
       console.error("ERROR REABRIENDO TICKET:", err);
       setError(
-        err instanceof Error ? err.message : "No se pudo reabrir la consulta."
+        err instanceof Error
+          ? err.message
+          : "No se pudo reabrir la consulta."
       );
     } finally {
       setTicketLoading(false);
@@ -1036,7 +1038,11 @@ export default function SupportPage() {
       className="support-page"
       style={
         view === "chat"
-          ? { height: "100dvh", minHeight: "100dvh", overflow: "hidden" }
+          ? {
+              height: "100dvh",
+              minHeight: "100dvh",
+              overflow: "hidden",
+            }
           : undefined
       }
     >
@@ -1078,7 +1084,11 @@ export default function SupportPage() {
 
           <div className="support-header-title">
             <span>
-              {view === "tickets" ? "📋" : view === "chat" ? "💬" : "📩"}
+              {view === "tickets"
+                ? "📋"
+                : view === "chat"
+                  ? "💬"
+                  : "📩"}
             </span>
             <h1>
               {view === "form"
@@ -1152,9 +1162,15 @@ export default function SupportPage() {
               <button
                 type="submit"
                 className="support-submit-button"
-                disabled={ticketLoading || !subject.trim() || !message.trim()}
+                disabled={
+                  ticketLoading ||
+                  !subject.trim() ||
+                  !message.trim()
+                }
               >
-                {ticketLoading ? "CREANDO CONSULTA..." : "CREAR CONSULTA →"}
+                {ticketLoading
+                  ? "CREANDO CONSULTA..."
+                  : "CREAR CONSULTA →"}
               </button>
             </form>
           </>
@@ -1202,7 +1218,9 @@ export default function SupportPage() {
                     fontSize: 10,
                   }}
                 >
-                  {isClosed ? "Consulta cerrada" : "Asistente de soporte"}
+                  {isClosed
+                    ? "Consulta cerrada"
+                    : "Asistente de soporte"}
                 </span>
               </div>
 
@@ -1245,7 +1263,9 @@ export default function SupportPage() {
                     style={{
                       width: "100%",
                       display: "flex",
-                      justifyContent: isUser ? "flex-end" : "flex-start",
+                      justifyContent: isUser
+                        ? "flex-end"
+                        : "flex-start",
                     }}
                   >
                     <div
@@ -1281,7 +1301,11 @@ export default function SupportPage() {
                           textTransform: "uppercase",
                         }}
                       >
-                        {isUser ? "Tú" : isAdmin ? "Administrador" : "Soporte IA"}
+                        {isUser
+                          ? "Tú"
+                          : isAdmin
+                            ? "Administrador"
+                            : "Soporte IA"}
                       </span>
 
                       <div
@@ -1305,10 +1329,13 @@ export default function SupportPage() {
                             fontSize: 9,
                           }}
                         >
-                          {new Date(item.created_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {new Date(item.created_at).toLocaleTimeString(
+                            [],
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}
                         </span>
                       )}
                     </div>
@@ -1342,16 +1369,23 @@ export default function SupportPage() {
                   type="button"
                   className="support-submit-button support-admin-button"
                   onClick={requestAdmin}
-                  disabled={ticketLoading || loading || ticketId === null}
+                  disabled={
+                    ticketLoading || loading || ticketId === null
+                  }
                   style={{ width: "100%" }}
                 >
-                  {ticketLoading ? "CONTACTANDO..." : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
+                  {ticketLoading
+                    ? "CONTACTANDO..."
+                    : "👨‍💻 LLAMAR AL ADMINISTRADOR"}
                 </button>
               </div>
             )}
 
             {error && (
-              <div className="support-error" style={{ margin: "8px 10px 0" }}>
+              <div
+                className="support-error"
+                style={{ margin: "8px 10px 0" }}
+              >
                 {error}
               </div>
             )}
@@ -1365,11 +1399,16 @@ export default function SupportPage() {
                   background: "#090909",
                 }}
               >
-                <form className="support-chat-input-row" onSubmit={handleSendChat}>
+                <form
+                  className="support-chat-input-row"
+                  onSubmit={handleSendChat}
+                >
                   <input
                     type="text"
                     value={chatInput}
-                    onChange={(event) => setChatInput(event.target.value)}
+                    onChange={(event) =>
+                      setChatInput(event.target.value)
+                    }
                     placeholder="Escribe tu mensaje..."
                     disabled={loading || ticketLoading}
                     autoComplete="off"
@@ -1392,7 +1431,11 @@ export default function SupportPage() {
                   <button
                     type="submit"
                     className="support-send-button"
-                    disabled={loading || ticketLoading || !chatInput.trim()}
+                    disabled={
+                      loading ||
+                      ticketLoading ||
+                      !chatInput.trim()
+                    }
                     aria-label="Enviar mensaje"
                     style={{
                       width: 45,
@@ -1407,7 +1450,9 @@ export default function SupportPage() {
                       color: "#fff",
                       fontSize: 19,
                       opacity:
-                        loading || ticketLoading || !chatInput.trim() ? 0.45 : 1,
+                        loading || ticketLoading || !chatInput.trim()
+                          ? 0.45
+                          : 1,
                     }}
                   >
                     ➤
@@ -1430,7 +1475,9 @@ export default function SupportPage() {
                   disabled={ticketLoading}
                   style={{ width: "100%" }}
                 >
-                  {ticketLoading ? "REABRIENDO..." : "↻ REABRIR CONSULTA"}
+                  {ticketLoading
+                    ? "REABRIENDO..."
+                    : "↻ REABRIR CONSULTA"}
                 </button>
               </div>
             )}
@@ -1449,7 +1496,9 @@ export default function SupportPage() {
               <div className="support-main-card">
                 <div className="support-main-icon">📭</div>
                 <h2>No tienes consultas</h2>
-                <p>Cuando crees una consulta aparecerá aquí.</p>
+                <p>
+                  Cuando crees una consulta aparecerá aquí.
+                </p>
                 <button
                   type="button"
                   className="support-main-button"
