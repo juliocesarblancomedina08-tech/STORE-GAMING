@@ -6,37 +6,25 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "";
+
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
-const ADMIN_EMAIL =
-  (process.env.SUPPORT_ADMIN_EMAIL ||
-    "juliocesarblancomedina08@gmail.com").toLowerCase();
-
-const ADMIN_USER_IDS = (process.env.SUPPORT_ADMIN_USER_IDS || "")
-  .split(",")
-  .map((value) => value.trim())
-  .filter(Boolean);
-
-const supabaseAdmin =
-  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      })
-    : null;
-
-type SupportMessage = {
-  id: string;
+type ChatMessage = {
+  id?: string | number;
   sender: "user" | "ai" | "admin";
-  text: string;
-  created_at: string;
+  message: string;
+  created_at?: string;
 };
 
 function jsonError(
@@ -45,142 +33,115 @@ function jsonError(
   code?: string
 ) {
   return NextResponse.json(
-    {
-      success: false,
-      error,
-      ...(code ? { code } : {}),
-    },
+    { success: false, error, code },
     { status }
   );
 }
 
-function messageText(value: unknown): string {
-  if (typeof value === "string") return value.trim();
-
-  if (value && typeof value === "object") {
-    const item = value as Record<string, unknown>;
-
-    for (const key of ["text", "message", "content"]) {
-      if (typeof item[key] === "string") {
-        return (item[key] as string).trim();
-      }
-    }
-  }
-
-  return "";
-}
-
-function normalizeConversation(value: unknown): SupportMessage[] {
+function normalizeConversation(value: unknown): ChatMessage[] {
   if (!Array.isArray(value)) return [];
 
   return value
-    .map((item, index): SupportMessage | null => {
-      if (!item || typeof item !== "object") return null;
-
-      const row = item as Record<string, unknown>;
-
+    .filter(
+      (item): item is Record<string, unknown> =>
+        !!item && typeof item === "object"
+    )
+    .map((item) => {
       const rawSender = String(
-        row.sender || row.role || ""
+        item.sender || item.role || "user"
       ).toLowerCase();
 
-      let sender: SupportMessage["sender"];
-
-      if (rawSender === "user") {
-        sender = "user";
-      } else if (
-        rawSender === "ai" ||
-        rawSender === "assistant" ||
-        rawSender === "bot"
-      ) {
-        sender = "ai";
-      } else if (rawSender === "admin" || rawSender === "agent") {
-        sender = "admin";
-      } else {
-        return null;
-      }
-
-      const text = messageText(row);
-      if (!text) return null;
-
-      const createdAt =
-        typeof row.created_at === "string"
-          ? row.created_at
-          : typeof row.createdAt === "string"
-            ? row.createdAt
-            : new Date().toISOString();
+      const sender: ChatMessage["sender"] =
+        rawSender === "admin"
+          ? "admin"
+          : rawSender === "ai" ||
+              rawSender === "assistant"
+            ? "ai"
+            : "user";
 
       return {
         id:
-          typeof row.id === "string" && row.id.trim()
-            ? row.id
-            : `support-${sender}-${index}-${createdAt}`,
+          typeof item.id === "string" ||
+          typeof item.id === "number"
+            ? item.id
+            : undefined,
         sender,
-        text,
-        created_at: createdAt,
+        message: String(
+          item.message || item.text || item.content || ""
+        ).trim(),
+        created_at:
+          typeof item.created_at === "string"
+            ? item.created_at
+            : undefined,
       };
     })
-    .filter((item): item is SupportMessage => item !== null);
+    .filter((item) => item.message.length > 0);
 }
 
-function getLatestUserMessage(body: Record<string, unknown>) {
-  const directMessage = messageText(body.message || body.text);
+function sameMessage(
+  a: ChatMessage,
+  b: ChatMessage
+): boolean {
+  return (
+    a.sender === b.sender &&
+    a.message.trim() === b.message.trim()
+  );
+}
 
-  if (directMessage) return directMessage;
+function mergeMessages(
+  existing: ChatMessage[],
+  incoming: ChatMessage[]
+): ChatMessage[] {
+  const result = [...existing];
 
-  const messages = normalizeConversation(body.messages);
+  for (const message of incoming) {
+    const duplicateById =
+      message.id !== undefined &&
+      result.some(
+        (item) =>
+          item.id !== undefined &&
+          String(item.id) === String(message.id)
+      );
 
-  for (let index = messages.length - 1; index >= 0; index--) {
-    if (messages[index].sender === "user") {
-      return messages[index].text;
-    }
+    if (duplicateById) continue;
+
+    const duplicateByContent = result.some(
+      (item) =>
+        sameMessage(item, message) &&
+        item.created_at === message.created_at
+    );
+
+    if (!duplicateByContent) result.push(message);
   }
 
-  return "";
+  return result;
 }
 
-function createMessageId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-}
-
-function fallbackReply(category: string) {
-  return [
-    "Gracias por contactar con el soporte de STORE GAMING.",
-    "",
-    "He recibido tu mensaje, pero en este momento no he podido generar una respuesta automática.",
-    "Tu consulta puede continuar desde el panel de soporte para que el equipo la revise.",
-    "",
-    category ? `Categoría: ${category}.` : "",
-    "Por favor, no envíes el mismo mensaje repetidamente. Si el problema continúa, utiliza el ticket existente.",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-async function generateAIReply(
-  conversation: SupportMessage[],
+async function generateAIResponse(
+  conversation: ChatMessage[],
   category: string,
   subject: string
 ): Promise<string> {
   if (!OPENAI_API_KEY) {
-    return fallbackReply(category);
+    return "Gracias por contactar con STORE GAMING. Tu mensaje quedó registrado. Nuestro equipo de soporte te ayudará con tu consulta. Si necesitas atención personal, utiliza el botón para solicitar al administrador.";
   }
 
-  const recentMessages = conversation.slice(-12).map((message) => ({
-    role:
-      message.sender === "user"
-        ? "user"
-        : "assistant",
-    content:
-      message.sender === "admin"
-        ? `[Respuesta del administrador] ${message.text}`
-        : message.text,
-  }));
+  const history = conversation
+    .slice(-20)
+    .map((item) => ({
+      role:
+        item.sender === "user"
+          ? "user"
+          : "assistant",
+      content:
+        item.sender === "admin"
+          ? `[Mensaje del administrador]: ${item.message}`
+          : item.message,
+    }));
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+  const response = await fetch(
+    "https://api.openai.com/v1/responses",
+    {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -189,76 +150,74 @@ async function generateAIReply(
       body: JSON.stringify({
         model: OPENAI_MODEL,
         instructions: [
-          "Eres el asistente de soporte de STORE GAMING.",
-          "Responde siempre en español, con claridad, amabilidad y brevedad.",
-          "Ayuda con compras, pagos, recargas, tarjetas, suscripciones, pedidos y consultas sobre la API.",
-          "No inventes pagos, pedidos, reembolsos, saldos ni cambios de estado.",
-          "No afirmes que has realizado acciones en la cuenta si no tienes herramientas para realizarlas.",
-          "Si necesitas que un administrador intervenga, indícalo y recomienda continuar el ticket desde el panel de soporte.",
-          "Nunca solicites contraseñas, claves privadas ni códigos de autenticación.",
-        ].join(" "),
-        input: [
-          {
-            role: "user",
-            content: `Categoría del ticket: ${category || "No especificada"}\nAsunto: ${subject || "No especificado"}`,
-          },
-          ...recentMessages,
-        ],
+          "Eres el asistente de soporte oficial de STORE GAMING.",
+          "Responde en español, de forma clara, amable y breve.",
+          "Ayuda con pagos, pedidos, recargas, tarjetas, suscripciones y la API de STORE GAMING.",
+          "Nunca afirmes que un pago se ha acreditado o que un pedido se ha completado si no tienes confirmación real de la base de datos.",
+          "Nunca solicites contraseñas, claves privadas, códigos de autenticación ni claves secretas.",
+          "No inventes estados de pedidos ni prometas tiempos de resolución.",
+          "Si no puedes resolver el problema, indica que el usuario puede solicitar al administrador.",
+          `Categoría del ticket: ${category || "No especificada"}.`,
+          `Asunto del ticket: ${subject || "No especificado"}.`,
+        ].join("\n"),
+        input: history,
         max_output_tokens: 500,
       }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      return fallbackReply(category);
+      signal: AbortSignal.timeout(30000),
     }
+  );
 
-    const data = (await response.json()) as {
-      output_text?: string;
-      output?: Array<{
-        content?: Array<{
-          type?: string;
-          text?: string;
-        }>;
-      }>;
-    };
+  const data = await response.json().catch(() => null);
 
-    let answer =
-      typeof data.output_text === "string"
-        ? data.output_text.trim()
-        : "";
-
-    if (!answer && Array.isArray(data.output)) {
-      answer = data.output
-        .flatMap((item) => item.content || [])
-        .filter((item) => item.type === "output_text")
-        .map((item) => item.text || "")
-        .join("\n")
-        .trim();
-    }
-
-    return answer || fallbackReply(category);
-  } catch {
-    return fallbackReply(category);
-  } finally {
-    clearTimeout(timeout);
+  if (!response.ok) {
+    throw new Error(
+      data?.error?.message ||
+        `OpenAI respondió con estado ${response.status}`
+    );
   }
+
+  const outputText = String(data?.output_text || "").trim();
+
+  if (outputText) return outputText;
+
+  const extracted = Array.isArray(data?.output)
+    ? data.output
+        .flatMap((item: any) =>
+          Array.isArray(item?.content) ? item.content : []
+        )
+        .filter((item: any) => item?.type === "output_text")
+        .map((item: any) => item.text || "")
+        .join("\n")
+        .trim()
+    : "";
+
+  if (extracted) return extracted;
+
+  throw new Error("La IA no devolvió texto.");
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!supabaseAdmin) {
+    if (
+      !SUPABASE_URL ||
+      !SUPABASE_ANON_KEY ||
+      !SUPABASE_SERVICE_ROLE_KEY
+    ) {
       return jsonError(
-        "El servidor de soporte no está configurado correctamente.",
+        "Falta configurar la URL o las claves de Supabase en las variables de entorno.",
         500,
-        "SERVER_CONFIG"
+        "SUPABASE_CONFIG"
       );
     }
 
-    const authorization = request.headers.get("authorization") || "";
-    const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i);
+    const authorization =
+      request.headers.get("authorization") || "";
 
-    if (!tokenMatch) {
+    const token = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
+
+    if (!token) {
       return jsonError(
         "Debes iniciar sesión para utilizar el soporte.",
         401,
@@ -266,39 +225,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = tokenMatch[1].trim();
+    const supabaseAuth = createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
 
     const {
       data: { user },
       error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
+    } = await supabaseAuth.auth.getUser(token);
 
     if (authError || !user) {
       return jsonError(
-        "Tu sesión no es válida. Inicia sesión nuevamente.",
+        "La sesión no es válida. Inicia sesión nuevamente.",
         401,
         "INVALID_SESSION"
       );
     }
 
-    const isAdmin =
-      (user.email || "").toLowerCase() === ADMIN_EMAIL ||
-      ADMIN_USER_IDS.includes(user.id);
+    const body = await request.json().catch(() => null);
 
-    if (isAdmin) {
-      return jsonError(
-        "Las respuestas administrativas deben enviarse desde el panel de soporte.",
-        403,
-        "ADMIN_PANEL_REQUIRED"
-      );
-    }
-
-    let body: Record<string, unknown>;
-
-    try {
-      body = (await request.json()) as Record<string, unknown>;
-    } catch {
-      return jsonError("El contenido enviado no es válido.");
+    if (!body || typeof body !== "object") {
+      return jsonError("El cuerpo de la solicitud no es válido.");
     }
 
     const rawTicketId = body.ticketId ?? body.ticket_id;
@@ -312,42 +266,66 @@ export async function POST(request: NextRequest) {
       ticketId <= 0
     ) {
       return jsonError(
-        "No se recibió un identificador de ticket válido.",
+        "El identificador del ticket no es válido.",
         400,
         "INVALID_TICKET_ID"
       );
     }
 
-    const incomingText = getLatestUserMessage(body);
+    const adminEmails = (
+      process.env.SUPPORT_ADMIN_EMAIL ||
+      "juliocesarblancomedina08@gmail.com"
+    )
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
 
-    if (!incomingText) {
+    const adminIds = (
+      process.env.SUPPORT_ADMIN_USER_IDS || ""
+    )
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    const isAdmin =
+      (!!user.email &&
+        adminEmails.includes(user.email.toLowerCase())) ||
+      adminIds.includes(user.id);
+
+    if (isAdmin) {
       return jsonError(
-        "Escribe un mensaje antes de enviarlo.",
-        400,
-        "EMPTY_MESSAGE"
+        "Las respuestas administrativas deben enviarse desde el panel de soporte.",
+        403,
+        "ADMIN_USE_SUPPORT_PANEL"
       );
     }
 
-    if (incomingText.length > 5000) {
-      return jsonError(
-        "El mensaje es demasiado largo. Reduce su extensión e inténtalo nuevamente.",
-        400,
-        "MESSAGE_TOO_LONG"
-      );
-    }
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
 
-    const { data: ticket, error: ticketError } = await supabaseAdmin
-      .from("support_tickets")
-      .select("id,user_id,category,subject,message,conversation,status")
-      .eq("id", ticketId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data: ticket, error: ticketError } =
+      await supabase
+        .from("support_tickets")
+        .select(
+          "id,user_id,category,subject,message,conversation,status"
+        )
+        .eq("id", ticketId)
+        .eq("user_id", user.id)
+        .maybeSingle();
 
     if (ticketError) {
-      console.error("Error consultando ticket de soporte:", ticketError);
+      console.error("Error leyendo ticket:", ticketError);
 
       return jsonError(
-        "No se pudo consultar el ticket. Inténtalo nuevamente.",
+        "No se pudo consultar el ticket de soporte.",
         500,
         "TICKET_READ_ERROR"
       );
@@ -355,94 +333,125 @@ export async function POST(request: NextRequest) {
 
     if (!ticket) {
       return jsonError(
-        "No se encontró el ticket o no tienes permiso para acceder.",
+        "No se encontró el ticket o no tienes permiso para acceder a él.",
         404,
         "TICKET_NOT_FOUND"
       );
     }
 
-    const status = String(ticket.status || "").toUpperCase();
-
-    if (["COMPLETED", "CLOSED"].includes(status)) {
+    if (
+      ["CLOSED", "COMPLETED"].includes(
+        String(ticket.status || "").toUpperCase()
+      )
+    ) {
       return jsonError(
-        "Este ticket está cerrado. Abre o utiliza un ticket disponible para continuar.",
+        "Este ticket está cerrado. Reábrelo antes de enviar otro mensaje.",
         409,
         "TICKET_CLOSED"
       );
     }
 
-    let conversation = normalizeConversation(ticket.conversation);
+    const incoming = normalizeConversation(body.messages);
 
-    if (
-      conversation.length === 0 &&
-      typeof ticket.message === "string" &&
-      ticket.message.trim()
-    ) {
-      conversation.push({
-        id: createMessageId(),
-        sender: "user",
-        text: ticket.message.trim(),
-        created_at: new Date().toISOString(),
-      });
+    const lastIncomingUser = [...incoming]
+      .reverse()
+      .find((item) => item.sender === "user");
+
+    if (!lastIncomingUser) {
+      return jsonError(
+        "No se encontró el mensaje del usuario.",
+        400,
+        "USER_MESSAGE_MISSING"
+      );
+    }
+
+    const currentConversation = normalizeConversation(
+      ticket.conversation
+    );
+
+    const alreadyHasMessage = currentConversation.some(
+      (item) =>
+        item.sender === "user" &&
+        (
+          (
+            lastIncomingUser.id !== undefined &&
+            item.id !== undefined &&
+            String(item.id) === String(lastIncomingUser.id)
+          ) ||
+          (
+            item.message === lastIncomingUser.message &&
+            item.created_at === lastIncomingUser.created_at
+          )
+        )
+    );
+
+    let conversation = mergeMessages(
+      currentConversation,
+      incoming
+    );
+
+    if (!alreadyHasMessage) {
+      conversation = mergeMessages(
+        conversation,
+        [lastIncomingUser]
+      );
     }
 
     const lastMessage = conversation[conversation.length - 1];
 
-    // Evita agregar otra copia si el cliente ya guardó el mensaje.
-    const sameLastUserMessage =
-      lastMessage?.sender === "user" &&
-      lastMessage.text.trim() === incomingText.trim();
-
-    if (!sameLastUserMessage) {
-      conversation.push({
-        id: createMessageId(),
-        sender: "user",
-        text: incomingText,
-        created_at: new Date().toISOString(),
-      });
-    }
-
-    const userMessage =
-      conversation[conversation.length - 1];
-
-    // Si ya existe una respuesta posterior para este mensaje, no la duplica.
-    const userMessageIndex = conversation.findIndex(
-      (message) => message.id === userMessage.id
-    );
-
-    const existingReply = conversation
-      .slice(userMessageIndex + 1)
-      .find(
-        (message) =>
-          message.sender === "ai" || message.sender === "admin"
-      );
-
-    if (existingReply) {
+    if (
+      lastMessage?.sender === "ai" &&
+      conversation.length > 0
+    ) {
       return NextResponse.json({
         success: true,
-        message: existingReply.text,
-        response: existingReply.text,
-        answer: existingReply.text,
-        sender: existingReply.sender,
-        ticketId: ticket.id,
         saved: true,
-        duplicate: true,
+        sender: "ai",
+        ticketId,
+        message: lastMessage.message,
+        response: lastMessage.message,
         conversation,
       });
     }
 
-    // Guardar primero el mensaje del cliente.
-    const { error: saveUserError } = await supabaseAdmin
+    // Evita que un segundo mensaje se procese mientras el último
+    // mensaje del usuario ya tiene una respuesta posterior guardada.
+    const latestUserIndex = conversation
+      .map((item) => item.sender)
+      .lastIndexOf("user");
+
+    const laterAIResponse = conversation
+      .slice(latestUserIndex + 1)
+      .find(
+        (item) =>
+          item.sender === "ai" || item.sender === "admin"
+      );
+
+    if (laterAIResponse) {
+      return NextResponse.json({
+        success: true,
+        saved: true,
+        sender: laterAIResponse.sender,
+        ticketId,
+        message: laterAIResponse.message,
+        response: laterAIResponse.message,
+        conversation,
+      });
+    }
+
+    // Guardamos el mensaje del usuario antes de consultar la IA.
+    const { error: saveUserError } = await supabase
       .from("support_tickets")
       .update({
         conversation,
+        message: lastIncomingUser.message,
         updated_at: new Date().toISOString(),
       })
       .eq("id", ticketId)
       .eq("user_id", user.id);
 
     if (saveUserError) {
-      console.error("Error guardando mensaje del cliente:", saveUserError);
+      console.error("Error guardando mensaje:", saveUserError);
 
       return jsonError(
         "No se pudo guardar tu mensaje. Inténtalo nuevamente.",
@@ -451,80 +460,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const category = String(ticket.category || body.category || "");
-    const subject = String(ticket.subject || body.subject || "");
+    let answer: string;
+    let aiUnavailable = false;
 
-    const answer = await generateAIReply(
-      conversation,
-      category,
-      subject
-    );
+    try {
+      answer = await generateAIResponse(
+        conversation,
+        String(ticket.category || body.category || ""),
+        String(ticket.subject || body.subject || "")
+      );
+    } catch (error) {
+      console.error("Error generando respuesta de IA:", error);
 
-    const aiMessage: SupportMessage = {
-      id: createMessageId(),
+      aiUnavailable = true;
+      answer =
+        "Gracias por escribir a STORE GAMING. Tu mensaje quedó registrado, pero ahora mismo no pude generar una respuesta automática. Puedes volver a intentarlo o solicitar que el administrador continúe contigo.";
+    }
+
+    const aiMessage: ChatMessage = {
+      id: `ai-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`,
       sender: "ai",
-      text: answer,
+      message: answer,
       created_at: new Date().toISOString(),
     };
 
-    // Volver a leer para no sobrescribir una respuesta del administrador
-    // o mensajes que hayan llegado mientras se generaba la respuesta.
-    const { data: latestTicket, error: latestError } = await supabaseAdmin
-      .from("support_tickets")
-      .select("conversation")
-      .eq("id", ticketId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    conversation = mergeMessages(conversation, [aiMessage]);
 
-    if (latestError || !latestTicket) {
-      console.error("No se pudo verificar el ticket tras la respuesta:", latestError);
-
-      return NextResponse.json({
-        success: true,
-        message: answer,
-        response: answer,
-        answer,
-        sender: "ai",
-        ticketId: ticket.id,
-        saved: false,
-        warning: "La respuesta se generó, pero no se pudo confirmar su guardado.",
-      });
-    }
-
-    const latestConversation = normalizeConversation(
-      latestTicket.conversation
-    );
-
-    const alreadyAnswered = latestConversation.some(
-      (message) =>
-        message.sender === "ai" &&
-        message.created_at >= userMessage.created_at
-    );
-
-    if (alreadyAnswered) {
-      const lastAI = [...latestConversation]
-        .reverse()
-        .find((message) => message.sender === "ai");
-
-      return NextResponse.json({
-        success: true,
-        message: lastAI?.text || answer,
-        response: lastAI?.text || answer,
-        answer: lastAI?.text || answer,
-        sender: "ai",
-        ticketId: ticket.id,
-        saved: true,
-        duplicate: true,
-        conversation: latestConversation,
-      });
-    }
-
-    const finalConversation = [...latestConversation, aiMessage];
-
-    const { error: saveAIError } = await supabaseAdmin
+    const { error: saveAIError } = await supabase
       .from("support_tickets")
       .update({
-        conversation: finalConversation,
+        conversation,
         updated_at: new Date().toISOString(),
       })
       .eq("id", ticketId)
@@ -533,35 +500,40 @@ export async function POST(request: NextRequest) {
     if (saveAIError) {
       console.error("Error guardando respuesta de IA:", saveAIError);
 
-      return NextResponse.json({
-        success: true,
-        message: answer,
-        response: answer,
-        answer,
-        sender: "ai",
-        ticketId: ticket.id,
-        saved: false,
-        warning: "La respuesta se generó, pero no se pudo guardar en el ticket.",
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          saved: false,
+          error:
+            "La respuesta se generó, pero no se pudo guardar. Actualiza el chat para comprobar el estado.",
+          code: "AI_SAVE_ERROR",
+          ticketId,
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
+      saved: true,
+      sender: "ai",
+      ticketId,
       message: answer,
       response: answer,
       answer,
-      sender: "ai",
-      ticketId: ticket.id,
-      saved: true,
-      conversation: finalConversation,
+      aiUnavailable,
+      conversation,
     });
   } catch (error) {
-    console.error("Error inesperado en soporte IA:", error);
+    console.error("Error en /api/support/chat:", error);
 
     return jsonError(
-      "Ocurrió un error inesperado al responder. Puedes intentarlo nuevamente.",
+      error instanceof Error &&
+        error.name === "TimeoutError"
+        ? "La consulta tardó demasiado. Inténtalo nuevamente."
+        : "Ocurrió un error al procesar el mensaje de soporte.",
       500,
-      "INTERNAL_ERROR"
+      "CHAT_INTERNAL_ERROR"
     );
   }
 }
