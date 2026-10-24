@@ -1,8 +1,14 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../../lib/supabase";
 
 type GiftCardOffer = {
   id: string;
@@ -28,6 +34,19 @@ type CatalogResponse = {
   data?: {
     name?: string;
     offers?: SupplierOffer[];
+  };
+};
+
+type PurchaseResponse = {
+  success?: boolean;
+  status?: string;
+  order_id?: string;
+  message?: string;
+  error?: string;
+  duplicate?: boolean;
+  order?: {
+    id?: string;
+    status?: string;
   };
 };
 
@@ -67,14 +86,14 @@ function mapSupplierOffer(
   if (
     !item.card_id ||
     !Number.isFinite(supplierPrice) ||
-    supplierPrice < 0 ||
+    supplierPrice <= 0 ||
     !robux
   ) {
     return null;
   }
 
   return {
-    id: item.card_id,
+    id: String(item.card_id),
     robux,
     supplierPrice,
     price:
@@ -101,10 +120,17 @@ export default function RobloxGlobalGiftCardPage() {
 
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
+  const [orderMessage, setOrderMessage] = useState("");
 
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
+
+  // Reutilizar la clave durante los reintentos de una misma
+  // solicitud. No garantiza por sí sola la idempotencia del proveedor.
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const loadCatalog = useCallback(async () => {
     setLoading(true);
@@ -201,6 +227,7 @@ export default function RobloxGlobalGiftCardPage() {
   const selectOffer = (offer: GiftCardOffer) => {
     if (
       loading ||
+      purchaseLoading ||
       offer.stock < 1 ||
       offer.maxOrderQuantity < 1
     ) {
@@ -211,6 +238,10 @@ export default function RobloxGlobalGiftCardPage() {
     setQuantity(1);
     setShowConfirmation(false);
     setCatalogError("");
+    setOrderCreated(false);
+
+    // Una selección diferente es una solicitud diferente.
+    idempotencyKeyRef.current = null;
 
     setTimeout(() => {
       document
@@ -225,18 +256,24 @@ export default function RobloxGlobalGiftCardPage() {
   const increaseQuantity = () => {
     if (
       !selectedOffer ||
-      quantity >= maxQuantity
+      quantity >= maxQuantity ||
+      purchaseLoading
     ) {
       return;
     }
 
     setQuantity((current) => current + 1);
+    idempotencyKeyRef.current = null;
   };
 
   const decreaseQuantity = () => {
+    if (purchaseLoading) return;
+
     setQuantity((current) =>
       Math.max(1, current - 1)
     );
+
+    idempotencyKeyRef.current = null;
   };
 
   const total = selectedOffer
@@ -270,11 +307,18 @@ export default function RobloxGlobalGiftCardPage() {
     }, 100);
   };
 
-  const createOrder = () => {
-    if (!selectedOffer || loading) return;
+  const createOrder = async () => {
+    if (
+      !selectedOffer ||
+      loading ||
+      purchaseLoading
+    ) {
+      return;
+    }
 
     if (
       selectedOffer.stock < quantity ||
+      quantity < 1 ||
       quantity > selectedOffer.maxOrderQuantity
     ) {
       setShowConfirmation(false);
@@ -287,54 +331,108 @@ export default function RobloxGlobalGiftCardPage() {
       return;
     }
 
-    // Guarda una solicitud local en el navegador.
-    // Todavía no compra códigos en FazerCards ni registra
-    // una orden en el servidor de STORE GAMING.
-    const orderId =
-      `GC-${Date.now().toString().slice(-8)}`;
-
-    const newOrder = {
-      id: orderId,
-      type: "GIFT CARD",
-      game: "ROBLOX (GLOBAL)",
-      robux: selectedOffer.robux,
-      supplierOfferId: selectedOffer.id,
-      price: selectedOffer.price,
-      quantity,
-      total,
-      status: "PENDIENTE",
-      createdAt: new Date().toISOString(),
-    };
+    setCatalogError("");
+    setPurchaseLoading(true);
 
     try {
-      const existing = JSON.parse(
-        localStorage.getItem(
-          "storeGamingOrders"
-        ) || "[]"
-      );
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (!Array.isArray(existing)) {
-        throw new Error(
-          "El historial local no es válido."
+      if (sessionError || !session?.access_token) {
+        setCatalogError(
+          "Tu sesión ha expirado. Inicia sesión nuevamente antes de comprar."
         );
+        return;
       }
 
-      localStorage.setItem(
-        "storeGamingOrders",
-        JSON.stringify([
-          ...existing,
-          newOrder,
-        ])
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = crypto.randomUUID();
+      }
+
+      const idempotencyKey = idempotencyKeyRef.current;
+
+      const response = await fetch(
+        "/api/fazercards/giftcards/order",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            card_id: selectedOffer.id,
+            quantity,
+            idempotency_key: idempotencyKey,
+          }),
+          cache: "no-store",
+        }
       );
 
-      localStorage.setItem(
-        "storeGamingLastOrder",
-        JSON.stringify(newOrder)
+      const result: PurchaseResponse =
+        await response.json();
+
+      // El servidor puede devolver un pedido existente
+      // si la misma clave de idempotencia ya fue utilizada.
+      if (!response.ok || !result.success) {
+        if (
+          result.status === "REFUNDED" ||
+          result.status === "refunded"
+        ) {
+          setOrderNumber(result.order_id || "");
+          setOrderStatus("REFUNDED");
+          setOrderMessage(
+            result.message ||
+              "El pedido fue marcado para reembolso. Comprueba tu balance y consulta tus órdenes."
+          );
+
+          setShowConfirmation(false);
+          setOrderCreated(true);
+          idempotencyKeyRef.current = null;
+          return;
+        }
+
+        setCatalogError(
+          result.message ||
+            result.error ||
+            "No se pudo confirmar la compra. Revisa tus órdenes antes de intentarlo de nuevo."
+        );
+
+        // Conservamos la clave para que el usuario pueda
+        // repetir la misma solicitud sin generar otra clave.
+        return;
+      }
+
+      const status = String(
+        result.status ||
+          result.order?.status ||
+          "PENDING"
+      ).toUpperCase();
+
+      const serverOrderId =
+        result.order_id ||
+        result.order?.id ||
+        "";
+
+      setOrderNumber(serverOrderId);
+      setOrderStatus(status);
+
+      setOrderMessage(
+        result.message ||
+          (
+            status === "COMPLETED"
+              ? "Tu compra se completó. Consulta tus órdenes para ver los códigos."
+              : "Tu pedido está pendiente de confirmación. Consulta tus órdenes para revisar su estado."
+          )
       );
 
-      setOrderNumber(orderId);
       setShowConfirmation(false);
       setOrderCreated(true);
+
+      // El pedido ya fue recibido por el servidor.
+      // La siguiente compra será una solicitud nueva.
+      idempotencyKeyRef.current = null;
 
       setTimeout(() => {
         document
@@ -346,13 +444,15 @@ export default function RobloxGlobalGiftCardPage() {
       }, 100);
     } catch (error) {
       console.error(
-        "Error guardando la solicitud:",
+        "Error enviando la compra de Roblox Global:",
         error
       );
 
       setCatalogError(
-        "No se pudo guardar la solicitud en este navegador."
+        "No pudimos confirmar la respuesta del servidor. No repitas la compra todavía; consulta tus órdenes primero."
       );
+    } finally {
+      setPurchaseLoading(false);
     }
   };
 
@@ -401,16 +501,32 @@ export default function RobloxGlobalGiftCardPage() {
             id="gift-card-success"
             className="roblox-success"
           >
-            <div className="roblox-success-icon">
-              ✓
+            <div
+              className={`roblox-success-icon ${
+                orderStatus === "REFUNDED"
+                  ? "refunded"
+                  : orderStatus === "COMPLETED"
+                    ? "completed"
+                    : "pending"
+              }`}
+            >
+              {orderStatus === "REFUNDED"
+                ? "!"
+                : orderStatus === "COMPLETED"
+                  ? "✓"
+                  : "…"}
             </div>
 
-            <h2>SOLICITUD GUARDADA</h2>
+            <h2>
+              {orderStatus === "COMPLETED"
+                ? "COMPRA COMPLETADA"
+                : orderStatus === "REFUNDED"
+                  ? "PEDIDO REEMBOLSADO"
+                  : "PEDIDO RECIBIDO"}
+            </h2>
 
             <p className="roblox-success-message">
-              La solicitud se guardó en este navegador.
-              Todavía no se ha enviado a FazerCards ni se
-              ha confirmado una compra.
+              {orderMessage}
             </p>
 
             <div className="roblox-order-card">
@@ -442,8 +558,25 @@ export default function RobloxGlobalGiftCardPage() {
               </div>
 
               <div className="roblox-detail-row">
-                <span>Número de solicitud</span>
-                <strong>{orderNumber}</strong>
+                <span>Número de orden</span>
+                <strong>
+                  {orderNumber || "Pendiente de asignación"}
+                </strong>
+              </div>
+
+              <div className="roblox-detail-row">
+                <span>Estado del pedido</span>
+                <strong
+                  className={
+                    orderStatus === "COMPLETED"
+                      ? "roblox-status-completed"
+                      : orderStatus === "REFUNDED"
+                        ? "roblox-status-refunded"
+                        : "roblox-status-pending"
+                  }
+                >
+                  {orderStatus || "PENDING"}
+                </strong>
               </div>
             </div>
 
@@ -454,7 +587,7 @@ export default function RobloxGlobalGiftCardPage() {
               className="roblox-primary-button"
               onClick={() => router.push("/orders")}
             >
-              VER MIS PEDIDOS
+              CONSULTAR MIS ÓRDENES
             </button>
 
             <button
@@ -512,16 +645,16 @@ export default function RobloxGlobalGiftCardPage() {
             className="roblox-error"
             role="alert"
           >
-            <strong>NO SE PUDO ACTUALIZAR</strong>
+            <strong>NO SE PUDO CONFIRMAR</strong>
 
             <p>{catalogError}</p>
 
             <button
               type="button"
               onClick={() => void loadCatalog()}
-              disabled={loading}
+              disabled={loading || purchaseLoading}
             >
-              REINTENTAR
+              ACTUALIZAR CATÁLOGO
             </button>
           </section>
         )}
@@ -568,7 +701,7 @@ export default function RobloxGlobalGiftCardPage() {
                 <button
                   type="button"
                   onClick={() => void loadCatalog()}
-                  disabled={loading}
+                  disabled={loading || purchaseLoading}
                 >
                   ↻ Actualizar
                 </button>
@@ -618,7 +751,11 @@ export default function RobloxGlobalGiftCardPage() {
                         unavailable ? "unavailable" : ""
                       }`}
                       onClick={() => selectOffer(offer)}
-                      disabled={unavailable || loading}
+                      disabled={
+                        unavailable ||
+                        loading ||
+                        purchaseLoading
+                      }
                     >
                       <span className="roblox-offer-icon">
                         🪙
@@ -708,7 +845,9 @@ export default function RobloxGlobalGiftCardPage() {
                   <button
                     type="button"
                     onClick={decreaseQuantity}
-                    disabled={quantity <= 1}
+                    disabled={
+                      quantity <= 1 || purchaseLoading
+                    }
                     aria-label="Disminuir cantidad"
                   >
                     −
@@ -719,7 +858,10 @@ export default function RobloxGlobalGiftCardPage() {
                   <button
                     type="button"
                     onClick={increaseQuantity}
-                    disabled={quantity >= maxQuantity}
+                    disabled={
+                      quantity >= maxQuantity ||
+                      purchaseLoading
+                    }
                     aria-label="Aumentar cantidad"
                   >
                     +
@@ -758,7 +900,8 @@ export default function RobloxGlobalGiftCardPage() {
               onClick={continueOrder}
               disabled={
                 maxQuantity < 1 ||
-                quantity > selectedOffer.stock
+                quantity > selectedOffer.stock ||
+                purchaseLoading
               }
             >
               CONTINUAR →
@@ -777,7 +920,7 @@ export default function RobloxGlobalGiftCardPage() {
               <div>
                 <h2>CONFIRMA LOS DETALLES</h2>
                 <p>
-                  Revisa la información antes de guardar.
+                  Revisa la información antes de comprar.
                 </p>
               </div>
             </div>
@@ -786,20 +929,21 @@ export default function RobloxGlobalGiftCardPage() {
               <div className="roblox-note-icon">!</div>
 
               <div className="roblox-note-content">
-                <strong>IMPORTANTE</strong>
+                <strong>COMPRA CON BALANCE</strong>
 
                 <p>
-                  Esta acción guarda una solicitud en este
-                  navegador. Todavía no realiza una compra
-                  en FazerCards ni registra una orden en
-                  el servidor.
+                  Al confirmar, el servidor verificará el
+                  precio y la disponibilidad con FazerCards
+                  y reservará el importe de tu balance de
+                  STORE GAMING. La compra puede quedar
+                  pendiente mientras el proveedor la procesa.
                 </p>
               </div>
             </div>
 
             <div className="roblox-order-card">
               <span className="roblox-eyebrow">
-                RESUMEN DE LA SOLICITUD
+                RESUMEN DEL PEDIDO
               </span>
 
               <div className="roblox-detail-row">
@@ -838,17 +982,18 @@ export default function RobloxGlobalGiftCardPage() {
               type="button"
               className="roblox-primary-button"
               onClick={createOrder}
-              disabled={loading}
+              disabled={loading || purchaseLoading}
             >
-              GUARDAR SOLICITUD
+              {purchaseLoading
+                ? "PROCESANDO COMPRA..."
+                : "CONFIRMAR Y COMPRAR"}
             </button>
 
             <button
               type="button"
               className="roblox-secondary-button"
-              onClick={() =>
-                setShowConfirmation(false)
-              }
+              onClick={() => setShowConfirmation(false)}
+              disabled={purchaseLoading}
             >
               ← VOLVER
             </button>
@@ -1575,6 +1720,11 @@ function RobloxStyles() {
         color: #eee;
       }
 
+      .roblox-secondary-button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
       .roblox-confirmation-section .roblox-note {
         margin-bottom: 13px;
       }
@@ -1647,11 +1797,34 @@ function RobloxStyles() {
         margin: 0 auto 12px;
 
         border-radius: 50%;
-        background: #19a957;
         color: #fff;
 
         font-size: 30px;
         font-weight: 900;
+      }
+
+      .roblox-success-icon.completed {
+        background: #19a957;
+      }
+
+      .roblox-success-icon.pending {
+        background: #b87912;
+      }
+
+      .roblox-success-icon.refunded {
+        background: #d71920;
+      }
+
+      .roblox-status-completed {
+        color: #32d997 !important;
+      }
+
+      .roblox-status-pending {
+        color: #ffc857 !important;
+      }
+
+      .roblox-status-refunded {
+        color: #ff4655 !important;
       }
 
       .roblox-success > h2 {
