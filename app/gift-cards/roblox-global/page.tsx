@@ -37,7 +37,7 @@ const API_URL =
 const PROFIT_PER_UNIT = 0.25;
 
 const productNote =
-  "Tarjetas digitales Roblox Global. Consulta los paquetes disponibles, el precio actualizado y la cantidad antes de continuar. Comprueba que tu cuenta sea compatible con la región Global.";
+  "Tarjetas digitales Roblox Global. Consulta los paquetes disponibles, el precio actualizado y las unidades disponibles. Comprueba que tu cuenta sea compatible con la región Global.";
 
 function money(value: number) {
   return `$${value.toFixed(2)} USD`;
@@ -45,7 +45,10 @@ function money(value: number) {
 
 function parseRobux(name: string): number {
   const match = name.match(/([\d,]+)\s*Robux/i);
-  return match ? Number(match[1].replace(/,/g, "")) : 0;
+
+  return match
+    ? Number(match[1].replace(/,/g, ""))
+    : 0;
 }
 
 function mapSupplierOffer(
@@ -53,10 +56,12 @@ function mapSupplierOffer(
 ): GiftCardOffer | null {
   const supplierPrice = Number(item.price_usd);
   const stock = Math.max(0, Number(item.stock) || 0);
+
   const maxOrderQuantity = Math.max(
     0,
     Number(item.max_order_quantity) || 0
   );
+
   const robux = parseRobux(item.name);
 
   if (
@@ -73,8 +78,9 @@ function mapSupplierOffer(
     robux,
     supplierPrice,
     price:
-      Math.round((supplierPrice + PROFIT_PER_UNIT) * 100) /
-      100,
+      Math.round(
+        (supplierPrice + PROFIT_PER_UNIT) * 100
+      ) / 100,
     stock,
     maxOrderQuantity,
   };
@@ -85,12 +91,17 @@ export default function RobloxGlobalGiftCardPage() {
 
   const [showOffers, setShowOffers] = useState(true);
   const [offers, setOffers] = useState<GiftCardOffer[]>([]);
+
   const [selectedOffer, setSelectedOffer] =
     useState<GiftCardOffer | null>(null);
+
   const [quantity, setQuantity] = useState(1);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showConfirmation, setShowConfirmation] =
+    useState(false);
+
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
@@ -105,11 +116,13 @@ export default function RobloxGlobalGiftCardPage() {
         cache: "no-store",
       });
 
-      const result: CatalogResponse = await response.json();
+      const result: CatalogResponse =
+        await response.json();
 
       if (!response.ok || !result.ok) {
         throw new Error(
-          result.error || "No se pudo consultar el catálogo."
+          result.error ||
+            "No se pudo consultar el catálogo."
         );
       }
 
@@ -124,7 +137,8 @@ export default function RobloxGlobalGiftCardPage() {
       const mappedOffers = supplierOffers
         .map(mapSupplierOffer)
         .filter(
-          (offer): offer is GiftCardOffer => offer !== null
+          (offer): offer is GiftCardOffer =>
+            offer !== null
         )
         .sort((a, b) => a.robux - b.robux);
 
@@ -135,12 +149,16 @@ export default function RobloxGlobalGiftCardPage() {
         if (!current) return null;
 
         return (
-          mappedOffers.find((offer) => offer.id === current.id) ??
-          null
+          mappedOffers.find(
+            (offer) => offer.id === current.id
+          ) ?? null
         );
       });
     } catch (error) {
-      console.error("Error cargando Roblox Global:", error);
+      console.error(
+        "Error cargando Roblox Global:",
+        error
+      );
 
       setCatalogError(
         error instanceof Error
@@ -173,7 +191,10 @@ export default function RobloxGlobalGiftCardPage() {
     }
 
     setQuantity((current) =>
-      Math.min(Math.max(1, current), maxQuantity)
+      Math.min(
+        Math.max(1, current),
+        maxQuantity
+      )
     );
   }, [selectedOffer, maxQuantity]);
 
@@ -202,16 +223,26 @@ export default function RobloxGlobalGiftCardPage() {
   };
 
   const increaseQuantity = () => {
-    if (!selectedOffer || quantity >= maxQuantity) return;
+    if (
+      !selectedOffer ||
+      quantity >= maxQuantity
+    ) {
+      return;
+    }
+
     setQuantity((current) => current + 1);
   };
 
   const decreaseQuantity = () => {
-    setQuantity((current) => Math.max(1, current - 1));
+    setQuantity((current) =>
+      Math.max(1, current - 1)
+    );
   };
 
   const total = selectedOffer
-    ? Math.round(selectedOffer.price * quantity * 100) / 100
+    ? Math.round(
+        selectedOffer.price * quantity * 100
+      ) / 100
     : 0;
 
   const continueOrder = () => {
@@ -247,16 +278,20 @@ export default function RobloxGlobalGiftCardPage() {
       quantity > selectedOffer.maxOrderQuantity
     ) {
       setShowConfirmation(false);
+
       setCatalogError(
         "La disponibilidad puede haber cambiado. Actualiza el catálogo antes de continuar."
       );
+
       void loadCatalog();
       return;
     }
 
-    // Esta acción guarda una solicitud en el navegador.
-    // No compra códigos ni crea una orden en el servidor.
-    const orderId = `GC-${Date.now().toString().slice(-8)}`;
+    // Guarda una solicitud local en el navegador.
+    // Todavía no compra códigos en FazerCards ni registra
+    // una orden en el servidor de STORE GAMING.
+    const orderId =
+      `GC-${Date.now().toString().slice(-8)}`;
 
     const newOrder = {
       id: orderId,
@@ -273,16 +308,23 @@ export default function RobloxGlobalGiftCardPage() {
 
     try {
       const existing = JSON.parse(
-        localStorage.getItem("storeGamingOrders") || "[]"
+        localStorage.getItem(
+          "storeGamingOrders"
+        ) || "[]"
       );
 
       if (!Array.isArray(existing)) {
-        throw new Error("El historial local no es válido.");
+        throw new Error(
+          "El historial local no es válido."
+        );
       }
 
       localStorage.setItem(
         "storeGamingOrders",
-        JSON.stringify([...existing, newOrder])
+        JSON.stringify([
+          ...existing,
+          newOrder,
+        ])
       );
 
       localStorage.setItem(
@@ -303,7 +345,11 @@ export default function RobloxGlobalGiftCardPage() {
           });
       }, 100);
     } catch (error) {
-      console.error("Error guardando la solicitud:", error);
+      console.error(
+        "Error guardando la solicitud:",
+        error
+      );
+
       setCatalogError(
         "No se pudo guardar la solicitud en este navegador."
       );
@@ -323,14 +369,7 @@ export default function RobloxGlobalGiftCardPage() {
 
       <h1>ROBLOX GLOBAL</h1>
 
-      <button
-        type="button"
-        className="roblox-cart-button"
-        onClick={() => router.push("/orders")}
-        aria-label="Ver pedidos"
-      >
-        🛒
-      </button>
+      <div className="roblox-header-space" />
     </header>
   );
 
@@ -340,6 +379,7 @@ export default function RobloxGlobalGiftCardPage() {
 
       <div className="roblox-note-content">
         <strong>INFORMACIÓN DEL PRODUCTO</strong>
+
         <p>{productNote}</p>
 
         <div className="roblox-region">
@@ -361,14 +401,16 @@ export default function RobloxGlobalGiftCardPage() {
             id="gift-card-success"
             className="roblox-success"
           >
-            <div className="roblox-success-icon">✓</div>
+            <div className="roblox-success-icon">
+              ✓
+            </div>
 
             <h2>SOLICITUD GUARDADA</h2>
 
             <p className="roblox-success-message">
               La solicitud se guardó en este navegador.
-              Todavía no se ha enviado a FazerCards ni se ha
-              confirmado una compra.
+              Todavía no se ha enviado a FazerCards ni se
+              ha confirmado una compra.
             </p>
 
             <div className="roblox-order-card">
@@ -376,7 +418,9 @@ export default function RobloxGlobalGiftCardPage() {
                 PRODUCTO SELECCIONADO
               </span>
 
-              <h3>{selectedOffer.robux} ROBUX</h3>
+              <h3>
+                {selectedOffer.robux.toLocaleString()} ROBUX
+              </h3>
 
               <div className="roblox-detail-row">
                 <span>Cantidad</span>
@@ -449,7 +493,7 @@ export default function RobloxGlobalGiftCardPage() {
           <div className="roblox-hero-heading">
             <span className="roblox-kicker">
               <span className="roblox-live-dot" />
-              CATÁLOGO DE FAZERCARDS
+              TARJETAS DIGITALES
             </span>
 
             <h2>ROBLOX (GLOBAL)</h2>
@@ -458,28 +502,18 @@ export default function RobloxGlobalGiftCardPage() {
               Selecciona tu paquete de Robux y consulta
               los precios y las unidades disponibles.
             </p>
-
-            <div className="roblox-catalog-status">
-              <span
-                className={`roblox-status-dot ${
-                  loading ? "is-loading" : ""
-                } ${catalogError ? "has-error" : ""}`}
-              />
-
-              {loading
-                ? "Consultando catálogo..."
-                : catalogError
-                  ? "Error al actualizar"
-                  : "Catálogo conectado"}
-            </div>
           </div>
         </section>
 
         {infoNote}
 
         {catalogError && (
-          <section className="roblox-error" role="alert">
+          <section
+            className="roblox-error"
+            role="alert"
+          >
             <strong>NO SE PUDO ACTUALIZAR</strong>
+
             <p>{catalogError}</p>
 
             <button
@@ -496,14 +530,21 @@ export default function RobloxGlobalGiftCardPage() {
           <button
             type="button"
             className="roblox-offers-toggle"
-            onClick={() => setShowOffers((value) => !value)}
+            onClick={() =>
+              setShowOffers((value) => !value)
+            }
             aria-expanded={showOffers}
           >
             <span className="roblox-toggle-left">
-              <span className="roblox-toggle-icon">🎁</span>
+              <span className="roblox-toggle-icon">
+                🎁
+              </span>
 
               <span>
-                <strong>SELECCIONA TU TARJETA</strong>
+                <strong>
+                  SELECCIONA TU TARJETA
+                </strong>
+
                 <small>
                   {offers.length} paquetes en el catálogo
                 </small>
@@ -542,7 +583,9 @@ export default function RobloxGlobalGiftCardPage() {
               {loading && offers.length === 0 && (
                 <div className="roblox-loading">
                   <span className="roblox-spinner" />
-                  <p>Cargando precios y cantidades...</p>
+                  <p>
+                    Cargando precios y cantidades...
+                  </p>
                 </div>
               )}
 
@@ -571,7 +614,9 @@ export default function RobloxGlobalGiftCardPage() {
                       type="button"
                       className={`roblox-offer ${
                         selected ? "selected" : ""
-                      } ${unavailable ? "unavailable" : ""}`}
+                      } ${
+                        unavailable ? "unavailable" : ""
+                      }`}
                       onClick={() => selectOffer(offer)}
                       disabled={unavailable || loading}
                     >
@@ -598,7 +643,9 @@ export default function RobloxGlobalGiftCardPage() {
                       </span>
 
                       <span className="roblox-offer-right">
-                        <strong>{money(offer.price)}</strong>
+                        <strong>
+                          {money(offer.price)}
+                        </strong>
 
                         <small>
                           {unavailable
@@ -623,15 +670,20 @@ export default function RobloxGlobalGiftCardPage() {
           >
             <div className="roblox-section-title">
               <span>01</span>
+
               <div>
                 <h2>PAQUETE SELECCIONADO</h2>
-                <p>Revisa los detalles de tu selección.</p>
+                <p>
+                  Revisa los detalles de tu selección.
+                </p>
               </div>
             </div>
 
             <div className="roblox-order-card">
               <div className="roblox-selected-heading">
-                <span className="roblox-selected-icon">🪙</span>
+                <span className="roblox-selected-icon">
+                  🪙
+                </span>
 
                 <div>
                   <span className="roblox-eyebrow">
@@ -682,6 +734,7 @@ export default function RobloxGlobalGiftCardPage() {
               <div className="roblox-price-breakdown">
                 <div className="roblox-detail-row">
                   <span>Precio por paquete</span>
+
                   <strong className="roblox-price">
                     {money(selectedOffer.price)}
                   </strong>
@@ -720,9 +773,12 @@ export default function RobloxGlobalGiftCardPage() {
           >
             <div className="roblox-section-title">
               <span>02</span>
+
               <div>
                 <h2>CONFIRMA LOS DETALLES</h2>
-                <p>Revisa la información antes de guardar.</p>
+                <p>
+                  Revisa la información antes de guardar.
+                </p>
               </div>
             </div>
 
@@ -731,6 +787,7 @@ export default function RobloxGlobalGiftCardPage() {
 
               <div className="roblox-note-content">
                 <strong>IMPORTANTE</strong>
+
                 <p>
                   Esta acción guarda una solicitud en este
                   navegador. Todavía no realiza una compra
@@ -752,6 +809,7 @@ export default function RobloxGlobalGiftCardPage() {
 
               <div className="roblox-detail-row">
                 <span>Paquete</span>
+
                 <strong>
                   {selectedOffer.robux.toLocaleString()} ROBUX
                 </strong>
@@ -764,6 +822,7 @@ export default function RobloxGlobalGiftCardPage() {
 
               <div className="roblox-detail-row">
                 <span>Precio unitario</span>
+
                 <strong className="roblox-price">
                   {money(selectedOffer.price)}
                 </strong>
@@ -787,7 +846,9 @@ export default function RobloxGlobalGiftCardPage() {
             <button
               type="button"
               className="roblox-secondary-button"
-              onClick={() => setShowConfirmation(false)}
+              onClick={() =>
+                setShowConfirmation(false)
+              }
             >
               ← VOLVER
             </button>
@@ -812,9 +873,11 @@ function RobloxStyles() {
         --roblox-red: #d71920;
         --roblox-bright-red: #ff2638;
         --roblox-green: #32d997;
+
         min-height: 100vh;
         padding-bottom: 30px;
         color: #fff;
+
         background:
           linear-gradient(
             rgba(0, 0, 0, 0.76),
@@ -834,40 +897,54 @@ function RobloxStyles() {
         position: sticky;
         top: 0;
         z-index: 30;
+
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
+
         min-height: 58px;
         padding: 8px 12px;
+
         background: rgba(0, 0, 0, 0.9);
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(12px);
       }
 
       .roblox-header h1 {
+        flex: 1;
         margin: 0;
+
         font-size: 17px;
         font-weight: 900;
         letter-spacing: 0.5px;
         text-align: center;
       }
 
-      .roblox-back-button,
-      .roblox-cart-button {
+      .roblox-back-button {
         display: flex;
         align-items: center;
         justify-content: center;
+
         width: 40px;
         height: 40px;
         flex: 0 0 40px;
         padding: 0;
+
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 11px;
+
         background: rgba(255, 255, 255, 0.07);
         color: #fff;
+
         font-size: 23px;
         cursor: pointer;
+      }
+
+      .roblox-header-space {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
       }
 
       .roblox-content {
@@ -905,14 +982,14 @@ function RobloxStyles() {
         display: inline-flex;
         align-items: center;
         gap: 7px;
+
         color: #b7b7b7;
         font-size: 10px;
         font-weight: 800;
         letter-spacing: 1px;
       }
 
-      .roblox-live-dot,
-      .roblox-status-dot {
+      .roblox-live-dot {
         width: 8px;
         height: 8px;
         flex: 0 0 8px;
@@ -924,59 +1001,43 @@ function RobloxStyles() {
       .roblox-hero-heading h2 {
         margin: 9px 0 7px;
         color: #ff2638;
+
         font-size: clamp(22px, 5vw, 30px);
         font-weight: 900;
         letter-spacing: 0.5px;
+
         text-shadow: 0 0 18px rgba(255, 25, 45, 0.2);
       }
 
       .roblox-hero-heading > p {
         max-width: 430px;
         margin: 0 auto;
+
         color: #c9c9c9;
         font-size: 13px;
         line-height: 1.55;
       }
 
-      .roblox-catalog-status {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        margin-top: 12px;
-        padding: 7px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 30px;
-        background: rgba(0, 0, 0, 0.35);
-        color: #d8d8d8;
-        font-size: 11px;
-      }
-
-      .roblox-status-dot.is-loading {
-        background: #ffbd4a;
-        box-shadow: 0 0 9px rgba(255, 189, 74, 0.5);
-      }
-
-      .roblox-status-dot.has-error {
-        background: #ff4655;
-        box-shadow: 0 0 9px rgba(255, 70, 85, 0.5);
-      }
-
       .roblox-note {
         position: relative;
+
         display: flex;
         gap: 12px;
+
         margin-top: 14px;
         padding: 15px;
         overflow: hidden;
+
         border: 1px solid rgba(255, 38, 56, 0.32);
         border-radius: 14px;
+
         background:
           linear-gradient(
             120deg,
             rgba(255, 32, 45, 0.11),
             rgba(12, 12, 16, 0.95) 65%
           );
+
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.16);
       }
 
@@ -986,6 +1047,7 @@ function RobloxStyles() {
         top: 0;
         bottom: 0;
         left: 0;
+
         width: 3px;
         background: linear-gradient(#ff4655, #b90018);
       }
@@ -994,12 +1056,15 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
+
         width: 31px;
         height: 31px;
         flex: 0 0 31px;
+
         border-radius: 9px;
         background: #d71920;
         color: #fff;
+
         font-size: 18px;
         font-weight: 900;
       }
@@ -1011,6 +1076,7 @@ function RobloxStyles() {
       .roblox-note-content > strong {
         display: block;
         color: #ff4655;
+
         font-size: 12px;
         font-weight: 900;
         letter-spacing: 0.7px;
@@ -1019,6 +1085,7 @@ function RobloxStyles() {
       .roblox-note-content p {
         margin: 7px 0 0;
         color: #d5d5d5;
+
         font-size: 12px;
         line-height: 1.65;
       }
@@ -1028,8 +1095,10 @@ function RobloxStyles() {
         flex-wrap: wrap;
         align-items: center;
         gap: 7px;
+
         margin-top: 12px;
         color: #ff6976;
+
         font-size: 10px;
         font-weight: 900;
         letter-spacing: 0.3px;
@@ -1044,12 +1113,16 @@ function RobloxStyles() {
         align-items: center;
         justify-content: space-between;
         gap: 12px;
+
         width: 100%;
         padding: 13px;
+
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 13px;
+
         background: rgba(0, 0, 0, 0.8);
         color: #fff;
+
         text-align: left;
         cursor: pointer;
       }
@@ -1065,9 +1138,11 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
+
         width: 39px;
         height: 39px;
         flex: 0 0 39px;
+
         border-radius: 10px;
         background: rgba(255, 38, 56, 0.12);
         font-size: 20px;
@@ -1100,6 +1175,7 @@ function RobloxStyles() {
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 9px;
+
         margin: 12px 0 4px;
         color: #aaa;
         font-size: 11px;
@@ -1108,10 +1184,13 @@ function RobloxStyles() {
       .roblox-catalog-toolbar button,
       .roblox-error button {
         padding: 8px 11px;
+
         border: 1px solid rgba(255, 38, 56, 0.48);
         border-radius: 9px;
+
         background: rgba(255, 38, 56, 0.08);
         color: #ff4655;
+
         font-size: 11px;
         font-weight: 900;
         cursor: pointer;
@@ -1140,15 +1219,20 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         gap: 11px;
+
         width: 100%;
         min-height: 70px;
         padding: 11px;
+
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 13px;
+
         background: rgba(0, 0, 0, 0.8);
         color: #fff;
+
         text-align: left;
         cursor: pointer;
+
         transition:
           border-color 0.15s ease,
           background 0.15s ease,
@@ -1174,11 +1258,14 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
+
         width: 40px;
         height: 40px;
         flex: 0 0 40px;
+
         border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 11px;
+
         background: rgba(255, 255, 255, 0.07);
         font-size: 21px;
       }
@@ -1215,6 +1302,7 @@ function RobloxStyles() {
         flex-direction: column;
         align-items: flex-end;
         gap: 5px;
+
         flex-shrink: 0;
         text-align: right;
       }
@@ -1224,6 +1312,7 @@ function RobloxStyles() {
         font-size: 13px;
         font-weight: 900;
         white-space: nowrap;
+
         text-shadow: 0 0 12px rgba(255, 32, 45, 0.12);
       }
 
@@ -1250,13 +1339,17 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
+
         width: 37px;
         height: 37px;
         flex: 0 0 37px;
+
         border: 1px solid rgba(255, 38, 56, 0.4);
         border-radius: 10px;
+
         background: rgba(255, 38, 56, 0.1);
         color: #ff4655;
+
         font-size: 13px;
         font-weight: 900;
       }
@@ -1276,8 +1369,10 @@ function RobloxStyles() {
       .roblox-order-card {
         margin-top: 12px;
         padding: 16px;
+
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 15px;
+
         background: rgba(0, 0, 0, 0.83);
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
       }
@@ -1286,6 +1381,7 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         gap: 12px;
+
         padding-bottom: 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       }
@@ -1294,9 +1390,11 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
+
         width: 48px;
         height: 48px;
         flex: 0 0 48px;
+
         border-radius: 12px;
         background: rgba(255, 38, 56, 0.1);
         font-size: 25px;
@@ -1323,6 +1421,7 @@ function RobloxStyles() {
         align-items: center;
         gap: 6px;
         margin-top: 3px;
+
         color: #32d997;
         font-size: 10px;
         font-weight: 800;
@@ -1340,6 +1439,7 @@ function RobloxStyles() {
         flex-direction: column;
         align-items: center;
         gap: 10px;
+
         padding: 16px 0;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       }
@@ -1362,12 +1462,16 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
+
         width: 38px;
         height: 38px;
+
         border: 1px solid rgba(255, 38, 56, 0.45);
         border-radius: 10px;
+
         background: rgba(255, 38, 56, 0.1);
         color: #ff4655;
+
         font-size: 23px;
         cursor: pointer;
       }
@@ -1444,8 +1548,10 @@ function RobloxStyles() {
         width: 100%;
         margin-top: 12px;
         padding: 14px;
+
         border: 0;
         border-radius: 11px;
+
         font-size: 12px;
         font-weight: 900;
         letter-spacing: 0.5px;
@@ -1488,9 +1594,11 @@ function RobloxStyles() {
         display: inline-block;
         width: 25px;
         height: 25px;
+
         border: 3px solid rgba(255, 38, 56, 0.18);
         border-top-color: #ff2638;
         border-radius: 50%;
+
         animation: roblox-spin 0.8s linear infinite;
       }
 
@@ -1501,8 +1609,10 @@ function RobloxStyles() {
       .roblox-error {
         margin-top: 13px;
         padding: 14px;
+
         border: 1px solid rgba(255, 38, 56, 0.4);
         border-radius: 13px;
+
         background: rgba(100, 0, 10, 0.2);
       }
 
@@ -1531,12 +1641,15 @@ function RobloxStyles() {
         display: flex;
         align-items: center;
         justify-content: center;
+
         width: 58px;
         height: 58px;
         margin: 0 auto 12px;
+
         border-radius: 50%;
         background: #19a957;
         color: #fff;
+
         font-size: 30px;
         font-weight: 900;
       }
@@ -1562,6 +1675,7 @@ function RobloxStyles() {
         align-items: center;
         gap: 5px;
         padding: 26px 12px 5px;
+
         color: #888;
         font-size: 11px;
         text-align: center;
