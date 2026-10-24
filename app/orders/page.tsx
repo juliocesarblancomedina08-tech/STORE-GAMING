@@ -1,7 +1,12 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
@@ -22,6 +27,28 @@ type TopupOrderRow = {
   supplier_order_id: string | null;
   supplier_fields: Record<string, unknown> | null;
   supplier_response: Record<string, unknown> | null;
+  refunded_at: string | null;
+  completed_at: string | null;
+  failed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type GiftCardOrderRow = {
+  id: string;
+  user_id: string;
+  username: string | null;
+  email: string | null;
+  game: string;
+  category_id: string;
+  card_id: string;
+  offer_name: string;
+  quantity: number;
+  retail_price: number | string;
+  supplier_price: number | string;
+  status: string;
+  supplier_order_id: string | null;
+  gift_codes: unknown;
   refunded_at: string | null;
   completed_at: string | null;
   failed_at: string | null;
@@ -50,6 +77,9 @@ type Order = {
   supplierOrderId?: string;
   currency?: string;
   image: string;
+  type: "TOPUP" | "GIFT_CARD";
+  quantity?: number;
+  giftCodes?: string[];
 };
 
 type Filter =
@@ -57,12 +87,6 @@ type Filter =
   | "PENDIENTES"
   | "COMPLETADAS"
   | "CANCELADAS";
-
-/*
- * ============================================================
- * IMÁGENES DE LOS JUEGOS
- * ============================================================
- */
 
 const GAME_IMAGES: Record<string, string> = {
   blood_strike: "/images/blood-strike.jpg",
@@ -86,21 +110,29 @@ const GAME_IMAGES: Record<string, string> = {
   arena_breakout: "/images/arena-breakout.jpg",
   arena_breakout_global: "/images/arena-breakout.jpg",
   telegram_stars: "/images/telegram-stars.jpg",
+  roblox_global: "/images/gift-cards/gift-roblox-global.jpg",
 };
 
 const DEFAULT_GAME_IMAGE = "/images/battle-royale-bg.jpg";
 
-function getGameImage(categoryId: string, game: string): string {
-  const directImage = GAME_IMAGES[categoryId];
+function getGameImage(
+  categoryId: string,
+  game: string
+): string {
+  const directImage = GAME_IMAGES[
+    String(categoryId || "").toLowerCase()
+  ];
 
-  if (directImage) {
-    return directImage;
-  }
+  if (directImage) return directImage;
 
-  const normalized = game
+  const normalized = String(game || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+
+  if (normalized.includes("roblox")) {
+    return "/images/gift-cards/gift-roblox-global.jpg";
+  }
 
   if (normalized.includes("blood strike")) {
     return "/images/blood-strike.jpg";
@@ -170,17 +202,17 @@ function getGameImage(categoryId: string, game: string): string {
   return DEFAULT_GAME_IMAGE;
 }
 
-/*
- * ============================================================
- * ESTADOS Y ETIQUETAS
- * ============================================================
- */
-
-function normalizeStatus(status: string | null | undefined): string {
-  return String(status || "PENDING").trim().toUpperCase();
+function normalizeStatus(
+  status: string | null | undefined
+): string {
+  return String(status || "PENDING")
+    .trim()
+    .toUpperCase();
 }
 
-function getOrderStatusLabel(status: string | null | undefined): string {
+function getOrderStatusLabel(
+  status: string | null | undefined
+): string {
   const normalized = normalizeStatus(status);
 
   const labels: Record<string, string> = {
@@ -197,10 +229,15 @@ function getOrderStatusLabel(status: string | null | undefined): string {
     CANCELED: "Cancelado",
   };
 
-  return labels[normalized] || normalized.replaceAll("_", " ");
+  return (
+    labels[normalized] ||
+    normalized.replaceAll("_", " ")
+  );
 }
 
-function getOrderStatusIcon(status: string | null | undefined): string {
+function getOrderStatusIcon(
+  status: string | null | undefined
+): string {
   const normalized = normalizeStatus(status);
 
   const icons: Record<string, string> = {
@@ -220,45 +257,122 @@ function getOrderStatusIcon(status: string | null | undefined): string {
   return icons[normalized] || "🕜";
 }
 
+function normalizeGiftCodes(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (typeof item === "string") {
+        return item.trim();
+      }
+
+      if (item && typeof item === "object") {
+        const codeObject = item as Record<string, unknown>;
+
+        const possibleCode =
+          codeObject.code ??
+          codeObject.gift_code ??
+          codeObject.serial ??
+          codeObject.key ??
+          codeObject.pin;
+
+        if (typeof possibleCode === "string") {
+          return possibleCode.trim();
+        }
+      }
+
+      return "";
+    })
+    .filter(Boolean);
+}
+
+function isGiftCardCompleted(order: Order): boolean {
+  return normalizeStatus(order.status) === "COMPLETED";
+}
+
+function isGiftCardPending(order: Order): boolean {
+  const status = normalizeStatus(order.status);
+
+  return [
+    "PENDING",
+    "SUPPLIER_PENDING",
+    "PROCESSING",
+    "RESERVED",
+    "CONFIRMED",
+  ].includes(status);
+}
+
+function isGiftCardCancelledOrFailed(
+  order: Order
+): boolean {
+  return [
+    "CANCELLED",
+    "CANCELED",
+    "FAILED",
+    "REFUNDED",
+    "REFUND",
+  ].includes(normalizeStatus(order.status));
+}
+
+function getOrderStatusClass(order: Order): string {
+  const status = normalizeStatus(order.status);
+
+  if (status === "COMPLETED") return "status-completed";
+  if (status === "REFUNDED" || status === "REFUND") {
+    return "status-refunded";
+  }
+  if (status === "FAILED") return "status-failed";
+  if (status === "CANCELLED" || status === "CANCELED") {
+    return "status-cancelled";
+  }
+  if (status === "PROCESSING" || status === "RESERVED") {
+    return "status-processing";
+  }
+  if (status === "CONFIRMED") return "status-confirmed";
+
+  return "status-pending";
+}
+
+function getOrderStatusText(order: Order): string {
+  return getOrderStatusLabel(order.status).toUpperCase();
+}
+
+function isOrderInProgress(order: Order): boolean {
+  return isGiftCardPending(order);
+}
+
 export default function OrdersPage() {
   const router = useRouter();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<Filter>("TODAS");
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] =
+    useState<Order | null>(null);
+  const [copiedCode, setCopiedCode] = useState("");
+  const [copyError, setCopyError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
-  /*
-   * ============================================================
-   * CARGAR Y ACTUALIZAR ÓRDENES
-   * ============================================================
-   */
+  const loadOrders = useCallback(
+    async (refreshSupplierStatuses = false) => {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-  useEffect(() => {
-    let mounted = true;
-    let loadingOrders = false;
+      if (sessionError || !session?.user) {
+        setLoading(false);
+        router.replace("/login");
+        return;
+      }
 
-    async function loadOrders() {
-      if (loadingOrders || !mounted) return;
+      const userId = session.user.id;
 
-      loadingOrders = true;
-
-      try {
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (sessionError || !session?.user) {
-          if (mounted) {
-            setLoading(false);
-            router.replace("/login");
-          }
-
-          return;
-        }
-
-        const { data, error } = await supabase
+      const [
+        topupResult,
+        giftCardResult,
+      ] = await Promise.all([
+        supabase
           .from("topup_orders")
           .select(`
             id,
@@ -283,106 +397,285 @@ export default function OrdersPage() {
             created_at,
             updated_at
           `)
-          .eq("user_id", session.user.id)
-          .order("created_at", { ascending: false });
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
 
-        if (error) {
-          console.error("ERROR CARGANDO ÓRDENES:", error);
+        supabase
+          .from("gift_card_orders")
+          .select(`
+            id,
+            user_id,
+            username,
+            email,
+            game,
+            category_id,
+            card_id,
+            offer_name,
+            quantity,
+            retail_price,
+            supplier_price,
+            status,
+            supplier_order_id,
+            gift_codes,
+            refunded_at,
+            completed_at,
+            failed_at,
+            created_at,
+            updated_at
+          `)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+      ]);
 
-          if (mounted) {
-            setLoading(false);
-          }
+      if (topupResult.error) {
+        console.error(
+          "ERROR CARGANDO RECARGAS:",
+          topupResult.error
+        );
+      }
 
-          return;
-        }
+      if (giftCardResult.error) {
+        console.error(
+          "ERROR CARGANDO TARJETAS DIGITALES:",
+          giftCardResult.error
+        );
+      }
 
-        const rows = (data || []) as TopupOrderRow[];
+      /*
+       * Consultar el endpoint de estado para las tarjetas
+       * pendientes que ya tienen referencia del proveedor.
+       * No se vuelve a ejecutar la compra desde aquí.
+       */
+      if (
+        refreshSupplierStatuses &&
+        !giftCardResult.error &&
+        giftCardResult.data?.length
+      ) {
+        const pendingRows = (
+          giftCardResult.data as GiftCardOrderRow[]
+        ).filter((row) => {
+          const status = normalizeStatus(row.status);
 
-        const mappedOrders: Order[] = rows.map((row) => {
-          const fields = row.supplier_fields || {};
-
-          const serverIdValue =
-            fields.server_id ??
-            fields.id_servidor ??
-            fields.serverId;
-
-          const realStatus = normalizeStatus(row.status);
-
-          return {
-            id: row.id,
-            user_id: row.user_id,
-            email: row.email || undefined,
-            username: row.username || undefined,
-            game: row.game,
-            categoryId: row.category_id,
-            product: row.offer_name,
-            displayProduct: row.offer_name,
-            price: Number(row.retail_price) || 0,
-            total: Number(row.retail_price) || 0,
-            playerId: row.player_id,
-
-            serverId:
-              serverIdValue !== undefined &&
-              serverIdValue !== null
-                ? String(serverIdValue)
-                : undefined,
-
-            // El estado actual de la base de datos es la referencia.
-            status: realStatus,
-            canonicalStatus: realStatus,
-            statusLabel: getOrderStatusLabel(realStatus),
-            statusIcon: getOrderStatusIcon(realStatus),
-
-            createdAt: row.created_at,
-            supplierOrderId: row.supplier_order_id || undefined,
-            currency: row.currency || "USD",
-            image: getGameImage(row.category_id, row.game),
-          };
+          return (
+            row.supplier_order_id &&
+            ["PENDING", "PROCESSING", "SUPPLIER_PENDING"].includes(
+              status
+            )
+          );
         });
 
-        if (mounted) {
-          setOrders(mappedOrders);
-
-          // Actualizar también los detalles si una orden está abierta.
-          setSelectedOrder((current) => {
-            if (!current) return null;
-
-            return (
-              mappedOrders.find((order) => order.id === current.id) ||
-              current
+        await Promise.allSettled(
+          pendingRows.map(async (row) => {
+            const response = await fetch(
+              `/api/fazercards/giftcards/order/status?id=${encodeURIComponent(
+                row.id
+              )}`,
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                cache: "no-store",
+              }
             );
-          });
 
-          setLoading(false);
-        }
+            if (!response.ok) {
+              console.warn(
+                "No se pudo actualizar la orden:",
+                row.id
+              );
+            }
+          })
+        );
+      }
+
+      /*
+       * Volver a leer las tarjetas después de consultar
+       * sus estados para recuperar los códigos confirmados.
+       */
+      const refreshedGiftResult =
+        refreshSupplierStatuses &&
+        !giftCardResult.error &&
+        giftCardResult.data?.length
+          ? await supabase
+              .from("gift_card_orders")
+              .select(`
+                id,
+                user_id,
+                username,
+                email,
+                game,
+                category_id,
+                card_id,
+                offer_name,
+                quantity,
+                retail_price,
+                supplier_price,
+                status,
+                supplier_order_id,
+                gift_codes,
+                refunded_at,
+                completed_at,
+                failed_at,
+                created_at,
+                updated_at
+              `)
+              .eq("user_id", userId)
+              .order("created_at", { ascending: false })
+          : giftCardResult;
+
+      const topupRows = (
+        (topupResult.data || []) as TopupOrderRow[]
+      ).map((row): Order => {
+        const fields = row.supplier_fields || {};
+
+        const serverIdValue =
+          fields.server_id ??
+          fields.id_servidor ??
+          fields.serverId;
+
+        const status = normalizeStatus(row.status);
+
+        return {
+          id: row.id,
+          user_id: row.user_id,
+          email: row.email || undefined,
+          username: row.username || undefined,
+          game: row.game,
+          categoryId: row.category_id,
+          product: row.offer_name,
+          displayProduct: row.offer_name,
+          price: Number(row.retail_price) || 0,
+          total: Number(row.retail_price) || 0,
+          playerId: row.player_id || "—",
+          serverId:
+            serverIdValue !== undefined &&
+            serverIdValue !== null
+              ? String(serverIdValue)
+              : undefined,
+          status,
+          canonicalStatus: status,
+          statusLabel: getOrderStatusLabel(status),
+          statusIcon: getOrderStatusIcon(status),
+          createdAt: row.created_at,
+          supplierOrderId:
+            row.supplier_order_id || undefined,
+          currency: row.currency || "USD",
+          image: getGameImage(row.category_id, row.game),
+          type: "TOPUP",
+          quantity: 1,
+        };
+      });
+
+      const giftCardRows = (
+        (refreshedGiftResult.data ||
+          []) as GiftCardOrderRow[]
+      ).map((row): Order => {
+        const status = normalizeStatus(row.status);
+        const quantity = Math.max(
+          1,
+          Number(row.quantity) || 1
+        );
+        const total = Number(row.retail_price) || 0;
+
+        return {
+          id: row.id,
+          user_id: row.user_id,
+          email: row.email || undefined,
+          username: row.username || undefined,
+          game: row.game || "ROBLOX (GLOBAL)",
+          categoryId: row.category_id,
+          product: row.offer_name,
+          displayProduct:
+            `${row.offer_name} × ${quantity}`,
+          price: total,
+          total,
+          playerId: "No requiere ID de jugador",
+          status,
+          canonicalStatus: status,
+          statusLabel: getOrderStatusLabel(status),
+          statusIcon: getOrderStatusIcon(status),
+          createdAt: row.created_at,
+          supplierOrderId:
+            row.supplier_order_id || undefined,
+          currency: "USD",
+          image: getGameImage(
+            row.category_id,
+            row.game || "ROBLOX GLOBAL"
+          ),
+          type: "GIFT_CARD",
+          quantity,
+          giftCodes: normalizeGiftCodes(row.gift_codes),
+        };
+      });
+
+      const combinedOrders = [
+        ...topupRows,
+        ...giftCardRows,
+      ].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      );
+
+      setOrders(combinedOrders);
+
+      setSelectedOrder((current) => {
+        if (!current) return null;
+
+        return (
+          combinedOrders.find(
+            (order) => order.id === current.id
+          ) || current
+        );
+      });
+
+      setLoading(false);
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    let loadingOrders = false;
+
+    const runLoad = async (refresh = false) => {
+      if (!mounted || loadingOrders) return;
+
+      loadingOrders = true;
+
+      try {
+        await loadOrders(refresh);
       } catch (error) {
-        console.error("ERROR INESPERADO CARGANDO ÓRDENES:", error);
+        console.error(
+          "ERROR INESPERADO CARGANDO ÓRDENES:",
+          error
+        );
 
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       } finally {
         loadingOrders = false;
       }
-    }
+    };
 
-    loadOrders();
+    void runLoad(true);
 
-    // Consultar estados nuevos cada 15 segundos.
     const intervalId = window.setInterval(() => {
       if (document.visibilityState === "visible") {
-        loadOrders();
+        void runLoad(true);
       }
-    }, 15000);
+    }, 20000);
 
-    // Actualizar al volver a la pestaña.
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        loadOrders();
+        void runLoad(true);
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
 
     return () => {
       mounted = false;
@@ -392,116 +685,73 @@ export default function OrdersPage() {
         handleVisibilityChange
       );
     };
-  }, [router]);
+  }, [loadOrders]);
 
-  /*
-   * ============================================================
-   * ESTADOS DE LAS ÓRDENES
-   * ============================================================
-   */
+  const refreshOrders = async () => {
+    setRefreshing(true);
 
-  function getCanonicalStatus(order: Order) {
-    return normalizeStatus(order.status);
-  }
+    try {
+      await loadOrders(true);
+    } catch (error) {
+      console.error("Error actualizando órdenes:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-  function isCompleted(status: string) {
-    return normalizeStatus(status) === "COMPLETED";
-  }
+  const copyGiftCode = async (code: string) => {
+    setCopyError("");
 
-  function isConfirmed(status: string) {
-    return normalizeStatus(status) === "CONFIRMED";
-  }
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
 
-  function isCancelled(status: string) {
-    const normalized = normalizeStatus(status);
-    return normalized === "CANCELLED" || normalized === "CANCELED";
-  }
-
-  function isFailed(status: string) {
-    return normalizeStatus(status) === "FAILED";
-  }
-
-  function isRefunded(status: string) {
-    const normalized = normalizeStatus(status);
-    return normalized === "REFUNDED" || normalized === "REFUND";
-  }
-
-  function isProcessing(status: string) {
-    const normalized = normalizeStatus(status);
-    return normalized === "PROCESSING" || normalized === "RESERVED";
-  }
-
-  function isPending(status: string) {
-    const normalized = normalizeStatus(status);
-    return normalized === "PENDING" || normalized === "SUPPLIER_PENDING";
-  }
-
-  function isCancelledOrFailed(status: string) {
-    return (
-      isCancelled(status) ||
-      isFailed(status) ||
-      isRefunded(status)
-    );
-  }
-
-  function getStatusClass(order: Order) {
-    const status = getCanonicalStatus(order);
-
-    if (status === "COMPLETED") return "status-completed";
-    if (isRefunded(status)) return "status-refunded";
-    if (isCancelled(status)) return "status-cancelled";
-    if (status === "FAILED") return "status-failed";
-    if (isProcessing(status)) return "status-processing";
-    if (status === "CONFIRMED") return "status-confirmed";
-
-    return "status-pending";
-  }
-
-  function getStatusText(order: Order) {
-    const status = getCanonicalStatus(order);
-
-    if (isPending(status)) return "PENDIENTE";
-    if (isRefunded(status)) return "REEMBOLSADO";
-
-    return (order.statusLabel || getOrderStatusLabel(status)).toUpperCase();
-  }
-
-  function getStatusIcon(order: Order) {
-    return getOrderStatusIcon(getCanonicalStatus(order));
-  }
-
-  function isClockStatus(order: Order) {
-    const status = getCanonicalStatus(order);
-
-    return (
-      isPending(status) ||
-      isProcessing(status) ||
-      status === "CONFIRMED"
-    );
-  }
-
-  function isAnimatedPending(order: Order) {
-    return isPending(getCanonicalStatus(order));
-  }
-
-  function renderStatusIcon(order: Order) {
-    if (isAnimatedPending(order)) {
-      return (
-        <span className="orders-pending-clock" aria-label="Pendiente">
-          <span className="orders-pending-clock-hand orders-pending-clock-hand-hour" />
-          <span className="orders-pending-clock-hand orders-pending-clock-hand-minute" />
-        </span>
+      window.setTimeout(() => {
+        setCopiedCode((current) =>
+          current === code ? "" : current
+        );
+      }, 2000);
+    } catch {
+      setCopyError(
+        "No se pudo copiar automáticamente. Mantén pulsado el código para copiarlo."
       );
     }
+  };
 
-    return getStatusIcon(order);
-  }
+  const filteredOrders = useMemo(() => {
+    if (filter === "TODAS") return orders;
 
-  /*
-   * ============================================================
-   * FECHA
-   * ============================================================
-   */
+    if (filter === "PENDIENTES") {
+      return orders.filter(isGiftCardPending);
+    }
+
+    if (filter === "COMPLETADAS") {
+      return orders.filter(isGiftCardCompleted);
+    }
+
+    return orders.filter(isGiftCardCancelledOrFailed);
+  }, [orders, filter]);
+
+  const totalOrders = orders.length;
+
+  const totalAmount = orders.reduce(
+    (sum, order) =>
+      sum +
+      (Number(order.total) || Number(order.price) || 0),
+    0
+  );
+
+  const completedOrders = orders.filter(
+    isGiftCardCompleted
+  ).length;
+
+  const pendingOrders = orders.filter(
+    isGiftCardPending
+  ).length;
+
+  const cancelledOrders = orders.filter(
+    isGiftCardCancelledOrFailed
+  ).length;
 
   function formatDate(date: string) {
     try {
@@ -517,83 +767,6 @@ export default function OrdersPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * FILTROS
-   * ============================================================
-   */
-
-  const filteredOrders = useMemo(() => {
-    if (filter === "TODAS") {
-      return orders;
-    }
-
-    if (filter === "PENDIENTES") {
-      return orders.filter((order) => {
-        const status = getCanonicalStatus(order);
-
-        return (
-          isPending(status) ||
-          isProcessing(status) ||
-          isConfirmed(status)
-        );
-      });
-    }
-
-    if (filter === "COMPLETADAS") {
-      return orders.filter((order) =>
-        isCompleted(getCanonicalStatus(order))
-      );
-    }
-
-    if (filter === "CANCELADAS") {
-      return orders.filter((order) =>
-        isCancelledOrFailed(getCanonicalStatus(order))
-      );
-    }
-
-    return orders;
-  }, [orders, filter]);
-
-  /*
-   * ============================================================
-   * CONTADORES
-   * ============================================================
-   */
-
-  const totalOrders = orders.length;
-
-  const totalAmount = orders.reduce(
-    (sum, order) =>
-      sum +
-      (Number(order.total) || Number(order.price) || 0),
-    0
-  );
-
-  const completedOrders = orders.filter((order) =>
-    isCompleted(getCanonicalStatus(order))
-  ).length;
-
-  const pendingOrders = orders.filter((order) => {
-    const status = getCanonicalStatus(order);
-
-    return (
-      isPending(status) ||
-      isProcessing(status) ||
-      isConfirmed(status)
-    );
-  }).length;
-
-  const cancelledOrders = orders.filter((order) =>
-    isCancelledOrFailed(getCanonicalStatus(order))
-  ).length;
-
-  /*
-   * ============================================================
-   * ABRIR Y CERRAR ORDEN
-   * ============================================================
-   */
-
   function openOrder(order: Order) {
     setSelectedOrder(order);
 
@@ -605,6 +778,7 @@ export default function OrdersPage() {
 
   function closeOrder() {
     setSelectedOrder(null);
+    setCopyError("");
 
     window.scrollTo({
       top: 0,
@@ -612,31 +786,17 @@ export default function OrdersPage() {
     });
   }
 
-  /*
-   * ============================================================
-   * LOADING
-   * ============================================================
-   */
-
   if (loading) {
     return (
       <main className="orders-page">
         <div className="orders-loading">
           <div className="orders-loading-spinner">⏳</div>
-
           <strong>CARGANDO TUS ÓRDENES...</strong>
-
           <span>Un momento por favor</span>
         </div>
       </main>
     );
   }
-
-  /*
-   * ============================================================
-   * VISTA EXCLUSIVA DE LA ORDEN
-   * ============================================================
-   */
 
   if (selectedOrder) {
     return (
@@ -659,7 +819,11 @@ export default function OrdersPage() {
                 onError={(event) => {
                   const image = event.currentTarget;
 
-                  if (image.src.endsWith(DEFAULT_GAME_IMAGE)) return;
+                  if (
+                    image.src.endsWith(DEFAULT_GAME_IMAGE)
+                  ) {
+                    return;
+                  }
 
                   image.src = DEFAULT_GAME_IMAGE;
                 }}
@@ -668,46 +832,51 @@ export default function OrdersPage() {
 
             <div className="order-detail-heading">
               <strong>DETALLES DE LA COMPRA</strong>
-
               <span>ORDEN #{selectedOrder.id}</span>
             </div>
           </header>
 
           <div className="order-detail-hero">
             <div className="order-detail-status">
-              <span className={`order-status ${getStatusClass(selectedOrder)}`}>
-                <span
-                  className={
-                    isClockStatus(selectedOrder)
-                      ? "order-status-clock"
-                      : "order-status-icon"
-                  }
-                  aria-hidden="true"
-                >
-                  {renderStatusIcon(selectedOrder)}
+              <span
+                className={`order-status ${getOrderStatusClass(
+                  selectedOrder
+                )}`}
+              >
+                <span aria-hidden="true">
+                  {getOrderStatusIcon(selectedOrder.status)}
                 </span>
 
-                <span>{getStatusText(selectedOrder)}</span>
+                <span>
+                  {getOrderStatusText(selectedOrder)}
+                </span>
               </span>
             </div>
 
             <div className="order-detail-content">
               <div className="order-detail-row">
-                <span>🎮 Juego</span>
-                <strong>{selectedOrder.game}</strong>
-              </div>
-
-              <div className="order-detail-row">
-                <span>📦 Producto</span>
+                <span>🎮 Producto</span>
                 <strong>
-                  {selectedOrder.displayProduct || selectedOrder.product}
+                  {selectedOrder.displayProduct ||
+                    selectedOrder.product}
                 </strong>
               </div>
 
               <div className="order-detail-row">
-                <span>🆔 ID del jugador</span>
-                <strong>{selectedOrder.playerId}</strong>
+                <span>📦 Tipo de pedido</span>
+                <strong>
+                  {selectedOrder.type === "GIFT_CARD"
+                    ? "Tarjeta digital"
+                    : "Recarga de juego"}
+                </strong>
               </div>
+
+              {selectedOrder.type === "TOPUP" && (
+                <div className="order-detail-row">
+                  <span>🆔 ID del jugador</span>
+                  <strong>{selectedOrder.playerId}</strong>
+                </div>
+              )}
 
               {selectedOrder.serverId && (
                 <div className="order-detail-row">
@@ -716,19 +885,32 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              <div className="order-detail-row">
-                <span>💵 Precio</span>
-                <strong>${selectedOrder.price.toFixed(2)}</strong>
-              </div>
+              {selectedOrder.type === "GIFT_CARD" && (
+                <div className="order-detail-row">
+                  <span>🔢 Cantidad</span>
+                  <strong>
+                    {selectedOrder.quantity || 1}
+                  </strong>
+                </div>
+              )}
 
               <div className="order-detail-row">
-                <span>💳 Moneda</span>
-                <strong>{selectedOrder.currency || "USD"}</strong>
+                <span>💵 Total</span>
+                <strong>
+                  $
+                  {(
+                    selectedOrder.total ??
+                    selectedOrder.price
+                  ).toFixed(2)}{" "}
+                  {selectedOrder.currency || "USD"}
+                </strong>
               </div>
 
               <div className="order-detail-row">
                 <span>📅 Fecha</span>
-                <strong>{formatDate(selectedOrder.createdAt)}</strong>
+                <strong>
+                  {formatDate(selectedOrder.createdAt)}
+                </strong>
               </div>
 
               <div className="order-detail-row">
@@ -740,12 +922,86 @@ export default function OrdersPage() {
 
               {selectedOrder.supplierOrderId && (
                 <div className="order-detail-row">
-                  <span>⚙️ Referencia</span>
-                  <strong>{selectedOrder.supplierOrderId}</strong>
+                  <span>⚙️ Referencia del proveedor</span>
+                  <strong>
+                    {selectedOrder.supplierOrderId}
+                  </strong>
                 </div>
               )}
             </div>
           </div>
+
+          {selectedOrder.type === "GIFT_CARD" && (
+            <section className="gift-codes-panel">
+              <div className="gift-codes-heading">
+                <span>🎁</span>
+                <div>
+                  <strong>CÓDIGOS DIGITALES</strong>
+                  <p>
+                    Los códigos aparecen cuando el proveedor
+                    confirma su entrega.
+                  </p>
+                </div>
+              </div>
+
+              {selectedOrder.giftCodes &&
+              selectedOrder.giftCodes.length > 0 ? (
+                <div className="gift-codes-list">
+                  {selectedOrder.giftCodes.map(
+                    (code, index) => (
+                      <div
+                        className="gift-code-item"
+                        key={`${selectedOrder.id}-${index}`}
+                      >
+                        <div>
+                          <small>
+                            CÓDIGO {index + 1}
+                          </small>
+
+                          <code>{code}</code>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => void copyGiftCode(code)}
+                        >
+                          {copiedCode === code
+                            ? "COPIADO ✓"
+                            : "COPIAR"}
+                        </button>
+                      </div>
+                    )
+                  )}
+                </div>
+              ) : (
+                <div className="gift-codes-pending">
+                  {isGiftCardCompleted(selectedOrder)
+                    ? "La orden figura completada, pero todavía no hay códigos guardados. Contacta con soporte para verificar la entrega."
+                    : normalizeStatus(selectedOrder.status) ===
+                        "REFUNDED"
+                      ? "Esta orden fue reembolsada. No hay códigos disponibles."
+                      : "Todavía no hay códigos confirmados. Actualiza el estado de la orden en unos momentos."}
+                </div>
+              )}
+
+              {copyError && (
+                <p className="gift-code-copy-error">
+                  {copyError}
+                </p>
+              )}
+
+              <button
+                type="button"
+                className="gift-codes-refresh"
+                onClick={() => void refreshOrders()}
+                disabled={refreshing}
+              >
+                {refreshing
+                  ? "CONSULTANDO..."
+                  : "↻ ACTUALIZAR ESTADO"}
+              </button>
+            </section>
+          )}
 
           <button
             type="button"
@@ -755,15 +1011,128 @@ export default function OrdersPage() {
             ← REGRESAR A MIS ÓRDENES
           </button>
         </section>
+
+        <style jsx>{`
+          .gift-codes-panel {
+            margin-top: 18px;
+            padding: 16px;
+            border: 1px solid rgba(255, 38, 56, 0.3);
+            border-radius: 14px;
+            background: rgba(0, 0, 0, 0.72);
+          }
+
+          .gift-codes-heading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+          }
+
+          .gift-codes-heading > span {
+            font-size: 24px;
+          }
+
+          .gift-codes-heading strong {
+            color: #ff4655;
+            font-size: 13px;
+            font-weight: 900;
+          }
+
+          .gift-codes-heading p {
+            margin: 4px 0 0;
+            color: #aaa;
+            font-size: 11px;
+            line-height: 1.5;
+          }
+
+          .gift-codes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+
+          .gift-code-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.04);
+          }
+
+          .gift-code-item > div {
+            min-width: 0;
+          }
+
+          .gift-code-item small {
+            display: block;
+            margin-bottom: 6px;
+            color: #999;
+            font-size: 9px;
+            font-weight: 800;
+          }
+
+          .gift-code-item code {
+            display: block;
+            color: #fff;
+            font-size: 12px;
+            overflow-wrap: anywhere;
+            user-select: text;
+          }
+
+          .gift-code-item button,
+          .gift-codes-refresh {
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 38, 56, 0.4);
+            border-radius: 8px;
+            background: rgba(255, 38, 56, 0.1);
+            color: #ff4655;
+            font-size: 10px;
+            font-weight: 900;
+            cursor: pointer;
+          }
+
+          .gift-code-item button {
+            flex-shrink: 0;
+          }
+
+          .gift-codes-pending {
+            padding: 13px;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.04);
+            color: #ccc;
+            font-size: 12px;
+            line-height: 1.6;
+          }
+
+          .gift-code-copy-error {
+            color: #ff6976;
+            font-size: 11px;
+            line-height: 1.5;
+          }
+
+          .gift-codes-refresh {
+            width: 100%;
+            margin-top: 12px;
+          }
+
+          .gift-codes-refresh:disabled {
+            opacity: 0.5;
+            cursor: wait;
+          }
+
+          @media (max-width: 380px) {
+            .gift-code-item {
+              align-items: flex-start;
+              flex-direction: column;
+            }
+          }
+        `}</style>
       </main>
     );
   }
-
-  /*
-   * ============================================================
-   * HISTORIAL NORMAL
-   * ============================================================
-   */
 
   return (
     <main className="orders-page">
@@ -789,7 +1158,9 @@ export default function OrdersPage() {
         <div className="orders-hero-glow" />
 
         <div className="orders-hero-content">
-          <span className="orders-hero-label">STORE GAMING</span>
+          <span className="orders-hero-label">
+            STORE GAMING
+          </span>
 
           <h1>
             HISTORIAL
@@ -797,8 +1168,7 @@ export default function OrdersPage() {
           </h1>
 
           <p>
-            Consulta tus compras,
-            productos y el estado
+            Consulta tus compras, productos y el estado
             de cada pedido.
           </p>
         </div>
@@ -843,37 +1213,27 @@ export default function OrdersPage() {
       </section>
 
       <section className="orders-filters">
-        <button
-          type="button"
-          className={filter === "TODAS" ? "orders-filter active" : "orders-filter"}
-          onClick={() => setFilter("TODAS")}
-        >
-          TODAS
-        </button>
-
-        <button
-          type="button"
-          className={filter === "PENDIENTES" ? "orders-filter active" : "orders-filter"}
-          onClick={() => setFilter("PENDIENTES")}
-        >
-          PENDIENTES
-        </button>
-
-        <button
-          type="button"
-          className={filter === "COMPLETADAS" ? "orders-filter active" : "orders-filter"}
-          onClick={() => setFilter("COMPLETADAS")}
-        >
-          COMPLETADAS
-        </button>
-
-        <button
-          type="button"
-          className={filter === "CANCELADAS" ? "orders-filter active" : "orders-filter"}
-          onClick={() => setFilter("CANCELADAS")}
-        >
-          CANCELADAS
-        </button>
+        {(
+          [
+            "TODAS",
+            "PENDIENTES",
+            "COMPLETADAS",
+            "CANCELADAS",
+          ] as Filter[]
+        ).map((item) => (
+          <button
+            key={item}
+            type="button"
+            className={
+              filter === item
+                ? "orders-filter active"
+                : "orders-filter"
+            }
+            onClick={() => setFilter(item)}
+          >
+            {item}
+          </button>
+        ))}
       </section>
 
       <section className="orders-history">
@@ -885,17 +1245,33 @@ export default function OrdersPage() {
 
           <small>
             {filteredOrders.length}{" "}
-            {filteredOrders.length === 1 ? "orden" : "órdenes"}
+            {filteredOrders.length === 1
+              ? "orden"
+              : "órdenes"}
           </small>
+        </div>
+
+        <div className="orders-refresh-row">
+          <span>
+            Se actualizan los estados de las tarjetas pendientes.
+          </span>
+
+          <button
+            type="button"
+            onClick={() => void refreshOrders()}
+            disabled={refreshing}
+          >
+            {refreshing ? "ACTUALIZANDO..." : "↻ ACTUALIZAR"}
+          </button>
         </div>
 
         {filteredOrders.length === 0 ? (
           <div className="orders-empty">
             <div className="orders-empty-icon">📭</div>
-
             <strong>NO HAY ÓRDENES</strong>
-
-            <p>No encontramos órdenes en esta categoría.</p>
+            <p>
+              No encontramos órdenes en esta categoría.
+            </p>
 
             {filter !== "TODAS" && (
               <button
@@ -910,7 +1286,7 @@ export default function OrdersPage() {
           <div className="orders-list">
             {filteredOrders.map((order) => (
               <button
-                key={order.id}
+                key={`${order.type}-${order.id}`}
                 type="button"
                 className="order-card"
                 onClick={() => openOrder(order)}
@@ -924,7 +1300,11 @@ export default function OrdersPage() {
                       onError={(event) => {
                         const image = event.currentTarget;
 
-                        if (image.src.endsWith(DEFAULT_GAME_IMAGE)) return;
+                        if (
+                          image.src.endsWith(DEFAULT_GAME_IMAGE)
+                        ) {
+                          return;
+                        }
 
                         image.src = DEFAULT_GAME_IMAGE;
                       }}
@@ -938,28 +1318,39 @@ export default function OrdersPage() {
 
                     <span>{order.game}</span>
 
-                    <small>ID: {order.playerId}</small>
+                    {order.type === "GIFT_CARD" ? (
+                      <small>TARJETA DIGITAL</small>
+                    ) : (
+                      <small>ID: {order.playerId}</small>
+                    )}
 
                     <small>{formatDate(order.createdAt)}</small>
+
+                    {order.type === "GIFT_CARD" &&
+                      order.giftCodes &&
+                      order.giftCodes.length > 0 && (
+                        <small className="orders-code-available">
+                          🎁 CÓDIGO DISPONIBLE
+                        </small>
+                      )}
                   </div>
                 </div>
 
                 <div className="order-card-right">
-                  <strong>${order.price.toFixed(2)}</strong>
+                  <strong>
+                    ${(order.total ?? order.price).toFixed(2)}
+                  </strong>
 
-                  <span className={`order-status ${getStatusClass(order)}`}>
-                    <span
-                      className={
-                        isClockStatus(order)
-                          ? "order-status-clock"
-                          : "order-status-icon"
-                      }
-                      aria-hidden="true"
-                    >
-                      {renderStatusIcon(order)}
+                  <span
+                    className={`order-status ${getOrderStatusClass(
+                      order
+                    )}`}
+                  >
+                    <span aria-hidden="true">
+                      {getOrderStatusIcon(order.status)}
                     </span>
 
-                    <span>{getStatusText(order)}</span>
+                    <span>{getOrderStatusText(order)}</span>
                   </span>
 
                   <span className="order-card-arrow">›</span>
@@ -978,74 +1369,62 @@ export default function OrdersPage() {
             <strong>TUS ÓRDENES ESTÁN REGISTRADAS</strong>
 
             <p>
-              Guarda el número de orden
-              para consultar cualquier
-              compra.
+              Guarda el número de orden para consultar
+              cualquier compra. Los códigos digitales solo
+              aparecen cuando han sido guardados por el servidor.
             </p>
           </div>
         </div>
       </section>
 
       <footer className="orders-footer">
-        <strong>🛒TIENDA DE JUEGOS🎮</strong>
-
-        <span>TU MEJOR OPCIÓN PARA RECARGAS GAMING</span>
+        <strong>🛒 TIENDA DE JUEGOS 🎮</strong>
+        <span>
+          TU MEJOR OPCIÓN PARA RECARGAS GAMING
+        </span>
       </footer>
 
       <style jsx>{`
-        .orders-page .order-status.status-pending,
-        .order-detail-status .order-status.status-pending,
-        .order-card-right .order-status.status-pending {
+        .orders-refresh-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin: 10px 0 14px;
+          color: #aaa;
+          font-size: 11px;
+        }
+
+        .orders-refresh-row button {
+          flex-shrink: 0;
+          padding: 8px 10px;
+          border: 1px solid rgba(255, 38, 56, 0.4);
+          border-radius: 8px;
+          background: rgba(255, 38, 56, 0.08);
+          color: #ff4655;
+          font-size: 10px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .orders-refresh-row button:disabled {
+          opacity: 0.5;
+          cursor: wait;
+        }
+
+        .orders-code-available {
+          color: #32d997 !important;
+          font-weight: 900;
+        }
+
+        .orders-page .order-status.status-pending {
           color: #ffbf36 !important;
         }
 
-        .orders-pending-clock {
-          position: relative;
-          display: inline-block;
-          width: 17px;
-          height: 17px;
-          flex: 0 0 17px;
-          border: 2px solid currentColor;
-          border-radius: 50%;
-          box-sizing: border-box;
-          vertical-align: middle;
-        }
-
-        .orders-pending-clock-hand {
-          position: absolute;
-          left: 50%;
-          bottom: 50%;
-          display: block;
-          width: 1.5px;
-          border-radius: 2px;
-          background: currentColor;
-          transform-origin: 50% 100%;
-        }
-
-        .orders-pending-clock-hand-hour {
-          height: 4px;
-          animation: orders-pending-clock-spin 3s linear infinite;
-        }
-
-        .orders-pending-clock-hand-minute {
-          height: 5px;
-          animation: orders-pending-clock-spin 1.2s linear infinite;
-        }
-
-        @keyframes orders-pending-clock-spin {
-          from {
-            transform: translateX(-50%) rotate(0deg);
-          }
-
-          to {
-            transform: translateX(-50%) rotate(360deg);
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .orders-pending-clock-hand-hour,
-          .orders-pending-clock-hand-minute {
-            animation-duration: 8s;
+        @media (max-width: 380px) {
+          .orders-refresh-row {
+            align-items: flex-start;
+            flex-direction: column;
           }
         }
       `}</style>
