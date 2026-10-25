@@ -1,24 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function normalizeBaseUrl(value: string): string {
-  let result = value.trim();
+type JsonObject = Record<string, unknown>;
 
-  while (result.endsWith("/")) {
-    result = result.slice(0, -1);
-  }
+type Profile = {
+  id: string;
+  email: string | null;
+  balance: number | string | null;
+};
 
-  return result;
-}
-
-const FAZER_API_BASE = normalizeBaseUrl(
+const FAZER_API_BASE = (
   process.env.FAZERCARDS_API_URL ||
-    "https://api.fzr.cards/api/v2"
-);
+  "https://api.fzr.cards/api/v2"
+).replace(/\/+$/, "");
 
 const FAZER_API_KEY = process.env.FAZERCARDS_API_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,231 +24,281 @@ const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const CATEGORY_ID = "roblox_global";
-const PROFIT_PER_UNIT = 0.25;
+const MARKUP_PER_CARD = 0.25;
 const MAX_QUANTITY = 100;
 
-type JsonObject = Record<string, unknown>;
+function json(
+  body: Record<string, unknown>,
+  status = 200,
+) {
+  return NextResponse.json(body, { status });
+}
 
 function isObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
 }
 
 function getText(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return "";
 }
 
-function getNumber(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
+function getNumber(value: unknown): number | null {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
     return value;
   }
 
-  if (typeof value === "string" && value.trim() !== "") {
+  if (typeof value === "string" && value.trim()) {
     const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
 
-  return 0;
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return "Error desconocido";
-  }
-}
-
-function getNestedObjects(data: unknown): JsonObject[] {
-  if (Array.isArray(data)) {
-    return data.filter(isObject);
-  }
-
-  if (!isObject(data)) return [];
-
-  const candidates = [
-    data.cards,
-    data.offers,
-    data.results,
-    isObject(data.data) ? data.data.cards : undefined,
-    isObject(data.data) ? data.data.offers : undefined,
-    isObject(data.data) ? data.data.results : undefined,
-    data.data,
-  ];
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) {
-      return candidate.filter(isObject);
+    if (Number.isFinite(parsed)) {
+      return parsed;
     }
   }
 
-  return [];
+  return null;
 }
 
-function getSupplierOrderId(data: unknown): string {
-  if (!isObject(data)) return "";
-
-  const direct = [
-    data.order_id,
-    data.orderId,
-    data.id,
-    data.reference,
-  ];
-
-  for (const value of direct) {
-    const text = getText(value);
-    if (text) return text;
+function findNestedValue(
+  payload: unknown,
+  keys: string[],
+  depth = 0,
+): unknown {
+  if (!isObject(payload) || depth > 6) {
+    return undefined;
   }
 
-  if (isObject(data.data)) {
-    return getSupplierOrderId(data.data);
+  for (const key of keys) {
+    const value = payload[key];
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== ""
+    ) {
+      return value;
+    }
   }
 
-  if (isObject(data.order)) {
-    return getSupplierOrderId(data.order);
+  for (const key of [
+    "data",
+    "order",
+    "result",
+    "response",
+    "payload",
+  ]) {
+    const nested = payload[key];
+
+    if (isObject(nested)) {
+      const found = findNestedValue(
+        nested,
+        keys,
+        depth + 1,
+      );
+
+      if (found !== undefined) {
+        return found;
+      }
+    }
   }
 
-  return "";
+  return undefined;
 }
 
-function getSupplierStatus(data: unknown): string {
-  if (!isObject(data)) return "";
-
-  const direct = [
-    data.status,
-    data.order_status,
-    data.orderStatus,
-  ];
-
-  for (const value of direct) {
-    const text = getText(value);
-    if (text) return text.toLowerCase();
-  }
-
-  if (isObject(data.data)) {
-    return getSupplierStatus(data.data);
-  }
-
-  if (isObject(data.order)) {
-    return getSupplierStatus(data.order);
-  }
-
-  return "";
+function getProviderStatus(payload: unknown): string {
+  return getText(
+    findNestedValue(payload, ["status", "order_status"]),
+  )
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
 }
 
-function getGiftCodes(data: unknown): unknown[] {
-  if (!isObject(data)) return [];
+function getProviderOrderId(payload: unknown): string {
+  const value = findNestedValue(payload, [
+    "supplier_order_id",
+    "order_id",
+    "orderId",
+    "id",
+  ]);
 
-  const candidates = [
-    data.codes,
-    data.gift_codes,
-    data.giftCodes,
-    data.serials,
-    data.keys,
-    data.items,
-  ];
+  return getText(value);
+}
+
+function getProviderCodes(payload: unknown): unknown {
+  return findNestedValue(payload, [
+    "gift_codes",
+    "giftCodes",
+    "codes",
+    "keys",
+    "serials",
+  ]);
+}
+
+function getOffers(payload: unknown): JsonObject[] {
+  const candidates: unknown[] = [];
+
+  if (Array.isArray(payload)) {
+    candidates.push(payload);
+  }
+
+  if (isObject(payload)) {
+    candidates.push(
+      payload.cards,
+      payload.offers,
+      payload.results,
+      payload.data,
+    );
+
+    if (isObject(payload.data)) {
+      candidates.push(
+        payload.data.cards,
+        payload.data.offers,
+        payload.data.results,
+      );
+    }
+  }
 
   for (const candidate of candidates) {
-    if (Array.isArray(candidate) && candidate.length > 0) {
+    if (
+      Array.isArray(candidate) &&
+      candidate.every(isObject)
+    ) {
       return candidate;
     }
   }
 
-  if (isObject(data.data)) {
-    return getGiftCodes(data.data);
-  }
-
-  if (isObject(data.order)) {
-    return getGiftCodes(data.order);
-  }
-
   return [];
 }
 
-async function readResponse(response: Response): Promise<unknown> {
-  const raw = await response.text();
-
-  if (!raw) return {};
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { raw };
-  }
+function getOfferId(offer: JsonObject): string {
+  return getText(
+    offer.offer_id ??
+      offer.card_id ??
+      offer.id,
+  );
 }
 
-async function fazerCardsRequest(
-  endpoint: string,
-  method: "GET" | "POST",
-  body?: JsonObject
-) {
-  if (!FAZER_API_KEY) {
-    throw new Error("Falta configurar FAZERCARDS_API_KEY en Vercel.");
+function getOfferName(offer: JsonObject): string {
+  return (
+    getText(
+      offer.name ??
+        offer.offer_name ??
+        offer.title,
+    ) || "Roblox Global"
+  );
+}
+
+function getOfferPrice(
+  offer: JsonObject,
+): number | null {
+  return getNumber(
+    offer.price_usd ??
+      offer.price ??
+      offer.cost,
+  );
+}
+
+function getMetadataUsername(
+  user: {
+    user_metadata?: unknown;
+    email?: string;
+    id: string;
+  },
+): string {
+  const metadata = isObject(user.user_metadata)
+    ? user.user_metadata
+    : {};
+
+  return (
+    getText(metadata.username) ||
+    getText(metadata.full_name) ||
+    getText(metadata.name) ||
+    getText(user.email) ||
+    user.id
+  );
+}
+
+async function readResponse(
+  response: Response,
+): Promise<unknown> {
+  const text = await response.text();
+
+  if (!text) {
+    return {};
   }
 
-  const response = await fetch(`${FAZER_API_BASE}${endpoint}`, {
-    method,
-    headers: {
-      "X-API-Key": FAZER_API_KEY,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "User-Agent": "STORE-GAMING/1.0",
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-    cache: "no-store",
-    signal: AbortSignal.timeout(25000),
-  });
-
-  const data = await readResponse(response);
-
-  return {
-    ok: response.ok,
-    status: response.status,
-    data,
-  };
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return { raw: text };
+  }
 }
 
 export async function POST(request: NextRequest) {
-  let orderId = "";
-  let supabaseAdmin:
-    | ReturnType<typeof createClient>
-    | null = null;
+  let reservedOrderId: string | null = null;
 
   try {
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json(
+    if (
+      !SUPABASE_URL ||
+      !SUPABASE_SERVICE_ROLE_KEY
+    ) {
+      console.error(
+        "[STORE GAMING] Faltan variables de Supabase.",
+      );
+
+      return json(
         {
-          ok: false,
-          error: "Falta configurar Supabase en las variables de Vercel.",
+          success: false,
+          error: "La base de datos no está configurada.",
         },
-        { status: 500 }
+        500,
       );
     }
 
     if (!FAZER_API_KEY) {
-      return NextResponse.json(
+      return json(
         {
-          ok: false,
-          error: "Falta configurar FAZERCARDS_API_KEY en Vercel.",
+          success: false,
+          error: "Falta configurar FAZERCARDS_API_KEY.",
         },
-        { status: 500 }
+        500,
       );
     }
 
-    const authorization = request.headers.get("authorization") || "";
-    const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i);
-    const token = tokenMatch?.[1]?.trim();
+    const authorization =
+      request.headers.get("authorization") || "";
 
-    if (!token) {
-      return NextResponse.json(
-        { ok: false, error: "Debes iniciar sesión para comprar." },
-        { status: 401 }
+    const tokenMatch = authorization.match(
+      /^Bearer\s+(.+)$/i,
+    );
+
+    if (!tokenMatch) {
+      return json(
+        {
+          success: false,
+          error: "Debes iniciar sesión para comprar.",
+        },
+        401,
       );
     }
 
-    supabaseAdmin = createClient(
+    const token = tokenMatch[1].trim();
+
+    const supabaseAdmin = createClient(
       SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY,
       {
@@ -258,7 +306,7 @@ export async function POST(request: NextRequest) {
           autoRefreshToken: false,
           persistSession: false,
         },
-      }
+      },
     );
 
     const {
@@ -266,41 +314,59 @@ export async function POST(request: NextRequest) {
       error: authError,
     } = await supabaseAdmin.auth.getUser(token);
 
-    const user = authData?.user;
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { ok: false, error: "La sesión no es válida o ha caducado." },
-        { status: 401 }
+    if (authError || !authData.user) {
+      return json(
+        {
+          success: false,
+          error: "La sesión no es válida. Inicia sesión nuevamente.",
+        },
+        401,
       );
     }
+
+    const user = authData.user;
 
     let body: unknown;
 
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { ok: false, error: "El cuerpo de la solicitud no es JSON válido." },
-        { status: 400 }
+      return json(
+        {
+          success: false,
+          error: "El cuerpo de la solicitud no es JSON válido.",
+        },
+        400,
       );
     }
 
     if (!isObject(body)) {
-      return NextResponse.json(
-        { ok: false, error: "Solicitud inválida." },
-        { status: 400 }
+      return json(
+        {
+          success: false,
+          error: "Los datos de la compra no son válidos.",
+        },
+        400,
       );
     }
 
-    const cardId = getText(body.card_id ?? body.cardId);
-    const quantity = Number(body.quantity ?? 1);
-    const idempotencyKey = getText(body.idempotency_key);
+    const cardId = getText(
+      body.card_id ?? body.offer_id,
+    );
+
+    const quantityValue = getNumber(body.quantity);
+    const quantity = quantityValue ?? 1;
+    const idempotencyKey = getText(
+      body.idempotency_key,
+    );
 
     if (!cardId) {
-      return NextResponse.json(
-        { ok: false, error: "Falta card_id." },
-        { status: 400 }
+      return json(
+        {
+          success: false,
+          error: "Falta seleccionar una tarjeta.",
+        },
+        400,
       );
     }
 
@@ -309,33 +375,36 @@ export async function POST(request: NextRequest) {
       quantity < 1 ||
       quantity > MAX_QUANTITY
     ) {
-      return NextResponse.json(
+      return json(
         {
-          ok: false,
-          error: `La cantidad debe ser un número entero entre 1 y ${MAX_QUANTITY}.`,
+          success: false,
+          error: `La cantidad debe estar entre 1 y ${MAX_QUANTITY}.`,
         },
-        { status: 400 }
+        400,
       );
     }
 
     if (
-      !idempotencyKey ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        idempotencyKey
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        idempotencyKey,
       )
     ) {
-      return NextResponse.json(
+      return json(
         {
-          ok: false,
-          error: "Falta una idempotency_key válida. Vuelve a iniciar la compra.",
+          success: false,
+          error: "La clave de compra no es válida. Inténtalo nuevamente.",
         },
-        { status: 400 }
+        400,
       );
     }
 
-    // Leer únicamente columnas que existen en public.profiles.
+    /*
+     * IMPORTANTE:
+     * profiles no tiene una columna username.
+     * Solo consultamos columnas que existen.
+     */
     const {
-      data: profile,
+      data: profileData,
       error: profileError,
     } = await supabaseAdmin
       .from("profiles")
@@ -344,133 +413,178 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (profileError) {
-      console.error("[STORE GAMING] Error leyendo perfil:", {
-        code: profileError.code,
-        message: profileError.message,
-      });
+      console.error(
+        "[STORE GAMING] Error leyendo perfil:",
+        profileError,
+      );
 
-      return NextResponse.json(
-        { ok: false, error: "No se pudo consultar tu perfil." },
-        { status: 500 }
+      return json(
+        {
+          success: false,
+          error: "No se pudo consultar tu perfil.",
+        },
+        500,
       );
     }
 
+    /*
+     * Se declara el tipo explícitamente para evitar que
+     * TypeScript infiera profile como never.
+     */
+    const profile: Profile | null = profileData
+      ? {
+          id: getText(
+            (profileData as Record<string, unknown>).id,
+          ),
+          email:
+            getText(
+              (profileData as Record<string, unknown>).email,
+            ) || null,
+          balance:
+            (profileData as Record<string, unknown>)
+              .balance as number | string | null,
+        }
+      : null;
+
     if (!profile) {
-      return NextResponse.json(
+      return json(
         {
-          ok: false,
-          error: "No se encontró tu perfil de STORE GAMING.",
+          success: false,
+          error: "No existe un perfil para esta cuenta.",
         },
-        { status: 404 }
+        404,
       );
     }
 
     const email =
-      getText(profile.email) || getText(user.email);
+      getText(profile.email) ||
+      getText(user.email);
 
-    // No se presupone que exista un campo username en profiles.
-    const metadata = isObject(user.user_metadata)
-      ? user.user_metadata
-      : {};
+    const username = getMetadataUsername(user);
 
-    const username =
-      getText(metadata.username) ||
-      getText(metadata.full_name) ||
-      getText(metadata.name) ||
-      email ||
-      user.id;
+    if (!email) {
+      return json(
+        {
+          success: false,
+          error: "Tu cuenta no tiene un correo disponible.",
+        },
+        400,
+      );
+    }
 
-    // Consultar la oferta actual al proveedor antes de reservar saldo.
-    const catalog = await fazerCardsRequest(
-      `/giftcards/cards?category_id=${encodeURIComponent(CATEGORY_ID)}`,
-      "GET"
-    );
+    /*
+     * Consultar catálogo del proveedor.
+     */
+    const catalogUrl =
+      `${FAZER_API_BASE}/giftcards/cards` +
+      `?category_id=${encodeURIComponent(CATEGORY_ID)}`;
 
-    if (!catalog.ok) {
-      console.error("[STORE GAMING] Error consultando catálogo FazerCards:", {
-        status: catalog.status,
-        data: catalog.data,
+    let catalogResponse: Response;
+
+    try {
+      catalogResponse = await fetch(catalogUrl, {
+        method: "GET",
+        headers: {
+          "X-API-Key": FAZER_API_KEY,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(20000),
       });
+    } catch (error) {
+      console.error(
+        "[STORE GAMING] Error conectando con el catálogo:",
+        error,
+      );
 
-      return NextResponse.json(
+      return json(
         {
-          ok: false,
-          error: "FazerCards no permitió consultar las ofertas.",
-          supplier_status: catalog.status,
+          success: false,
+          error: "No se pudo conectar con FazerCards.",
         },
-        { status: 502 }
+        502,
       );
     }
 
-    const cards = getNestedObjects(catalog.data);
+    const catalogPayload =
+      await readResponse(catalogResponse);
 
-    const selectedCard = cards.find((card) => {
-      const possibleIds = [
-        card.card_id,
-        card.cardId,
-        card.offer_id,
-        card.offerId,
-        card.id,
-      ];
-
-      return possibleIds.some(
-        (value) => getText(value) === cardId
+    if (!catalogResponse.ok) {
+      console.error(
+        "[STORE GAMING] Error de catálogo:",
+        catalogResponse.status,
+        catalogPayload,
       );
-    });
 
-    if (!selectedCard) {
-      return NextResponse.json(
+      return json(
         {
-          ok: false,
-          error: "La tarjeta seleccionada ya no está disponible en FazerCards.",
+          success: false,
+          error: "FazerCards no permitió consultar las tarjetas.",
+          provider_status: catalogResponse.status,
         },
-        { status: 409 }
+        502,
       );
     }
 
-    const supplierUnitPrice = getNumber(
-      selectedCard.price_usd ??
-        selectedCard.price ??
-        selectedCard.cost
+    const offers = getOffers(catalogPayload);
+
+    const selectedOffer = offers.find(
+      (offer) => getOfferId(offer) === cardId,
     );
 
-    if (supplierUnitPrice <= 0) {
-      console.error("[STORE GAMING] Precio de proveedor inválido:", {
-        cardId,
-        selectedCard,
-      });
-
-      return NextResponse.json(
+    if (!selectedOffer) {
+      return json(
         {
-          ok: false,
-          error: "FazerCards devolvió un precio inválido para esta tarjeta.",
+          success: false,
+          error: "La tarjeta seleccionada no está disponible en el catálogo.",
         },
-        { status: 502 }
+        400,
       );
     }
 
-    const retailUnitPrice = Number(
-      (supplierUnitPrice + PROFIT_PER_UNIT).toFixed(2)
-    );
+    const supplierUnitPrice =
+      getOfferPrice(selectedOffer);
 
-    const retailTotal = Number(
-      (retailUnitPrice * quantity).toFixed(2)
-    );
+    if (
+      supplierUnitPrice === null ||
+      supplierUnitPrice <= 0
+    ) {
+      console.error(
+        "[STORE GAMING] Precio inválido:",
+        selectedOffer,
+      );
 
-    const supplierTotal = Number(
-      (supplierUnitPrice * quantity).toFixed(2)
-    );
+      return json(
+        {
+          success: false,
+          error: "No se pudo verificar el precio de la tarjeta.",
+        },
+        502,
+      );
+    }
 
-    const offerName =
-      getText(selectedCard.name) ||
-      getText(selectedCard.offer_name) ||
-      getText(selectedCard.title) ||
-      `Roblox Global ${cardId}`;
+    const offerName = getOfferName(selectedOffer);
+    const retailUnitPrice =
+      Math.round(
+        (supplierUnitPrice + MARKUP_PER_CARD) * 100,
+      ) / 100;
 
-    // Reservar/deducir el saldo y crear la orden de forma atómica.
+    const retailTotal =
+      Math.round(retailUnitPrice * quantity * 100) /
+      100;
+
+    const supplierTotal =
+      Math.round(
+        supplierUnitPrice * quantity * 100,
+      ) / 100;
+
+    /*
+     * Reservar saldo y crear la orden de forma atómica.
+     * La RPC debe devolver order_id y created.
+     */
     const {
-      data: reservationData,
-      error: reservationError,
+      data: reserveData,
+      error: reserveError,
     } = await supabaseAdmin.rpc(
       "create_gift_card_order_and_reserve_balance",
       {
@@ -484,335 +598,462 @@ export async function POST(request: NextRequest) {
         p_retail_price: retailTotal,
         p_supplier_price: supplierTotal,
         p_idempotency_key: idempotencyKey,
-      }
+      },
     );
 
-    if (reservationError) {
-      console.error("[STORE GAMING] Error reservando saldo:", {
-        code: reservationError.code,
-        message: reservationError.message,
+    if (reserveError) {
+      console.error(
+        "[STORE GAMING] Error reservando saldo:",
+        reserveError,
+      );
+
+      return json(
+        {
+          success: false,
+          error: "No se pudo crear la orden ni reservar el saldo.",
+        },
+        500,
+      );
+    }
+
+    const reserveRow = Array.isArray(reserveData)
+      ? reserveData[0]
+      : reserveData;
+
+    if (!isObject(reserveRow)) {
+      console.error(
+        "[STORE GAMING] Respuesta inesperada de la RPC:",
+        reserveData,
+      );
+
+      return json(
+        {
+          success: false,
+          error: "La base de datos devolvió una respuesta inesperada.",
+        },
+        500,
+      );
+    }
+
+    const internalOrderId = getText(
+      reserveRow.order_id ??
+        reserveRow.gift_card_order_id ??
+        reserveRow.id,
+    );
+
+    const createdValue =
+      reserveRow.created ?? reserveRow.is_new;
+
+    const isNewOrder =
+      createdValue === true ||
+      createdValue === 1 ||
+      createdValue === "true";
+
+    if (!internalOrderId) {
+      console.error(
+        "[STORE GAMING] La RPC no devolvió el ID de la orden:",
+        reserveData,
+      );
+
+      return json(
+        {
+          success: false,
+          error: "No se recibió el identificador de la orden.",
+        },
+        500,
+      );
+    }
+
+    /*
+     * No volver a enviar al proveedor una compra existente.
+     * Esto evita duplicar tarjetas por reintentos del cliente.
+     */
+    if (!isNewOrder) {
+      return json({
+        success: true,
+        duplicate_request: true,
+        orderId: internalOrderId,
+        message:
+          "Esta solicitud ya había sido procesada. No se creó otra compra.",
       });
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "No se pudo crear el pedido ni reservar el saldo.",
-        },
-        { status: 500 }
-      );
     }
 
-    const reservation = Array.isArray(reservationData)
-      ? reservationData[0]
-      : reservationData;
+    reservedOrderId = internalOrderId;
 
-    if (!isObject(reservation)) {
-      console.error(
-        "[STORE GAMING] Respuesta inesperada de la reserva:",
-        reservationData
-      );
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "La reserva de saldo devolvió una respuesta inesperada.",
-        },
-        { status: 500 }
-      );
-    }
-
-    orderId = getText(
-      reservation.order_id ??
-        reservation.id ??
-        reservation.gift_card_order_id
-    );
-
-    if (!orderId) {
-      console.error(
-        "[STORE GAMING] La reserva no devolvió order_id:",
-        reservationData
-      );
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "No se pudo identificar el pedido reservado.",
-        },
-        { status: 500 }
-      );
-    }
-
-    const created =
-      reservation.created === true ||
-      reservation.is_new === true;
-
-    // Si el RPC devuelve una orden preexistente, nunca volver a enviarla.
-    if (!created) {
-      const { data: existingOrder, error: existingError } =
-        await supabaseAdmin
-          .from("gift_card_orders")
-          .select(
-            "id, status, supplier_order_id, gift_codes, retail_price, quantity"
-          )
-          .eq("id", orderId)
-          .maybeSingle();
-
-      if (existingError) {
-        console.error(
-          "[STORE GAMING] Error leyendo orden idempotente:",
-          existingError.message
-        );
-      }
-
-      return NextResponse.json(
-        {
-          ok: true,
-          duplicate: true,
-          message:
-            "Esta solicitud ya fue procesada. No se envió otra compra al proveedor.",
-          order: existingOrder || { id: orderId },
-        },
-        { status: 200 }
-      );
-    }
-
-    // Enviar una sola vez la compra al proveedor.
-    let supplierResult: {
-      ok: boolean;
-      status: number;
-      data: unknown;
-    };
+    /*
+     * Enviar la compra a FazerCards.
+     */
+    let supplierResponse: Response;
 
     try {
-      supplierResult = await fazerCardsRequest(
-        "/giftcards/order",
-        "POST",
+      supplierResponse = await fetch(
+        `${FAZER_API_BASE}/giftcards/order`,
         {
-          category_id: CATEGORY_ID,
-          card_id: cardId,
-          quantity,
-        }
-      );
-    } catch (supplierNetworkError) {
-      // Un timeout no demuestra que el proveedor no haya creado la orden.
-      // Se conserva pendiente y NO se reintenta automáticamente.
-      console.error("[STORE GAMING] Resultado incierto al enviar pedido:", {
-        orderId,
-        error: getErrorMessage(supplierNetworkError),
-      });
-
-      await supabaseAdmin
-        .from("gift_card_orders")
-        .update({
-          status: "SUPPLIER_PENDING",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
-
-      return NextResponse.json(
-        {
-          ok: false,
-          pending: true,
-          order_id: orderId,
-          error:
-            "No pudimos confirmar la respuesta de FazerCards. El pedido queda pendiente de conciliación para evitar una compra duplicada.",
+          method: "POST",
+          headers: {
+            "X-API-Key": FAZER_API_KEY,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            category_id: CATEGORY_ID,
+            card_id: cardId,
+            quantity,
+          }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(30000),
         },
-        { status: 202 }
       );
-    }
-
-    const supplierData = supplierResult.data;
-    const supplierOrderId = getSupplierOrderId(supplierData);
-    const supplierStatus = getSupplierStatus(supplierData);
-    const giftCodes = getGiftCodes(supplierData);
-
-    console.info("[STORE GAMING] Respuesta de FazerCards:", {
-      orderId,
-      supplierOrderId: supplierOrderId || null,
-      httpStatus: supplierResult.status,
-      supplierStatus: supplierStatus || null,
-      hasCodes: giftCodes.length > 0,
-      supplierOk: supplierResult.ok,
-    });
-
-    if (!supplierResult.ok) {
-      // Guardamos el resultado para investigar antes de reintentar.
-      await supabaseAdmin
-        .from("gift_card_orders")
-        .update({
-          status: "SUPPLIER_PENDING",
-          supplier_order_id: supplierOrderId || null,
-          supplier_response: supplierData as never,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
-
-      return NextResponse.json(
-        {
-          ok: false,
-          pending: true,
-          order_id: orderId,
-          supplier_status: supplierResult.status,
-          error:
-            "FazerCards no confirmó la compra. El pedido queda pendiente de revisión.",
-        },
-        { status: 202 }
+    } catch (error) {
+      /*
+       * Un timeout no demuestra que el proveedor no recibió
+       * la orden. Se deja pendiente para reconciliación.
+       * No reintentar automáticamente aquí.
+       */
+      console.error(
+        "[STORE GAMING] Resultado incierto al enviar a FazerCards:",
+        error,
       );
-    }
 
-    const failedStatuses = [
-      "failed",
-      "failure",
-      "error",
-      "cancelled",
-      "canceled",
-      "rejected",
-    ];
-
-    if (failedStatuses.includes(supplierStatus)) {
-      await supabaseAdmin
-        .from("gift_card_orders")
-        .update({
-          status: "SUPPLIER_PENDING",
-          supplier_order_id: supplierOrderId || null,
-          supplier_response: supplierData as never,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
-
-      return NextResponse.json(
-        {
-          ok: false,
-          pending: true,
-          order_id: orderId,
-          error:
-            "FazerCards devolvió un estado de fallo. Se requiere revisar el resultado antes de reembolsar o reintentar.",
-        },
-        { status: 202 }
-      );
-    }
-
-    const completedStatuses = [
-      "completed",
-      "complete",
-      "success",
-      "successful",
-      "delivered",
-    ];
-
-    const supplierCompleted =
-      completedStatuses.includes(supplierStatus);
-
-    if (giftCodes.length > 0 || supplierCompleted) {
-      const updateData: JsonObject = {
-        status: "COMPLETED",
-        supplier_order_id: supplierOrderId || null,
-        supplier_response: supplierData,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      if (giftCodes.length > 0) {
-        updateData.gift_codes = giftCodes;
-      }
-
-      const { error: updateError } = await supabaseAdmin
-        .from("gift_card_orders")
-        .update(updateData as never)
-        .eq("id", orderId);
+      const { error: updateError } =
+        await supabaseAdmin
+          .from("gift_card_orders")
+          .update({
+            status: "SUPPLIER_PENDING",
+            supplier_response: {
+              message:
+                "No se pudo confirmar la respuesta HTTP del proveedor.",
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", internalOrderId);
 
       if (updateError) {
         console.error(
-          "[STORE GAMING] Error guardando resultado completado:",
-          updateError.message
-        );
-
-        return NextResponse.json(
-          {
-            ok: false,
-            pending: true,
-            order_id: orderId,
-            supplier_order_id: supplierOrderId || null,
-            error:
-              "FazerCards respondió, pero STORE GAMING no pudo guardar el resultado. No repitas la compra.",
-          },
-          { status: 500 }
+          "[STORE GAMING] No se pudo guardar el estado pendiente:",
+          updateError,
         );
       }
 
-      return NextResponse.json(
+      return json(
         {
-          ok: true,
-          order_id: orderId,
-          supplier_order_id: supplierOrderId || null,
-          status: "COMPLETED",
-          quantity,
-          total: retailTotal,
-          gift_codes: giftCodes,
-          message: "FazerCards confirmó el pedido.",
+          success: true,
+          pending: true,
+          orderId: internalOrderId,
+          status: "SUPPLIER_PENDING",
+          message:
+            "La orden quedó pendiente de confirmación. No repitas la compra.",
         },
-        { status: 200 }
+        202,
       );
     }
 
-    // Si el proveedor aceptó la solicitud pero aún no completó la entrega.
-    const { error: pendingUpdateError } = await supabaseAdmin
-      .from("gift_card_orders")
-      .update({
-        status: "SUPPLIER_PENDING",
-        supplier_order_id: supplierOrderId || null,
-        supplier_response: supplierData as never,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
+    const supplierPayload =
+      await readResponse(supplierResponse);
 
-    if (pendingUpdateError) {
-      console.error(
-        "[STORE GAMING] Error guardando orden pendiente:",
-        pendingUpdateError.message
+    const supplierOrderId =
+      getProviderOrderId(supplierPayload);
+
+    const supplierStatus =
+      getProviderStatus(supplierPayload);
+
+    /*
+     * Si el proveedor rechazó explícitamente la solicitud,
+     * guardar la respuesta y solicitar el reembolso mediante
+     * la RPC idempotente.
+     */
+    if (!supplierResponse.ok) {
+      const ambiguous =
+        supplierResponse.status >= 500 ||
+        supplierResponse.status === 429;
+
+      const { error: updateError } =
+        await supabaseAdmin
+          .from("gift_card_orders")
+          .update({
+            ...(supplierOrderId
+              ? { supplier_order_id: supplierOrderId }
+              : {}),
+            supplier_response: isObject(supplierPayload)
+              ? supplierPayload
+              : { response: supplierPayload },
+            status: ambiguous ? "SUPPLIER_PENDING" : "FAILED",
+            ...(!ambiguous
+              ? { failed_at: new Date().toISOString() }
+              : {}),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", internalOrderId);
+
+      if (updateError) {
+        console.error(
+          "[STORE GAMING] Error guardando rechazo del proveedor:",
+          updateError,
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "No se pudo guardar la respuesta del proveedor. La orden requiere revisión.",
+            orderId: internalOrderId,
+          },
+          500,
+        );
+      }
+
+      if (ambiguous) {
+        return json(
+          {
+            success: true,
+            pending: true,
+            orderId: internalOrderId,
+            supplierOrderId: supplierOrderId || null,
+            status: "SUPPLIER_PENDING",
+            message:
+              "El resultado del proveedor es incierto. No repitas la compra.",
+          },
+          202,
+        );
+      }
+
+      const { error: refundError } =
+        await supabaseAdmin.rpc(
+          "refund_gift_card_order",
+          {
+            p_order_id: internalOrderId,
+          },
+        );
+
+      if (refundError) {
+        console.error(
+          "[STORE GAMING] Error reembolsando la orden:",
+          refundError,
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "El proveedor rechazó la compra, pero el reembolso necesita revisión.",
+            orderId: internalOrderId,
+          },
+          500,
+        );
+      }
+
+      return json(
+        {
+          success: false,
+          error: "FazerCards rechazó la compra.",
+          orderId: internalOrderId,
+          supplier_status: supplierResponse.status,
+          status: "REFUNDED",
+        },
+        400,
       );
     }
 
-    return NextResponse.json(
-      {
-        ok: true,
-        pending: true,
-        order_id: orderId,
-        supplier_order_id: supplierOrderId || null,
-        status: "SUPPLIER_PENDING",
-        message:
-          "FazerCards recibió la solicitud, pero todavía no confirmó la entrega. El pedido debe revisarse mediante la ruta de conciliación.",
-      },
-      { status: 202 }
-    );
-  } catch (error) {
-    console.error("[STORE GAMING] Error en ruta de compra:", {
-      orderId: orderId || null,
-      message: getErrorMessage(error),
-    });
+    /*
+     * Guardar siempre la respuesta del proveedor.
+     */
+    const normalizedStatus =
+      supplierStatus || "PENDING";
 
-    // Si ya se creó una orden, no la reenviamos ni reembolsamos
-    // automáticamente: el resultado del proveedor podría ser incierto.
-    if (orderId && supabaseAdmin) {
+    const completedStatuses = [
+      "COMPLETED",
+      "COMPLETE",
+      "SUCCESS",
+      "SUCCEEDED",
+      "DELIVERED",
+      "DONE",
+    ];
+
+    const failedStatuses = [
+      "FAILED",
+      "FAILURE",
+      "REJECTED",
+      "DECLINED",
+      "DENIED",
+      "ERROR",
+    ];
+
+    const codes = getProviderCodes(supplierPayload);
+
+    const hasCodes =
+      (Array.isArray(codes) && codes.length > 0) ||
+      (typeof codes === "string" && codes.trim().length > 0);
+
+    /*
+     * No marcar COMPLETED solo porque HTTP fue 200.
+     * Se requiere un estado final de éxito y códigos recibidos.
+     */
+    const isCompleted =
+      completedStatuses.includes(normalizedStatus) &&
+      hasCodes;
+
+    const isFailed =
+      failedStatuses.includes(normalizedStatus);
+
+    const nextStatus = isCompleted
+      ? "COMPLETED"
+      : isFailed
+        ? "FAILED"
+        : "SUPPLIER_PENDING";
+
+    const updatePayload: Record<string, unknown> = {
+      ...(supplierOrderId
+        ? { supplier_order_id: supplierOrderId }
+        : {}),
+      supplier_response: isObject(supplierPayload)
+        ? supplierPayload
+        : { response: supplierPayload },
+      status: nextStatus,
+      updated_at: new Date().toISOString(),
+      ...(isCompleted
+        ? {
+            gift_codes: codes,
+            completed_at: new Date().toISOString(),
+          }
+        : {}),
+      ...(isFailed
+        ? { failed_at: new Date().toISOString() }
+        : {}),
+    };
+
+    const { error: saveError } =
       await supabaseAdmin
         .from("gift_card_orders")
-        .update({
-          status: "SUPPLIER_PENDING",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
+        .update(updatePayload)
+        .eq("id", internalOrderId);
+
+    if (saveError) {
+      console.error(
+        "[STORE GAMING] Error guardando la orden del proveedor:",
+        saveError,
+      );
+
+      return json(
+        {
+          success: false,
+          error:
+            "El proveedor respondió, pero no se pudo guardar la respuesta. La orden requiere revisión.",
+          orderId: internalOrderId,
+          supplierOrderId: supplierOrderId || null,
+        },
+        500,
+      );
     }
 
-    return NextResponse.json(
+    if (isFailed) {
+      const { error: refundError } =
+        await supabaseAdmin.rpc(
+          "refund_gift_card_order",
+          {
+            p_order_id: internalOrderId,
+          },
+        );
+
+      if (refundError) {
+        console.error(
+          "[STORE GAMING] Error reembolsando orden fallida:",
+          refundError,
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "La orden falló en el proveedor, pero el reembolso necesita revisión.",
+            orderId: internalOrderId,
+          },
+          500,
+        );
+      }
+
+      return json({
+        success: false,
+        orderId: internalOrderId,
+        supplierOrderId: supplierOrderId || null,
+        status: "REFUNDED",
+        message:
+          "FazerCards indicó que la compra falló. El saldo fue devuelto.",
+      });
+    }
+
+    if (isCompleted) {
+      return json({
+        success: true,
+        orderId: internalOrderId,
+        supplierOrderId: supplierOrderId || null,
+        status: "COMPLETED",
+        gift_codes: codes,
+        message: "Compra completada correctamente.",
+      });
+    }
+
+    return json(
       {
-        ok: false,
-        pending: Boolean(orderId),
-        order_id: orderId || null,
-        error: orderId
-          ? "No se pudo confirmar el resultado. El pedido requiere conciliación; no repitas la compra."
-          : "Ocurrió un error al preparar el pedido.",
+        success: true,
+        pending: true,
+        orderId: internalOrderId,
+        supplierOrderId: supplierOrderId || null,
+        supplier_status: normalizedStatus,
+        status: "SUPPLIER_PENDING",
+        message:
+          "La orden está pendiente de confirmación o entrega por FazerCards.",
       },
-      { status: orderId ? 202 : 500 }
+      202,
+    );
+  } catch (error) {
+    console.error(
+      "[STORE GAMING] Error inesperado en la compra:",
+      error,
+    );
+
+    /*
+     * Si ya existe una orden reservada, no hacer otro POST
+     * al proveedor ni reembolsar automáticamente un resultado
+     * que podría ser incierto.
+     */
+    if (reservedOrderId && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const supabaseAdmin = createClient(
+          SUPABASE_URL,
+          SUPABASE_SERVICE_ROLE_KEY,
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false,
+            },
+          },
+        );
+
+        await supabaseAdmin
+          .from("gift_card_orders")
+          .update({
+            status: "SUPPLIER_PENDING",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", reservedOrderId);
+      } catch (saveError) {
+        console.error(
+          "[STORE GAMING] Error guardando estado de revisión:",
+          saveError,
+        );
+      }
+    }
+
+    return json(
+      {
+        success: false,
+        error:
+          "Ocurrió un error procesando la compra. Revisa el estado de la orden antes de intentarlo nuevamente.",
+        ...(reservedOrderId
+          ? { orderId: reservedOrderId }
+          : {}),
+      },
+      500,
     );
   }
 }
