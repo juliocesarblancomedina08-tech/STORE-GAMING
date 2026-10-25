@@ -27,16 +27,12 @@ return typeof value === "object" && value !== null && !Array.isArray(value);
 
 function text(value: unknown): string {
 if (typeof value === "string") return value.trim();
-if (typeof value === "number" && Number.isFinite(value)) {
-return String(value);
-}
+if (typeof value === "number" && Number.isFinite(value)) return String(value);
 return "";
 }
 
 function numberValue(value: unknown): number | null {
-if (typeof value === "number" && Number.isFinite(value)) {
-return value;
-}
+if (typeof value === "number" && Number.isFinite(value)) return value;
 
 if (typeof value === "string" && value.trim() !== "") {
 const parsed = Number(value);
@@ -51,9 +47,7 @@ if (!isObject(value)) return {};
 
 for (const key of ["data", "result", "order", "purchase"]) {
 const nested = value[key];
-if (isObject(nested)) {
-return { ...value, ...nested };
-}
+if (isObject(nested)) return { ...value, ...nested };
 }
 
 return value;
@@ -78,6 +72,8 @@ return "";
 }
 
 function extractCodes(data: unknown): unknown[] {
+if (!isObject(data)) return [];
+
 const obj = extractObject(data);
 
 for (const key of [
@@ -89,19 +85,17 @@ for (const key of [
 "items",
 ]) {
 const value = obj[key];
-
-if (Array.isArray(value) && value.length > 0) {
-  return value;
-}
-
+if (Array.isArray(value) && value.length > 0) return value;
 }
 
 for (const key of ["data", "result", "order", "purchase"]) {
 const nested = obj[key];
+
 if (isObject(nested)) {
-const codes = extractCodes(nested);
-if (codes.length > 0) return codes;
+  const codes = extractCodes(nested);
+  if (codes.length > 0) return codes;
 }
+
 }
 
 return [];
@@ -161,17 +155,6 @@ return { raw };
 }
 }
 
-function errorMessage(data: unknown): string {
-if (isObject(data)) {
-for (const key of ["message", "error", "detail", "description"]) {
-const value = text(data[key]);
-if (value) return value;
-}
-}
-
-return "No se pudo confirmar el resultado de la solicitud al proveedor.";
-}
-
 function jsonError(message: string, status: number) {
 return NextResponse.json(
 { success: false, error: message },
@@ -181,7 +164,6 @@ return NextResponse.json(
 
 export async function POST(request: NextRequest) {
 let orderId = "";
-let reserved = false;
 
 try {
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -224,7 +206,10 @@ const {
 } = await supabaseAdmin.auth.getUser(token);
 
 if (userError || !user) {
-  return jsonError("La sesión no es válida. Inicia sesión nuevamente.", 401);
+  return jsonError(
+    "La sesión no es válida. Inicia sesión nuevamente.",
+    401
+  );
 }
 
 let body: unknown;
@@ -259,15 +244,17 @@ if (
   );
 }
 
-// La clave debe ser un UUID para que coincida con el tipo de la columna/RPC.
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 if (!uuidPattern.test(idempotencyKey)) {
-  return jsonError("La clave de compra no es válida. Intenta nuevamente.", 400);
+  return jsonError(
+    "La clave de compra no es válida. Intenta nuevamente.",
+    400
+  );
 }
 
-// Consultar el catálogo vigente. El precio enviado por el navegador nunca se utiliza.
+// Consultar el catálogo actualizado del proveedor.
 const catalogResponse = await fetch(
   `${FAZER_API_BASE}/giftcards/cards?category_id=${encodeURIComponent(CATEGORY_ID)}`,
   {
@@ -282,34 +269,40 @@ const catalogData = await parseResponse(catalogResponse);
 
 if (!catalogResponse.ok) {
   console.error(
-    "[STORE GAMING] No se pudo consultar el catálogo de Roblox:",
+    "[STORE GAMING] Error consultando catálogo:",
     catalogResponse.status,
     catalogData
   );
 
-  return jsonError("No se pudo verificar el catálogo. Intenta más tarde.", 502);
+  return jsonError(
+    "No se pudo verificar el catálogo de Roblox. Intenta más tarde.",
+    502
+  );
 }
 
-const catalogRoot = isObject(catalogData) ? catalogData : {};
-const catalogList = Array.isArray(catalogData)
-  ? catalogData
-  : Array.isArray(catalogRoot.cards)
-    ? catalogRoot.cards
-    : Array.isArray(catalogRoot.offers)
-      ? catalogRoot.offers
-      : isObject(catalogRoot.data)
-        ? Array.isArray(catalogRoot.data.cards)
-          ? catalogRoot.data.cards
-          : Array.isArray(catalogRoot.data.offers)
-            ? catalogRoot.data.offers
-            : []
-        : Array.isArray(catalogRoot.data)
-          ? catalogRoot.data
-          : [];
+const root = isObject(catalogData) ? catalogData : {};
+
+let catalogList: unknown[] = [];
+
+if (Array.isArray(catalogData)) {
+  catalogList = catalogData;
+} else if (Array.isArray(root.cards)) {
+  catalogList = root.cards;
+} else if (Array.isArray(root.offers)) {
+  catalogList = root.offers;
+} else if (Array.isArray(root.data)) {
+  catalogList = root.data;
+} else if (isObject(root.data)) {
+  if (Array.isArray(root.data.cards)) {
+    catalogList = root.data.cards;
+  } else if (Array.isArray(root.data.offers)) {
+    catalogList = root.data.offers;
+  }
+}
 
 const card = catalogList.find((item: unknown) => {
   if (!isObject(item)) return false;
-  return text(item.card_id || item.id) === cardId;
+  return text(item.card_id ?? item.id) === cardId;
 });
 
 if (!isObject(card)) {
@@ -324,7 +317,7 @@ const supplierPrice = numberValue(
 );
 
 if (supplierPrice === null || supplierPrice <= 0) {
-  console.error("[STORE GAMING] Precio inválido en catálogo:", card);
+  console.error("[STORE GAMING] Precio inválido del proveedor:", card);
 
   return jsonError(
     "FazerCards no devolvió un precio válido para esta tarjeta.",
@@ -333,6 +326,7 @@ if (supplierPrice === null || supplierPrice <= 0) {
 }
 
 const stock = numberValue(card.stock ?? card.available_stock);
+
 if (stock !== null && stock < quantity) {
   return jsonError("No hay suficiente stock para esa cantidad.", 409);
 }
@@ -343,28 +337,33 @@ const maxQuantity = numberValue(
 
 if (maxQuantity !== null && quantity > maxQuantity) {
   return jsonError(
-    `La cantidad máxima permitida para esta tarjeta es ${maxQuantity}.`,
+    `La cantidad máxima permitida es ${maxQuantity}.`,
     400
   );
 }
 
 const offerName =
-  text(card.name || card.title || card.offer_name) || `Roblox Global - ${cardId}`;
+  text(card.name ?? card.title ?? card.offer_name) ||
+  `Roblox Global - ${cardId}`;
 
-const unitRetailPrice = Math.round((supplierPrice + PROFIT_PER_UNIT) * 100) / 100;
-const retailTotal = Math.round(unitRetailPrice * quantity * 100) / 100;
-const supplierTotal = Math.round(supplierPrice * quantity * 100) / 100;
+const unitRetailPrice =
+  Math.round((supplierPrice + PROFIT_PER_UNIT) * 100) / 100;
 
-// Obtener perfil para guardar los datos asociados al pedido.
+const retailTotal =
+  Math.round(unitRetailPrice * quantity * 100) / 100;
+
+const supplierTotal =
+  Math.round(supplierPrice * quantity * 100) / 100;
+
 const { data: profile, error: profileError } = await supabaseAdmin
   .from("profiles")
-  .select("username,email,balance")
+  .select("username,email")
   .eq("id", user.id)
   .maybeSingle();
 
 if (profileError) {
-  console.error("[STORE GAMING] Error consultando perfil:", profileError);
-  return jsonError("No se pudo verificar tu perfil y saldo.", 500);
+  console.error("[STORE GAMING] Error leyendo perfil:", profileError);
+  return jsonError("No se pudo verificar tu perfil.", 500);
 }
 
 const username =
@@ -375,26 +374,29 @@ const username =
 
 const email = text(profile?.email) || text(user.email);
 
-// La RPC reserva el saldo y crea el pedido en una sola transacción.
+// La RPC debe descontar el saldo e insertar el pedido atómicamente.
 const { data: reserveData, error: reserveError } =
-  await supabaseAdmin.rpc("create_gift_card_order_and_reserve_balance", {
-    p_user_id: user.id,
-    p_username: username,
-    p_email: email,
-    p_category_id: CATEGORY_ID,
-    p_card_id: cardId,
-    p_offer_name: offerName,
-    p_quantity: quantity,
-    p_retail_price: retailTotal,
-    p_supplier_price: supplierTotal,
-    p_idempotency_key: idempotencyKey,
-  });
+  await supabaseAdmin.rpc(
+    "create_gift_card_order_and_reserve_balance",
+    {
+      p_user_id: user.id,
+      p_username: username,
+      p_email: email,
+      p_category_id: CATEGORY_ID,
+      p_card_id: cardId,
+      p_offer_name: offerName,
+      p_quantity: quantity,
+      p_retail_price: retailTotal,
+      p_supplier_price: supplierTotal,
+      p_idempotency_key: idempotencyKey,
+    }
+  );
 
 if (reserveError) {
   console.error("[STORE GAMING] Error reservando saldo:", reserveError);
 
   return jsonError(
-    "No se pudo reservar el saldo. Verifica el saldo disponible e inténtalo nuevamente.",
+    "No se pudo reservar el saldo. Verifica tu saldo e inténtalo nuevamente.",
     409
   );
 }
@@ -408,17 +410,20 @@ if (!isObject(reservation)) {
   return jsonError("No se pudo confirmar la creación del pedido.", 500);
 }
 
-orderId = text(reservation.order_id || reservation.id);
+orderId = text(reservation.order_id ?? reservation.id);
 
 if (!orderId) {
   console.error("[STORE GAMING] La RPC no devolvió order_id:", reserveData);
-  return jsonError("La reserva no devolvió el identificador del pedido.", 500);
+  return jsonError(
+    "La reserva no devolvió el identificador del pedido.",
+    500
+  );
 }
 
-reserved = reservation.created === true;
+const created = reservation.created === true;
 
-// Si la clave ya existía, devolvemos el pedido existente y jamás repetimos la compra.
-if (!reserved) {
+// La misma clave nunca debe volver a enviar una compra al proveedor.
+if (!created) {
   const { data: existing, error: existingError } = await supabaseAdmin
     .from("gift_card_orders")
     .select(
@@ -430,7 +435,7 @@ if (!reserved) {
 
   if (existingError || !existing) {
     console.error(
-      "[STORE GAMING] No se pudo recuperar el pedido existente:",
+      "[STORE GAMING] Error recuperando pedido existente:",
       existingError
     );
 
@@ -452,7 +457,6 @@ if (!reserved) {
   });
 }
 
-// Enviar la compra al proveedor solo después de confirmar la reserva.
 let supplierResponse: Response;
 
 try {
@@ -468,10 +472,8 @@ try {
     signal: AbortSignal.timeout(30000),
   });
 } catch (networkError) {
-  // No reembolsar automáticamente: el proveedor pudo aceptar la orden
-  // aunque la respuesta se haya perdido.
   console.error(
-    "[STORE GAMING] Resultado incierto al enviar pedido:",
+    "[STORE GAMING] Resultado incierto al enviar a FazerCards:",
     networkError
   );
 
@@ -490,7 +492,7 @@ try {
       order_id: orderId,
       status: "PENDING",
       message:
-        "El pedido quedó pendiente de verificación. No vuelvas a comprarlo; consulta Mis pedidos.",
+        "El pedido quedó pendiente de verificación. No repitas la compra; consulta Mis pedidos.",
     },
     { status: 202 }
   );
@@ -509,7 +511,6 @@ console.info("[STORE GAMING] Respuesta de FazerCards:", {
   internalOrderId: orderId,
 });
 
-// Si llegaron códigos, conservarlos aunque el proveedor use un estado desconocido.
 if (giftCodes.length > 0) {
   const { error: saveError } = await supabaseAdmin
     .from("gift_card_orders")
@@ -526,7 +527,7 @@ if (giftCodes.length > 0) {
 
   if (saveError) {
     console.error(
-      "[STORE GAMING] FazerCards entregó códigos, pero no se pudieron guardar:",
+      "[STORE GAMING] Error guardando códigos recibidos:",
       saveError
     );
 
@@ -536,7 +537,7 @@ if (giftCodes.length > 0) {
         order_id: orderId,
         status: "PROCESSING",
         message:
-          "El proveedor respondió, pero STORE GAMING no pudo guardar la entrega. Contacta con soporte y proporciona este número de pedido.",
+          "El proveedor respondió, pero no se pudieron guardar los códigos. Contacta con soporte con este número de pedido.",
       },
       { status: 500 }
     );
@@ -552,56 +553,19 @@ if (giftCodes.length > 0) {
   });
 }
 
-// Una respuesta HTTP de error no demuestra por sí sola que el proveedor
-// no haya creado la orden. Guardamos la respuesta y dejamos el caso verificable.
 if (!supplierResponse.ok) {
-  const failedHttpStatus =
-    supplierResponse.status >= 400 && supplierResponse.status < 500 &&
-    supplierResponse.status !== 408 &&
-    supplierResponse.status !== 409 &&
-    supplierResponse.status !== 429;
-
-  console.error("[STORE GAMING] Error de FazerCards:", {
+  console.error("[STORE GAMING] Error HTTP de FazerCards:", {
     status: supplierResponse.status,
-    data: supplierData,
+    response: supplierData,
     orderId,
   });
 
-  if (failedHttpStatus && !supplierOrderId) {
-    // No hacemos reembolso automático aquí para evitar un doble gasto
-    // si el proveedor ya aceptó el pedido y la respuesta fue ambigua.
-    await supabaseAdmin
-      .from("gift_card_orders")
-      .update({
-        status: "PENDING",
-        supplier_response: supplierData,
-        supplier_order_id: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId)
-      .eq("user_id", user.id);
-
-    return NextResponse.json(
-      {
-        success: true,
-        order_id: orderId,
-        status: "PENDING",
-        message:
-          "FazerCards no confirmó la solicitud. El pedido quedó pendiente de revisión para proteger tu saldo.",
-      },
-      { status: 202 }
-    );
-  }
-}
-
-if (supplierOrderId && isFailedStatus(supplierStatus)) {
-  // Un ID de proveedor y estado fallido quedan registrados para revisión.
-  // La ruta de estado podrá confirmar el resultado antes de un reembolso.
+  // No se devuelve el saldo automáticamente cuando el resultado es ambiguo.
   await supabaseAdmin
     .from("gift_card_orders")
     .update({
-      status: "PROCESSING",
-      supplier_order_id: supplierOrderId,
+      status: "PENDING",
+      supplier_order_id: supplierOrderId || null,
       supplier_response: supplierData,
       updated_at: new Date().toISOString(),
     })
@@ -612,18 +576,17 @@ if (supplierOrderId && isFailedStatus(supplierStatus)) {
     {
       success: true,
       order_id: orderId,
-      supplier_order_id: supplierOrderId,
-      status: "PROCESSING",
+      supplier_order_id: supplierOrderId || null,
+      status: "PENDING",
       message:
-        "FazerCards devolvió un estado que necesita verificación. El pedido quedó registrado para comprobar su resultado.",
+        "FazerCards no confirmó la entrega. El pedido quedó pendiente de verificación para proteger tu saldo.",
     },
     { status: 202 }
   );
 }
 
 const nextStatus =
-  supplierOrderId &&
-  (supplierResponse.ok || isCompletedStatus(supplierStatus))
+  supplierOrderId && !isFailedStatus(supplierStatus)
     ? "PROCESSING"
     : "PENDING";
 
@@ -640,7 +603,7 @@ const { error: updateError } = await supabaseAdmin
 
 if (updateError) {
   console.error(
-    "[STORE GAMING] Error guardando estado de proveedor:",
+    "[STORE GAMING] Error actualizando estado del pedido:",
     updateError
   );
 
@@ -650,7 +613,7 @@ if (updateError) {
       order_id: orderId,
       status: "PENDING",
       message:
-        "La compra fue enviada, pero no se pudo actualizar su estado. Contacta con soporte antes de repetirla.",
+        "La compra fue enviada, pero no se pudo actualizar su estado. No repitas la compra; revisa Mis pedidos.",
     },
     { status: 500 }
   );
@@ -664,17 +627,15 @@ return NextResponse.json(
     status: nextStatus,
     gift_codes: [],
     message: supplierOrderId
-      ? "FazerCards registró la solicitud. Estamos esperando la entrega de los códigos."
+      ? "FazerCards registró la solicitud. Estamos esperando los códigos."
       : "El pedido quedó pendiente de confirmación. Consulta Mis pedidos más tarde.",
   },
   { status: 202 }
 );
 
 } catch (error) {
-console.error("[STORE GAMING] Error en la compra de Gift Cards:", error);
+console.error("[STORE GAMING] Error procesando compra:", error);
 
-// Si el pedido ya se creó, no reembolsar automáticamente desde un catch:
-// el proveedor podría haber recibido la compra antes del error.
 if (orderId && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
   try {
     const supabaseAdmin = createClient(
@@ -697,7 +658,7 @@ if (orderId && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       .eq("id", orderId);
   } catch (updateError) {
     console.error(
-      "[STORE GAMING] No se pudo registrar el estado pendiente:",
+      "[STORE GAMING] No se pudo guardar el estado pendiente:",
       updateError
     );
   }
