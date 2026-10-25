@@ -8,7 +8,7 @@ export const maxDuration = 60;
 const FAZER_API_BASE = (
 process.env.FAZERCARDS_API_URL ||
 "https://api.fzr.cards/api/v2"
-).replace(//+$/, "");
+).split("/").filter(Boolean).join("/").replace(/^https:/, "https:/").replace(/^http:/, "http:/");
 
 const FAZER_API_KEY = process.env.FAZERCARDS_API_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -120,17 +120,6 @@ return [
 "rejected",
 "cancelled",
 "canceled",
-].includes(status);
-}
-
-function isCompletedStatus(status: string): boolean {
-return [
-"completed",
-"complete",
-"success",
-"successful",
-"delivered",
-"fulfilled",
 ].includes(status);
 }
 
@@ -254,6 +243,7 @@ if (!uuidPattern.test(idempotencyKey)) {
   );
 }
 
+// Consultar el catálogo vigente de Roblox Global.
 const catalogResponse = await fetch(
   `${FAZER_API_BASE}/giftcards/cards?category_id=${encodeURIComponent(CATEGORY_ID)}`,
   {
@@ -372,6 +362,7 @@ const username =
 
 const email = text(profile?.email) || text(user.email);
 
+// Reserva el saldo y crea el pedido en una transacción atómica.
 const { data: reserveData, error: reserveError } =
   await supabaseAdmin.rpc(
     "create_gift_card_order_and_reserve_balance",
@@ -419,6 +410,7 @@ if (!orderId) {
 
 const created = reservation.created === true;
 
+// Si ya existe la clave, devolvemos el pedido sin volver a comprar al proveedor.
 if (!created) {
   const { data: existing, error: existingError } = await supabaseAdmin
     .from("gift_card_orders")
@@ -556,6 +548,7 @@ if (!supplierResponse.ok) {
     orderId,
   });
 
+  // Se conserva el pedido pendiente mientras se confirma el resultado.
   await supabaseAdmin
     .from("gift_card_orders")
     .update({
