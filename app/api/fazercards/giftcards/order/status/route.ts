@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -5,7 +6,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
@@ -14,23 +17,40 @@ const FAZER_API_BASE = (
   "https://api.fzr.cards/api/v2"
 ).replace(/\/+$/, "");
 
-const FAZER_API_KEY = process.env.FAZERCARDS_API_KEY || "";
-const FAZER_ORIGIN = process.env.FAZERCARDS_ORIGIN || "";
+const FAZER_API_KEY =
+  process.env.FAZERCARDS_API_KEY || "";
+
+const FAZER_ORIGIN =
+  process.env.FAZERCARDS_ORIGIN || "";
 
 const admin =
   SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      })
+    ? createClient(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      )
     : null;
 
-type GiftCode = {
-  code: string;
-  [key: string]: unknown;
-};
+type JsonObject = Record<string, unknown>;
+
+const FINAL_STATUSES = [
+  "COMPLETED",
+  "REFUNDED",
+];
+
+const ACTIVE_STATUSES = [
+  "PENDING",
+  "PROCESSING",
+  "SUPPLIER_PENDING",
+  "RESERVED",
+  "CONFIRMED",
+];
 
 function fail(error: string, status: number) {
   return NextResponse.json(
@@ -39,69 +59,96 @@ function fail(error: string, status: number) {
   );
 }
 
-function extractOrder(payload: unknown): Record<string, unknown> {
-  if (!payload || typeof payload !== "object") return {};
+function isObject(value: unknown): value is JsonObject {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
 
-  const obj = payload as Record<string, unknown>;
+function extractOrder(payload: unknown): JsonObject {
+  if (!isObject(payload)) return {};
 
-  if (obj.order && typeof obj.order === "object") {
-    return obj.order as Record<string, unknown>;
+  if (isObject(payload.order)) {
+    return payload.order;
   }
 
-  if (obj.data && typeof obj.data === "object") {
-    const data = obj.data as Record<string, unknown>;
+  if (isObject(payload.data)) {
+    const data = payload.data;
 
-    if (data.order && typeof data.order === "object") {
-      return data.order as Record<string, unknown>;
+    if (isObject(data.order)) {
+      return data.order;
     }
 
     return data;
   }
 
-  return obj;
+  return payload;
 }
 
 function extractStatus(payload: unknown): string {
   const order = extractOrder(payload);
 
-  return String(order.status ?? order.state ?? "").toLowerCase();
+  return String(
+    order.status ??
+    order.state ??
+    ""
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 }
 
-function extractCodes(payload: unknown): GiftCode[] {
+function extractCodes(payload: unknown): JsonObject[] {
   const order = extractOrder(payload);
 
-  const items =
-    order.cards ??
-    order.gift_codes ??
-    order.codes ??
-    order.items;
+  const candidates = [
+    order.cards,
+    order.gift_codes,
+    order.codes,
+    order.items,
+  ];
+
+  const items = candidates.find(
+    (value) => Array.isArray(value)
+  );
 
   if (!Array.isArray(items)) return [];
 
-  const codes: GiftCode[] = [];
+  const result: JsonObject[] = [];
 
   for (const item of items) {
-    if (typeof item === "string" && item.trim()) {
-      codes.push({ code: item.trim() });
+    if (typeof item === "string") {
+      const code = item.trim();
+
+      if (code) result.push({ code });
+
       continue;
     }
 
-    if (item && typeof item === "object") {
-      const obj = item as Record<string, unknown>;
+    if (!isObject(item)) continue;
 
-      const code =
-        obj.code ??
-        obj.card_code ??
-        obj.pin ??
-        obj.serial;
+    const rawCode =
+      item.code ??
+      item.card_code ??
+      item.gift_code ??
+      item.pin ??
+      item.serial ??
+      item.key;
 
-      if (typeof code === "string" && code.trim()) {
-        codes.push({ ...obj, code: code.trim() });
-      }
+    if (
+      typeof rawCode === "string" &&
+      rawCode.trim()
+    ) {
+      result.push({
+        ...item,
+        code: rawCode.trim(),
+      });
     }
   }
 
-  return codes;
+  return result;
 }
 
 function extractSupplierOrderId(
@@ -109,16 +156,20 @@ function extractSupplierOrderId(
 ): string | null {
   const order = extractOrder(payload);
 
-  const id =
+  const value =
     order.order_id ??
     order.id ??
     order.reference ??
     order.reference_id;
 
-  return id === undefined || id === null ? null : String(id);
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  return String(value);
 }
 
-function completed(status: string) {
+function isCompletedStatus(status: string): boolean {
   return [
     "completed",
     "complete",
@@ -129,7 +180,7 @@ function completed(status: string) {
   ].includes(status);
 }
 
-function failed(status: string) {
+function isFailedStatus(status: string): boolean {
   return [
     "failed",
     "failure",
@@ -140,18 +191,10 @@ function failed(status: string) {
   ].includes(status);
 }
 
-async function refundOrder(orderId: string) {
-  if (!admin) throw new Error("SUPABASE_NOT_CONFIGURED");
-
-  const { error } = await admin.rpc(
-    "refund_gift_card_order",
-    { p_order_id: orderId }
-  );
-
-  if (error) {
-    console.error("Gift card refund error:", error.message);
-    throw new Error("REFUND_FAILED");
-  }
+function safeOrder(order: JsonObject) {
+  // Nunca devolver supplier_response al cliente:
+  // puede contener información interna del proveedor.
+  return order;
 }
 
 async function supplierGet(orderId: string) {
@@ -175,20 +218,73 @@ async function supplierGet(orderId: string) {
   );
 }
 
+async function getCurrentOrder(
+  orderId: string,
+  userId: string
+) {
+  if (!admin) return null;
+
+  const { data, error } = await admin
+    .from("gift_card_orders")
+    .select(`
+      id,
+      user_id,
+      game,
+      offer_name,
+      quantity,
+      retail_price,
+      status,
+      supplier_order_id,
+      gift_codes,
+      created_at,
+      completed_at,
+      refunded_at,
+      failed_at,
+      updated_at
+    `)
+    .eq("id", orderId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "Error leyendo orden actual:",
+      error.message
+    );
+
+    return null;
+  }
+
+  return data as JsonObject | null;
+}
+
 export async function GET(request: NextRequest) {
   if (!admin) {
-    return fail("La configuración de Supabase está incompleta.", 500);
+    return fail(
+      "La configuración de Supabase está incompleta.",
+      500
+    );
   }
 
   if (!FAZER_API_KEY) {
-    return fail("Falta configurar FAZERCARDS_API_KEY.", 500);
+    return fail(
+      "Falta configurar FAZERCARDS_API_KEY.",
+      500
+    );
   }
 
-  const authorization = request.headers.get("authorization") || "";
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  const authorization =
+    request.headers.get("authorization") || "";
+
+  const match = authorization.match(
+    /^Bearer\s+(.+)$/i
+  );
 
   if (!match) {
-    return fail("Debes iniciar sesión para consultar tus órdenes.", 401);
+    return fail(
+      "Debes iniciar sesión para consultar tus órdenes.",
+      401
+    );
   }
 
   const {
@@ -201,236 +297,346 @@ export async function GET(request: NextRequest) {
   }
 
   const userId = authData.user.id;
-  const orderId = request.nextUrl.searchParams.get("id")?.trim();
+
+  const orderId = request.nextUrl.searchParams
+    .get("id")
+    ?.trim();
 
   if (!orderId) {
-    return fail("Falta el identificador de la orden.", 400);
+    return fail(
+      "Falta el identificador de la orden.",
+      400
+    );
   }
 
-  const { data: order, error: orderError } = await admin
-    .from("gift_card_orders")
-    .select(
-      "id, user_id, game, offer_name, quantity, retail_price, status, supplier_order_id, gift_codes, created_at, completed_at, refunded_at"
-    )
-    .eq("id", orderId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const { data: initialOrder, error: orderError } =
+    await admin
+      .from("gift_card_orders")
+      .select(`
+        id,
+        user_id,
+        game,
+        offer_name,
+        quantity,
+        retail_price,
+        status,
+        supplier_order_id,
+        gift_codes,
+        created_at,
+        completed_at,
+        refunded_at,
+        failed_at,
+        updated_at
+      `)
+      .eq("id", orderId)
+      .eq("user_id", userId)
+      .maybeSingle();
 
   if (orderError) {
-    console.error("Gift card order lookup error:", orderError.message);
-    return fail("No pudimos consultar tu pedido.", 500);
+    console.error(
+      "Error consultando orden:",
+      orderError.message
+    );
+
+    return fail(
+      "No pudimos consultar tu pedido.",
+      500
+    );
   }
 
-  if (!order) {
-    return fail("No encontramos esa orden en tu cuenta.", 404);
+  if (!initialOrder) {
+    return fail(
+      "No encontramos esa orden en tu cuenta.",
+      404
+    );
   }
 
-  // No consultar al proveedor si ya se conoce el resultado final.
-  if (
-    ["COMPLETED", "FAILED", "REFUNDED"].includes(order.status)
-  ) {
+  const currentStatus = String(
+    initialOrder.status || ""
+  ).toUpperCase();
+
+  // Una orden final no necesita volver a consultar al proveedor.
+  if (FINAL_STATUSES.includes(currentStatus)) {
     return NextResponse.json({
       success: true,
-      order,
       refreshed: false,
+      order: safeOrder(initialOrder as JsonObject),
     });
   }
 
-  // Si no hay ID de proveedor, no inventar uno ni realizar otra compra.
-  if (!order.supplier_order_id) {
+  // No consultar si la compra todavía no tiene ID del proveedor.
+  if (!initialOrder.supplier_order_id) {
     return NextResponse.json({
       success: true,
-      order,
       refreshed: false,
+      order: initialOrder,
       message:
-        "El pedido todavía no tiene una referencia del proveedor y requiere verificación.",
+        "La compra aún no tiene referencia del proveedor. Requiere verificación.",
     });
   }
 
-  let supplierResponse: Response;
+  let response: Response;
 
   try {
-    supplierResponse = await supplierGet(order.supplier_order_id);
+    response = await supplierGet(
+      String(initialOrder.supplier_order_id)
+    );
   } catch (error) {
-    console.error("Supplier status request failed:", error);
-
-    return NextResponse.json({
-      success: true,
-      order,
-      refreshed: false,
-      message:
-        "No pudimos consultar al proveedor en este momento. El pedido conserva su estado actual.",
-    });
-  }
-
-  if (!supplierResponse.ok) {
-    // Un error HTTP al consultar el estado no demuestra que
-    // la compra original haya fallado.
     console.error(
-      "Supplier status HTTP error:",
-      supplierResponse.status
+      "Error de conexión con FazerCards:",
+      error
     );
 
     return NextResponse.json({
       success: true,
-      order,
       refreshed: false,
+      order: initialOrder,
       message:
-        "El proveedor no pudo confirmar el estado. No se ha realizado ningún reembolso automático.",
+        "No se pudo consultar al proveedor. La orden conserva su estado.",
+    });
+  }
+
+  if (!response.ok) {
+    console.error(
+      "FazerCards devolvió HTTP:",
+      response.status
+    );
+
+    return NextResponse.json({
+      success: true,
+      refreshed: false,
+      order: initialOrder,
+      message:
+        "El proveedor no confirmó el estado. No se realizó ningún reembolso.",
     });
   }
 
   let payload: unknown;
 
   try {
-    payload = await supplierResponse.json();
+    payload = await response.json();
   } catch {
     return NextResponse.json({
       success: true,
-      order,
       refreshed: false,
-      message: "La respuesta de estado del proveedor no es válida.",
+      order: initialOrder,
+      message:
+        "La respuesta del proveedor no es JSON válido.",
     });
   }
 
-  const status = extractStatus(payload);
+  const supplierStatus = extractStatus(payload);
   const codes = extractCodes(payload);
+
   const supplierOrderId =
-    extractSupplierOrderId(payload) || order.supplier_order_id;
+    extractSupplierOrderId(payload) ||
+    String(initialOrder.supplier_order_id);
 
   const now = new Date().toISOString();
 
+  /*
+   * Los códigos son la prueba de entrega más útil que
+   * reconoce esta integración. Solo guardar códigos si
+   * existen en la respuesta del proveedor.
+   */
   if (codes.length > 0) {
-    const { data: updated, error: updateError } = await admin
-      .from("gift_card_orders")
-      .update({
-        status: "COMPLETED",
-        supplier_order_id: supplierOrderId,
-        supplier_response: payload,
-        gift_codes: codes,
-        completed_at: now,
-        updated_at: now,
-      })
-      .eq("id", order.id)
-      .eq("user_id", userId)
-      .neq("status", "REFUNDED")
-      .select(
-        "id, user_id, game, offer_name, quantity, retail_price, status, supplier_order_id, gift_codes, created_at, completed_at, refunded_at"
-      )
-      .maybeSingle();
+    const { data: updated, error: updateError } =
+      await admin
+        .from("gift_card_orders")
+        .update({
+          status: "COMPLETED",
+          supplier_order_id: supplierOrderId,
+          supplier_response: payload,
+          gift_codes: codes,
+          completed_at: now,
+          updated_at: now,
+        })
+        .eq("id", initialOrder.id)
+        .eq("user_id", userId)
+        .in("status", ACTIVE_STATUSES)
+        .select(`
+          id,
+          user_id,
+          game,
+          offer_name,
+          quantity,
+          retail_price,
+          status,
+          supplier_order_id,
+          gift_codes,
+          created_at,
+          completed_at,
+          refunded_at,
+          failed_at,
+          updated_at
+        `)
+        .maybeSingle();
 
-    if (updateError || !updated) {
+    if (updateError) {
       console.error(
-        "Could not save supplier codes:",
-        updateError?.message
+        "Error guardando códigos:",
+        updateError.message
       );
 
       return fail(
-        "El proveedor entregó una respuesta, pero no pudimos guardar los códigos. Contacta con soporte.",
+        "No pudimos guardar los códigos. Contacta con soporte antes de volver a comprar.",
         500
       );
     }
 
+    // Si otra operación cambió el estado, no sobrescribirla.
+    const latest =
+      updated ||
+      await getCurrentOrder(
+        initialOrder.id,
+        userId
+      );
+
     return NextResponse.json({
       success: true,
-      refreshed: true,
-      order: updated,
-      message: "La compra está completada.",
+      refreshed: Boolean(updated),
+      order: latest,
+      message: updated
+        ? "Los códigos se guardaron correctamente."
+        : "La orden cambió durante la consulta. Se conserva su estado actual.",
     });
   }
 
-  if (completed(status)) {
-    // Un estado completado sin códigos no es suficiente para
-    // marcar la orden como entregada.
+  /*
+   * COMPLETED sin códigos no equivale a entrega de códigos.
+   * Se conserva el estado para evitar una falsa entrega.
+   */
+  if (isCompletedStatus(supplierStatus)) {
     return NextResponse.json({
       success: true,
-      order,
       refreshed: false,
+      order: initialOrder,
       message:
-        "El proveedor indica que el pedido terminó, pero todavía no recibimos los códigos. Se necesita verificar la respuesta.",
+        "El proveedor indica que terminó el pedido, pero no devolvió códigos reconocibles. Se requiere verificar el formato de respuesta.",
     });
   }
 
-  if (failed(status)) {
-    const { error: updateError } = await admin
-      .from("gift_card_orders")
-      .update({
-        status: "FAILED",
-        supplier_order_id: supplierOrderId,
-        supplier_response: payload,
-        failed_at: now,
-        updated_at: now,
-      })
-      .eq("id", order.id)
-      .eq("user_id", userId)
-      .not("status", "in", '("COMPLETED","REFUNDED")');
+  /*
+   * No reembolsar automáticamente desde esta ruta:
+   * un estado fallido o una respuesta inesperada debe
+   * verificarse antes de devolver el saldo al cliente.
+   */
+  if (isFailedStatus(supplierStatus)) {
+    const { data: updated, error: updateError } =
+      await admin
+        .from("gift_card_orders")
+        .update({
+          status: "FAILED",
+          supplier_order_id: supplierOrderId,
+          supplier_response: payload,
+          failed_at: now,
+          updated_at: now,
+        })
+        .eq("id", initialOrder.id)
+        .eq("user_id", userId)
+        .in("status", ACTIVE_STATUSES)
+        .select(`
+          id,
+          user_id,
+          game,
+          offer_name,
+          quantity,
+          retail_price,
+          status,
+          supplier_order_id,
+          gift_codes,
+          created_at,
+          completed_at,
+          refunded_at,
+          failed_at,
+          updated_at
+        `)
+        .maybeSingle();
 
     if (updateError) {
       console.error(
-        "Could not mark gift card order failed:",
+        "Error actualizando orden fallida:",
         updateError.message
       );
 
-      return fail("No pudimos actualizar el estado del pedido.", 500);
-    }
-
-    try {
-      await refundOrder(order.id);
-    } catch {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "La orden parece fallida, pero no pudimos confirmar el reembolso. Contacta con soporte.",
-          order_id: order.id,
-        },
-        { status: 500 }
+      return fail(
+        "No pudimos actualizar el estado del pedido.",
+        500
       );
     }
 
-    const { data: refundedOrder } = await admin
-      .from("gift_card_orders")
-      .select(
-        "id, game, offer_name, quantity, retail_price, status, gift_codes, created_at, refunded_at"
-      )
-      .eq("id", order.id)
-      .eq("user_id", userId)
-      .maybeSingle();
+    const latest =
+      updated ||
+      await getCurrentOrder(
+        initialOrder.id,
+        userId
+      );
 
     return NextResponse.json({
       success: true,
-      refreshed: true,
-      order: refundedOrder,
-      message: "El pedido falló y se procesó el reembolso.",
+      refreshed: Boolean(updated),
+      order: latest,
+      message:
+        "El proveedor informa un fallo. El reembolso requiere verificación antes de ejecutarse.",
     });
   }
 
-  // Los estados desconocidos o en proceso no provocan reembolsos.
-  const { data: updated, error: updateError } = await admin
-    .from("gift_card_orders")
-    .update({
-      status: "PROCESSING",
-      supplier_order_id: supplierOrderId,
-      supplier_response: payload,
-      updated_at: now,
-    })
-    .eq("id", order.id)
-    .eq("user_id", userId)
-    .not("status", "in", '("COMPLETED","REFUNDED")')
-    .select(
-      "id, game, offer_name, quantity, retail_price, status, supplier_order_id, gift_codes, created_at, completed_at, refunded_at"
-    )
-    .maybeSingle();
+  // Estados pendientes, processing o desconocidos:
+  // no repetir la compra y no realizar reembolsos.
+  const { data: updated, error: updateError } =
+    await admin
+      .from("gift_card_orders")
+      .update({
+        status: "PROCESSING",
+        supplier_order_id: supplierOrderId,
+        supplier_response: payload,
+        updated_at: now,
+      })
+      .eq("id", initialOrder.id)
+      .eq("user_id", userId)
+      .in("status", ACTIVE_STATUSES)
+      .select(`
+        id,
+        user_id,
+        game,
+        offer_name,
+        quantity,
+        retail_price,
+        status,
+        supplier_order_id,
+        gift_codes,
+        created_at,
+        completed_at,
+        refunded_at,
+        failed_at,
+        updated_at
+      `)
+      .maybeSingle();
 
   if (updateError) {
-    console.error("Could not update processing order:", updateError.message);
-    return fail("No pudimos actualizar el pedido.", 500);
+    console.error(
+      "Error actualizando orden:",
+      updateError.message
+    );
+
+    return fail(
+      "No pudimos actualizar el pedido.",
+      500
+    );
   }
+
+  const latest =
+    updated ||
+    await getCurrentOrder(
+      initialOrder.id,
+      userId
+    );
 
   return NextResponse.json({
     success: true,
-    refreshed: true,
-    order: updated || order,
-    message: "El pedido sigue en proceso.",
+    refreshed: Boolean(updated),
+    order: latest,
+    message:
+      "El pedido sigue pendiente de confirmación del proveedor.",
   });
 }
