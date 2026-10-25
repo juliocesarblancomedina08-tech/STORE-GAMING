@@ -254,7 +254,6 @@ if (!uuidPattern.test(idempotencyKey)) {
   );
 }
 
-// Consultar el catálogo actualizado del proveedor.
 const catalogResponse = await fetch(
   `${FAZER_API_BASE}/giftcards/cards?category_id=${encodeURIComponent(CATEGORY_ID)}`,
   {
@@ -281,7 +280,6 @@ if (!catalogResponse.ok) {
 }
 
 const root = isObject(catalogData) ? catalogData : {};
-
 let catalogList: unknown[] = [];
 
 if (Array.isArray(catalogData)) {
@@ -374,7 +372,6 @@ const username =
 
 const email = text(profile?.email) || text(user.email);
 
-// La RPC debe descontar el saldo e insertar el pedido atómicamente.
 const { data: reserveData, error: reserveError } =
   await supabaseAdmin.rpc(
     "create_gift_card_order_and_reserve_balance",
@@ -422,7 +419,6 @@ if (!orderId) {
 
 const created = reservation.created === true;
 
-// La misma clave nunca debe volver a enviar una compra al proveedor.
 if (!created) {
   const { data: existing, error: existingError } = await supabaseAdmin
     .from("gift_card_orders")
@@ -560,7 +556,6 @@ if (!supplierResponse.ok) {
     orderId,
   });
 
-  // No se devuelve el saldo automáticamente cuando el resultado es ambiguo.
   await supabaseAdmin
     .from("gift_card_orders")
     .update({
