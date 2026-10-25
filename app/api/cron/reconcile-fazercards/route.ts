@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -7,860 +6,467 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const FAZER_API_BASE = (
-  process.env.FAZERCARDS_API_URL ||
-  "https://api.fzr.cards/api/v2"
-).replace(/\/+$/, "");
+process.env.FAZERCARDS_API_URL ||
+"https://api.fzr.cards/api/v2"
+).replace(//+$/, "");
 
 const FAZER_API_KEY = process.env.FAZERCARDS_API_KEY;
-const FAZERCARDS_CRON_SECRET =
-  process.env.FAZERCARDS_CRON_SECRET;
+const FAZERCARDS_CRON_SECRET = process.env.FAZERCARDS_CRON_SECRET;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-const SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const PENDING_STATUSES = [
-  "SUPPLIER_PENDING",
-  "PENDING",
-  "PROCESSING",
-  "CONFIRMED",
+const TOPUP_PENDING_STATUSES = [
+"SUPPLIER_PENDING",
+"PENDING",
+"PROCESSING",
+"CONFIRMED",
 ];
 
-const TERMINAL_STATUSES = [
-  "COMPLETED",
-  "SUCCESS",
-  "SUCCESSFUL",
-  "FAILED",
-  "REFUNDED",
-  "CANCELLED",
-  "CANCELED",
+const GIFTCARD_PENDING_STATUSES = [
+"SUPPLIER_PENDING",
+"PENDING",
+"PROCESSING",
+"CONFIRMED",
 ];
 
 const MAX_ORDERS_PER_RUN = 100;
-const PAGE_SIZE = 250;
 
-type GenericOrder = Record<string, any>;
+type Obj = Record<string, unknown>;
 
-function asObject(value: unknown): GenericOrder | null {
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value)
-  ) {
-    return value as GenericOrder;
-  }
-
-  return null;
+function object(value: unknown): Obj | null {
+return value !== null &&
+typeof value === "object" &&
+!Array.isArray(value)
+? value as Obj
+: null;
 }
 
-function normalizeStatus(value: unknown): string {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
+function text(value: unknown): string {
+if (typeof value === "string") return value.trim();
+if (typeof value === "number" && Number.isFinite(value)) {
+return String(value);
+}
+return "";
 }
 
-function getSupplierOrderId(order: GenericOrder): string {
-  const saved = asObject(order.supplier_response);
-  const reconciliation = asObject(saved?.reconciliation);
-
-  const candidates = [
-    order.supplier_order_id,
-    saved?.order?.id,
-    saved?.data?.order?.id,
-    saved?.data?.order_id,
-    saved?.order_id,
-    saved?.data?.id,
-    reconciliation?.order?.id,
-    reconciliation?.data?.order?.id,
-    reconciliation?.data?.order_id,
-    reconciliation?.order_id,
-    reconciliation?.data?.id,
-  ];
-
-  for (const candidate of candidates) {
-    if (
-      typeof candidate === "string" ||
-      typeof candidate === "number"
-    ) {
-      const value = String(candidate).trim();
-
-      if (/^ord-[A-Za-z0-9_-]+$/.test(value)) {
-        return value;
-      }
-    }
-  }
-
-  return "";
+function normalize(value: unknown): string {
+return text(value).toLowerCase().replace(/[\s-]+/g, "_");
 }
 
-function getProviderOrder(payload: unknown): GenericOrder {
-  const root = asObject(payload) ?? {};
-  const data = asObject(root.data);
+function nested(
+payload: unknown,
+keys: string[],
+depth = 0,
+): unknown {
+const root = object(payload);
+if (!root || depth > 7) return undefined;
 
-  return (
-    asObject(root.order) ??
-    asObject(data?.order) ??
-    data ??
-    root
-  );
+for (const key of keys) {
+const value = root[key];
+if (value !== undefined && value !== null && value !== "") {
+return value;
+}
 }
 
-function getProviderStatus(payload: unknown): string {
-  const root = asObject(payload) ?? {};
-  const data = asObject(root.data);
-  const order = getProviderOrder(payload);
-
-  return normalizeStatus(
-    order.status ?? data?.status ?? root.status
-  );
+for (const key of [
+"data",
+"order",
+"result",
+"response",
+"payload",
+]) {
+const found = nested(root[key], keys, depth + 1);
+if (found !== undefined) return found;
 }
 
-function isCompletedStatus(status: string): boolean {
-  return [
-    "completed",
-    "complete",
-    "success",
-    "successful",
-    "succeeded",
-    "delivered",
-    "done",
-  ].includes(status);
+return undefined;
 }
 
-function isRefundWorthyFailureStatus(status: string): boolean {
-  return [
-    "failed",
-    "failure",
-    "rejected",
-    "declined",
-    "denied",
-    "error",
-    "refund",
-    "refunded",
-  ].includes(status);
+function providerOrderId(payload: unknown): string {
+const value = text(nested(payload, [
+"supplier_order_id",
+"order_id",
+"orderId",
+"id",
+]));
+
+// Solo aceptar IDs que tengan el formato conocido de FazerCards.
+return /^ord-[A-Za-z0-9_-]+$/.test(value) ? value : "";
 }
 
-function getNextPendingStatus(status: string): string {
-  switch (status) {
-    case "processing":
-      return "PROCESSING";
-
-    case "confirmed":
-    case "accepted":
-      return "CONFIRMED";
-
-    case "created":
-    default:
-      return "SUPPLIER_PENDING";
-  }
+function providerStatus(payload: unknown): string {
+return normalize(nested(payload, [
+"status",
+"order_status",
+]));
 }
 
-function isPendingStatus(status: unknown): boolean {
-  return PENDING_STATUSES.includes(String(status ?? ""));
+function providerCodes(payload: unknown): unknown {
+return nested(payload, [
+"gift_codes",
+"giftCodes",
+"codes",
+"keys",
+"serials",
+"gift_code",
+"giftCode",
+"code",
+"serial",
+"pin",
+]);
 }
 
-function isTerminalStatus(status: unknown): boolean {
-  return TERMINAL_STATUSES.includes(
-    String(status ?? "").toUpperCase()
-  );
+function hasCodes(value: unknown): boolean {
+if (typeof value === "string") return value.trim().length > 0;
+if (Array.isArray(value)) return value.length > 0;
+if (object(value)) {
+return Object.keys(value as Obj).length > 0;
+}
+return false;
 }
 
-async function readPendingOrders(
-  supabaseAdmin: any
-): Promise<{
-  orders: GenericOrder[];
-  scanned: number;
-  missingSupplierId: number;
-  missingSamples: Array<{
-    orderId: string;
-    status: string;
-  }>;
+function completed(status: string): boolean {
+return [
+"completed",
+"complete",
+"success",
+"successful",
+"succeeded",
+"delivered",
+"done",
+].includes(status);
+}
+
+function failed(status: string): boolean {
+return [
+"failed",
+"failure",
+"rejected",
+"declined",
+"denied",
+"error",
+"refunded",
+"refund",
+].includes(status);
+}
+
+function topupNextStatus(status: string): string {
+if (status === "processing") return "PROCESSING";
+if (["confirmed", "accepted"].includes(status)) return "CONFIRMED";
+return "SUPPLIER_PENDING";
+}
+
+async function readJson(response: Response): Promise<unknown> {
+const body = await response.text();
+if (!body) return {};
+try {
+return JSON.parse(body) as unknown;
+} catch {
+return { raw: body.slice(0, 2000) };
+}
+}
+
+async function supplierLookup(supplierId: string): Promise<{
+payload: unknown;
+status: string;
 }> {
-  const validOrders: GenericOrder[] = [];
-  const missingSamples: Array<{
-    orderId: string;
-    status: string;
-  }> = [];
+const response = await fetch(
+"${FAZER_API_BASE}/orders/${encodeURIComponent(supplierId)}",
+{
+method: "GET",
+headers: {
+"X-API-Key": FAZER_API_KEY!,
+Accept: "application/json",
+},
+cache: "no-store",
+signal: AbortSignal.timeout(15000),
+},
+);
 
-  let scanned = 0;
-  let missingSupplierId = 0;
-  let offset = 0;
+const payload = await readJson(response);
 
-  while (validOrders.length < MAX_ORDERS_PER_RUN) {
-    const { data, error } = await supabaseAdmin
-      .from("topup_orders")
-      .select(
-        "id, supplier_order_id, supplier_response, status, updated_at"
-      )
-      .in("status", PENDING_STATUSES)
-      .order("updated_at", { ascending: false })
-      .range(offset, offset + PAGE_SIZE - 1);
-
-    if (error) {
-      throw new Error(
-        `Error leyendo órdenes pendientes: ${error.message}`
-      );
-    }
-
-    const batch = (data ?? []) as GenericOrder[];
-
-    if (batch.length === 0) {
-      break;
-    }
-
-    scanned += batch.length;
-
-    for (const order of batch) {
-      const supplierId = getSupplierOrderId(order);
-
-      if (!supplierId) {
-        missingSupplierId += 1;
-
-        if (missingSamples.length < 10) {
-          missingSamples.push({
-            orderId: String(order.id),
-            status: String(order.status ?? ""),
-          });
-        }
-
-        continue;
-      }
-
-      validOrders.push(order);
-
-      if (validOrders.length >= MAX_ORDERS_PER_RUN) {
-        break;
-      }
-    }
-
-    if (
-      batch.length < PAGE_SIZE ||
-      validOrders.length >= MAX_ORDERS_PER_RUN
-    ) {
-      break;
-    }
-
-    offset += batch.length;
-  }
-
-  return {
-    orders: validOrders,
-    scanned,
-    missingSupplierId,
-    missingSamples,
-  };
+if (!response.ok) {
+throw new Error(
+"FazerCards HTTP ${response.status}: ${JSON.stringify(payload).slice(0, 300)}",
+);
 }
 
-async function readCurrentOrder(
-  supabaseAdmin: any,
-  orderId: string
-): Promise<GenericOrder | null> {
-  const { data, error } = await supabaseAdmin
-    .from("topup_orders")
-    .select(
-      "id, supplier_order_id, supplier_response, status, updated_at"
-    )
-    .eq("id", orderId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(
-      `Error consultando el estado actual de ${orderId}: ${error.message}`
-    );
-  }
-
-  return (data as GenericOrder | null) ?? null;
+const status = providerStatus(payload);
+if (!status) {
+throw new Error("FazerCards no devolvió un estado reconocible.");
 }
 
-async function assertUniqueSupplierOrder(
-  supabaseAdmin: any,
-  orderId: string,
-  supplierId: string
-): Promise<void> {
-  const { data, error } = await supabaseAdmin
-    .from("topup_orders")
-    .select("id, status")
-    .eq("supplier_order_id", supplierId)
-    .limit(2);
-
-  if (error) {
-    throw new Error(
-      `No se pudo verificar el ID ${supplierId}: ${error.message}`
-    );
-  }
-
-  const matches = (data ?? []) as GenericOrder[];
-
-  if (
-    matches.length !== 1 ||
-    String(matches[0]?.id) !== orderId
-  ) {
-    console.error("FAZERCARDS_SUPPLIER_ID_NOT_UNIQUE", {
-      orderId,
-      supplierId,
-      matches: matches.map((item) => ({
-        id: item.id,
-        status: item.status,
-      })),
-    });
-
-    throw new Error(
-      `El ID ${supplierId} no identifica exclusivamente a la orden ${orderId}. Se requiere revisión manual.`
-    );
-  }
+return { payload, status };
 }
 
-async function saveReconciliationResponse(
-  supabaseAdmin: any,
-  orderId: string,
-  supplierId: string,
-  payload: unknown
-): Promise<void> {
-  const current = await readCurrentOrder(
-    supabaseAdmin,
-    orderId
-  );
+async function reconcileTopups(
+supabase: ReturnType<typeof createClient>,
+) {
+const result = {
+scanned: 0,
+checked: 0,
+completed: 0,
+refunded: 0,
+pending: 0,
+missingSupplierId: 0,
+errors: [] as Array<{ id: string; message: string }>,
+};
 
-  if (!current) {
-    throw new Error(
-      `La orden ${orderId} ya no existe en STORE GAMING.`
-    );
-  }
+const { data: orders, error } = await supabase
+.from("topup_orders")
+.select("id,supplier_order_id,supplier_response,status")
+.in("status", TOPUP_PENDING_STATUSES)
+.order("updated_at", { ascending: true })
+.limit(MAX_ORDERS_PER_RUN);
 
-  const previousResponse =
-    asObject(current.supplier_response) ?? {};
+if (error) throw new Error("Top Up: ${error.message}");
 
-  const previousReconciliation =
-    asObject(previousResponse.reconciliation) ?? {};
+for (const order of orders ?? []) {
+result.scanned++;
 
-  const savedResponse = {
-    ...previousResponse,
-    reconciliation: {
-      ...previousReconciliation,
-      last_response: payload,
-      checked_at: new Date().toISOString(),
-    },
-  };
+const supplierId = text(order.supplier_order_id);
+if (!/^ord-[A-Za-z0-9_-]+$/.test(supplierId)) {
+  result.missingSupplierId++;
+  continue;
+}
 
-  const { data, error } = await supabaseAdmin
+try {
+  const currentStatus = text(order.status).toUpperCase();
+  if (!TOPUP_PENDING_STATUSES.includes(currentStatus)) continue;
+
+  const { payload, status } = await supplierLookup(supplierId);
+  result.checked++;
+
+  const oldResponse = object(order.supplier_response) ?? {};
+  const { error: saveError } = await supabase
     .from("topup_orders")
     .update({
-      supplier_order_id: supplierId,
-      supplier_response: savedResponse,
+      supplier_response: {
+        ...oldResponse,
+        reconciliation: {
+          last_response: payload,
+          checked_at: new Date().toISOString(),
+        },
+      },
+      updated_at: new Date().toISOString(),
     })
-    .eq("id", orderId)
+    .eq("id", order.id)
+    .in("status", TOPUP_PENDING_STATUSES);
+
+  if (saveError) throw new Error(saveError.message);
+
+  if (completed(status)) {
+    const { error: rpcError } = await supabase.rpc(
+      "complete_topup_order",
+      { p_supplier_order_id: supplierId },
+    );
+    if (rpcError) throw new Error(`Completar Top Up: ${rpcError.message}`);
+    result.completed++;
+  } else if (failed(status)) {
+    const { error: rpcError } = await supabase.rpc(
+      "refund_topup_balance",
+      { p_order_id: order.id },
+    );
+    if (rpcError) throw new Error(`Reembolsar Top Up: ${rpcError.message}`);
+    result.refunded++;
+  } else {
+    await supabase
+      .from("topup_orders")
+      .update({
+        status: topupNextStatus(status),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", order.id)
+      .in("status", TOPUP_PENDING_STATUSES);
+    result.pending++;
+  }
+} catch (error) {
+  result.errors.push({
+    id: String(order.id),
+    message: error instanceof Error ? error.message : String(error),
+  });
+}
+
+}
+
+return result;
+}
+
+async function reconcileGiftCards(
+supabase: ReturnType<typeof createClient>,
+) {
+const result = {
+scanned: 0,
+checked: 0,
+completed: 0,
+refunded: 0,
+pending: 0,
+missingSupplierId: [] as string[],
+errors: [] as Array<{ id: string; message: string }>,
+};
+
+const { data: orders, error } = await supabase
+.from("gift_card_orders")
+.select("id,supplier_order_id,supplier_response,status,gift_codes")
+.in("status", GIFTCARD_PENDING_STATUSES)
+.order("updated_at", { ascending: true })
+.limit(MAX_ORDERS_PER_RUN);
+
+if (error) throw new Error("Gift Cards: ${error.message}");
+
+for (const order of orders ?? []) {
+result.scanned++;
+
+const supplierId = text(order.supplier_order_id);
+
+if (!/^ord-[A-Za-z0-9_-]+$/.test(supplierId)) {
+  result.missingSupplierId.push(String(order.id));
+  continue;
+}
+
+try {
+  const currentStatus = text(order.status).toUpperCase();
+  if (!GIFTCARD_PENDING_STATUSES.includes(currentStatus)) continue;
+
+  const { payload, status } = await supplierLookup(supplierId);
+  result.checked++;
+
+  const oldResponse = object(order.supplier_response) ?? {};
+  const oldReconciliation = object(oldResponse.reconciliation) ?? {};
+  const codes = providerCodes(payload);
+  const isDelivered = completed(status) && hasCodes(codes);
+  const isFailed = failed(status);
+
+  const update: Record<string, unknown> = {
+    supplier_response: {
+      ...oldResponse,
+      reconciliation: {
+        ...oldReconciliation,
+        last_response: payload,
+        checked_at: new Date().toISOString(),
+      },
+    },
+    updated_at: new Date().toISOString(),
+  };
+
+  if (isDelivered) {
+    update.status = "COMPLETED";
+    update.gift_codes = codes;
+    update.completed_at = new Date().toISOString();
+  } else if (isFailed) {
+    update.status = "FAILED";
+    update.failed_at = new Date().toISOString();
+  } else {
+    update.status =
+      status === "processing"
+        ? "PROCESSING"
+        : status === "confirmed" || status === "accepted"
+          ? "CONFIRMED"
+          : "SUPPLIER_PENDING";
+  }
+
+  const { data: saved, error: saveError } = await supabase
+    .from("gift_card_orders")
+    .update(update)
+    .eq("id", order.id)
+    .in("status", GIFTCARD_PENDING_STATUSES)
     .select("id");
 
-  if (error) {
-    throw new Error(
-      `No se guardó la respuesta de FazerCards: ${error.message}`
-    );
-  }
+  if (saveError) throw new Error(saveError.message);
+  if (!saved?.length) continue;
 
-  if (!data?.length) {
-    throw new Error(
-      `No se confirmó el guardado de la respuesta de la orden ${orderId}.`
+  if (isDelivered) {
+    result.completed++;
+  } else if (isFailed) {
+    // Reembolso idempotente de la orden de Gift Cards.
+    const { error: refundError } = await supabase.rpc(
+      "refund_gift_card_order",
+      { p_order_id: order.id },
     );
+    if (refundError) throw new Error(`Reembolsar Gift Card: ${refundError.message}`);
+    result.refunded++;
+  } else {
+    result.pending++;
   }
+} catch (error) {
+  result.errors.push({
+    id: String(order.id),
+    message: error instanceof Error ? error.message : String(error),
+  });
+}
+
+}
+
+return result;
 }
 
 export async function GET(request: NextRequest) {
-  if (!FAZERCARDS_CRON_SECRET) {
-    console.error("Falta FAZERCARDS_CRON_SECRET.");
-
-    return NextResponse.json(
-      { ok: false, error: "Cron de FazerCards no configurado." },
-      { status: 500 }
-    );
-  }
-
-  const authorization =
-    request.headers.get("authorization") ?? "";
-
-  if (authorization !== `Bearer ${FAZERCARDS_CRON_SECRET}`) {
-    return NextResponse.json(
-      { ok: false, error: "No autorizado." },
-      { status: 401 }
-    );
-  }
-
-  if (!FAZER_API_KEY) {
-    return NextResponse.json(
-      { ok: false, error: "Falta FAZERCARDS_API_KEY." },
-      { status: 500 }
-    );
-  }
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("Faltan variables de entorno de Supabase.");
-
-    return NextResponse.json(
-      { ok: false, error: "Supabase no está configurado para el cron." },
-      { status: 500 }
-    );
-  }
-
-  const supabaseAdmin: any = createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
-
-  let selection: Awaited<
-    ReturnType<typeof readPendingOrders>
-  >;
-
-  try {
-    selection = await readPendingOrders(supabaseAdmin);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : String(error);
-
-    console.error(
-      "Error leyendo órdenes para reconciliación:",
-      message
-    );
-
-    return NextResponse.json(
-      { ok: false, error: message },
-      { status: 500 }
-    );
-  }
-
-  const {
-    orders,
-    scanned,
-    missingSupplierId,
-    missingSamples,
-  } = selection;
-
-  const selectedOrders = orders.map((order) => ({
-    orderId: String(order.id),
-    supplierId: getSupplierOrderId(order),
-    status: String(order.status ?? ""),
-    updatedAt: order.updated_at ?? null,
-  }));
-
-  console.info("FAZERCARDS_CRON_START", {
-    scannedPendingOrders: scanned,
-    selectedValidOrders: orders.length,
-    selectedOrders,
-    missingSupplierId,
-    maxOrdersPerRun: MAX_ORDERS_PER_RUN,
-    missingSamples,
-  });
-
-  let checked = 0;
-  let completed = 0;
-  let refunded = 0;
-  let stillPending = 0;
-  let skippedChanged = 0;
-
-  const failures: Array<{
-    orderId: string;
-    supplierId?: string;
-    message: string;
-  }> = [];
-
-  const outcomes: Array<{
-    orderId: string;
-    supplierId: string;
-    result: string;
-    providerStatus?: string;
-    currentStatus?: string;
-    message?: string;
-  }> = [];
-
-  for (const order of orders) {
-    const supplierId = getSupplierOrderId(order);
-
-    if (!supplierId) {
-      outcomes.push({
-        orderId: String(order.id),
-        supplierId: "",
-        result: "SKIPPED_MISSING_SUPPLIER_ID",
-      });
-
-      continue;
-    }
-
-    try {
-      console.info("FAZERCARDS_ORDER_CHECK_START", {
-        orderId: order.id,
-        supplierId,
-        selectedStatus: order.status,
-      });
-
-      const response = await fetch(
-        `${FAZER_API_BASE}/orders/${encodeURIComponent(supplierId)}`,
-        {
-          method: "GET",
-          headers: {
-            "X-API-Key": FAZER_API_KEY,
-            Accept: "application/json",
-          },
-          cache: "no-store",
-          signal: AbortSignal.timeout(15_000),
-        }
-      );
-
-      const text = await response.text();
-
-      let payload: unknown;
-
-      try {
-        payload = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(
-          `FazerCards devolvió una respuesta no JSON (HTTP ${response.status}).`
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          `FazerCards respondió HTTP ${response.status}: ${text.slice(0, 300)}`
-        );
-      }
-
-      const providerStatus = getProviderStatus(payload);
-
-      if (!providerStatus) {
-        throw new Error(
-          "FazerCards no devolvió un estado reconocible."
-        );
-      }
-
-      console.info("FAZERCARDS_ORDER_STATUS", {
-        orderId: order.id,
-        supplierId,
-        providerStatus,
-      });
-
-      await saveReconciliationResponse(
-        supabaseAdmin,
-        order.id,
-        supplierId,
-        payload
-      );
-
-      checked += 1;
-
-      const currentOrder = await readCurrentOrder(
-        supabaseAdmin,
-        order.id
-      );
-
-      if (!currentOrder) {
-        skippedChanged += 1;
-
-        outcomes.push({
-          orderId: String(order.id),
-          supplierId,
-          result: "SKIPPED_ORDER_NOT_FOUND",
-          providerStatus,
-        });
-
-        console.warn("FAZERCARDS_ORDER_MISSING", {
-          orderId: order.id,
-          supplierId,
-        });
-
-        continue;
-      }
-
-      const currentStatus = String(
-        currentOrder.status ?? ""
-      );
-
-      console.info("FAZERCARDS_CURRENT_STORE_STATUS", {
-        orderId: order.id,
-        supplierId,
-        currentStatus,
-        providerStatus,
-      });
-
-      if (!isPendingStatus(currentStatus)) {
-        skippedChanged += 1;
-
-        outcomes.push({
-          orderId: String(order.id),
-          supplierId,
-          result: "SKIPPED_NOT_PENDING",
-          providerStatus,
-          currentStatus,
-        });
-
-        console.info("FAZERCARDS_ORDER_NOT_PENDING", {
-          orderId: order.id,
-          supplierId,
-          currentStatus,
-          terminal: isTerminalStatus(currentStatus),
-        });
-
-        continue;
-      }
-
-      if (isCompletedStatus(providerStatus)) {
-        await assertUniqueSupplierOrder(
-          supabaseAdmin,
-          order.id,
-          supplierId
-        );
-
-        const latestOrder = await readCurrentOrder(
-          supabaseAdmin,
-          order.id
-        );
-
-        if (
-          !latestOrder ||
-          !isPendingStatus(latestOrder.status) ||
-          String(latestOrder.supplier_order_id ?? "") !== supplierId
-        ) {
-          skippedChanged += 1;
-
-          outcomes.push({
-            orderId: String(order.id),
-            supplierId,
-            result: "COMPLETION_SKIPPED_STATE_CHANGED",
-            providerStatus,
-            currentStatus: String(
-              latestOrder?.status ?? "NOT_FOUND"
-            ),
-          });
-
-          console.warn("FAZERCARDS_COMPLETION_SKIPPED", {
-            orderId: order.id,
-            supplierId,
-            currentStatus: latestOrder?.status ?? "NOT_FOUND",
-          });
-
-          continue;
-        }
-
-        const { error: rpcError } =
-          await supabaseAdmin.rpc("complete_topup_order", {
-            p_supplier_order_id: supplierId,
-          });
-
-        if (rpcError) {
-          throw new Error(
-            `No se pudo completar: ${rpcError.message}`
-          );
-        }
-
-        const afterCompletion = await readCurrentOrder(
-          supabaseAdmin,
-          order.id
-        );
-
-        if (
-          String(afterCompletion?.status ?? "").toUpperCase() !==
-          "COMPLETED"
-        ) {
-          throw new Error(
-            `La RPC respondió sin error, pero la orden sigue en estado ${afterCompletion?.status ?? "NOT_FOUND"}.`
-          );
-        }
-
-        completed += 1;
-
-        outcomes.push({
-          orderId: String(order.id),
-          supplierId,
-          result: "COMPLETED",
-          providerStatus,
-          currentStatus: String(afterCompletion.status),
-        });
-
-        console.info("FAZERCARDS_ORDER_COMPLETED", {
-          orderId: order.id,
-          supplierId,
-        });
-
-        continue;
-      }
-
-      if (isRefundWorthyFailureStatus(providerStatus)) {
-        const latestOrder = await readCurrentOrder(
-          supabaseAdmin,
-          order.id
-        );
-
-        if (
-          !latestOrder ||
-          !isPendingStatus(latestOrder.status)
-        ) {
-          skippedChanged += 1;
-
-          outcomes.push({
-            orderId: String(order.id),
-            supplierId,
-            result: "REFUND_SKIPPED_STATE_CHANGED",
-            providerStatus,
-            currentStatus: String(
-              latestOrder?.status ?? "NOT_FOUND"
-            ),
-          });
-
-          console.warn("FAZERCARDS_REFUND_SKIPPED", {
-            orderId: order.id,
-            supplierId,
-            currentStatus: latestOrder?.status ?? "NOT_FOUND",
-          });
-
-          continue;
-        }
-
-        const { error: rpcError } =
-          await supabaseAdmin.rpc("refund_topup_balance", {
-            p_order_id: order.id,
-          });
-
-        if (rpcError) {
-          throw new Error(
-            `No se pudo reembolsar: ${rpcError.message}`
-          );
-        }
-
-        const afterRefund = await readCurrentOrder(
-          supabaseAdmin,
-          order.id
-        );
-
-        if (
-          String(afterRefund?.status ?? "").toUpperCase() !==
-          "REFUNDED"
-        ) {
-          throw new Error(
-            `La RPC respondió sin error, pero no se confirmó el reembolso. Estado actual: ${afterRefund?.status ?? "NOT_FOUND"}.`
-          );
-        }
-
-        refunded += 1;
-
-        outcomes.push({
-          orderId: String(order.id),
-          supplierId,
-          result: "REFUNDED",
-          providerStatus,
-          currentStatus: String(afterRefund.status),
-        });
-
-        console.warn("FAZERCARDS_ORDER_REFUNDED", {
-          orderId: order.id,
-          supplierId,
-        });
-
-        continue;
-      }
-
-      const nextStatus = getNextPendingStatus(providerStatus);
-
-      const { data: updatedRows, error: statusError } =
-        await supabaseAdmin
-          .from("topup_orders")
-          .update({
-            status: nextStatus,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order.id)
-          .in("status", PENDING_STATUSES)
-          .select("id");
-
-      if (statusError) {
-        throw new Error(
-          `No se pudo actualizar el estado: ${statusError.message}`
-        );
-      }
-
-      if (!updatedRows?.length) {
-        skippedChanged += 1;
-
-        const latestOrder = await readCurrentOrder(
-          supabaseAdmin,
-          order.id
-        );
-
-        outcomes.push({
-          orderId: String(order.id),
-          supplierId,
-          result: "STATUS_UPDATE_SKIPPED",
-          providerStatus,
-          currentStatus: String(
-            latestOrder?.status ?? "NOT_FOUND"
-          ),
-        });
-
-        console.info("FAZERCARDS_STATUS_UPDATE_SKIPPED", {
-          orderId: order.id,
-          supplierId,
-          providerStatus,
-          currentStatus: latestOrder?.status ?? "NOT_FOUND",
-        });
-
-        continue;
-      }
-
-      stillPending += 1;
-
-      outcomes.push({
-        orderId: String(order.id),
-        supplierId,
-        result: "STILL_PENDING",
-        providerStatus,
-        currentStatus: nextStatus,
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
-
-      console.error("FAZERCARDS_RECONCILIATION_ERROR", {
-        orderId: order.id,
-        supplierId,
-        message,
-      });
-
-      failures.push({
-        orderId: String(order.id),
-        supplierId,
-        message,
-      });
-
-      outcomes.push({
-        orderId: String(order.id),
-        supplierId,
-        result: "ERROR",
-        message,
-      });
-    }
-  }
-
-  const result = {
-    ok: failures.length === 0,
-    scannedPendingOrders: scanned,
-    selected: orders.length,
-    selectedOrders,
-    checked,
-    completed,
-    refunded,
-    stillPending,
-    missingSupplierId,
-    missingSamples,
-    skippedChanged,
-    outcomes,
-    failures,
-  };
-
-  console.info("FAZERCARDS_CRON_RESULT", result);
-
-  return NextResponse.json(result);
+if (!FAZERCARDS_CRON_SECRET) {
+return NextResponse.json(
+{ ok: false, error: "Cron de FazerCards no configurado." },
+{ status: 500 },
+);
+}
+
+if (
+request.headers.get("authorization") !==
+"Bearer ${FAZERCARDS_CRON_SECRET}"
+) {
+return NextResponse.json(
+{ ok: false, error: "No autorizado." },
+{ status: 401 },
+);
+}
+
+if (!FAZER_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+return NextResponse.json(
+{ ok: false, error: "Faltan variables de entorno de FazerCards o Supabase." },
+{ status: 500 },
+);
+}
+
+const supabase = createClient(
+SUPABASE_URL,
+SUPABASE_SERVICE_ROLE_KEY,
+{
+auth: {
+autoRefreshToken: false,
+persistSession: false,
+},
+},
+);
+
+const errors: string[] = [];
+let topup: unknown = null;
+let giftcards: unknown = null;
+
+try {
+topup = await reconcileTopups(supabase);
+} catch (error) {
+errors.push(
+"Top Up: ${error instanceof Error ? error.message : String(error)}",
+);
+}
+
+try {
+giftcards = await reconcileGiftCards(supabase);
+} catch (error) {
+errors.push(
+"Gift Cards: ${error instanceof Error ? error.message : String(error)}",
+);
+}
+
+const result = {
+ok: errors.length === 0,
+topup,
+giftcards,
+errors,
+timestamp: new Date().toISOString(),
+};
+
+console.info("FAZERCARDS_RECONCILIATION_RESULT", result);
+
+return NextResponse.json(result, {
+status: errors.length ? 500 : 200,
+});
 }
