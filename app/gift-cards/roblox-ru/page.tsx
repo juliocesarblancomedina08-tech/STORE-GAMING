@@ -30,9 +30,7 @@ type CatalogResponse = {
   };
 };
 
-const API_URL =
-  "/api/fazercards/giftcards?category_id=roblox_ru";
-
+const API_URL = "/api/fazercards/giftcards?category_id=roblox_ru";
 const PROFIT_PER_UNIT = 0.25;
 
 const productNote =
@@ -117,8 +115,13 @@ export default function RobloxRuGiftCardPage() {
           (offer): offer is GiftCardOffer => offer !== null
         )
         .sort((a, b) => {
-          const aNumber = Number(a.name.match(/[\d,.]+/)?.[0]?.replace(/[,.]/g, "") || 0);
-          const bNumber = Number(b.name.match(/[\d,.]+/)?.[0]?.replace(/[,.]/g, "") || 0);
+          const aNumber = Number(
+            a.name.match(/[\d,.]+/)?.[0]?.replace(/[,.]/g, "") || 0
+          );
+          const bNumber = Number(
+            b.name.match(/[\d,.]+/)?.[0]?.replace(/[,.]/g, "") || 0
+          );
+
           return aNumber - bNumber;
         });
 
@@ -127,11 +130,14 @@ export default function RobloxRuGiftCardPage() {
 
       setSelectedOffer((current) =>
         current
-          ? mappedOffers.find((offer) => offer.id === current.id) ?? null
+          ? mappedOffers.find(
+              (offer) => offer.id === current.id
+            ) ?? null
           : null
       );
     } catch (error) {
       console.error("Error cargando Roblox RU:", error);
+
       setCatalogError(
         error instanceof Error
           ? error.message
@@ -191,10 +197,9 @@ export default function RobloxRuGiftCardPage() {
     }, 100);
   };
 
-  const total =
-    selectedOffer
-      ? Math.round(selectedOffer.price * quantity * 100) / 100
-      : 0;
+  const total = selectedOffer
+    ? Math.round(selectedOffer.price * quantity * 100) / 100
+    : 0;
 
   const continueOrder = () => {
     if (!selectedOffer) return;
@@ -210,8 +215,8 @@ export default function RobloxRuGiftCardPage() {
       return;
     }
 
-    // No se consulta la sesión, no se llama a la API de pedidos,
-    // no se descuenta balance y no se envía ninguna orden.
+    // Solo muestra un aviso informativo.
+    // No consulta la sesión, no crea pedidos y no descuenta saldo.
     setShowNotice(true);
 
     setTimeout(() => {
@@ -266,6 +271,7 @@ export default function RobloxRuGiftCardPage() {
 
         <section className="roblox-note">
           <div className="roblox-note-icon">!</div>
+
           <div className="roblox-note-content">
             <strong>INFORMACIÓN DEL PRODUCTO</strong>
             <p>{productNote}</p>
@@ -280,6 +286,7 @@ export default function RobloxRuGiftCardPage() {
 
         <section className="roblox-note purchase-disabled-note">
           <div className="roblox-note-icon">🔒</div>
+
           <div className="roblox-note-content">
             <strong>COMPRAS TEMPORALMENTE DESHABILITADAS</strong>
             <p>
@@ -293,6 +300,7 @@ export default function RobloxRuGiftCardPage() {
           <section className="roblox-error" role="alert">
             <strong>NO SE PUDO CARGAR EL CATÁLOGO</strong>
             <p>{catalogError}</p>
+
             <button
               type="button"
               onClick={() => void loadCatalog()}
@@ -312,11 +320,15 @@ export default function RobloxRuGiftCardPage() {
           >
             <span className="roblox-toggle-left">
               <span className="roblox-toggle-icon">🎁</span>
+
               <span>
                 <strong>SELECCIONA TU TARJETA</strong>
-                <small>{offers.length} ofertas en el catálogo</small>
+                <small>
+                  {offers.length} ofertas en el catálogo
+                </small>
               </span>
             </span>
+
             <span className="roblox-toggle-arrow">
               {showOffers ? "▲" : "▼"}
             </span>
@@ -330,6 +342,7 @@ export default function RobloxRuGiftCardPage() {
                     ? "Actualizando ofertas..."
                     : "Precios y disponibilidad de FazerCards"}
                 </span>
+
                 <button
                   type="button"
                   onClick={() => void loadCatalog()}
@@ -352,18 +365,22 @@ export default function RobloxRuGiftCardPage() {
                 </div>
               )}
 
-              {!loading && !catalogError && offers.length === 0 && (
-                <div className="roblox-loading">
-                  No se encontraron ofertas de Roblox RU.
-                </div>
-              )}
+              {!loading &&
+                !catalogError &&
+                offers.length === 0 && (
+                  <div className="roblox-loading">
+                    No se encontraron ofertas de Roblox RU.
+                  </div>
+                )}
 
               <div className="roblox-offers-list">
                 {offers.map((offer) => {
                   const unavailable =
                     offer.stock < 1 ||
                     offer.maxOrderQuantity < 1;
-                  const selected = selectedOffer?.id === offer.id;
+
+                  const selected =
+                    selectedOffer?.id === offer.id;
 
                   return (
                     <button
@@ -375,10 +392,13 @@ export default function RobloxRuGiftCardPage() {
                       onClick={() => selectOffer(offer)}
                       disabled={unavailable || loading}
                     >
-                      <span className="roblox-offer-icon">🪙</span>
+                      <span className="roblox-offer-icon">
+                        🪙
+                      </span>
 
                       <span className="roblox-offer-info">
                         <strong>{offer.name.toUpperCase()}</strong>
+
                         <small
                           className={
                             unavailable
@@ -394,6 +414,7 @@ export default function RobloxRuGiftCardPage() {
 
                       <span className="roblox-offer-right">
                         <strong>{money(offer.price)}</strong>
+
                         <small>
                           {unavailable
                             ? "AGOTADO"
@@ -411,9 +432,13 @@ export default function RobloxRuGiftCardPage() {
         </section>
 
         {selectedOffer && (
-          <section id="gift-card-order" className="roblox-order-section">
+          <section
+            id="gift-card-order"
+            className="roblox-order-section"
+          >
             <div className="roblox-section-title">
               <span>01</span>
+
               <div>
                 <h2>PAQUETE SELECCIONADO</h2>
                 <p>Revisa los detalles de tu selección.</p>
@@ -423,9 +448,14 @@ export default function RobloxRuGiftCardPage() {
             <div className="roblox-order-card">
               <div className="roblox-selected-heading">
                 <span className="roblox-selected-icon">🪙</span>
+
                 <div>
-                  <span className="roblox-eyebrow">ROBLOX RU</span>
+                  <span className="roblox-eyebrow">
+                    ROBLOX RU
+                  </span>
+
                   <h3>{selectedOffer.name.toUpperCase()}</h3>
+
                   <span className="roblox-availability">
                     <span />
                     {selectedOffer.stock.toLocaleString()} disponibles
@@ -435,20 +465,27 @@ export default function RobloxRuGiftCardPage() {
 
               <div className="roblox-quantity-box">
                 <span>CANTIDAD DE PAQUETES</span>
+
                 <div className="roblox-quantity-control">
                   <button
                     type="button"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    onClick={() =>
+                      setQuantity((q) => Math.max(1, q - 1))
+                    }
                     disabled={quantity <= 1}
                     aria-label="Disminuir cantidad"
                   >
                     −
                   </button>
+
                   <strong>{quantity}</strong>
+
                   <button
                     type="button"
                     onClick={() =>
-                      setQuantity((q) => Math.min(maxQuantity, q + 1))
+                      setQuantity((q) =>
+                        Math.min(maxQuantity, q + 1)
+                      )
                     }
                     disabled={quantity >= maxQuantity}
                     aria-label="Aumentar cantidad"
@@ -456,20 +493,24 @@ export default function RobloxRuGiftCardPage() {
                     +
                   </button>
                 </div>
+
                 <small>Máximo por pedido: {maxQuantity}</small>
               </div>
 
               <div className="roblox-price-breakdown">
                 <div className="roblox-detail-row">
                   <span>Precio por paquete</span>
+
                   <strong className="roblox-price">
                     {money(selectedOffer.price)}
                   </strong>
                 </div>
+
                 <div className="roblox-detail-row">
                   <span>Cantidad</span>
                   <strong>× {quantity}</strong>
                 </div>
+
                 <div className="roblox-total-row">
                   <span>TOTAL</span>
                   <strong>{money(total)}</strong>
@@ -496,6 +537,7 @@ export default function RobloxRuGiftCardPage() {
           >
             <div className="roblox-section-title">
               <span>02</span>
+
               <div>
                 <h2>COMPRAS NO DISPONIBLES</h2>
                 <p>Tu selección no se ha comprado.</p>
@@ -504,8 +546,12 @@ export default function RobloxRuGiftCardPage() {
 
             <div className="roblox-note purchase-disabled-note">
               <div className="roblox-note-icon">🔒</div>
+
               <div className="roblox-note-content">
-                <strong>ESTAMOS PREPARANDO ESTE SERVICIO</strong>
+                <strong>
+                  ESTAMOS PREPARANDO ESTE SERVICIO
+                </strong>
+
                 <p>
                   Roblox RU está disponible para consultar ofertas,
                   pero la compra todavía no está habilitada. No se
@@ -517,19 +563,25 @@ export default function RobloxRuGiftCardPage() {
             </div>
 
             <div className="roblox-order-card">
-              <span className="roblox-eyebrow">RESUMEN INFORMATIVO</span>
+              <span className="roblox-eyebrow">
+                RESUMEN INFORMATIVO
+              </span>
+
               <div className="roblox-detail-row">
                 <span>Producto</span>
                 <strong>ROBLOX RU</strong>
               </div>
+
               <div className="roblox-detail-row">
                 <span>Paquete</span>
                 <strong>{selectedOffer.name}</strong>
               </div>
+
               <div className="roblox-detail-row">
                 <span>Cantidad</span>
                 <strong>{quantity}</strong>
               </div>
+
               <div className="roblox-total-row">
                 <span>TOTAL INFORMATIVO</span>
                 <strong>{money(total)}</strong>
@@ -555,10 +607,6 @@ export default function RobloxRuGiftCardPage() {
       <RobloxStyles />
     </main>
   );
-}
-
-function money(value: number) {
-  return `$${value.toFixed(2)} USD`;
 }
 
 function RobloxStyles() {
