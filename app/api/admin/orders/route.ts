@@ -6,7 +6,7 @@ import { isAdminUser } from "../../../../lib/admin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const ORDER_FIELDS = `
+const TOPUP_FIELDS = `
   id,
   user_id,
   username,
@@ -23,6 +23,29 @@ const ORDER_FIELDS = `
   supplier_order_id,
   supplier_fields,
   supplier_response,
+  refunded_at,
+  completed_at,
+  failed_at,
+  created_at,
+  updated_at
+`;
+
+const GIFT_CARD_FIELDS = `
+  id,
+  user_id,
+  username,
+  email,
+  game,
+  category_id,
+  card_id,
+  offer_name,
+  quantity,
+  retail_price,
+  supplier_price,
+  status,
+  supplier_order_id,
+  supplier_response,
+  gift_codes,
   refunded_at,
   completed_at,
   failed_at,
@@ -69,7 +92,10 @@ async function authorizeAdmin(request: NextRequest) {
       return {
         ok: false as const,
         response: NextResponse.json(
-          { ok: false, error: "Acceso denegado. Solo un administrador puede realizar esta acción." },
+          {
+            ok: false,
+            error: "Acceso denegado. Solo un administrador puede realizar esta acción.",
+          },
           { status: 403 }
         ),
       };
@@ -90,31 +116,69 @@ async function authorizeAdmin(request: NextRequest) {
 }
 
 /**
- * GET: carga las órdenes para el panel de administración.
+ * GET: carga recargas y tarjetas regalo.
+ * orderType identifica la tabla de origen de cada orden.
  */
 export async function GET(request: NextRequest) {
   try {
     const auth = await authorizeAdmin(request);
 
-    if (!auth.ok) {
-      return auth.response;
-    }
+    if (!auth.ok) return auth.response;
 
-    const { data, error } = await supabaseAdmin
-      .from("topup_orders")
-      .select(ORDER_FIELDS)
-      .order("created_at", { ascending: false });
+    const [topupsResult, giftCardsResult] = await Promise.all([
+      supabaseAdmin
+        .from("topup_orders")
+        .select(TOPUP_FIELDS)
+        .order("created_at", { ascending: false }),
 
-    if (error) {
-      console.error("ERROR CARGANDO ÓRDENES ADMIN:", error);
+      supabaseAdmin
+        .from("gift_card_orders")
+        .select(GIFT_CARD_FIELDS)
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (topupsResult.error) {
+      console.error("ERROR CARGANDO RECARGAS:", topupsResult.error);
 
       return NextResponse.json(
-        { ok: false, error: "No se pudieron cargar las órdenes." },
+        { ok: false, error: "No se pudieron cargar las órdenes de recarga." },
         { status: 500 }
       );
     }
 
-    const orders = data || [];
+    if (giftCardsResult.error) {
+      console.error("ERROR CARGANDO TARJETAS REGALO:", giftCardsResult.error);
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "No se pudieron cargar las tarjetas regalo. Comprueba que las columnas de la tabla coincidan con la consulta.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const topups = (topupsResult.data || []).map((order) => ({
+      ...order,
+      orderType: "topup" as const,
+      gift_codes: [],
+    }));
+
+    const giftCards = (giftCardsResult.data || []).map((order) => ({
+      ...order,
+      orderType: "gift_card" as const,
+      offer_id: order.card_id,
+      currency: "USD",
+      player_id: null,
+      supplier_fields: null,
+    }));
+
+    const orders = [...topups, ...giftCards].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() -
+        new Date(a.created_at).getTime()
+    );
 
     const totalAmount = orders.reduce(
       (total, order) => total + (Number(order.retail_price) || 0),
@@ -138,18 +202,20 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * PATCH: actualiza manualmente el estado de una orden.
- * Recibe: { orderId: string, status: OrderStatus }
+ * PATCH: actualiza el estado en la tabla original de la orden.
+ * No realiza reembolsos de saldo automáticamente.
  */
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await authorizeAdmin(request);
 
-    if (!auth.ok) {
-      return auth.response;
-    }
+    if (!auth.ok) return auth.response;
 
-    let body: { orderId?: unknown; status?: unknown };
+    let body: {
+      orderId?: unknown;
+      status?: unknown;
+      orderType?: unknown;
+    };
 
     try {
       body = await request.json();
@@ -168,16 +234,24 @@ export async function PATCH(request: NextRequest) {
         ? body.status.trim().toUpperCase()
         : "";
 
+    const orderType =
+      typeof body.orderType === "string" ? body.orderType : "topup";
+
     if (!orderId) {
       return NextResponse.json(
-        { ok: false, error: "Falta el identificador de la orden (orderId)." },
+        { ok: false, error: "Falta el identificador de la orden." },
         { status: 400 }
       );
     }
 
-    if (
-      !ALLOWED_STATUSES.includes(requestedStatus as OrderStatus)
-    ) {
+    if (orderType !== "topup" && orderType !== "gift_card") {
+      return NextResponse.json(
+        { ok: false, error: "Tipo de orden inválido." },
+        { status: 400 }
+      );
+    }
+
+    if (!ALLOWED_STATUSES.includes(requestedStatus as OrderStatus)) {
       return NextResponse.json(
         {
           ok: false,
@@ -190,12 +264,11 @@ export async function PATCH(request: NextRequest) {
     const status = requestedStatus as OrderStatus;
     const now = new Date().toISOString();
 
-    const updateData: Record<string, string> = {
+    const updateData: Record<string, string | null> = {
       status,
       updated_at: now,
     };
 
-    // Registra la fecha correspondiente al estado seleccionado.
     if (status === "COMPLETED") {
       updateData.completed_at = now;
     } else if (status === "REFUNDED") {
@@ -204,36 +277,50 @@ export async function PATCH(request: NextRequest) {
       updateData.failed_at = now;
     }
 
+    const table =
+      orderType === "gift_card" ? "gift_card_orders" : "topup_orders";
+
+    const selectFields =
+      orderType === "gift_card" ? GIFT_CARD_FIELDS : TOPUP_FIELDS;
+
     const { data: order, error } = await supabaseAdmin
-      .from("topup_orders")
+      .from(table)
       .update(updateData)
       .eq("id", orderId)
-      .select(ORDER_FIELDS)
+      .select(selectFields)
       .maybeSingle();
 
     if (error) {
       console.error("ERROR ACTUALIZANDO ORDEN ADMIN:", error);
 
       return NextResponse.json(
-        {
-          ok: false,
-          error: "No se pudo actualizar la orden. Comprueba los campos de la tabla.",
-        },
+        { ok: false, error: "No se pudo actualizar el estado de la orden." },
         { status: 500 }
       );
     }
 
     if (!order) {
       return NextResponse.json(
-        { ok: false, error: "No se encontró ninguna orden con ese identificador." },
+        { ok: false, error: "No se encontró la orden indicada." },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
       ok: true,
-      message: "Estado de la orden actualizado correctamente.",
-      order,
+      message: "Estado actualizado. Este cambio no realiza un reembolso de saldo.",
+      order: {
+        ...order,
+        orderType,
+        ...(orderType === "gift_card"
+          ? {
+              offer_id: "card_id" in order ? order.card_id : null,
+              currency: "USD",
+              player_id: null,
+              supplier_fields: null,
+            }
+          : { gift_codes: [] }),
+      },
     });
   } catch (error) {
     console.error("ERROR API ADMIN ORDERS PATCH:", error);
