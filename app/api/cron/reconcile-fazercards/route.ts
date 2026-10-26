@@ -21,11 +21,20 @@ const SUPABASE_SERVICE_ROLE_KEY =
 
 type AnyObject = Record<string, any>;
 
-function json(
-  data: AnyObject,
-  status = 200
-) {
-  return NextResponse.json(data, { status });
+const ACTIVE_STATUSES = [
+  "SUPPLIER_PENDING",
+  "PENDING",
+  "PROCESSING",
+  "CONFIRMED",
+];
+
+function json(data: AnyObject, status = 200) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 function normalizeStatus(value: unknown): string {
@@ -107,13 +116,11 @@ function getProviderStatus(value: unknown): string {
       "orderStatus",
       "state",
     ]) {
-      const candidate = object[key];
-
       if (
-        typeof candidate === "string" &&
-        candidate.trim()
+        typeof object[key] === "string" &&
+        object[key].trim()
       ) {
-        return normalizeStatus(candidate);
+        return normalizeStatus(object[key]);
       }
     }
   }
@@ -142,6 +149,17 @@ function isFailedStatus(status: string): boolean {
     "DECLINED",
     "EXPIRED",
   ].includes(status);
+}
+
+function isInsufficientBalance(value: unknown): boolean {
+  const serialized = JSON.stringify(value ?? {})
+    .toLowerCase();
+
+  return (
+    serialized.includes("insufficient balance") ||
+    serialized.includes("insufficient funds") ||
+    serialized.includes("not enough balance")
+  );
 }
 
 function getGiftCodes(value: unknown): string[] {
@@ -294,13 +312,29 @@ function getSupplierIdFromRow(
     return direct.trim();
   }
 
-  const savedResponse = row.supplier_response;
+  return row.supplier_response
+    ? getProviderOrderId(row.supplier_response)
+    : null;
+}
 
-  if (savedResponse) {
-    return getProviderOrderId(savedResponse);
-  }
+function saveReconciliationResponse(
+  previous: unknown,
+  providerData: AnyObject
+): AnyObject {
+  const previousObject =
+    previous &&
+    typeof previous === "object" &&
+    !Array.isArray(previous)
+      ? previous as AnyObject
+      : {};
 
-  return null;
+  return {
+    ...previousObject,
+    reconciliation: {
+      checked_at: new Date().toISOString(),
+      last_response: providerData,
+    },
+  };
 }
 
 async function reconcileTopups(supabase: any) {
@@ -310,18 +344,14 @@ async function reconcileTopups(supabase: any) {
     failed: 0,
     pending: 0,
     skipped: 0,
+    manualReview: 0,
     errors: [] as string[],
   };
 
   const { data: orders, error } = await supabase
     .from("topup_orders")
     .select("*")
-    .in("status", [
-      "SUPPLIER_PENDING",
-      "PENDING",
-      "PROCESSING",
-      "CONFIRMED",
-    ])
+    .in("status", ACTIVE_STATUSES)
     .order("created_at", { ascending: true })
     .limit(50);
 
@@ -335,12 +365,30 @@ async function reconcileTopups(supabase: any) {
     result.checked++;
 
     try {
+      // Protección adicional: nunca procesar una orden completada.
+      if (normalizeStatus(order.status) === "COMPLETED") {
+        result.skipped++;
+        continue;
+      }
+
       const supplierId = getSupplierIdFromRow(order);
 
       if (!supplierId) {
+        const oldResponse =
+          order.supplier_response &&
+          typeof order.supplier_response === "object"
+            ? order.supplier_response
+            : {};
+
+        if (isInsufficientBalance(oldResponse)) {
+          result.manualReview++;
+          result.skipped++;
+          continue;
+        }
+
         result.skipped++;
         result.errors.push(
-          `Recarga ${order.id}: no tiene supplier_order_id recuperable.`
+          `Recarga ${order.id}: falta el identificador del proveedor; requiere revisión manual.`
         );
         continue;
       }
@@ -351,28 +399,19 @@ async function reconcileTopups(supabase: any) {
 
       if (!provider.ok) {
         result.errors.push(
-          `Recarga ${order.id}: proveedor HTTP ${provider.status}.`
+          `Recarga ${order.id}: proveedor HTTP ${provider.status}; no se cambió el estado.`
         );
         continue;
       }
 
       const providerStatus = getProviderStatus(provider.data);
-
-      const previousResponse =
-        order.supplier_response &&
-        typeof order.supplier_response === "object"
-          ? order.supplier_response
-          : {};
-
-      const savedResponse = {
-        ...previousResponse,
-        reconciliation: {
-          checked_at: new Date().toISOString(),
-          last_response: provider.data,
-        },
-      };
+      const savedResponse = saveReconciliationResponse(
+        order.supplier_response,
+        provider.data
+      );
 
       if (isCompletedStatus(providerStatus)) {
+        // Solo la RPC existente puede aplicar la finalización.
         const { error: rpcError } = await supabase.rpc(
           "complete_topup_order",
           {
@@ -389,10 +428,9 @@ async function reconcileTopups(supabase: any) {
 
         await supabase
           .from("topup_orders")
-          .update({
-            supplier_response: savedResponse,
-          })
-          .eq("id", order.id);
+          .update({ supplier_response: savedResponse })
+          .eq("id", order.id)
+          .in("status", ACTIVE_STATUSES);
 
         result.completed++;
         continue;
@@ -400,14 +438,12 @@ async function reconcileTopups(supabase: any) {
 
       if (isFailedStatus(providerStatus)) {
         /*
-         * El RPC debe verificar que la orden no esté completada
-         * antes de devolver el saldo.
+         * La RPC debe validar el estado actual de la orden
+         * y ejecutar el reembolso de forma idempotente.
          */
         const { error: refundError } = await supabase.rpc(
           "refund_topup_balance",
-          {
-            p_order_id: order.id,
-          }
+          { p_order_id: order.id }
         );
 
         if (refundError) {
@@ -419,10 +455,9 @@ async function reconcileTopups(supabase: any) {
 
         await supabase
           .from("topup_orders")
-          .update({
-            supplier_response: savedResponse,
-          })
-          .eq("id", order.id);
+          .update({ supplier_response: savedResponse })
+          .eq("id", order.id)
+          .in("status", ACTIVE_STATUSES);
 
         result.failed++;
         continue;
@@ -443,7 +478,8 @@ async function reconcileTopups(supabase: any) {
           supplier_order_id: supplierId,
           supplier_response: savedResponse,
         })
-        .eq("id", order.id);
+        .eq("id", order.id)
+        .in("status", ACTIVE_STATUSES);
 
       if (updateError) {
         result.errors.push(
@@ -473,6 +509,7 @@ async function reconcileGiftCards(supabase: any) {
     failed: 0,
     pending: 0,
     skipped: 0,
+    manualReview: 0,
     missingSupplierId: [] as string[],
     errors: [] as string[],
   };
@@ -480,12 +517,7 @@ async function reconcileGiftCards(supabase: any) {
   const { data: orders, error } = await supabase
     .from("gift_card_orders")
     .select("*")
-    .in("status", [
-      "SUPPLIER_PENDING",
-      "PENDING",
-      "PROCESSING",
-      "CONFIRMED",
-    ])
+    .in("status", ACTIVE_STATUSES)
     .order("created_at", { ascending: true })
     .limit(50);
 
@@ -499,11 +531,27 @@ async function reconcileGiftCards(supabase: any) {
     result.checked++;
 
     try {
+      if (normalizeStatus(order.status) === "COMPLETED") {
+        result.skipped++;
+        continue;
+      }
+
       const supplierId = getSupplierIdFromRow(order);
 
       if (!supplierId) {
+        const oldResponse =
+          order.supplier_response &&
+          typeof order.supplier_response === "object"
+            ? order.supplier_response
+            : {};
+
         result.skipped++;
         result.missingSupplierId.push(order.id);
+
+        if (isInsufficientBalance(oldResponse)) {
+          result.manualReview++;
+        }
+
         continue;
       }
 
@@ -513,32 +561,18 @@ async function reconcileGiftCards(supabase: any) {
 
       if (!provider.ok) {
         result.errors.push(
-          `Tarjeta ${order.id}: proveedor HTTP ${provider.status}.`
+          `Tarjeta ${order.id}: proveedor HTTP ${provider.status}; no se cambió el estado.`
         );
         continue;
       }
 
       const providerStatus = getProviderStatus(provider.data);
       const codes = getGiftCodes(provider.data);
+      const savedResponse = saveReconciliationResponse(
+        order.supplier_response,
+        provider.data
+      );
 
-      const previousResponse =
-        order.supplier_response &&
-        typeof order.supplier_response === "object"
-          ? order.supplier_response
-          : {};
-
-      const savedResponse = {
-        ...previousResponse,
-        reconciliation: {
-          checked_at: new Date().toISOString(),
-          last_response: provider.data,
-        },
-      };
-
-      /*
-       * Solo se marca COMPLETED si el proveedor confirma la
-       * finalización y devuelve al menos un código.
-       */
       if (
         isCompletedStatus(providerStatus) &&
         codes.length > 0
@@ -554,12 +588,7 @@ async function reconcileGiftCards(supabase: any) {
             failed_at: null,
           })
           .eq("id", order.id)
-          .in("status", [
-            "SUPPLIER_PENDING",
-            "PENDING",
-            "PROCESSING",
-            "CONFIRMED",
-          ]);
+          .in("status", ACTIVE_STATUSES);
 
         if (updateError) {
           result.errors.push(
@@ -572,17 +601,11 @@ async function reconcileGiftCards(supabase: any) {
         continue;
       }
 
+      // No se reembolsa si el proveedor no confirma un estado terminal fallido.
       if (isFailedStatus(providerStatus)) {
-        /*
-         * No cambiamos primero la orden a FAILED. El RPC de
-         * reembolso debe comprobar su estado y evitar devolver
-         * saldo a órdenes completadas.
-         */
         const { error: refundError } = await supabase.rpc(
           "refund_gift_card_order",
-          {
-            p_order_id: order.id,
-          }
+          { p_order_id: order.id }
         );
 
         if (refundError) {
@@ -594,10 +617,9 @@ async function reconcileGiftCards(supabase: any) {
 
         await supabase
           .from("gift_card_orders")
-          .update({
-            supplier_response: savedResponse,
-          })
-          .eq("id", order.id);
+          .update({ supplier_response: savedResponse })
+          .eq("id", order.id)
+          .in("status", ACTIVE_STATUSES);
 
         result.failed++;
         continue;
@@ -619,12 +641,7 @@ async function reconcileGiftCards(supabase: any) {
           supplier_response: savedResponse,
         })
         .eq("id", order.id)
-        .in("status", [
-          "SUPPLIER_PENDING",
-          "PENDING",
-          "PROCESSING",
-          "CONFIRMED",
-        ]);
+        .in("status", ACTIVE_STATUSES);
 
       if (updateError) {
         result.errors.push(
@@ -683,10 +700,7 @@ export async function GET(request: NextRequest) {
 
     if (providedSecret !== FAZERCARDS_CRON_SECRET) {
       return json(
-        {
-          success: false,
-          error: "No autorizado.",
-        },
+        { success: false, error: "No autorizado." },
         401
       );
     }
@@ -699,7 +713,7 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
       topup: null,
       giftcards: null,
-      errors: [] as string[],
+      errors: [],
     };
 
     try {
