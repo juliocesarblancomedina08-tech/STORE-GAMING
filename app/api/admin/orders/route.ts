@@ -61,7 +61,6 @@ const ALLOWED_STATUSES = [
 ] as const;
 
 type OrderStatus = (typeof ALLOWED_STATUSES)[number];
-
 type AdminOrder = Record<string, unknown>;
 
 function getBearerToken(request: NextRequest): string | null {
@@ -126,8 +125,9 @@ async function authorizeAdmin(request: NextRequest) {
 
 /**
  * GET:
- * Obtiene las órdenes de recargas y tarjetas regalo.
- * orderType identifica la tabla de origen.
+ * Obtiene las órdenes de recarga y tarjetas regalo.
+ * Incluye contadores de diagnóstico para comprobar
+ * si las órdenes de Roblox llegan desde Supabase.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -207,16 +207,26 @@ export async function GET(request: NextRequest) {
     });
 
     const totalAmount = orders.reduce(
-      (total, order) =>
-        total + (Number(order.retail_price) || 0),
+      (total, order) => total + (Number(order.retail_price) || 0),
       0
     );
+
+    const robloxGlobalCount = giftCards.filter(
+      (order) =>
+        String(order.game || "").trim().toUpperCase() ===
+        "ROBLOX (GLOBAL)"
+    ).length;
 
     return NextResponse.json({
       ok: true,
       orders,
       totalOrders: orders.length,
       totalAmount,
+      diagnostics: {
+        topupCount: topups.length,
+        giftCardCount: giftCards.length,
+        robloxGlobalCount,
+      },
     });
   } catch (error) {
     console.error("ERROR API ADMIN ORDERS GET:", error);
@@ -234,16 +244,7 @@ export async function GET(request: NextRequest) {
 /**
  * PATCH:
  * Actualiza el estado de una orden en su tabla original.
- *
- * Recibe:
- * {
- *   orderId: string,
- *   status: "PENDING" | "COMPLETED" | "REFUNDED" | "CANCELLED",
- *   orderType?: "topup" | "gift_card"
- * }
- *
- * IMPORTANTE:
- * Este endpoint cambia el estado, pero no devuelve saldo.
+ * Cambiar el estado NO devuelve saldo automáticamente.
  */
 export async function PATCH(request: NextRequest) {
   try {
