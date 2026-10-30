@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
-type Network = "BEP20";
+type PaymentMethod = "BEP20" | "saldo_cup" | "transferencia_cup";
 
 export default function BalancePage() {
   const router = useRouter();
@@ -13,10 +14,11 @@ export default function BalancePage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // DEPÓSITO
+  // DEPÓSITOS
   const [showDeposit, setShowDeposit] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
-  const [selectedNetwork] = useState<Network>("BEP20");
+  const [selectedMethod, setSelectedMethod] =
+    useState<PaymentMethod>("BEP20");
   const [depositError, setDepositError] = useState("");
 
   useEffect(() => {
@@ -63,6 +65,7 @@ export default function BalancePage() {
   function openDeposit() {
     setDepositAmount("");
     setDepositError("");
+    setSelectedMethod("BEP20");
     setShowDeposit(true);
   }
 
@@ -71,25 +74,50 @@ export default function BalancePage() {
     setDepositError("");
   }
 
+  function selectMethod(method: PaymentMethod) {
+    setSelectedMethod(method);
+    setDepositAmount("");
+    setDepositError("");
+  }
+
   function confirmDeposit() {
     const numericAmount = Number(depositAmount);
 
-    if (!depositAmount || !Number.isFinite(numericAmount)) {
-      setDepositError("Introduzca el monto que desea depositar.");
+    if (
+      !depositAmount ||
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
+      setDepositError("Introduzca un importe válido mayor que cero.");
       return;
     }
 
-    if (numericAmount <= 0) {
-      setDepositError("El monto debe ser mayor que 0.");
+    if (selectedMethod === "BEP20") {
+      // SE CONSERVA LA RUTA DEL DEPÓSITO AUTOMÁTICO EXISTENTE.
+      router.push(
+        `/balance/deposit?amount=${encodeURIComponent(
+          numericAmount.toFixed(2)
+        )}&network=${encodeURIComponent("BEP20")}`
+      );
       return;
     }
 
+    // NUEVOS MÉTODOS DE DEPÓSITO MANUAL.
     router.push(
-      `/balance/deposit?amount=${encodeURIComponent(
-        numericAmount.toFixed(2)
-      )}&network=${encodeURIComponent(selectedNetwork)}`
+      `/balance/manual-deposit?method=${encodeURIComponent(
+        selectedMethod
+      )}&amount=${encodeURIComponent(numericAmount.toFixed(2))}`
     );
   }
+
+  const isCupMethod = selectedMethod !== "BEP20";
+
+  const methodDescription =
+    selectedMethod === "BEP20"
+      ? "Deposita USDT mediante BNB Smart Chain."
+      : selectedMethod === "saldo_cup"
+        ? "Solicita un depósito mediante Saldo CUP."
+        : "Solicita un depósito mediante transferencia CUP.";
 
   if (loading) {
     return (
@@ -146,7 +174,16 @@ export default function BalancePage() {
               </div>
             </div>
 
-            <div className="balance-wallet-symbol" aria-label="Billetera"><span className="wallet-line-icon"><i></i><i></i><i></i></span></div>
+            <div
+              className="balance-wallet-symbol"
+              aria-label="Billetera"
+            >
+              <span className="wallet-line-icon">
+                <i />
+                <i />
+                <i />
+              </span>
+            </div>
           </div>
 
           <div className="balance-amount">
@@ -170,11 +207,17 @@ export default function BalancePage() {
           className="insert-balance-button"
           onClick={openDeposit}
         >
-          <span className="insert-balance-icon"><span className="wallet-line-icon wallet-line-icon-small"><i></i><i></i><i></i></span></span>
+          <span className="insert-balance-icon">
+            <span className="wallet-line-icon wallet-line-icon-small">
+              <i />
+              <i />
+              <i />
+            </span>
+          </span>
 
           <span className="insert-balance-text">
             <strong>INSERTAR BALANCE</strong>
-            <small>Deposita USDT en tu billetera</small>
+            <small>USDT BEP20 · Saldo CUP · Transferencia CUP</small>
           </span>
 
           <span className="insert-balance-arrow">→</span>
@@ -204,8 +247,8 @@ export default function BalancePage() {
             <strong>TU DINERO ESTÁ PROTEGIDO</strong>
 
             <p>
-              Tu balance está vinculado exclusivamente a tu cuenta de STORE
-              GAMING.
+              Tu balance está vinculado exclusivamente a tu cuenta
+              de STORE GAMING.
             </p>
           </div>
         </div>
@@ -220,17 +263,16 @@ export default function BalancePage() {
         </button>
       </section>
 
-      {/* ===================================================== */}
-      {/* VENTANA INFERIOR — INSERTAR BALANCE */}
-      {/* ===================================================== */}
-
+      {/* VENTANA INSERTAR BALANCE */}
       {showDeposit && (
-        <div className="deposit-sheet-overlay" onClick={closeDeposit}>
+        <div
+          className="deposit-sheet-overlay"
+          onClick={closeDeposit}
+        >
           <section
             className="deposit-sheet"
             onClick={(event) => event.stopPropagation()}
           >
-            {/* INDICADOR SUPERIOR */}
             <div className="deposit-sheet-handle" />
 
             {/* CABECERA */}
@@ -253,12 +295,104 @@ export default function BalancePage() {
               </button>
             </div>
 
-            {/* MONTO */}
+            {/* MÉTODOS DE PAGO */}
+            <div className="deposit-networks-section">
+              <div className="deposit-networks-title">
+                <strong>SELECCIONA TU MÉTODO DE PAGO</strong>
+                <span>3 MÉTODOS</span>
+              </div>
+
+              <div className="deposit-networks">
+
+                {/* USDT BEP20 */}
+                <button
+                  type="button"
+                  className={`deposit-network-card ${
+                    selectedMethod === "BEP20" ? "selected" : ""
+                  }`}
+                  onClick={() => selectMethod("BEP20")}
+                >
+                  <div className="deposit-network-icon tether-logo">
+                    <img
+                      src="/images/usdt-bep20-logo.png"
+                      alt="USDT BEP20"
+                    />
+                  </div>
+
+                  <div className="deposit-network-info">
+                    <strong>USDT BEP20</strong>
+                    <span>BNB Smart Chain · Automático</span>
+                  </div>
+
+                  {selectedMethod === "BEP20" && (
+                    <div className="deposit-network-check">✓</div>
+                  )}
+                </button>
+
+                {/* SALDO CUP */}
+                <button
+                  type="button"
+                  className={`deposit-network-card cup-method ${
+                    selectedMethod === "saldo_cup" ? "selected" : ""
+                  }`}
+                  onClick={() => selectMethod("saldo_cup")}
+                >
+                  <div className="deposit-network-icon cup-icon">
+                    💵
+                  </div>
+
+                  <div className="deposit-network-info">
+                    <strong>SALDO CUP</strong>
+                    <span>Depósito manual · CUP</span>
+                  </div>
+
+                  {selectedMethod === "saldo_cup" && (
+                    <div className="deposit-network-check cup-check">
+                      ✓
+                    </div>
+                  )}
+                </button>
+
+                {/* TRANSFERENCIA CUP */}
+                <button
+                  type="button"
+                  className={`deposit-network-card cup-method ${
+                    selectedMethod === "transferencia_cup"
+                      ? "selected"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    selectMethod("transferencia_cup")
+                  }
+                >
+                  <div className="deposit-network-icon transfer-icon">
+                    🏦
+                  </div>
+
+                  <div className="deposit-network-info">
+                    <strong>TRANSFERENCIA CUP</strong>
+                    <span>Transferencia bancaria · CUP</span>
+                  </div>
+
+                  {selectedMethod === "transferencia_cup" && (
+                    <div className="deposit-network-check cup-check">
+                      ✓
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* IMPORTE */}
             <div className="deposit-amount-wrapper">
-              <label htmlFor="deposit-amount">&nbsp;</label>
+              <label htmlFor="deposit-amount">
+                {isCupMethod
+                  ? "IMPORTE QUE VAS A ENVIAR"
+                  : "IMPORTE QUE VAS A DEPOSITAR"}
+              </label>
 
               <div className="deposit-amount-input">
-                <span>$</span>
+                <span>{isCupMethod ? "₱" : "$"}</span>
 
                 <input
                   id="deposit-amount"
@@ -274,39 +408,28 @@ export default function BalancePage() {
                   }}
                 />
 
-                <span>USD</span>
+                <span>{isCupMethod ? "CUP" : "USD"}</span>
               </div>
+
+              {isCupMethod && (
+                <p className="cup-amount-note">
+                  El balance que recibirás se calculará con la tasa
+                  vigente configurada por STORE GAMING.
+                </p>
+              )}
             </div>
 
-            {/* MÉTODO DE PAGO — ÚNICO MÉTODO: USDT BEP20 */}
-            <div className="deposit-networks-section deposit-single-method">
-              <div className="deposit-networks-title">
-                <strong>MÉTODO DE PAGO</strong>
-                <span>USDT</span>
-              </div>
-
-              <div className="deposit-networks">
-                <div className="deposit-network-card selected">
-                  <div className="deposit-network-icon tether-logo">
-                    <img
-                      src="/images/usdt-bep20-logo.png"
-                      alt="USDT BEP20"
-                    />
-                  </div>
-
-                  <div className="deposit-network-info">
-                    <strong>Tether USD</strong>
-                    <span>BNB Smart Chain · BEP-20</span>
-                  </div>
-
-                  <div className="deposit-network-check">✓</div>
-                </div>
-              </div>
+            {/* DESCRIPCIÓN */}
+            <div className="selected-method-description">
+              <span>ℹ️</span>
+              <p>{methodDescription}</p>
             </div>
 
             {/* ERROR */}
             {depositError && (
-              <div className="deposit-error">⚠️ {depositError}</div>
+              <div className="deposit-error">
+                ⚠️ {depositError}
+              </div>
             )}
 
             {/* CONFIRMAR */}
@@ -315,7 +438,7 @@ export default function BalancePage() {
               className="deposit-confirm-button"
               onClick={confirmDeposit}
             >
-              CONFIRMAR
+              CONTINUAR
               <span>→</span>
             </button>
 
@@ -333,80 +456,367 @@ export default function BalancePage() {
               <span>🛡️</span>
 
               <p>
-                Envía únicamente USDT por la red BNB Smart Chain (BEP-20).
-                Verifica la red antes de confirmar el depósito.
+                {selectedMethod === "BEP20"
+                  ? "Envía únicamente USDT por la red BNB Smart Chain (BEP-20). Verifica la red antes de confirmar."
+                  : "Los depósitos CUP requieren comprobante y confirmación del administrador antes de acreditar tu balance."}
               </p>
             </div>
           </section>
         </div>
       )}
 
-
       <style jsx global>{`
-        .balance-page .wallet-line-icon{width:30px;height:22px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;position:relative}.balance-page .wallet-line-icon::before{content:"";position:absolute;left:2px;right:2px;top:1px;height:13px;border:2px solid currentColor;border-radius:4px}.balance-page .wallet-line-icon::after{content:"";position:absolute;right:2px;bottom:1px;width:9px;height:6px;border:2px solid currentColor;border-radius:3px;background:transparent}.balance-page .wallet-line-icon i{display:block;width:19px;height:2px;background:currentColor;border-radius:2px;position:relative;z-index:2}.balance-page .wallet-line-icon-small{width:26px;height:20px}.balance-page .wallet-line-icon-small::before{left:1px;right:1px;height:12px}.balance-page .wallet-line-icon-small::after{right:1px}.balance-page .wallet-line-icon-small i{width:17px;height:2px}.balance-page .deposit-amount-wrapper label{min-height:12px;display:block;color:transparent}.balance-page .deposit-network-icon img{width:100%;height:100%;object-fit:contain;padding:5px}.balance-page .deposit-network-icon{overflow:hidden}.balance-page .insert-balance-icon{display:flex;align-items:center;justify-content:center}.balance-page .balance-wallet-symbol{display:flex;align-items:center;justify-content:center} 
-.balance-page .deposit-sheet {
-          background: radial-gradient(circle at 50% 0%, rgba(38,161,123,.13), transparent 34%), linear-gradient(180deg,#151515 0%,#050505 100%);
-          border:1px solid rgba(38,161,123,.18);
-          box-shadow:0 -28px 80px rgba(0,0,0,.85),0 -4px 30px rgba(38,161,123,.10);
+        .balance-page .wallet-line-icon {
+          width: 30px;
+          height: 22px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          align-items: center;
+          position: relative;
         }
-        .balance-page .deposit-sheet-header h2 span { color:#26a17b; }
-        .balance-page .deposit-amount-wrapper {
-          border:1px solid rgba(255,255,255,.12);
-          background:linear-gradient(145deg,#181818,#080808);
-          box-shadow:inset 0 1px rgba(255,255,255,.04),0 12px 28px rgba(0,0,0,.35);
+
+        .balance-page .wallet-line-icon::before {
+          content: "";
+          position: absolute;
+          left: 2px;
+          right: 2px;
+          top: 1px;
+          height: 13px;
+          border: 2px solid currentColor;
+          border-radius: 4px;
         }
+
+        .balance-page .wallet-line-icon::after {
+          content: "";
+          position: absolute;
+          right: 2px;
+          bottom: 1px;
+          width: 9px;
+          height: 6px;
+          border: 2px solid currentColor;
+          border-radius: 3px;
+          background: transparent;
+        }
+
+        .balance-page .wallet-line-icon i {
+          display: block;
+          width: 19px;
+          height: 2px;
+          background: currentColor;
+          border-radius: 2px;
+          position: relative;
+          z-index: 2;
+        }
+
+        .balance-page .wallet-line-icon-small {
+          width: 26px;
+          height: 20px;
+        }
+
+        .balance-page .wallet-line-icon-small::before {
+          left: 1px;
+          right: 1px;
+          height: 12px;
+        }
+
+        .balance-page .wallet-line-icon-small::after {
+          right: 1px;
+        }
+
+        .balance-page .wallet-line-icon-small i {
+          width: 17px;
+          height: 2px;
+        }
+
         .balance-page .deposit-amount-wrapper label {
-          color:#fff;
-          letter-spacing:.7px;
-          font-weight:950;
+          min-height: 12px;
+          display: block;
+          color: #fff;
+          letter-spacing: .7px;
+          font-weight: 950;
+          font-size: 11px;
+          margin-bottom: 9px;
         }
+
+        .balance-page .deposit-network-icon img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          padding: 5px;
+        }
+
+        .balance-page .deposit-network-icon {
+          overflow: hidden;
+        }
+
+        .balance-page .insert-balance-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .balance-page .balance-wallet-symbol {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .balance-page .deposit-sheet {
+          background:
+            radial-gradient(
+              circle at 50% 0%,
+              rgba(38, 161, 123, .13),
+              transparent 34%
+            ),
+            linear-gradient(180deg, #151515 0%, #050505 100%);
+          border: 1px solid rgba(38, 161, 123, .18);
+          box-shadow:
+            0 -28px 80px rgba(0, 0, 0, .85),
+            0 -4px 30px rgba(38, 161, 123, .10);
+        }
+
+        .balance-page .deposit-sheet-header h2 span {
+          color: #26a17b;
+        }
+
+        .balance-page .deposit-amount-wrapper {
+          border: 1px solid rgba(255, 255, 255, .12);
+          background: linear-gradient(145deg, #181818, #080808);
+          box-shadow:
+            inset 0 1px rgba(255, 255, 255, .04),
+            0 12px 28px rgba(0, 0, 0, .35);
+          padding: 15px;
+          border-radius: 14px;
+        }
+
         .balance-page .deposit-amount-input {
-          display:flex; align-items:center; gap:10px;
-          min-height:58px; padding:0 15px;
-          border-radius:14px;
-          background:#0b0b0b;
-          border:1px solid rgba(255,255,255,.08);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-height: 58px;
+          padding: 0 15px;
+          border-radius: 14px;
+          background: #0b0b0b;
+          border: 1px solid rgba(255, 255, 255, .08);
         }
+
         .balance-page .deposit-amount-input input {
-          flex:1; min-width:0; background:transparent; border:0; outline:0;
-          color:#fff; font-size:21px; font-weight:900;
+          flex: 1;
+          min-width: 0;
+          background: transparent;
+          border: 0;
+          outline: 0;
+          color: #fff;
+          font-size: 21px;
+          font-weight: 900;
         }
-        .balance-page .deposit-amount-input input::placeholder { color:#555; opacity:1; }
-        .balance-page .deposit-amount-input > span:first-child { color:#26a17b; font-weight:950; }
-        .balance-page .deposit-amount-input > span:last-child { color:#26a17b; font-size:10px; font-weight:950; }
-        .balance-page .deposit-single-method .deposit-network-card {
-          min-height:78px;
-          border-color:rgba(38,161,123,.42);
-          background:linear-gradient(145deg,rgba(38,161,123,.12),#0a0a0a);
-          box-shadow:0 12px 28px rgba(0,0,0,.38),0 0 18px rgba(38,161,123,.08);
+
+        .balance-page .deposit-amount-input input::placeholder {
+          color: #555;
+          opacity: 1;
         }
+
+        .balance-page .deposit-amount-input > span:first-child {
+          color: #26a17b;
+          font-weight: 950;
+        }
+
+        .balance-page .deposit-amount-input > span:last-child {
+          color: #26a17b;
+          font-size: 10px;
+          font-weight: 950;
+        }
+
+        .balance-page .deposit-networks-section {
+          margin: 20px 0;
+        }
+
+        .balance-page .deposit-networks-title {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
+        .balance-page .deposit-networks-title strong {
+          font-size: 11px;
+          letter-spacing: .8px;
+        }
+
+        .balance-page .deposit-networks-title span {
+          color: #999;
+          font-size: 10px;
+          font-weight: 900;
+        }
+
+        .balance-page .deposit-networks {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .balance-page .deposit-network-card {
+          width: 100%;
+          min-height: 78px;
+          display: flex;
+          align-items: center;
+          gap: 13px;
+          padding: 12px;
+          text-align: left;
+          color: #fff;
+          border: 1px solid rgba(255, 255, 255, .10);
+          border-radius: 13px;
+          background: linear-gradient(145deg, #181818, #0a0a0a);
+          cursor: pointer;
+          transition: .2s ease;
+        }
+
+        .balance-page .deposit-network-card.selected {
+          border-color: rgba(38, 161, 123, .65);
+          background: linear-gradient(
+            145deg,
+            rgba(38, 161, 123, .12),
+            #0a0a0a
+          );
+          box-shadow: 0 0 18px rgba(38, 161, 123, .09);
+        }
+
+        .balance-page .deposit-network-icon {
+          width: 48px;
+          height: 48px;
+          flex: 0 0 48px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+        }
+
         .balance-page .tether-logo {
-          width:48px; height:48px; flex:0 0 48px;
-          display:flex; align-items:center; justify-content:center;
-          border-radius:50%; background:#26a17b;
-          border:2px solid rgba(255,255,255,.12);
-          box-shadow:0 0 18px rgba(38,161,123,.28);
-          overflow:hidden;
+          background: #26a17b;
+          border: 2px solid rgba(255, 255, 255, .12);
+          box-shadow: 0 0 18px rgba(38, 161, 123, .28);
         }
-        .balance-page .tether-logo img { width:100%; height:100%; object-fit:contain; padding:7px; }
-        .balance-page .deposit-network-info strong { font-size:14px; }
-        .balance-page .deposit-network-info span { color:#26a17b; font-weight:800; }
+
+        .balance-page .tether-logo img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          padding: 7px;
+        }
+
+        .balance-page .cup-icon {
+          font-size: 25px;
+          background: rgba(230, 172, 55, .14);
+          border: 1px solid rgba(230, 172, 55, .35);
+        }
+
+        .balance-page .transfer-icon {
+          font-size: 24px;
+          background: rgba(75, 135, 230, .14);
+          border: 1px solid rgba(75, 135, 230, .35);
+        }
+
+        .balance-page .deposit-network-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .balance-page .deposit-network-info strong {
+          display: block;
+          font-size: 14px;
+          font-weight: 900;
+        }
+
+        .balance-page .deposit-network-info span {
+          display: block;
+          margin-top: 5px;
+          color: #26a17b;
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .balance-page .cup-method .deposit-network-info span {
+          color: #d5ad60;
+        }
+
         .balance-page .deposit-network-check {
-          width:28px; height:28px; border-radius:50%;
-          display:flex; align-items:center; justify-content:center;
-          background:#26a17b; color:#03140f; font-weight:950;
+          width: 28px;
+          height: 28px;
+          flex: 0 0 28px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #26a17b;
+          color: #03140f;
+          font-weight: 950;
         }
+
+        .balance-page .cup-check {
+          background: #c99b43;
+          color: #171006;
+        }
+
         .balance-page .deposit-confirm-button {
-          background:linear-gradient(135deg,#26a17b,#147a5c);
-          border-color:rgba(75,220,171,.55);
-          box-shadow:0 14px 32px rgba(38,161,123,.22), inset 0 1px rgba(255,255,255,.16);
+          background: linear-gradient(135deg, #26a17b, #147a5c);
+          border-color: rgba(75, 220, 171, .55);
+          box-shadow:
+            0 14px 32px rgba(38, 161, 123, .22),
+            inset 0 1px rgba(255, 255, 255, .16);
         }
+
+        .balance-page .cup-amount-note {
+          color: #aaa;
+          font-size: 11px;
+          line-height: 1.6;
+          margin: 10px 2px 0;
+        }
+
+        .balance-page .selected-method-description {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          padding: 12px;
+          margin: 14px 0;
+          background: rgba(255, 255, 255, .035);
+          border: 1px solid rgba(255, 255, 255, .07);
+          border-radius: 10px;
+        }
+
+        .balance-page .selected-method-description p {
+          color: #aaa;
+          font-size: 11px;
+          line-height: 1.6;
+          margin: 0;
+        }
+
         .balance-page .deposit-sheet-security {
-          border-color:rgba(38,161,123,.12);
-          background:rgba(38,161,123,.045);
+          border-color: rgba(38, 161, 123, .12);
+          background: rgba(38, 161, 123, .045);
+        }
+
+        @media (max-width: 480px) {
+          .balance-page .deposit-network-card {
+            min-height: 72px;
+            padding: 10px;
+          }
+
+          .balance-page .deposit-network-icon {
+            width: 42px;
+            height: 42px;
+            flex-basis: 42px;
+          }
+
+          .balance-page .deposit-network-info strong {
+            font-size: 12px;
+          }
+
+          .balance-page .deposit-network-info span {
+            font-size: 10px;
+          }
         }
       `}</style>
     </main>
   );
 }
-
