@@ -10,6 +10,11 @@ const ADMIN_EMAIL = "juliocesarblancomedina08@gmail.com";
 const RECEIPT_BUCKET = "manual-payment-receipts";
 const SIGNED_URL_SECONDS = 600;
 
+const ALLOWED_METHODS = [
+  "saldo_cup",
+  "transferencia_cup",
+];
+
 function responseError(message: string, status = 400) {
   return NextResponse.json(
     { success: false, error: message },
@@ -55,7 +60,7 @@ async function authenticateAdmin(request: NextRequest) {
   return { user };
 }
 
-// GET: consultar solicitudes de ambos métodos.
+// GET: consultar solicitudes.
 export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateAdmin(request);
@@ -65,6 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+
     const status = searchParams.get("status") || "pending";
     const method = searchParams.get("method") || "all";
 
@@ -77,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     if (
       method !== "all" &&
-      !["saldo_cup", "transferencia_cup"].includes(method)
+      !ALLOWED_METHODS.includes(method)
     ) {
       return responseError("Filtro de método no válido.");
     }
@@ -99,6 +105,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Manual orders GET:", error);
+
       return responseError(
         "No se pudieron consultar las solicitudes.",
         500
@@ -125,18 +132,21 @@ export async function GET(request: NextRequest) {
         email = profile?.email || null;
 
         if (!email) {
-          const { data: userData } =
+          const { data: userData, error: userError } =
             await supabaseAdmin.auth.admin.getUserById(
               order.user_id
             );
 
+          if (userError) {
+            console.error("User lookup:", userError);
+          }
+
           email = userData?.user?.email || null;
         }
 
-        // Los enlaces se generan únicamente para SALDO CUP.
-        // TRANSFERENCIA CUP se mantiene en modo demostración.
+        // Generar enlace para ambos métodos.
         if (
-          order.method === "saldo_cup" &&
+          ALLOWED_METHODS.includes(order.method) &&
           typeof order.receipt_url === "string" &&
           order.receipt_url.trim()
         ) {
@@ -144,18 +154,28 @@ export async function GET(request: NextRequest) {
           const expectedPrefix = `${order.user_id}/${order.id}/`;
 
           if (!receiptPath.startsWith(expectedPrefix)) {
-            receipt_error = "La ruta del comprobante no es válida.";
+            receipt_error =
+              "La ruta del comprobante no es válida.";
           } else {
-            const { data: signedData, error: signedError } =
-              await supabaseAdmin.storage
-                .from(RECEIPT_BUCKET)
-                .createSignedUrl(
-                  receiptPath,
-                  SIGNED_URL_SECONDS
-                );
+            const {
+              data: signedData,
+              error: signedError,
+            } = await supabaseAdmin.storage
+              .from(RECEIPT_BUCKET)
+              .createSignedUrl(
+                receiptPath,
+                SIGNED_URL_SECONDS
+              );
 
-            if (signedError || !signedData?.signedUrl) {
-              console.error("Signed URL:", signedError);
+            if (
+              signedError ||
+              !signedData?.signedUrl
+            ) {
+              console.error(
+                "Signed URL:",
+                signedError
+              );
+
               receipt_error =
                 "No se pudo generar el enlace del comprobante.";
             } else {
@@ -170,8 +190,15 @@ export async function GET(request: NextRequest) {
           username: null,
           receipt_signed_url,
           receipt_error,
-          demo_mode: order.method === "transferencia_cup",
-          can_process: order.method === "saldo_cup",
+
+          // Ningún método se marca automáticamente
+          // como demostración.
+          demo_mode: false,
+
+          // Ambos métodos pueden procesarse.
+          can_process: ALLOWED_METHODS.includes(
+            order.method
+          ),
         };
       })
     );
@@ -197,8 +224,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: procesamiento exclusivo de SALDO CUP.
-// TRANSFERENCIA CUP nunca puede llegar a la función SQL.
+// POST: aprobar o rechazar solicitudes.
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateAdmin(request);
@@ -216,7 +242,9 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch {
-      return responseError("El contenido enviado no es válido.");
+      return responseError(
+        "El contenido enviado no es válido."
+      );
     }
 
     const orderId = String(body.orderId || "").trim();
@@ -231,22 +259,31 @@ export async function POST(request: NextRequest) {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidPattern.test(orderId)) {
-      return responseError("Identificador de solicitud no válido.");
+      return responseError(
+        "Identificador de solicitud no válido."
+      );
     }
 
     if (!["approve", "reject"].includes(action)) {
       return responseError("Acción no permitida.");
     }
 
+    // Consultar solicitud.
     const { data: order, error: orderError } =
       await supabaseAdmin
         .from("manual_orders")
-        .select("id, user_id, method, status, receipt_url")
+        .select(
+          "id, user_id, method, status, receipt_url"
+        )
         .eq("id", orderId)
         .maybeSingle();
 
     if (orderError) {
-      console.error("Manual order lookup:", orderError);
+      console.error(
+        "Manual order lookup:",
+        orderError
+      );
+
       return responseError(
         "No se pudo verificar la solicitud.",
         500
@@ -254,20 +291,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (!order) {
-      return responseError("La solicitud no existe.", 404);
+      return responseError(
+        "La solicitud no existe.",
+        404
+      );
     }
 
-    if (order.method !== "saldo_cup") {
+    // Aceptar ambos métodos.
+    if (!ALLOWED_METHODS.includes(order.method)) {
       return responseError(
-        "Esta solicitud pertenece a TRANSFERENCIA CUP y está en modo demostración. No puede procesarse ni acreditar balances.",
-        403
+        "El método de pago no está permitido."
       );
     }
 
     if (order.status !== "pending") {
-      return responseError("Esta solicitud ya fue procesada.");
+      return responseError(
+        "Esta solicitud ya fue procesada."
+      );
     }
 
+    // Verificar comprobante antes de aprobar.
     if (action === "approve") {
       if (
         typeof order.receipt_url !== "string" ||
@@ -278,15 +321,20 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const expectedPrefix = `${order.user_id}/${orderId}/`;
+      const expectedPrefix =
+        `${order.user_id}/${orderId}/`;
 
-      if (!order.receipt_url.startsWith(expectedPrefix)) {
+      if (
+        !order.receipt_url.startsWith(expectedPrefix)
+      ) {
         return responseError(
           "El comprobante no tiene una ruta válida."
         );
       }
     }
 
+    // La función SQL bloquea el pedido y acredita
+    // el balance dentro de una única transacción.
     const { data, error } = await supabaseAdmin.rpc(
       "process_manual_order",
       {
@@ -301,7 +349,8 @@ export async function POST(request: NextRequest) {
       console.error("Manual order RPC:", error);
 
       return responseError(
-        error.message || "No se pudo procesar la solicitud.",
+        error.message ||
+          "No se pudo procesar la solicitud.",
         400
       );
     }
@@ -310,8 +359,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message:
         action === "approve"
-          ? "Solicitud SALDO CUP aprobada."
-          : "Solicitud SALDO CUP rechazada.",
+          ? "Solicitud aprobada correctamente. Balance acreditado."
+          : "Solicitud rechazada correctamente. No se modificó el balance.",
       result: data,
     });
   } catch (error) {
