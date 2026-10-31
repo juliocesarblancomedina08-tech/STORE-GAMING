@@ -14,12 +14,9 @@ export default function BalancePage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // DEPÓSITOS
   const [showDeposit, setShowDeposit] = useState(false);
-  const [depositAmount, setDepositAmount] = useState("");
   const [selectedMethod, setSelectedMethod] =
     useState<PaymentMethod>("BEP20");
-  const [depositError, setDepositError] = useState("");
 
   useEffect(() => {
     async function loadBalance() {
@@ -63,61 +60,34 @@ export default function BalancePage() {
   }, [router]);
 
   function openDeposit() {
-    setDepositAmount("");
-    setDepositError("");
     setSelectedMethod("BEP20");
     setShowDeposit(true);
   }
 
   function closeDeposit() {
     setShowDeposit(false);
-    setDepositError("");
   }
 
   function selectMethod(method: PaymentMethod) {
     setSelectedMethod(method);
-    setDepositAmount("");
-    setDepositError("");
   }
 
   function confirmDeposit() {
-    const numericAmount = Number(depositAmount);
-
-    if (
-      !depositAmount ||
-      !Number.isFinite(numericAmount) ||
-      numericAmount <= 0
-    ) {
-      setDepositError("Introduzca un importe válido mayor que cero.");
-      return;
-    }
+    setShowDeposit(false);
 
     if (selectedMethod === "BEP20") {
       // SE CONSERVA LA RUTA DEL DEPÓSITO AUTOMÁTICO EXISTENTE.
-      router.push(
-        `/balance/deposit?amount=${encodeURIComponent(
-          numericAmount.toFixed(2)
-        )}&network=${encodeURIComponent("BEP20")}`
-      );
+      router.push("/balance/deposit?network=BEP20");
       return;
     }
 
-    // NUEVOS MÉTODOS DE DEPÓSITO MANUAL.
+    // NUEVOS MÉTODOS CUP.
     router.push(
       `/balance/manual-deposit?method=${encodeURIComponent(
         selectedMethod
-      )}&amount=${encodeURIComponent(numericAmount.toFixed(2))}`
+      )}`
     );
   }
-
-  const isCupMethod = selectedMethod !== "BEP20";
-
-  const methodDescription =
-    selectedMethod === "BEP20"
-      ? "Deposita USDT mediante BNB Smart Chain."
-      : selectedMethod === "saldo_cup"
-        ? "Solicita un depósito mediante Saldo CUP."
-        : "Solicita un depósito mediante transferencia CUP.";
 
   if (loading) {
     return (
@@ -383,54 +353,18 @@ export default function BalancePage() {
               </div>
             </div>
 
-            {/* IMPORTE */}
-            <div className="deposit-amount-wrapper">
-              <label htmlFor="deposit-amount">
-                {isCupMethod
-                  ? "IMPORTE QUE VAS A ENVIAR"
-                  : "IMPORTE QUE VAS A DEPOSITAR"}
-              </label>
-
-              <div className="deposit-amount-input">
-                <span>{isCupMethod ? "₱" : "$"}</span>
-
-                <input
-                  id="deposit-amount"
-                  type="number"
-                  inputMode="decimal"
-                  min="0.01"
-                  step="0.01"
-                  placeholder="0000"
-                  value={depositAmount}
-                  onChange={(event) => {
-                    setDepositAmount(event.target.value);
-                    setDepositError("");
-                  }}
-                />
-
-                <span>{isCupMethod ? "CUP" : "USD"}</span>
-              </div>
-
-              {isCupMethod && (
-                <p className="cup-amount-note">
-                  El balance que recibirás se calculará con la tasa
-                  vigente configurada por STORE GAMING.
-                </p>
-              )}
-            </div>
-
             {/* DESCRIPCIÓN */}
             <div className="selected-method-description">
               <span>ℹ️</span>
-              <p>{methodDescription}</p>
-            </div>
 
-            {/* ERROR */}
-            {depositError && (
-              <div className="deposit-error">
-                ⚠️ {depositError}
-              </div>
-            )}
+              <p>
+                {selectedMethod === "BEP20"
+                  ? "Deposita USDT mediante BNB Smart Chain."
+                  : selectedMethod === "saldo_cup"
+                    ? "Continúa para consultar las instrucciones y realizar tu depósito mediante Saldo CUP."
+                    : "Continúa para consultar los datos bancarios y realizar tu transferencia CUP."}
+              </p>
+            </div>
 
             {/* CONFIRMAR */}
             <button
@@ -529,16 +463,6 @@ export default function BalancePage() {
           height: 2px;
         }
 
-        .balance-page .deposit-amount-wrapper label {
-          min-height: 12px;
-          display: block;
-          color: #fff;
-          letter-spacing: .7px;
-          font-weight: 950;
-          font-size: 11px;
-          margin-bottom: 9px;
-        }
-
         .balance-page .deposit-network-icon img {
           width: 100%;
           height: 100%;
@@ -550,12 +474,7 @@ export default function BalancePage() {
           overflow: hidden;
         }
 
-        .balance-page .insert-balance-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
+        .balance-page .insert-balance-icon,
         .balance-page .balance-wallet-symbol {
           display: flex;
           align-items: center;
@@ -580,63 +499,15 @@ export default function BalancePage() {
           color: #26a17b;
         }
 
-        .balance-page .deposit-amount-wrapper {
-          border: 1px solid rgba(255, 255, 255, .12);
-          background: linear-gradient(145deg, #181818, #080808);
-          box-shadow:
-            inset 0 1px rgba(255, 255, 255, .04),
-            0 12px 28px rgba(0, 0, 0, .35);
-          padding: 15px;
-          border-radius: 14px;
-        }
-
-        .balance-page .deposit-amount-input {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-height: 58px;
-          padding: 0 15px;
-          border-radius: 14px;
-          background: #0b0b0b;
-          border: 1px solid rgba(255, 255, 255, .08);
-        }
-
-        .balance-page .deposit-amount-input input {
-          flex: 1;
-          min-width: 0;
-          background: transparent;
-          border: 0;
-          outline: 0;
-          color: #fff;
-          font-size: 21px;
-          font-weight: 900;
-        }
-
-        .balance-page .deposit-amount-input input::placeholder {
-          color: #555;
-          opacity: 1;
-        }
-
-        .balance-page .deposit-amount-input > span:first-child {
-          color: #26a17b;
-          font-weight: 950;
-        }
-
-        .balance-page .deposit-amount-input > span:last-child {
-          color: #26a17b;
-          font-size: 10px;
-          font-weight: 950;
-        }
-
         .balance-page .deposit-networks-section {
-          margin: 20px 0;
+          margin: 22px 0;
         }
 
         .balance-page .deposit-networks-title {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 12px;
+          margin-bottom: 14px;
         }
 
         .balance-page .deposit-networks-title strong {
@@ -653,7 +524,7 @@ export default function BalancePage() {
         .balance-page .deposit-networks {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 11px;
         }
 
         .balance-page .deposit-network-card {
@@ -764,13 +635,6 @@ export default function BalancePage() {
           box-shadow:
             0 14px 32px rgba(38, 161, 123, .22),
             inset 0 1px rgba(255, 255, 255, .16);
-        }
-
-        .balance-page .cup-amount-note {
-          color: #aaa;
-          font-size: 11px;
-          line-height: 1.6;
-          margin: 10px 2px 0;
         }
 
         .balance-page .selected-method-description {
