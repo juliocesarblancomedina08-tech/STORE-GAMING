@@ -30,6 +30,7 @@ async function authenticateUser(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. Verificar usuario
     const user = await authenticateUser(request);
 
     if (!user) {
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 2. Leer importe
     const body = await request.json();
     const amountCup = Number(body.amount_cup);
 
@@ -60,6 +62,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 3. Consultar tasa configurada
     const { data: settings, error: settingsError } =
       await supabaseAdmin
         .from("manual_payment_settings")
@@ -68,10 +71,15 @@ export async function POST(request: NextRequest) {
         .single();
 
     if (settingsError || !settings) {
+      console.error(
+        "Error consultando tasa TRANSFERENCIA CUP:",
+        settingsError
+      );
+
       return NextResponse.json(
         {
           success: false,
-          error: "No se pudo cargar la tasa de prueba.",
+          error: "No se pudo consultar la tasa de cambio.",
         },
         { status: 500 }
       );
@@ -88,16 +96,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "La tasa de prueba no está configurada.",
+          error: "La tasa de cambio no está configurada correctamente.",
         },
         { status: 500 }
       );
     }
 
+    // 4. Calcular crédito de STORE GAMING
     const balanceAmount = Number(
       (amountCup / exchangeRate).toFixed(4)
     );
 
+    if (
+      !Number.isFinite(balanceAmount) ||
+      balanceAmount <= 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No se pudo calcular el importe del crédito.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 5. Crear pedido real pendiente de revisión
     const { data: order, error: insertError } =
       await supabaseAdmin
         .from("manual_orders")
@@ -110,41 +133,40 @@ export async function POST(request: NextRequest) {
           confirmation_number: null,
           receipt_url: null,
           status: "pending",
-          admin_note:
-            "MODO DEMOSTRACIÓN: solicitud de prueba. No acredita fondos.",
         })
         .select(
-          "id, amount_cup, exchange_rate, balance_amount, status, created_at"
+          "id, user_id, method, amount_cup, exchange_rate, balance_amount, status, created_at"
         )
         .single();
 
     if (insertError || !order) {
       console.error(
-        "Error creando solicitud TRANSFERENCIA CUP:",
+        "Error creando pedido TRANSFERENCIA CUP:",
         insertError
       );
 
       return NextResponse.json(
         {
           success: false,
-          error: "No se pudo registrar la solicitud.",
+          error: "No se pudo registrar el pedido.",
         },
         { status: 500 }
       );
     }
 
+    // 6. Confirmar registro
     return NextResponse.json(
       {
         success: true,
-        demo_mode: true,
-        message: "Solicitud de prueba registrada.",
+        message:
+          "Solicitud enviada correctamente. Está pendiente de revisión por el administrador.",
         order,
       },
       { status: 201 }
     );
   } catch (error) {
     console.error(
-      "Error en TRANSFERENCIA CUP:",
+      "Error en API TRANSFERENCIA CUP:",
       error
     );
 
