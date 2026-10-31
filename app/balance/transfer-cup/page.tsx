@@ -1,1015 +1,995 @@
+
 "use client";
 
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
 type TransferSettings = {
-exchange_rate: number;
-transfer_card: string;
-confirmation_number: string;
+  exchange_rate: number;
 };
 
-type DemoOrder = {
-reference: string;
-amountCup: number;
-exchangeRate: number;
-balanceAmount: number;
-senderPhone: string;
-fileName: string;
-createdAt: string;
+type CreatedOrder = {
+  id: string;
+  amount_cup: number;
+  exchange_rate: number;
+  balance_amount: number;
+  status: string;
+  created_at: string;
 };
 
 export default function TransferCupPage() {
-const router = useRouter();
+  const router = useRouter();
 
-const [loading, setLoading] = useState(true);
-const [submitting, setSubmitting] = useState(false);
-const [settings, setSettings] = useState<TransferSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [settings, setSettings] =
+    useState<TransferSettings | null>(null);
 
-const [amount, setAmount] = useState("");
-const [senderPhone, setSenderPhone] = useState("");
-const [receipt, setReceipt] = useState<File | null>(null);
-const [receiptPreview, setReceiptPreview] = useState("");
+  const [amount, setAmount] = useState("");
+  const [order, setOrder] =
+    useState<CreatedOrder | null>(null);
 
-const [demoOrder, setDemoOrder] = useState<DemoOrder | null>(null);
-const [error, setError] = useState("");
+  const [userToken, setUserToken] = useState("");
+  const [error, setError] = useState("");
 
-useEffect(() => {
-let active = true;
+  useEffect(() => {
+    let active = true;
 
-async function loadPage() {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    async function initialize() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-  if (!session?.user) {
-    router.replace("/");
-    return;
+        if (!session?.user) {
+          router.replace("/");
+          return;
+        }
+
+        if (!active) return;
+
+        setUserToken(session.access_token);
+
+        const response = await fetch(
+          "/api/transfer-cup/settings",
+          { cache: "no-store" }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.error ||
+              "No se pudo cargar la configuración."
+          );
+        }
+
+        const rate = Number(
+          result.exchange_rate ??
+          result.settings?.exchange_rate
+        );
+
+        if (!Number.isFinite(rate) || rate <= 0) {
+          throw new Error("La tasa de prueba no es válida.");
+        }
+
+        if (!active) return;
+
+        setSettings({
+          exchange_rate: rate,
+        });
+      } catch (err) {
+        if (active) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "No se pudo cargar la página."
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    initialize();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  const cupAmount = Number(amount);
+
+  const balanceAmount =
+    settings &&
+    Number.isFinite(cupAmount) &&
+    cupAmount > 0
+      ? Number(
+          (cupAmount / settings.exchange_rate).toFixed(4)
+        )
+      : 0;
+
+  function handleAmountChange(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    setAmount(event.target.value);
+    setError("");
   }
 
-  try {
-    const response = await fetch("/api/transfer-cup/settings", {
-      cache: "no-store",
-    });
+  async function sendRequest() {
+    if (sending || order) return;
 
-    const result = await response.json();
+    setError("");
 
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || "No se pudo cargar la tasa.");
+    if (!userToken) {
+      setError(
+        "Tu sesión ha expirado. Inicia sesión nuevamente."
+      );
+      return;
     }
 
-    if (active) {
-      setSettings({
-        exchange_rate: Number(result.exchange_rate),
-        transfer_card: result.transfer_card,
-        confirmation_number: result.confirmation_number,
-      });
+    if (
+      !Number.isFinite(cupAmount) ||
+      cupAmount <= 0
+    ) {
+      setError("Introduce un importe válido en CUP.");
+      return;
     }
-  } catch (err) {
-    if (active) {
+
+    setSending(true);
+
+    try {
+      const response = await fetch(
+        "/api/transfer-cup/orders",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            amount_cup: cupAmount,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error ||
+            "No se pudo registrar la solicitud."
+        );
+      }
+
+      setOrder(result.order);
+    } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudieron cargar los datos."
+          : "Ocurrió un error al enviar la solicitud."
       );
+    } finally {
+      setSending(false);
     }
-  } finally {
-    if (active) setLoading(false);
   }
-}
 
-loadPage();
-
-return () => {
-  active = false;
-};
-
-}, [router]);
-
-const amountCup = Number(amount);
-const exchangeRate = settings?.exchange_rate || 0;
-const balanceAmount =
-amountCup > 0 && exchangeRate > 0
-? amountCup / exchangeRate
-: 0;
-
-function handleReceiptChange(event: ChangeEvent<HTMLInputElement>) {
-const file = event.target.files?.[0];
-
-setError("");
-setReceipt(null);
-setReceiptPreview("");
-
-if (!file) return;
-
-const allowedTypes = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-];
-
-if (!allowedTypes.includes(file.type)) {
-  setError("Selecciona una imagen JPG, PNG o WEBP.");
-  event.target.value = "";
-  return;
-}
-
-if (file.size > 5 * 1024 * 1024) {
-  setError("La imagen no puede superar los 5 MB.");
-  event.target.value = "";
-  return;
-}
-
-setReceipt(file);
-setReceiptPreview(URL.createObjectURL(file));
-
-}
-
-function handleSubmit(event: FormEvent<HTMLFormElement>) {
-event.preventDefault();
-setError("");
-
-if (!settings || exchangeRate <= 0) {
-  setError("No se encuentra disponible la tasa de demostración.");
-  return;
-}
-
-if (!Number.isFinite(amountCup) || amountCup <= 0) {
-  setError("Introduce un importe CUP válido.");
-  return;
-}
-
-if (!senderPhone.trim()) {
-  setError("Introduce el número de teléfono del remitente.");
-  return;
-}
-
-if (!/^[0-9+\-\s]{6,20}$/.test(senderPhone.trim())) {
-  setError("Revisa el formato del número de teléfono.");
-  return;
-}
-
-if (!receipt) {
-  setError("Selecciona una imagen de comprobante de prueba.");
-  return;
-}
-
-setSubmitting(true);
-
-const reference =
-  "DEMO-" +
-  Date.now().toString().slice(-8) +
-  "-" +
-  Math.floor(100 + Math.random() * 900);
-
-setDemoOrder({
-  reference,
-  amountCup,
-  exchangeRate,
-  balanceAmount,
-  senderPhone: senderPhone.trim(),
-  fileName: receipt.name,
-  createdAt: new Date().toLocaleString("es-ES"),
-});
-
-setSubmitting(false);
-
-}
-
-function resetDemo() {
-setDemoOrder(null);
-setAmount("");
-setSenderPhone("");
-setReceipt(null);
-setReceiptPreview("");
-setError("");
-}
-
-if (loading) {
-return (
-<main className="transfer-page">
-<div className="transfer-loading">
-<div className="transfer-logo">🏦</div>
-<div className="transfer-spinner" />
-<p>CARGANDO TRANSFERENCIA CUP...</p>
-</div>
-
-    <style jsx global>{styles}</style>
-  </main>
-);
-
-}
-
-if (demoOrder) {
-return (
-<main className="transfer-page">
-<div className="transfer-background" />
-
-    <header className="transfer-header">
-      <button
-        type="button"
-        className="transfer-back"
-        onClick={() => router.push("/balance")}
-      >
-        ←
-      </button>
-
-      <div>
-        <small>STORE GAMING</small>
-        <h1>RESULTADO <span>DE PRUEBA</span></h1>
-      </div>
-    </header>
-
-    <section className="transfer-container">
-      <div className="success-card">
-        <div className="success-icon">✓</div>
-
-        <div className="demo-label">
-          PEDIDO DE PRUEBA — PENDIENTE
+  if (loading) {
+    return (
+      <main className="transfer-page">
+        <div className="transfer-loading">
+          <div className="transfer-spinner" />
+          <p>CARGANDO TRANSFERENCIA CUP...</p>
         </div>
+        <TransferStyles />
+      </main>
+    );
+  }
 
-        <h2>VALIDACIÓN COMPLETADA</h2>
+  if (!settings) {
+    return (
+      <main className="transfer-page">
+        <div className="transfer-background" />
 
-        <p>
-          Los datos se validaron correctamente en esta pantalla.
-          No se ha creado un pedido real ni se ha modificado tu balance.
-        </p>
-
-        <div className="reference-box">
-          <small>REFERENCIA DE PRUEBA</small>
-          <strong>{demoOrder.reference}</strong>
-        </div>
-
-        <div className="summary">
-          <div>
-            <span>Importe introducido</span>
-            <strong>
-              {demoOrder.amountCup.toFixed(2)} CUP
-            </strong>
-          </div>
-
-          <div>
-            <span>Tasa utilizada</span>
-            <strong>
-              {demoOrder.exchangeRate.toFixed(4)}
-            </strong>
-          </div>
-
-          <div>
-            <span>Balance calculado de prueba</span>
-            <strong>
-              {demoOrder.balanceAmount.toFixed(4)}
-            </strong>
-          </div>
-
-          <div>
-            <span>Teléfono introducido</span>
-            <strong>{demoOrder.senderPhone}</strong>
-          </div>
-
-          <div>
-            <span>Archivo seleccionado</span>
-            <strong className="file-name">
-              {demoOrder.fileName}
-            </strong>
-          </div>
-
-          <div>
-            <span>Fecha de validación</span>
-            <strong>{demoOrder.createdAt}</strong>
-          </div>
-        </div>
-
-        <div className="demo-warning">
-          <span>ℹ️</span>
+        <section className="transfer-error">
+          <h2>NO SE PUDO CARGAR</h2>
           <p>
-            Esta referencia solo existe en esta sesión de demostración.
-            No representa una transferencia bancaria ni una solicitud
-            registrada en STORE GAMING.
+            {error ||
+              "Inténtalo nuevamente más tarde."}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => router.push("/balance")}
+          >
+            VOLVER A MI BILLETERA
+          </button>
+        </section>
+
+        <TransferStyles />
+      </main>
+    );
+  }
+
+  if (order) {
+    return (
+      <main className="transfer-page">
+        <div className="transfer-background" />
+
+        <section className="transfer-success">
+          <div className="transfer-success-icon">
+            ✓
+          </div>
+
+          <small>STORE GAMING</small>
+
+          <h1>
+            SOLICITUD <span>REGISTRADA</span>
+          </h1>
+
+          <p>
+            La solicitud de prueba se registró
+            correctamente en el sistema.
+          </p>
+
+          <div className="transfer-demo-notice">
+            MODO DEMOSTRACIÓN
+            <p>
+              Este registro no representa un pago real
+              y no modifica el balance de la cuenta.
+            </p>
+          </div>
+
+          <div className="transfer-details">
+            <div>
+              <span>NÚMERO DE ORDEN</span>
+              <strong className="transfer-order-id">
+                {order.id}
+              </strong>
+            </div>
+
+            <div>
+              <span>IMPORTE DE REFERENCIA</span>
+              <strong>
+                {Number(order.amount_cup).toFixed(2)} CUP
+              </strong>
+            </div>
+
+            <div>
+              <span>TASA UTILIZADA</span>
+              <strong>
+                {Number(order.exchange_rate)}
+              </strong>
+            </div>
+
+            <div>
+              <span>CRÉDITO DE REFERENCIA</span>
+              <strong>
+                {Number(order.balance_amount).toFixed(4)}
+              </strong>
+            </div>
+
+            <div>
+              <span>ESTADO</span>
+              <strong className="transfer-pending">
+                {order.status.toUpperCase()}
+              </strong>
+            </div>
+
+            <div>
+              <span>FECHA DE REGISTRO</span>
+              <strong>
+                {new Date(
+                  order.created_at
+                ).toLocaleString()}
+              </strong>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => router.push("/balance")}
+          >
+            VOLVER A MI BILLETERA
+          </button>
+        </section>
+
+        <TransferStyles />
+      </main>
+    );
+  }
+
+  return (
+    <main className="transfer-page">
+      <div className="transfer-background" />
+
+      <header className="transfer-header">
+        <button
+          type="button"
+          className="transfer-back"
+          onClick={() => router.push("/balance")}
+        >
+          ←
+        </button>
+
+        <div>
+          <small>STORE GAMING</small>
+          <h1>
+            TRANSFERENCIA <span>CUP</span>
+          </h1>
+        </div>
+
+        <div className="transfer-header-icon">
+          ⇄
+        </div>
+      </header>
+
+      <section className="transfer-content">
+        <div className="transfer-intro">
+          <span className="transfer-tag">
+            SOLICITUD DE PRUEBA
+          </span>
+
+          <h2>TRANSFERENCIA CUP</h2>
+
+          <p>
+            Introduce un importe para registrar una
+            solicitud de prueba en STORE GAMING.
+          </p>
+        </div>
+
+        <div className="transfer-rate-card">
+          <div>
+            <small>TASA CONFIGURADA</small>
+            <strong>
+              1 BALANCE = {settings.exchange_rate} CUP
+            </strong>
+          </div>
+
+          <span>⇄</span>
+        </div>
+
+        <div className="transfer-card">
+          <label htmlFor="transfer-amount">
+            IMPORTE DE REFERENCIA
+          </label>
+
+          <div className="transfer-input-wrap">
+            <input
+              id="transfer-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="Ejemplo: 200"
+              value={amount}
+              onChange={handleAmountChange}
+              disabled={sending}
+            />
+
+            <span>CUP</span>
+          </div>
+
+          <div className="transfer-result">
+            <div>
+              <small>CRÉDITO DE REFERENCIA</small>
+              <strong>
+                {balanceAmount.toFixed(4)}
+              </strong>
+            </div>
+
+            <span>NO ACREDITABLE</span>
+          </div>
+        </div>
+
+        <div className="transfer-summary">
+          <h3>RESUMEN DE LA SOLICITUD</h3>
+
+          <div>
+            <span>Importe de referencia</span>
+            <strong>
+              {cupAmount > 0
+                ? `${cupAmount.toFixed(2)} CUP`
+                : "0.00 CUP"}
+            </strong>
+          </div>
+
+          <div>
+            <span>Tasa configurada</span>
+            <strong>
+              {settings.exchange_rate}
+            </strong>
+          </div>
+
+          <div className="transfer-summary-total">
+            <span>VALOR DE REFERENCIA</span>
+            <strong>
+              {balanceAmount.toFixed(4)}
+            </strong>
+          </div>
+        </div>
+
+        <div className="transfer-demo-notice">
+          MODO DEMOSTRACIÓN
+          <p>
+            Al enviar se creará una orden de prueba
+            en Administración. No se procesan pagos
+            ni se modifica el balance.
+          </p>
+        </div>
+
+        {error && (
+          <div className="transfer-error-message">
+            {error}
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="transfer-submit"
+          onClick={sendRequest}
+          disabled={
+            sending ||
+            !amount ||
+            !Number.isFinite(cupAmount) ||
+            cupAmount <= 0
+          }
+        >
+          {sending
+            ? "REGISTRANDO SOLICITUD..."
+            : "ENVIAR SOLICITUD"}
+          {!sending && <span>→</span>}
+        </button>
+
+        <div className="transfer-security">
+          <span>ⓘ</span>
+          <p>
+            La orden aparecerá identificada como
+            TRANSFERENCIA CUP en Administración →
+            Órdenes y estará marcada como demostración.
           </p>
         </div>
 
         <button
           type="button"
-          className="primary-button"
-          onClick={resetDemo}
-        >
-          REALIZAR OTRA PRUEBA
-        </button>
-
-        <button
-          type="button"
-          className="secondary-button"
+          className="transfer-cancel"
           onClick={() => router.push("/balance")}
+          disabled={sending}
         >
-          VOLVER A MI BILLETERA
+          CANCELAR Y VOLVER
         </button>
-      </div>
-    </section>
-
-    <style jsx global>{styles}</style>
-  </main>
-);
-
-}
-
-return (
-<main className="transfer-page">
-<div className="transfer-background" />
-
-  <header className="transfer-header">
-    <button
-      type="button"
-      className="transfer-back"
-      onClick={() => router.push("/balance")}
-      aria-label="Volver"
-    >
-      ←
-    </button>
-
-    <div>
-      <small>STORE GAMING</small>
-      <h1>TRANSFERENCIA <span>CUP</span></h1>
-    </div>
-
-    <div className="transfer-header-icon">🏦</div>
-  </header>
-
-  <section className="transfer-container">
-    <div className="transfer-intro">
-      <span className="intro-tag">MÉTODO CUP</span>
-      <h2>DATOS DE TRANSFERENCIA</h2>
-      <p>
-        Consulta los datos y utiliza el formulario para probar
-        la validación de la pantalla.
-      </p>
-    </div>
-
-    <div className="bank-card">
-      <div className="bank-card-top">
-        <span>TARJETA DE DESTINO</span>
-        <span className="bank-chip">CUP</span>
-      </div>
-
-      <div className="bank-card-number">
-        {settings?.transfer_card || "No disponible"}
-      </div>
-
-      <div className="bank-card-bottom">
-        <div>
-          <small>NÚMERO A CONFIRMAR</small>
-          <strong>
-            {settings?.confirmation_number || "No disponible"}
-          </strong>
-        </div>
-        <span>STORE GAMING</span>
-      </div>
-    </div>
-
-    <div className="rate-card">
-      <div>
-        <small>TASA DE DEMOSTRACIÓN</small>
-        <strong>
-          {exchangeRate > 0
-            ? `${exchangeRate.toFixed(4)} CUP`
-            : "No disponible"}
-        </strong>
-      </div>
-
-      <span>↔</span>
-
-      <div>
-        <small>CALCULADORA</small>
-        <strong>BALANCE DE PRUEBA</strong>
-      </div>
-    </div>
-
-    <form className="transfer-form" onSubmit={handleSubmit}>
-      <div className="form-heading">
-        <h2>DATOS DE LA PRUEBA</h2>
-        <span>DEMO</span>
-      </div>
-
-      <label htmlFor="amount">
-        IMPORTE EN CUP
-      </label>
-
-      <input
-        id="amount"
-        type="number"
-        min="0.01"
-        step="0.01"
-        placeholder="Ejemplo: 1000"
-        value={amount}
-        onChange={(event) => setAmount(event.target.value)}
-      />
-
-      <div className="calculation-card">
-        <span>BALANCE CALCULADO DE PRUEBA</span>
-        <strong>{balanceAmount.toFixed(4)}</strong>
-        <small>
-          Cálculo informativo; no se acredita en tu cuenta.
-        </small>
-      </div>
-
-      <label htmlFor="senderPhone">
-        TELÉFONO DEL REMITENTE
-      </label>
-
-      <input
-        id="senderPhone"
-        type="tel"
-        placeholder="Introduce el teléfono"
-        value={senderPhone}
-        onChange={(event) => setSenderPhone(event.target.value)}
-        maxLength={20}
-      />
-
-      <label htmlFor="receipt">
-        IMAGEN DE COMPROBANTE DE PRUEBA
-      </label>
-
-      <label className="upload-box" htmlFor="receipt">
-        <span className="upload-icon">📷</span>
-        <strong>
-          {receipt ? "IMAGEN SELECCIONADA" : "SELECCIONAR IMAGEN"}
-        </strong>
-        <small>JPG, PNG o WEBP · Máximo 5 MB</small>
-      </label>
-
-      <input
-        id="receipt"
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        onChange={handleReceiptChange}
-        hidden
-      />
-
-      {receiptPreview && (
-        <div className="receipt-preview">
-          <img src={receiptPreview} alt="Vista previa de prueba" />
-          <span>{receipt?.name}</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="error-message">
-          <span>!</span>
-          {error}
-        </div>
-      )}
-
-      <div className="demo-warning">
-        <span>ℹ️</span>
-        <p>
-          MODO DEMOSTRACIÓN: los datos solo se validan localmente.
-          No se envían comprobantes, no se registran pedidos y no
-          se modifica ningún balance.
-        </p>
-      </div>
-
-      <button
-        type="submit"
-        className="primary-button"
-        disabled={submitting}
-      >
-        {submitting ? "VALIDANDO..." : "ENVIAR PEDIDO DE PRUEBA"}
-        <span>→</span>
-      </button>
-    </form>
-  </section>
-
-  <style jsx global>{styles}</style>
-</main>
-
-);
-}
-
-const styles = `
-.transfer-page {
-min-height: 100vh;
-background: #070707;
-color: #fff;
-position: relative;
-overflow: hidden;
-padding-bottom: 50px;
-}
-
-.transfer-background {
-position: fixed;
-inset: 0;
-pointer-events: none;
-background:
-radial-gradient(circle at 50% 0%, rgba(180, 25, 35, .16), transparent 38%),
-radial-gradient(circle at 100% 70%, rgba(35, 75, 145, .07), transparent 35%);
-}
-
-.transfer-header {
-position: relative;
-z-index: 1;
-max-width: 760px;
-margin: auto;
-padding: 25px 20px;
-display: flex;
-align-items: center;
-gap: 15px;
-}
-
-.transfer-header small {
-color: #999;
-font-size: 10px;
-font-weight: 900;
-letter-spacing: 2px;
-}
-
-.transfer-header h1 {
-margin: 4px 0 0;
-font-size: 20px;
-font-weight: 950;
-letter-spacing: .5px;
-}
-
-.transfer-header h1 span {
-color: #e04444;
-}
-
-.transfer-back {
-width: 42px;
-height: 42px;
-border-radius: 12px;
-border: 1px solid #333;
-background: #151515;
-color: white;
-font-size: 23px;
-cursor: pointer;
-}
-
-.transfer-header-icon {
-margin-left: auto;
-font-size: 25px;
-}
-
-.transfer-container {
-position: relative;
-z-index: 1;
-width: min(100% - 30px, 620px);
-margin: 10px auto;
-}
-
-.transfer-intro {
-margin-bottom: 20px;
-}
-
-.intro-tag {
-display: inline-block;
-padding: 6px 10px;
-border-radius: 6px;
-background: rgba(224, 68, 68, .12);
-color: #f06a6a;
-font-size: 10px;
-font-weight: 900;
-letter-spacing: 1px;
-}
-
-.transfer-intro h2 {
-margin: 12px 0 7px;
-font-size: 19px;
-font-weight: 950;
-}
-
-.transfer-intro p {
-color: #999;
-font-size: 12px;
-line-height: 1.6;
-}
-
-.bank-card {
-padding: 23px;
-border-radius: 18px;
-border: 1px solid rgba(255,255,255,.12);
-background: linear-gradient(135deg, #202020, #101010 60%, #191919);
-box-shadow: 0 18px 45px rgba(0,0,0,.35);
-}
-
-.bank-card-top,
-.bank-card-bottom {
-display: flex;
-align-items: center;
-justify-content: space-between;
-}
-
-.bank-card-top {
-color: #aaa;
-font-size: 10px;
-font-weight: 900;
-letter-spacing: 1px;
-}
-
-.bank-chip {
-color: #f0c46b;
-border: 1px solid rgba(240,196,107,.35);
-border-radius: 5px;
-padding: 5px 8px;
-}
-
-.bank-card-number {
-margin: 27px 0;
-font-size: clamp(20px, 5vw, 27px);
-font-weight: 900;
-letter-spacing: 1.5px;
-overflow-wrap: anywhere;
-}
-
-.bank-card-bottom small,
-.bank-card-bottom strong {
-display: block;
-}
-
-.bank-card-bottom small {
-color: #999;
-font-size: 9px;
-margin-bottom: 7px;
-}
-
-.bank-card-bottom strong {
-color: #f0c46b;
-font-size: 17px;
-letter-spacing: 1px;
-}
-
-.bank-card-bottom > span {
-color: #aaa;
-font-size: 10px;
-font-weight: 900;
-}
-
-.rate-card {
-margin: 15px 0 24px;
-padding: 15px;
-display: flex;
-align-items: center;
-justify-content: space-between;
-gap: 10px;
-border-radius: 12px;
-background: #121212;
-border: 1px solid #292929;
-}
-
-.rate-card div {
-min-width: 0;
-}
-
-.rate-card small,
-.rate-card strong {
-display: block;
-}
-
-.rate-card small {
-color: #999;
-font-size: 9px;
-margin-bottom: 7px;
-}
-
-.rate-card strong {
-font-size: 12px;
-color: #e9c16d;
-}
-
-.rate-card > span {
-color: #777;
-}
-
-.transfer-form,
-.success-card {
-padding: 21px;
-border-radius: 16px;
-border: 1px solid #292929;
-background: linear-gradient(160deg, #151515, #0c0c0c);
-}
-
-.form-heading {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-bottom: 22px;
-}
-
-.form-heading h2 {
-font-size: 14px;
-margin: 0;
-font-weight: 950;
-}
-
-.form-heading span {
-color: #f0c46b;
-font-size: 10px;
-font-weight: 900;
-}
-
-.transfer-form > label:not(.upload-box) {
-display: block;
-color: #bbb;
-font-size: 10px;
-font-weight: 900;
-letter-spacing: .7px;
-margin: 17px 0 8px;
-}
-
-.transfer-form input:not([type="file"]) {
-width: 100%;
-min-height: 48px;
-border-radius: 10px;
-border: 1px solid #333;
-outline: none;
-background: #090909;
-color: white;
-padding: 0 13px;
-font-size: 14px;
-}
-
-.transfer-form input:focus {
-border-color: #c94343;
-}
-
-.calculation-card {
-margin-top: 10px;
-padding: 14px;
-border-radius: 10px;
-background: rgba(38,161,123,.08);
-border: 1px solid rgba(38,161,123,.2);
-}
-
-.calculation-card span,
-.calculation-card strong,
-.calculation-card small {
-display: block;
-}
-
-.calculation-card span {
-color: #aaa;
-font-size: 9px;
-font-weight: 900;
-}
-
-.calculation-card strong {
-margin: 7px 0;
-color: #57d6a7;
-font-size: 25px;
-}
-
-.calculation-card small {
-color: #888;
-font-size: 10px;
-}
-
-.upload-box {
-min-height: 105px;
-display: flex;
-flex-direction: column;
-align-items: center;
-justify-content: center;
-gap: 6px;
-border: 1px dashed #555;
-border-radius: 11px;
-background: #101010;
-cursor: pointer;
-text-align: center;
-}
-
-.upload-icon {
-font-size: 23px;
-}
-
-.upload-box strong {
-font-size: 11px;
-}
-
-.upload-box small {
-color: #888;
-font-size: 10px;
-}
-
-.receipt-preview {
-margin-top: 12px;
-padding: 10px;
-display: flex;
-align-items: center;
-gap: 12px;
-border: 1px solid #333;
-border-radius: 10px;
-}
-
-.receipt-preview img {
-width: 65px;
-height: 65px;
-border-radius: 7px;
-object-fit: cover;
-}
-
-.receipt-preview span {
-color: #bbb;
-font-size: 11px;
-overflow-wrap: anywhere;
-}
-
-.demo-warning {
-display: flex;
-gap: 10px;
-margin: 18px 0;
-padding: 13px;
-border: 1px solid rgba(230,172,55,.2);
-border-radius: 10px;
-background: rgba(230,172,55,.06);
-}
-
-.demo-warning p {
-margin: 0;
-color: #c4b58f;
-font-size: 10px;
-line-height: 1.6;
-}
-
-.error-message {
-margin-top: 14px;
-padding: 11px;
-border-radius: 9px;
-background: rgba(220,50,50,.1);
-border: 1px solid rgba(220,50,50,.3);
-color: #ff8585;
-font-size: 11px;
-}
-
-.primary-button,
-.secondary-button {
-width: 100%;
-min-height: 49px;
-border-radius: 10px;
-font-size: 11px;
-font-weight: 950;
-cursor: pointer;
-}
-
-.primary-button {
-display: flex;
-justify-content: center;
-align-items: center;
-gap: 10px;
-color: white;
-border: 1px solid rgba(255,100,100,.4);
-background: linear-gradient(135deg, #bd3434, #791d1d);
-box-shadow: 0 10px 25px rgba(180,35,35,.18);
-}
-
-.primary-button:disabled {
-opacity: .6;
-cursor: not-allowed;
-}
-
-.secondary-button {
-margin-top: 10px;
-color: #bbb;
-border: 1px solid #333;
-background: #111;
-}
-
-.success-card {
-text-align: center;
-}
-
-.success-icon {
-width: 62px;
-height: 62px;
-margin: 5px auto 15px;
-display: grid;
-place-items: center;
-border-radius: 50%;
-background: rgba(38,161,123,.13);
-border: 1px solid rgba(38,161,123,.4);
-color: #57d6a7;
-font-size: 30px;
-font-weight: 900;
-}
-
-.demo-label {
-color: #e9c16d;
-font-size: 10px;
-font-weight: 950;
-letter-spacing: .7px;
-}
-
-.success-card h2 {
-margin: 12px 0;
-font-size: 19px;
-}
-
-.success-card > p {
-color: #999;
-font-size: 11px;
-line-height: 1.6;
-}
-
-.reference-box {
-margin: 20px 0;
-padding: 14px;
-border-radius: 10px;
-background: #0a0a0a;
-border: 1px dashed #555;
-}
-
-.reference-box small,
-.reference-box strong {
-display: block;
-}
-
-.reference-box small {
-color: #999;
-font-size: 9px;
-}
-
-.reference-box strong {
-margin-top: 8px;
-color: #e9c16d;
-font-size: 19px;
-overflow-wrap: anywhere;
-}
-
-.summary {
-margin-bottom: 18px;
-text-align: left;
-}
-
-.summary > div {
-display: flex;
-justify-content: space-between;
-gap: 12px;
-padding: 12px 0;
-border-bottom: 1px solid #292929;
-}
-
-.summary span {
-color: #999;
-font-size: 10px;
-}
-
-.summary strong {
-color: #eee;
-font-size: 11px;
-text-align: right;
-overflow-wrap: anywhere;
-}
-
-.summary .file-name {
-max-width: 55%;
-}
-
-.transfer-loading {
-min-height: 100vh;
-display: flex;
-flex-direction: column;
-align-items: center;
-justify-content: center;
-gap: 15px;
-color: #aaa;
-font-size: 11px;
-font-weight: 900;
-}
-
-.transfer-logo {
-font-size: 35px;
-}
-
-.transfer-spinner {
-width: 35px;
-height: 35px;
-border: 3px solid #333;
-border-top-color: #d04444;
-border-radius: 50%;
-animation: transfer-spin .8s linear infinite;
-}
-
-@keyframes transfer-spin {
-to { transform: rotate(360deg); }
-}
-
-@media (max-width: 420px) {
-.transfer-form,
-.success-card {
-padding: 16px;
-}
-
-.bank-card {
-  padding: 18px;
-}
-
-.summary > div {
-  flex-direction: column;
-  gap: 5px;
-}
-
-.summary strong {
-  text-align: left;
-}
-
+      </section>
+
+      <TransferStyles />
+    </main>
+  );
+}
+
+function TransferStyles() {
+  return (
+    <style jsx global>{`
+      .transfer-page {
+        min-height: 100vh;
+        position: relative;
+        overflow: hidden;
+        padding-bottom: 45px;
+        background: #070707;
+        color: #fff;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .transfer-background {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(
+            circle at 50% 0%,
+            rgba(190, 25, 35, .17),
+            transparent 36%
+          ),
+          radial-gradient(
+            circle at 100% 45%,
+            rgba(120, 15, 25, .08),
+            transparent 35%
+          );
+      }
+
+      .transfer-header {
+        position: relative;
+        z-index: 1;
+        max-width: 650px;
+        margin: auto;
+        padding: 24px 18px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        border-bottom: 1px solid rgba(255,255,255,.07);
+      }
+
+      .transfer-back {
+        width: 42px;
+        height: 42px;
+        border: 1px solid #303030;
+        border-radius: 12px;
+        background: #151515;
+        color: #fff;
+        font-size: 24px;
+        cursor: pointer;
+      }
+
+      .transfer-header small,
+      .transfer-tag {
+        color: #e13a45;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 2px;
+      }
+
+      .transfer-header h1 {
+        margin: 4px 0 0;
+        font-size: 19px;
+        font-weight: 950;
+      }
+
+      .transfer-header h1 span {
+        color: #ed3441;
+      }
+
+      .transfer-header-icon {
+        margin-left: auto;
+        color: #ed3441;
+        font-size: 28px;
+      }
+
+      .transfer-content {
+        position: relative;
+        z-index: 1;
+        width: min(100% - 28px, 600px);
+        margin: 25px auto;
+      }
+
+      .transfer-intro {
+        margin-bottom: 22px;
+      }
+
+      .transfer-intro h2 {
+        margin: 10px 0 7px;
+        font-size: 23px;
+        font-weight: 950;
+      }
+
+      .transfer-intro p {
+        margin: 0;
+        color: #999;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .transfer-rate-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 19px;
+        margin-bottom: 15px;
+        border: 1px solid rgba(225, 55, 66, .35);
+        border-radius: 15px;
+        background: linear-gradient(
+          130deg,
+          rgba(130, 20, 30, .24),
+          #151515
+        );
+      }
+
+      .transfer-rate-card small,
+      .transfer-rate-card strong {
+        display: block;
+      }
+
+      .transfer-rate-card small {
+        color: #aaa;
+        font-size: 10px;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+      }
+
+      .transfer-rate-card strong {
+        color: #fff;
+        font-size: 16px;
+        font-weight: 950;
+      }
+
+      .transfer-rate-card > span {
+        color: #f04450;
+        font-size: 32px;
+      }
+
+      .transfer-card {
+        padding: 19px;
+        margin-bottom: 15px;
+        border: 1px solid #292929;
+        border-radius: 15px;
+        background: linear-gradient(145deg, #171717, #0d0d0d);
+      }
+
+      .transfer-card > label {
+        display: block;
+        margin-bottom: 12px;
+        color: #ddd;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .transfer-input-wrap {
+        display: flex;
+        align-items: center;
+        border: 1px solid #3a3a3a;
+        border-radius: 11px;
+        background: #080808;
+        padding: 0 14px;
+      }
+
+      .transfer-input-wrap:focus-within {
+        border-color: #e13a45;
+      }
+
+      .transfer-input-wrap input {
+        flex: 1;
+        width: 100%;
+        min-width: 0;
+        padding: 16px 0;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: #fff;
+        font-size: 23px;
+        font-weight: 900;
+      }
+
+      .transfer-input-wrap input::-webkit-inner-spin-button,
+      .transfer-input-wrap input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      .transfer-input-wrap span {
+        color: #e74b56;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .transfer-result {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 16px;
+        margin-top: 14px;
+        border-radius: 10px;
+        background: rgba(255, 190, 70, .06);
+        border: 1px solid rgba(255, 190, 70, .2);
+      }
+
+      .transfer-result small,
+      .transfer-result strong {
+        display: block;
+      }
+
+      .transfer-result small {
+        color: #aaa;
+        font-size: 10px;
+        margin-bottom: 6px;
+      }
+
+      .transfer-result strong {
+        color: #e8bb67;
+        font-size: 23px;
+        font-weight: 950;
+      }
+
+      .transfer-result > span {
+        color: #e8bb67;
+        font-size: 9px;
+        font-weight: 900;
+        text-align: right;
+      }
+
+      .transfer-summary {
+        padding: 18px;
+        margin-bottom: 16px;
+        border: 1px solid #292929;
+        border-radius: 13px;
+        background: #111;
+      }
+
+      .transfer-summary h3 {
+        margin: 0 0 17px;
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      .transfer-summary > div {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 13px;
+        color: #aaa;
+        font-size: 12px;
+      }
+
+      .transfer-summary strong {
+        color: #fff;
+      }
+
+      .transfer-summary .transfer-summary-total {
+        padding-top: 15px;
+        border-top: 1px solid #333;
+        color: #eee;
+        font-weight: 900;
+      }
+
+      .transfer-summary .transfer-summary-total strong {
+        color: #e8bb67;
+        font-size: 19px;
+      }
+
+      .transfer-demo-notice {
+        padding: 14px;
+        margin-bottom: 16px;
+        border: 1px solid rgba(255,190,70,.2);
+        border-radius: 10px;
+        background: rgba(255,190,70,.06);
+        color: #e8bb67;
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: .5px;
+      }
+
+      .transfer-demo-notice p {
+        margin: 7px 0 0;
+        color: #b7a98c;
+        font-size: 11px;
+        font-weight: 400;
+        line-height: 1.6;
+        letter-spacing: 0;
+      }
+
+      .transfer-error-message {
+        padding: 13px;
+        margin-bottom: 14px;
+        border: 1px solid rgba(240,60,70,.35);
+        border-radius: 9px;
+        background: rgba(180,20,30,.12);
+        color: #ff737c;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .transfer-submit {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        padding: 17px;
+        border: 1px solid #ff5965;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #d52b39, #94151f);
+        box-shadow: 0 10px 28px rgba(200,25,40,.2);
+        color: white;
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: .5px;
+        cursor: pointer;
+      }
+
+      .transfer-submit:disabled {
+        opacity: .45;
+        cursor: not-allowed;
+      }
+
+      .transfer-submit span {
+        font-size: 19px;
+      }
+
+      .transfer-security {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        margin-top: 17px;
+        padding: 13px;
+        border-radius: 9px;
+        background: rgba(255,255,255,.035);
+      }
+
+      .transfer-security > span {
+        color: #e8bb67;
+      }
+
+      .transfer-security p {
+        margin: 0;
+        color: #999;
+        font-size: 10px;
+        line-height: 1.6;
+      }
+
+      .transfer-cancel {
+        display: block;
+        margin: 18px auto 0;
+        padding: 10px;
+        border: none;
+        background: transparent;
+        color: #888;
+        font-size: 10px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .transfer-cancel:disabled {
+        opacity: .4;
+      }
+
+      .transfer-loading,
+      .transfer-error {
+        position: relative;
+        z-index: 1;
+        min-height: 75vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        text-align: center;
+        padding: 20px;
+      }
+
+      .transfer-loading p {
+        color: #e94a55;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 2px;
+      }
+
+      .transfer-spinner {
+        width: 38px;
+        height: 38px;
+        border: 3px solid #333;
+        border-top-color: #e13a45;
+        border-radius: 50%;
+        animation: transfer-spin .8s linear infinite;
+      }
+
+      @keyframes transfer-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .transfer-success {
+        position: relative;
+        z-index: 1;
+        width: min(100% - 30px, 480px);
+        margin: 55px auto;
+        padding: 25px;
+        border: 1px solid #303030;
+        border-radius: 17px;
+        background: linear-gradient(145deg, #181818, #090909);
+        text-align: center;
+      }
+
+      .transfer-success-icon {
+        width: 65px;
+        height: 65px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto 20px;
+        border-radius: 50%;
+        background: rgba(60,200,120,.13);
+        border: 1px solid #3b9d68;
+        color: #53dc91;
+        font-size: 35px;
+      }
+
+      .transfer-success > small {
+        color: #e54b56;
+        font-weight: 900;
+        letter-spacing: 2px;
+      }
+
+      .transfer-success h1 {
+        font-size: 22px;
+        font-weight: 950;
+      }
+
+      .transfer-success h1 span {
+        color: #e84b57;
+      }
+
+      .transfer-success > p {
+        color: #aaa;
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .transfer-details {
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 11px;
+        background: #0b0b0b;
+        text-align: left;
+      }
+
+      .transfer-details > div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding: 10px 0;
+        border-bottom: 1px solid #292929;
+      }
+
+      .transfer-details > div:last-child {
+        border: none;
+      }
+
+      .transfer-details span {
+        color: #888;
+        font-size: 9px;
+        font-weight: 900;
+      }
+
+      .transfer-details strong {
+        color: #fff;
+        font-size: 14px;
+      }
+
+      .transfer-details .transfer-order-id {
+        overflow-wrap: anywhere;
+        font-size: 10px;
+      }
+
+      .transfer-details .transfer-pending {
+        color: #e8b65c;
+        font-size: 11px;
+      }
+
+      .transfer-success > button,
+      .transfer-error button {
+        width: 100%;
+        padding: 15px;
+        margin-top: 12px;
+        border: 0;
+        border-radius: 9px;
+        background: linear-gradient(135deg, #d52b39, #94151f);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 950;
+        cursor: pointer;
+      }
+
+      .transfer-error h2 {
+        color: #ef515d;
+      }
+
+      .transfer-error p {
+        color: #aaa;
+      }
+
+      @media (max-width: 400px) {
+        .transfer-content {
+          width: calc(100% - 22px);
+        }
+
+        .transfer-card {
+          padding: 14px;
+        }
+
+        .transfer-rate-card strong {
+          font-size: 14px;
+        }
+      }
+    `}</style>
+  );
 }
-`;
