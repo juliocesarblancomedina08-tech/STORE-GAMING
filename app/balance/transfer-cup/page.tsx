@@ -315,6 +315,7 @@ export default function TransferCupPage() {
     );
   }
 
+  // Confirmación después de crear la orden y subir el comprobante.
   if (order && receiptUploaded) {
     return (
       <main className="transfer-page">
@@ -374,9 +375,9 @@ export default function TransferCupPage() {
               </div>
 
               <div>
-                <span>Crédito solicitado</span>
+                <span>Saldo STORE GAMING solicitado</span>
                 <strong>
-                  {Number(order.balance_amount).toFixed(4)}
+                  ${Number(order.balance_amount).toFixed(4)} USD
                 </strong>
               </div>
 
@@ -398,15 +399,26 @@ export default function TransferCupPage() {
             <div className="info-warning">
               <span>ℹ️</span>
               <p>
-                El crédito se añadirá a tu billetera de
-                STORE GAMING únicamente después de que
+                El saldo interno de STORE GAMING se añadirá
+                a tu billetera únicamente después de que
                 el administrador apruebe la solicitud.
+                Puedes consultar el estado de tu pedido
+                desde la sección Órdenes.
               </p>
             </div>
 
             <button
               type="button"
               className="primary-button"
+              onClick={() => router.push("/orders")}
+            >
+              IR A ÓRDENES
+              <span>→</span>
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
               onClick={() => router.push("/balance")}
             >
               VOLVER A MI BILLETERA
