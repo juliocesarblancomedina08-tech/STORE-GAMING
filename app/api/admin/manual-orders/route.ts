@@ -21,19 +21,13 @@ async function authenticateAdmin(request: NextRequest) {
   const authorization = request.headers.get("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
-    return {
-      error: "Sesión no autorizada.",
-      status: 401,
-    };
+    return { error: "Sesión no autorizada.", status: 401 };
   }
 
   const token = authorization.slice(7).trim();
 
   if (!token) {
-    return {
-      error: "Token de sesión ausente.",
-      status: 401,
-    };
+    return { error: "Token de sesión ausente.", status: 401 };
   }
 
   const {
@@ -61,8 +55,7 @@ async function authenticateAdmin(request: NextRequest) {
   return { user };
 }
 
-// GET: consultar solicitudes y generar enlaces temporales
-// para visualizar los comprobantes privados.
+// GET: consultar solicitudes de ambos métodos.
 export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateAdmin(request);
@@ -73,6 +66,21 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "pending";
+    const method = searchParams.get("method") || "all";
+
+    if (
+      status !== "all" &&
+      !["pending", "approved", "rejected"].includes(status)
+    ) {
+      return responseError("Filtro de estado no válido.");
+    }
+
+    if (
+      method !== "all" &&
+      !["saldo_cup", "transferencia_cup"].includes(method)
+    ) {
+      return responseError("Filtro de método no válido.");
+    }
 
     let query = supabaseAdmin
       .from("manual_orders")
@@ -80,18 +88,17 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (status !== "all") {
-      if (!["pending", "approved", "rejected"].includes(status)) {
-        return responseError("Filtro de estado no válido.");
-      }
-
       query = query.eq("status", status);
+    }
+
+    if (method !== "all") {
+      query = query.eq("method", method);
     }
 
     const { data: orders, error } = await query;
 
     if (error) {
       console.error("Manual orders GET:", error);
-
       return responseError(
         "No se pudieron consultar las solicitudes.",
         500
@@ -100,12 +107,10 @@ export async function GET(request: NextRequest) {
 
     const enrichedOrders = await Promise.all(
       (orders || []).map(async (order) => {
-        let username: string | null = null;
         let email: string | null = null;
         let receipt_signed_url: string | null = null;
         let receipt_error: string | null = null;
 
-        // Obtener información del cliente.
         const { data: profile, error: profileError } =
           await supabaseAdmin
             .from("profiles")
@@ -114,65 +119,43 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         if (profileError) {
-          console.error(
-            "Manual order profile lookup:",
-            profileError
-          );
+          console.error("Profile lookup:", profileError);
         }
 
-        if (profile?.email) {
-          email = profile.email;
-        }
+        email = profile?.email || null;
 
         if (!email) {
-          const { data: userData, error: userError } =
+          const { data: userData } =
             await supabaseAdmin.auth.admin.getUserById(
               order.user_id
             );
 
-          if (userError) {
-            console.error(
-              "Manual order user lookup:",
-              userError
-            );
-          }
-
           email = userData?.user?.email || null;
         }
 
-        // receipt_url almacena la ruta del objeto,
-        // no una URL pública.
+        // Los enlaces se generan únicamente para SALDO CUP.
+        // TRANSFERENCIA CUP se mantiene en modo demostración.
         if (
+          order.method === "saldo_cup" &&
           typeof order.receipt_url === "string" &&
           order.receipt_url.trim()
         ) {
           const receiptPath = order.receipt_url.trim();
-
-          // Comprobar que el archivo pertenece al usuario
-          // y a la solicitud correspondiente.
-          const expectedPrefix =
-            `${order.user_id}/${order.id}/`;
+          const expectedPrefix = `${order.user_id}/${order.id}/`;
 
           if (!receiptPath.startsWith(expectedPrefix)) {
-            receipt_error =
-              "La ruta del comprobante no es válida.";
+            receipt_error = "La ruta del comprobante no es válida.";
           } else {
-            const {
-              data: signedData,
-              error: signedError,
-            } = await supabaseAdmin.storage
-              .from(RECEIPT_BUCKET)
-              .createSignedUrl(
-                receiptPath,
-                SIGNED_URL_SECONDS
-              );
+            const { data: signedData, error: signedError } =
+              await supabaseAdmin.storage
+                .from(RECEIPT_BUCKET)
+                .createSignedUrl(
+                  receiptPath,
+                  SIGNED_URL_SECONDS
+                );
 
             if (signedError || !signedData?.signedUrl) {
-              console.error(
-                "Manual order signed URL:",
-                signedError
-              );
-
+              console.error("Signed URL:", signedError);
               receipt_error =
                 "No se pudo generar el enlace del comprobante.";
             } else {
@@ -184,9 +167,11 @@ export async function GET(request: NextRequest) {
         return {
           ...order,
           email,
-          username,
+          username: null,
           receipt_signed_url,
           receipt_error,
+          demo_mode: order.method === "transferencia_cup",
+          can_process: order.method === "saldo_cup",
         };
       })
     );
@@ -212,7 +197,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: aprobar o rechazar solicitudes.
+// POST: procesamiento exclusivo de SALDO CUP.
+// TRANSFERENCIA CUP nunca puede llegar a la función SQL.
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateAdmin(request);
@@ -230,9 +216,7 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch {
-      return responseError(
-        "El contenido enviado no es válido."
-      );
+      return responseError("El contenido enviado no es válido.");
     }
 
     const orderId = String(body.orderId || "").trim();
@@ -247,29 +231,22 @@ export async function POST(request: NextRequest) {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidPattern.test(orderId)) {
-      return responseError(
-        "Identificador de solicitud no válido."
-      );
+      return responseError("Identificador de solicitud no válido.");
     }
 
     if (!["approve", "reject"].includes(action)) {
       return responseError("Acción no permitida.");
     }
 
-    // Verificar que la solicitud exista antes de procesarla.
     const { data: order, error: orderError } =
       await supabaseAdmin
         .from("manual_orders")
-        .select("id, status, receipt_url")
+        .select("id, user_id, method, status, receipt_url")
         .eq("id", orderId)
         .maybeSingle();
 
     if (orderError) {
-      console.error(
-        "Manual order lookup POST:",
-        orderError
-      );
-
+      console.error("Manual order lookup:", orderError);
       return responseError(
         "No se pudo verificar la solicitud.",
         500
@@ -277,16 +254,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (!order) {
+      return responseError("La solicitud no existe.", 404);
+    }
+
+    if (order.method !== "saldo_cup") {
       return responseError(
-        "La solicitud no existe.",
-        404
+        "Esta solicitud pertenece a TRANSFERENCIA CUP y está en modo demostración. No puede procesarse ni acreditar balances.",
+        403
       );
     }
 
     if (order.status !== "pending") {
-      return responseError(
-        "Esta solicitud ya fue procesada."
-      );
+      return responseError("Esta solicitud ya fue procesada.");
     }
 
     if (action === "approve") {
@@ -299,33 +278,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const expectedPrefix =
-        `${auth.user.id}/${orderId}/`;
+      const expectedPrefix = `${order.user_id}/${orderId}/`;
 
-      // La ruta del comprobante pertenece al cliente,
-      // no al administrador. La comprobación correcta
-      // de su propietario se realiza mediante la solicitud.
-      const { data: fullOrder } = await supabaseAdmin
-        .from("manual_orders")
-        .select("user_id, receipt_url")
-        .eq("id", orderId)
-        .single();
-
-      if (
-        !fullOrder?.user_id ||
-        !fullOrder.receipt_url ||
-        !fullOrder.receipt_url.startsWith(
-          `${fullOrder.user_id}/${orderId}/`
-        )
-      ) {
+      if (!order.receipt_url.startsWith(expectedPrefix)) {
         return responseError(
           "El comprobante no tiene una ruta válida."
         );
       }
     }
 
-    // La función SQL comprueba el administrador,
-    // bloquea la solicitud y evita acreditaciones duplicadas.
     const { data, error } = await supabaseAdmin.rpc(
       "process_manual_order",
       {
@@ -340,8 +301,7 @@ export async function POST(request: NextRequest) {
       console.error("Manual order RPC:", error);
 
       return responseError(
-        error.message ||
-          "No se pudo procesar la solicitud.",
+        error.message || "No se pudo procesar la solicitud.",
         400
       );
     }
@@ -350,8 +310,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message:
         action === "approve"
-          ? "Solicitud aprobada y balance acreditado."
-          : "Solicitud rechazada.",
+          ? "Solicitud SALDO CUP aprobada."
+          : "Solicitud SALDO CUP rechazada.",
       result: data,
     });
   } catch (error) {
