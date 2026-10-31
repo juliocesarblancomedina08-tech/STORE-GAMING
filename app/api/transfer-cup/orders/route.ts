@@ -1,9 +1,11 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
+
+const MAX_AMOUNT_CUP = 100000000;
 
 async function authenticateUser(request: NextRequest) {
   const authorization = request.headers.get("authorization");
@@ -12,15 +14,18 @@ async function authenticateUser(request: NextRequest) {
     return null;
   }
 
-  const token = authorization.slice(7);
+  const token = authorization.slice(7).trim();
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (!token) return null;
 
-  if (error || !data.user) {
-    return null;
-  }
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
 
-  return data.user;
+  if (error || !user) return null;
+
+  return user;
 }
 
 export async function POST(request: NextRequest) {
@@ -31,54 +36,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Sesión no válida. Inicia sesión nuevamente."
+          error: "Sesión no válida. Inicia sesión nuevamente.",
+          code: "UNAUTHORIZED",
         },
         { status: 401 }
       );
     }
 
     const body = await request.json();
-
     const amountCup = Number(body.amount_cup);
-
-    const senderPhone =
-      typeof body.sender_phone === "string"
-        ? body.sender_phone.trim()
-        : "";
 
     if (
       !Number.isFinite(amountCup) ||
       amountCup <= 0 ||
-      amountCup > 100000000
+      amountCup > MAX_AMOUNT_CUP
     ) {
       return NextResponse.json(
         {
           success: false,
-          error: "El importe en CUP no es válido."
-        },
-        { status: 400 }
-      );
-    }
-
-    if (
-      !senderPhone ||
-      senderPhone.length < 5 ||
-      senderPhone.length > 30
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Introduce un número válido del remitente."
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!/^[0-9+\-()\s]+$/.test(senderPhone)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "El número del remitente contiene caracteres no válidos."
+          error: "El importe indicado no es válido.",
         },
         { status: 400 }
       );
@@ -92,87 +68,92 @@ export async function POST(request: NextRequest) {
         .single();
 
     if (settingsError || !settings) {
-      console.error("Transfer CUP rate:", settingsError);
-
       return NextResponse.json(
         {
           success: false,
-          error: "No se pudo consultar la tasa de transferencia."
+          error: "No se pudo cargar la tasa de prueba.",
         },
         { status: 500 }
       );
     }
 
-    const exchangeRate = Number(settings.transfer_exchange_rate);
+    const exchangeRate = Number(
+      settings.transfer_exchange_rate
+    );
 
-    if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
+    if (
+      !Number.isFinite(exchangeRate) ||
+      exchangeRate <= 0
+    ) {
       return NextResponse.json(
         {
           success: false,
-          error: "La tasa de transferencia configurada no es válida."
+          error: "La tasa de prueba no está configurada.",
         },
         { status: 500 }
       );
     }
 
-    // El cálculo se realiza en el servidor.
     const balanceAmount = Number(
       (amountCup / exchangeRate).toFixed(4)
     );
 
-    if (!Number.isFinite(balanceAmount) || balanceAmount <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "No se pudo calcular el balance."
-        },
-        { status: 400 }
-      );
-    }
-
     const { data: order, error: insertError } =
       await supabaseAdmin
-        .from("transfer_cup_orders")
+        .from("manual_orders")
         .insert({
           user_id: user.id,
+          method: "transferencia_cup",
           amount_cup: amountCup,
           exchange_rate: exchangeRate,
           balance_amount: balanceAmount,
-          sender_phone: senderPhone,
-          status: "pending"
+          confirmation_number: null,
+          receipt_url: null,
+          status: "pending",
+          admin_note:
+            "MODO DEMOSTRACIÓN: solicitud de prueba. No acredita fondos.",
         })
         .select(
-          "id, amount_cup, exchange_rate, balance_amount, sender_phone, status, created_at"
+          "id, amount_cup, exchange_rate, balance_amount, status, created_at"
         )
         .single();
 
     if (insertError || !order) {
-      console.error("Error creando transfer_cup_order:", insertError);
+      console.error(
+        "Error creando solicitud TRANSFERENCIA CUP:",
+        insertError
+      );
 
       return NextResponse.json(
         {
           success: false,
-          error: "No se pudo crear el pedido de transferencia."
+          error: "No se pudo registrar la solicitud.",
         },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Pedido creado. Ahora puedes adjuntar el comprobante.",
-      order
-    });
-
+    return NextResponse.json(
+      {
+        success: true,
+        demo_mode: true,
+        message: "Solicitud de prueba registrada.",
+        order,
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error("Transfer CUP orders POST:", error);
+    console.error(
+      "Error en TRANSFERENCIA CUP:",
+      error
+    );
 
     return NextResponse.json(
       {
         success: false,
-        error: "Error interno del servidor."
+        error: "Ocurrió un error al registrar la solicitud.",
       },
       { status: 500 }
     );
   }
-       }
+}
