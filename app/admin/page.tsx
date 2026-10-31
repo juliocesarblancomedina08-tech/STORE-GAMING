@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -56,6 +55,13 @@ const adminServices: AdminService[] = [
     description: "Configura las tasas de compra y venta de USDT.",
     icon: "🪙",
     route: "/admin/crypto",
+  },
+  {
+    name: "TASAS CUP",
+    description:
+      "Actualiza por separado las tasas de Saldo CUP y Transferencia CUP.",
+    icon: "💱",
+    route: "/admin/cup-rates",
   },
 ];
 
@@ -164,8 +170,6 @@ export default function AdminPage() {
   return (
     <main className="admin-page">
       <div className="container">
-        {/* BOTÓN PARA REGRESAR AL HOME */}
-
         <button
           type="button"
           className="back-home-button"
@@ -301,8 +305,6 @@ export default function AdminPage() {
           max-width: 780px;
           margin: 0 auto;
         }
-
-        /* ESTILO DEL BOTÓN VOLVER AL HOME */
 
         .back-home-button {
           display: inline-flex;
