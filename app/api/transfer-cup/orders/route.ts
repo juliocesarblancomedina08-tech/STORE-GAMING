@@ -21,8 +21,7 @@ async function authenticateUser(request: NextRequest) {
     return null;
   }
 
-  const { data, error } =
-    await supabaseAdmin.auth.getUser(token);
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !data.user) {
     return null;
@@ -63,7 +62,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Consultar la tasa de TRANSFERENCIA CUP.
+    // Consultar la tasa configurada.
     const { data: settings, error: settingsError } =
       await supabaseAdmin
         .from("manual_payment_settings")
@@ -86,14 +85,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const exchangeRate = Number(
-      settings.transfer_exchange_rate
-    );
+    const exchangeRate = Number(settings.transfer_exchange_rate);
 
-    if (
-      !Number.isFinite(exchangeRate) ||
-      exchangeRate <= 0
-    ) {
+    if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
       return NextResponse.json(
         {
           success: false,
@@ -103,15 +97,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calcular el crédito que recibirá el usuario.
+    // Calcular el saldo interno que se solicita acreditar.
     const balanceAmount = Number(
       (amountCup / exchangeRate).toFixed(4)
     );
 
-    if (
-      !Number.isFinite(balanceAmount) ||
-      balanceAmount <= 0
-    ) {
+    if (!Number.isFinite(balanceAmount) || balanceAmount <= 0) {
       return NextResponse.json(
         {
           success: false,
@@ -121,7 +112,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear solicitud pendiente de revisión administrativa.
+    // Crear la orden vinculada al cliente autenticado.
     const { data: order, error: insertError } =
       await supabaseAdmin
         .from("manual_orders")
@@ -158,13 +149,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message:
-          "Solicitud creada correctamente. Ahora debes adjuntar el comprobante.",
+        message: "Tu solicitud se creó correctamente.",
         order,
+        redirectTo: "/orders",
+        actionLabel: "IR A ÓRDENES",
       },
       { status: 201 }
     );
-
   } catch (error) {
     console.error("TRANSFERENCIA CUP POST:", error);
 
