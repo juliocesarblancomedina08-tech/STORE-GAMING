@@ -310,6 +310,7 @@ export default function ManualDepositPage() {
     );
   }
 
+  // CONFIRMACIÓN DE SOLICITUD ENVIADA
   if (success) {
     return (
       <main className="manual-page">
@@ -369,6 +370,16 @@ export default function ManualDepositPage() {
 
           <button
             type="button"
+            className="success-orders-button"
+            onClick={() => router.push("/orders")}
+          >
+            <span>VER MI PEDIDO</span>
+            <span>→</span>
+          </button>
+
+          <button
+            type="button"
+            className="success-balance-button"
             onClick={() => router.push("/balance")}
           >
             VOLVER A MI BILLETERA
@@ -1298,7 +1309,50 @@ function ManualStyles() {
         font-size: 11px;
       }
 
-      .manual-success > button,
+      /* BOTÓN PARA VER EL PEDIDO */
+      .manual-success > .success-orders-button {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 16px 18px;
+        margin-top: 20px;
+        border: 1px solid #ff5965;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #d52b39, #94151f);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 950;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(200, 25, 40, .2);
+      }
+
+      .manual-success > .success-orders-button span:last-child {
+        font-size: 21px;
+      }
+
+      /* BOTÓN PARA VOLVER A LA BILLETERA */
+      .manual-success > .success-balance-button {
+        width: 100%;
+        padding: 14px;
+        margin-top: 10px;
+        border: 1px solid #383838;
+        border-radius: 10px;
+        background: #171717;
+        color: #ccc;
+        font-size: 11px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .manual-error h2 {
+        color: #ef515d;
+      }
+
+      .manual-error p {
+        color: #aaa;
+      }
+
       .manual-error button {
         width: 100%;
         padding: 15px;
@@ -1310,14 +1364,6 @@ function ManualStyles() {
         font-size: 11px;
         font-weight: 950;
         cursor: pointer;
-      }
-
-      .manual-error h2 {
-        color: #ef515d;
-      }
-
-      .manual-error p {
-        color: #aaa;
       }
 
       @media (max-width: 400px) {
