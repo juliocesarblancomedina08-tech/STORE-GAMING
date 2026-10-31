@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -45,35 +46,43 @@ export default function ManualOrdersPage() {
     setError("");
 
     try {
-      const { data: authData, error: authError } =
-        await supabase.auth.getUser();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (authError || !authData.user) {
+      if (sessionError || !session?.access_token) {
         router.replace("/login");
         return;
       }
 
-      // La autorización real de administrador debe verificarse
-      // también en el servidor antes de consultar o modificar órdenes.
       const response = await fetch(
         `/api/admin/manual-orders?status=${encodeURIComponent(filter)}`,
         {
           method: "GET",
           cache: "no-store",
           credentials: "same-origin",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         }
       );
 
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/login");
+        }
+
         throw new Error(
-          result.error ||
-            "No se pudieron cargar las solicitudes. Comprueba que la API esté creada."
+          result.error || "No se pudieron cargar las solicitudes."
         );
       }
 
-      setOrders(Array.isArray(result.orders) ? result.orders : []);
+      setOrders(
+        Array.isArray(result.orders) ? result.orders : []
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -95,9 +104,17 @@ export default function ManualOrdersPage() {
   ) {
     if (processing) return;
 
+    if (
+      action === "approve" &&
+      (!order.receipt_url || !order.receipt_url.trim())
+    ) {
+      setError("No se puede aprobar una solicitud sin comprobante.");
+      return;
+    }
+
     const message =
       action === "approve"
-        ? "¿Confirmas la aprobación? El balance del cliente debe acreditarse una sola vez."
+        ? "¿Confirmas la aprobación? Se acreditará el balance una sola vez."
         : "¿Confirmas el rechazo de esta solicitud?";
 
     if (!window.confirm(message)) return;
@@ -106,9 +123,22 @@ export default function ManualOrdersPage() {
     setError("");
 
     try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session?.access_token) {
+        router.replace("/login");
+        throw new Error("Tu sesión ha expirado. Inicia sesión nuevamente.");
+      }
+
       const response = await fetch("/api/admin/manual-orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         credentials: "same-origin",
         body: JSON.stringify({
           orderId: order.id,
@@ -127,7 +157,9 @@ export default function ManualOrdersPage() {
 
       setSelected(null);
       setAdminNote("");
+
       await loadOrders();
+
       window.alert(
         action === "approve"
           ? "Solicitud aprobada correctamente."
@@ -174,6 +206,7 @@ export default function ManualOrdersPage() {
           <span>Solicitudes visibles</span>
           <strong>{orders.length}</strong>
         </article>
+
         <article className="summary-card">
           <span>Solicitudes pendientes</span>
           <strong>
@@ -195,7 +228,7 @@ export default function ManualOrdersPage() {
             type="button"
             className="refresh-button"
             onClick={() => void loadOrders()}
-            disabled={loading}
+            disabled={loading || processing}
           >
             ↻ Actualizar
           </button>
@@ -213,6 +246,7 @@ export default function ManualOrdersPage() {
               type="button"
               className={filter === item.value ? "filter active" : "filter"}
               onClick={() => setFilter(item.value)}
+              disabled={processing}
             >
               {item.label}
             </button>
@@ -235,8 +269,7 @@ export default function ManualOrdersPage() {
             <div className="empty-icon">▤</div>
             <h3>No hay solicitudes para mostrar</h3>
             <p>
-              Cuando los clientes envíen sus comprobantes, aparecerán aquí
-              después de conectar la API y la base de datos.
+              Cuando los clientes envíen sus comprobantes, aparecerán aquí.
             </p>
           </div>
         ) : (
@@ -251,6 +284,7 @@ export default function ManualOrdersPage() {
                         ? "SALDO CUP"
                         : order.method}
                   </span>
+
                   <span
                     className={`status status-${String(
                       order.status
@@ -270,17 +304,24 @@ export default function ManualOrdersPage() {
                     <span>Importe enviado</span>
                     <strong>{money(order.amount_cup)} CUP</strong>
                   </div>
+
                   <div>
                     <span>Tasa aplicada</span>
                     <strong>{money(order.exchange_rate)} CUP</strong>
                   </div>
+
                   <div>
                     <span>Número de confirmación</span>
-                    <strong>{order.confirmation_number || "No indicado"}</strong>
+                    <strong>
+                      {order.confirmation_number || "No indicado"}
+                    </strong>
                   </div>
+
                   <div>
                     <span>Usuario</span>
-                    <strong>{order.email || order.username || order.user_id}</strong>
+                    <strong>
+                      {order.email || order.username || order.user_id}
+                    </strong>
                   </div>
                 </div>
 
@@ -310,7 +351,10 @@ export default function ManualOrdersPage() {
         <div
           className="modal-backdrop"
           onClick={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target === event.currentTarget &&
+              !processing
+            ) {
               setSelected(null);
             }
           }}
@@ -326,11 +370,13 @@ export default function ManualOrdersPage() {
                 <span className="eyebrow">REVISIÓN DE PAGO</span>
                 <h2 id="modal-title">Solicitud de depósito</h2>
               </div>
+
               <button
                 type="button"
                 className="close-button"
-                onClick={() => setSelected(null)}
+                onClick={() => !processing && setSelected(null)}
                 aria-label="Cerrar"
+                disabled={processing}
               >
                 ×
               </button>
@@ -340,6 +386,7 @@ export default function ManualOrdersPage() {
               {selected.receipt_url ? (
                 <>
                   <p>Comprobante enviado por el cliente</p>
+
                   <a
                     href={selected.receipt_url}
                     target="_blank"
@@ -348,6 +395,7 @@ export default function ManualOrdersPage() {
                   >
                     Abrir comprobante en otra pestaña ↗
                   </a>
+
                   <iframe
                     title="Comprobante de pago"
                     src={selected.receipt_url}
@@ -356,8 +404,8 @@ export default function ManualOrdersPage() {
                 </>
               ) : (
                 <div className="error-message">
-                  Esta solicitud no tiene una dirección de comprobante
-                  disponible. No la apruebes hasta verificar el pago.
+                  Esta solicitud no tiene un comprobante disponible.
+                  No la apruebes hasta verificar el pago.
                 </div>
               )}
             </div>
@@ -367,24 +415,31 @@ export default function ManualOrdersPage() {
                 <span>Usuario:</span>{" "}
                 {selected.email || selected.username || selected.user_id}
               </p>
+
               <p>
                 <span>Método:</span> {selected.method}
               </p>
+
               <p>
                 <span>CUP enviados:</span>{" "}
                 {money(selected.amount_cup)} CUP
               </p>
+
               <p>
                 <span>Tasa registrada:</span>{" "}
                 {money(selected.exchange_rate)} CUP por unidad
               </p>
+
               <p>
                 <span>Balance a acreditar:</span>{" "}
                 {money(selected.balance_amount)}
               </p>
+
               <p>
-                <span>Confirmación:</span> {selected.confirmation_number}
+                <span>Confirmación:</span>{" "}
+                {selected.confirmation_number || "No indicado"}
               </p>
+
               <p>
                 <span>Estado:</span>{" "}
                 {STATUS_LABELS[selected.status] || selected.status}
@@ -394,12 +449,14 @@ export default function ManualOrdersPage() {
             <label className="note-label" htmlFor="admin-note">
               Nota del administrador (opcional)
             </label>
+
             <textarea
               id="admin-note"
               value={adminNote}
               onChange={(event) => setAdminNote(event.target.value)}
               placeholder="Escribe una observación..."
               maxLength={1000}
+              disabled={processing}
             />
 
             {["pending", "PENDING"].includes(selected.status) && (
@@ -410,12 +467,13 @@ export default function ManualOrdersPage() {
                   disabled={processing}
                   onClick={() => void processOrder(selected, "reject")}
                 >
-                  Rechazar
+                  {processing ? "Procesando..." : "Rechazar"}
                 </button>
+
                 <button
                   type="button"
                   className="approve-button"
-                  disabled={processing}
+                  disabled={processing || !selected.receipt_url}
                   onClick={() => void processOrder(selected, "approve")}
                 >
                   {processing ? "Procesando..." : "Aprobar y acreditar"}
@@ -424,7 +482,7 @@ export default function ManualOrdersPage() {
             )}
 
             <p className="security-note">
-              La aprobación debe validarse en el servidor y ejecutarse de
+              La aprobación se valida en el servidor y se procesa de
               forma atómica para impedir acreditaciones duplicadas.
             </p>
           </section>
@@ -663,7 +721,8 @@ export default function ManualOrdersPage() {
 
         .approve-button:disabled,
         .reject-button:disabled,
-        .refresh-button:disabled {
+        .refresh-button:disabled,
+        .filter:disabled {
           opacity: 0.55;
           cursor: not-allowed;
         }
