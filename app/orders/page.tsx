@@ -56,6 +56,21 @@ type GiftCardOrderRow = {
   updated_at: string;
 };
 
+type ManualOrderRow = {
+  id: string;
+  user_id: string;
+  method: string;
+  amount_cup: number | string;
+  exchange_rate: number | string;
+  balance_amount: number | string;
+  confirmation_number: string | null;
+  receipt_url: string | null;
+  status: string;
+  admin_note: string | null;
+  created_at: string;
+  processed_at?: string | null;
+};
+
 type Order = {
   id: string;
   user_id?: string;
@@ -77,9 +92,16 @@ type Order = {
   supplierOrderId?: string;
   currency?: string;
   image: string;
-  type: "TOPUP" | "GIFT_CARD";
+  type: "TOPUP" | "GIFT_CARD" | "BALANCE";
   quantity?: number;
   giftCodes?: string[];
+
+  amountCup?: number;
+  exchangeRate?: number;
+  balanceAmount?: number;
+  confirmationNumber?: string | null;
+  adminNote?: string | null;
+  processedAt?: string | null;
 };
 
 type Filter =
@@ -119,9 +141,8 @@ function getGameImage(
   categoryId: string,
   game: string
 ): string {
-  const directImage = GAME_IMAGES[
-    String(categoryId || "").toLowerCase()
-  ];
+  const directImage =
+    GAME_IMAGES[String(categoryId || "").toLowerCase()];
 
   if (directImage) return directImage;
 
@@ -205,9 +226,7 @@ function getGameImage(
 function normalizeStatus(
   status: string | null | undefined
 ): string {
-  return String(status || "PENDING")
-    .trim()
-    .toUpperCase();
+  return String(status || "PENDING").trim().toUpperCase();
 }
 
 function getOrderStatusLabel(
@@ -222,6 +241,8 @@ function getOrderStatusLabel(
     PROCESSING: "Procesando",
     CONFIRMED: "Confirmado",
     COMPLETED: "Completado",
+    APPROVED: "Aprobada",
+    REJECTED: "Rechazada",
     REFUND: "Reembolsado",
     REFUNDED: "Reembolsado",
     FAILED: "Fallido",
@@ -247,6 +268,8 @@ function getOrderStatusIcon(
     PROCESSING: "🔄",
     CONFIRMED: "🔎",
     COMPLETED: "✅",
+    APPROVED: "✅",
+    REJECTED: "❌",
     REFUND: "💸",
     REFUNDED: "💸",
     FAILED: "❌",
@@ -286,59 +309,65 @@ function normalizeGiftCodes(value: unknown): string[] {
     .filter(Boolean);
 }
 
-function isGiftCardCompleted(order: Order): boolean {
-  return normalizeStatus(order.status) === "COMPLETED";
+function isOrderCompleted(order: Order): boolean {
+  return ["COMPLETED", "APPROVED"].includes(
+    normalizeStatus(order.status)
+  );
 }
 
-function isGiftCardPending(order: Order): boolean {
-  const status = normalizeStatus(order.status);
-
+function isOrderPending(order: Order): boolean {
   return [
     "PENDING",
     "SUPPLIER_PENDING",
     "PROCESSING",
     "RESERVED",
     "CONFIRMED",
-  ].includes(status);
+  ].includes(normalizeStatus(order.status));
 }
 
-function isGiftCardCancelledOrFailed(
-  order: Order
-): boolean {
+function isOrderCancelledOrFailed(order: Order): boolean {
   return [
     "CANCELLED",
     "CANCELED",
     "FAILED",
     "REFUNDED",
     "REFUND",
+    "REJECTED",
   ].includes(normalizeStatus(order.status));
 }
 
 function getOrderStatusClass(order: Order): string {
   const status = normalizeStatus(order.status);
 
-  if (status === "COMPLETED") return "status-completed";
+  if (status === "COMPLETED" || status === "APPROVED") {
+    return "status-completed";
+  }
+
   if (status === "REFUNDED" || status === "REFUND") {
     return "status-refunded";
   }
-  if (status === "FAILED") return "status-failed";
+
+  if (status === "FAILED" || status === "REJECTED") {
+    return "status-failed";
+  }
+
   if (status === "CANCELLED" || status === "CANCELED") {
     return "status-cancelled";
   }
+
   if (status === "PROCESSING" || status === "RESERVED") {
     return "status-processing";
   }
-  if (status === "CONFIRMED") return "status-confirmed";
+
+  if (status === "CONFIRMED") {
+    return "status-confirmed";
+  }
 
   return "status-pending";
 }
 
 function getOrderStatusText(order: Order): string {
   return getOrderStatusLabel(order.status).toUpperCase();
-}
-
-function isOrderInProgress(order: Order): boolean {
-  return isGiftCardPending(order);
 }
 
 export default function OrdersPage() {
@@ -371,6 +400,7 @@ export default function OrdersPage() {
       const [
         topupResult,
         giftCardResult,
+        manualResult,
       ] = await Promise.all([
         supabase
           .from("topup_orders")
@@ -425,6 +455,26 @@ export default function OrdersPage() {
           `)
           .eq("user_id", userId)
           .order("created_at", { ascending: false }),
+
+        supabase
+          .from("manual_orders")
+          .select(`
+            id,
+            user_id,
+            method,
+            amount_cup,
+            exchange_rate,
+            balance_amount,
+            confirmation_number,
+            receipt_url,
+            status,
+            admin_note,
+            created_at,
+            processed_at
+          `)
+          .eq("user_id", userId)
+          .in("method", ["transferencia_cup", "saldo_cup"])
+          .order("created_at", { ascending: false }),
       ]);
 
       if (topupResult.error) {
@@ -441,10 +491,16 @@ export default function OrdersPage() {
         );
       }
 
+      if (manualResult.error) {
+        console.error(
+          "ERROR CARGANDO SOLICITUDES DE ACREDITACIÓN:",
+          manualResult.error
+        );
+      }
+
       /*
-       * Consultar el endpoint de estado para las tarjetas
-       * pendientes que ya tienen referencia del proveedor.
-       * No se vuelve a ejecutar la compra desde aquí.
+       * Consultar el estado de las tarjetas pendientes.
+       * Esta consulta no vuelve a ejecutar la compra.
        */
       if (
         refreshSupplierStatuses &&
@@ -490,8 +546,8 @@ export default function OrdersPage() {
       }
 
       /*
-       * Volver a leer las tarjetas después de consultar
-       * sus estados para recuperar los códigos confirmados.
+       * Volver a leer tarjetas después de consultar
+       * sus estados para recuperar códigos confirmados.
        */
       const refreshedGiftResult =
         refreshSupplierStatuses &&
@@ -609,9 +665,45 @@ export default function OrdersPage() {
         };
       });
 
+      const manualRows = (
+        (manualResult.data || []) as ManualOrderRow[]
+      ).map((row): Order => {
+        const status = normalizeStatus(row.status);
+        const amountCup = Number(row.amount_cup) || 0;
+        const exchangeRate = Number(row.exchange_rate) || 0;
+        const balanceAmount = Number(row.balance_amount) || 0;
+
+        return {
+          id: row.id,
+          user_id: row.user_id,
+          game: "STORE GAMING",
+          categoryId: "store_balance",
+          product: "Acreditación de saldo",
+          displayProduct: "ACREDITACIÓN DE SALDO CUP",
+          price: balanceAmount,
+          total: balanceAmount,
+          playerId: "No requiere ID de jugador",
+          status,
+          canonicalStatus: status,
+          statusLabel: getOrderStatusLabel(status),
+          statusIcon: getOrderStatusIcon(status),
+          createdAt: row.created_at,
+          currency: "USD",
+          image: DEFAULT_GAME_IMAGE,
+          type: "BALANCE",
+          amountCup,
+          exchangeRate,
+          balanceAmount,
+          confirmationNumber: row.confirmation_number,
+          adminNote: row.admin_note,
+          processedAt: row.processed_at || null,
+        };
+      });
+
       const combinedOrders = [
         ...topupRows,
         ...giftCardRows,
+        ...manualRows,
       ].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() -
@@ -625,7 +717,9 @@ export default function OrdersPage() {
 
         return (
           combinedOrders.find(
-            (order) => order.id === current.id
+            (order) =>
+              order.id === current.id &&
+              order.type === current.type
           ) || current
         );
       });
@@ -722,14 +816,14 @@ export default function OrdersPage() {
     if (filter === "TODAS") return orders;
 
     if (filter === "PENDIENTES") {
-      return orders.filter(isGiftCardPending);
+      return orders.filter(isOrderPending);
     }
 
     if (filter === "COMPLETADAS") {
-      return orders.filter(isGiftCardCompleted);
+      return orders.filter(isOrderCompleted);
     }
 
-    return orders.filter(isGiftCardCancelledOrFailed);
+    return orders.filter(isOrderCancelledOrFailed);
   }, [orders, filter]);
 
   const totalOrders = orders.length;
@@ -742,15 +836,15 @@ export default function OrdersPage() {
   );
 
   const completedOrders = orders.filter(
-    isGiftCardCompleted
+    isOrderCompleted
   ).length;
 
   const pendingOrders = orders.filter(
-    isGiftCardPending
+    isOrderPending
   ).length;
 
   const cancelledOrders = orders.filter(
-    isGiftCardCancelledOrFailed
+    isOrderCancelledOrFailed
   ).length;
 
   function formatDate(date: string) {
@@ -813,25 +907,33 @@ export default function OrdersPage() {
             </button>
 
             <div className="order-detail-game-image">
-              <img
-                src={selectedOrder.image}
-                alt={selectedOrder.game}
-                onError={(event) => {
-                  const image = event.currentTarget;
+              {selectedOrder.type === "BALANCE" ? (
+                <div className="balance-order-icon">💳</div>
+              ) : (
+                <img
+                  src={selectedOrder.image}
+                  alt={selectedOrder.game}
+                  onError={(event) => {
+                    const image = event.currentTarget;
 
-                  if (
-                    image.src.endsWith(DEFAULT_GAME_IMAGE)
-                  ) {
-                    return;
-                  }
+                    if (
+                      image.src.endsWith(DEFAULT_GAME_IMAGE)
+                    ) {
+                      return;
+                    }
 
-                  image.src = DEFAULT_GAME_IMAGE;
-                }}
-              />
+                    image.src = DEFAULT_GAME_IMAGE;
+                  }}
+                />
+              )}
             </div>
 
             <div className="order-detail-heading">
-              <strong>DETALLES DE LA COMPRA</strong>
+              <strong>
+                {selectedOrder.type === "BALANCE"
+                  ? "SOLICITUD DE ACREDITACIÓN"
+                  : "DETALLES DE LA COMPRA"}
+              </strong>
               <span>ORDEN #{selectedOrder.id}</span>
             </div>
           </header>
@@ -854,57 +956,168 @@ export default function OrdersPage() {
             </div>
 
             <div className="order-detail-content">
-              <div className="order-detail-row">
-                <span>🎮 Producto</span>
-                <strong>
-                  {selectedOrder.displayProduct ||
-                    selectedOrder.product}
-                </strong>
-              </div>
+              {selectedOrder.type === "BALANCE" ? (
+                <>
+                  <div className="balance-detail-banner">
+                    <span>💰</span>
+                    <div>
+                      <small>SALDO SOLICITADO</small>
+                      <strong>
+                        ${(
+                          selectedOrder.balanceAmount || 0
+                        ).toFixed(4)} USD
+                      </strong>
+                      <p>
+                        Saldo interno de tu cuenta STORE GAMING.
+                      </p>
+                    </div>
+                  </div>
 
-              <div className="order-detail-row">
-                <span>📦 Tipo de pedido</span>
-                <strong>
-                  {selectedOrder.type === "GIFT_CARD"
-                    ? "Tarjeta digital"
-                    : "Recarga de juego"}
-                </strong>
-              </div>
+                  <div className="order-detail-row">
+                    <span>📦 Tipo de pedido</span>
+                    <strong>Acreditación de saldo</strong>
+                  </div>
 
-              {selectedOrder.type === "TOPUP" && (
-                <div className="order-detail-row">
-                  <span>🆔 ID del jugador</span>
-                  <strong>{selectedOrder.playerId}</strong>
-                </div>
+                  <div className="order-detail-row">
+                    <span>💵 Cantidad enviada</span>
+                    <strong>
+                      {(selectedOrder.amountCup || 0).toLocaleString(
+                        "es-ES"
+                      )}{" "}
+                      CUP
+                    </strong>
+                  </div>
+
+                  <div className="order-detail-row">
+                    <span>🔄 Tasa de cambio</span>
+                    <strong>
+                      {(selectedOrder.exchangeRate || 0).toLocaleString(
+                        "es-ES"
+                      )}
+                    </strong>
+                  </div>
+
+                  <div className="order-detail-row">
+                    <span>💳 Saldo solicitado</span>
+                    <strong className="balance-green">
+                      ${(selectedOrder.balanceAmount || 0).toFixed(4)} USD
+                    </strong>
+                  </div>
+
+                  <div className="order-detail-row">
+                    <span>🔢 Número de confirmación</span>
+                    <strong>
+                      {selectedOrder.confirmationNumber ||
+                        "No indicado"}
+                    </strong>
+                  </div>
+
+                  {selectedOrder.adminNote && (
+                    <div className="admin-note-box">
+                      <strong>NOTA DE ADMINISTRACIÓN</strong>
+                      <p>{selectedOrder.adminNote}</p>
+                    </div>
+                  )}
+
+                  <div className="balance-status-info">
+                    {normalizeStatus(selectedOrder.status) ===
+                    "PENDING" ? (
+                      <>
+                        <strong>⏳ Solicitud en revisión</strong>
+                        <p>
+                          Tu solicitud fue recibida. El equipo de
+                          STORE GAMING revisará el comprobante.
+                          Cuando sea aprobada, el saldo se acreditará
+                          en tu cuenta.
+                        </p>
+                      </>
+                    ) : normalizeStatus(selectedOrder.status) ===
+                      "APPROVED" ? (
+                      <>
+                        <strong>✅ Acreditación aprobada</strong>
+                        <p>
+                          Tu solicitud fue aprobada. El saldo
+                          solicitado fue acreditado a tu cuenta
+                          STORE GAMING.
+                        </p>
+                      </>
+                    ) : normalizeStatus(selectedOrder.status) ===
+                      "REJECTED" ? (
+                      <>
+                        <strong>❌ Solicitud rechazada</strong>
+                        <p>
+                          Tu solicitud fue rechazada. No se realizó
+                          ninguna acreditación. Si necesitas ayuda,
+                          contacta con soporte.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <strong>
+                          Estado: {getOrderStatusText(selectedOrder)}
+                        </strong>
+                        <p>
+                          Consulta el estado de tu solicitud aquí.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="order-detail-row">
+                    <span>🎮 Producto</span>
+                    <strong>
+                      {selectedOrder.displayProduct ||
+                        selectedOrder.product}
+                    </strong>
+                  </div>
+
+                  <div className="order-detail-row">
+                    <span>📦 Tipo de pedido</span>
+                    <strong>
+                      {selectedOrder.type === "GIFT_CARD"
+                        ? "Tarjeta digital"
+                        : "Recarga de juego"}
+                    </strong>
+                  </div>
+
+                  {selectedOrder.type === "TOPUP" && (
+                    <div className="order-detail-row">
+                      <span>🆔 ID del jugador</span>
+                      <strong>{selectedOrder.playerId}</strong>
+                    </div>
+                  )}
+
+                  {selectedOrder.serverId && (
+                    <div className="order-detail-row">
+                      <span>🌐 ID del servidor</span>
+                      <strong>{selectedOrder.serverId}</strong>
+                    </div>
+                  )}
+
+                  {selectedOrder.type === "GIFT_CARD" && (
+                    <div className="order-detail-row">
+                      <span>🔢 Cantidad</span>
+                      <strong>
+                        {selectedOrder.quantity || 1}
+                      </strong>
+                    </div>
+                  )}
+
+                  <div className="order-detail-row">
+                    <span>💵 Total</span>
+                    <strong>
+                      $
+                      {(
+                        selectedOrder.total ??
+                        selectedOrder.price
+                      ).toFixed(2)}{" "}
+                      {selectedOrder.currency || "USD"}
+                    </strong>
+                  </div>
+                </>
               )}
-
-              {selectedOrder.serverId && (
-                <div className="order-detail-row">
-                  <span>🌐 ID del servidor</span>
-                  <strong>{selectedOrder.serverId}</strong>
-                </div>
-              )}
-
-              {selectedOrder.type === "GIFT_CARD" && (
-                <div className="order-detail-row">
-                  <span>🔢 Cantidad</span>
-                  <strong>
-                    {selectedOrder.quantity || 1}
-                  </strong>
-                </div>
-              )}
-
-              <div className="order-detail-row">
-                <span>💵 Total</span>
-                <strong>
-                  $
-                  {(
-                    selectedOrder.total ??
-                    selectedOrder.price
-                  ).toFixed(2)}{" "}
-                  {selectedOrder.currency || "USD"}
-                </strong>
-              </div>
 
               <div className="order-detail-row">
                 <span>📅 Fecha</span>
@@ -954,10 +1167,7 @@ export default function OrdersPage() {
                         key={`${selectedOrder.id}-${index}`}
                       >
                         <div>
-                          <small>
-                            CÓDIGO {index + 1}
-                          </small>
-
+                          <small>CÓDIGO {index + 1}</small>
                           <code>{code}</code>
                         </div>
 
@@ -975,7 +1185,7 @@ export default function OrdersPage() {
                 </div>
               ) : (
                 <div className="gift-codes-pending">
-                  {isGiftCardCompleted(selectedOrder)
+                  {isOrderCompleted(selectedOrder)
                     ? "La orden figura completada, pero todavía no hay códigos guardados. Contacta con soporte para verificar la entrega."
                     : normalizeStatus(selectedOrder.status) ===
                         "REFUNDED"
@@ -1013,6 +1223,101 @@ export default function OrdersPage() {
         </section>
 
         <style jsx>{`
+          .balance-order-icon {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            place-items: center;
+            font-size: 35px;
+            background: linear-gradient(135deg, #32131b, #17171e);
+          }
+
+          .balance-detail-banner {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 17px;
+            margin-bottom: 14px;
+            border: 1px solid rgba(50, 217, 151, 0.35);
+            border-radius: 12px;
+            background: rgba(25, 80, 55, 0.2);
+          }
+
+          .balance-detail-banner > span {
+            font-size: 30px;
+          }
+
+          .balance-detail-banner small,
+          .balance-detail-banner strong {
+            display: block;
+          }
+
+          .balance-detail-banner small {
+            color: #a6b8ad;
+            font-size: 10px;
+            font-weight: 900;
+            margin-bottom: 5px;
+          }
+
+          .balance-detail-banner strong {
+            color: #55e4a2;
+            font-size: 23px;
+            font-weight: 950;
+          }
+
+          .balance-detail-banner p {
+            color: #aab8b0;
+            font-size: 11px;
+            margin: 5px 0 0;
+          }
+
+          .balance-green {
+            color: #55e4a2 !important;
+          }
+
+          .balance-status-info {
+            margin-top: 16px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.04);
+          }
+
+          .balance-status-info strong {
+            display: block;
+            color: #ff6474;
+            font-size: 12px;
+            font-weight: 900;
+          }
+
+          .balance-status-info p {
+            color: #c6c6ce;
+            font-size: 12px;
+            line-height: 1.6;
+            margin: 7px 0 0;
+          }
+
+          .admin-note-box {
+            margin-top: 13px;
+            padding: 13px;
+            border-radius: 10px;
+            background: rgba(255, 70, 85, 0.08);
+            border: 1px solid rgba(255, 70, 85, 0.2);
+          }
+
+          .admin-note-box strong {
+            color: #ff6979;
+            font-size: 10px;
+          }
+
+          .admin-note-box p {
+            color: #ddd;
+            font-size: 12px;
+            line-height: 1.5;
+            margin: 7px 0 0;
+            white-space: pre-wrap;
+          }
+
           .gift-codes-panel {
             margin-top: 18px;
             padding: 16px;
@@ -1168,8 +1473,8 @@ export default function OrdersPage() {
           </h1>
 
           <p>
-            Consulta tus compras, productos y el estado
-            de cada pedido.
+            Consulta tus compras, acreditaciones y el estado
+            de cada solicitud.
           </p>
         </div>
 
@@ -1190,7 +1495,7 @@ export default function OrdersPage() {
         <div className="orders-stat-card">
           <span className="orders-stat-icon">💵</span>
           <strong>${totalAmount.toFixed(2)}</strong>
-          <small>TOTAL</small>
+          <small>TOTAL USD</small>
         </div>
 
         <div className="orders-stat-card">
@@ -1253,7 +1558,7 @@ export default function OrdersPage() {
 
         <div className="orders-refresh-row">
           <span>
-            Se actualizan los estados de las tarjetas pendientes.
+            Tus solicitudes se actualizan automáticamente.
           </span>
 
           <button
@@ -1288,27 +1593,35 @@ export default function OrdersPage() {
               <button
                 key={`${order.type}-${order.id}`}
                 type="button"
-                className="order-card"
+                className={`order-card ${
+                  order.type === "BALANCE"
+                    ? "balance-order-card"
+                    : ""
+                }`}
                 onClick={() => openOrder(order)}
               >
                 <div className="order-card-left">
                   <div className="order-game-icon">
-                    <img
-                      src={order.image}
-                      alt={order.game}
-                      loading="lazy"
-                      onError={(event) => {
-                        const image = event.currentTarget;
+                    {order.type === "BALANCE" ? (
+                      <div className="balance-list-icon">💳</div>
+                    ) : (
+                      <img
+                        src={order.image}
+                        alt={order.game}
+                        loading="lazy"
+                        onError={(event) => {
+                          const image = event.currentTarget;
 
-                        if (
-                          image.src.endsWith(DEFAULT_GAME_IMAGE)
-                        ) {
-                          return;
-                        }
+                          if (
+                            image.src.endsWith(DEFAULT_GAME_IMAGE)
+                          ) {
+                            return;
+                          }
 
-                        image.src = DEFAULT_GAME_IMAGE;
-                      }}
-                    />
+                          image.src = DEFAULT_GAME_IMAGE;
+                        }}
+                      />
+                    )}
                   </div>
 
                   <div className="order-card-info">
@@ -1316,9 +1629,26 @@ export default function OrdersPage() {
                       {order.displayProduct || order.product}
                     </strong>
 
-                    <span>{order.game}</span>
+                    <span>
+                      {order.type === "BALANCE"
+                        ? "STORE GAMING"
+                        : order.game}
+                    </span>
 
-                    {order.type === "GIFT_CARD" ? (
+                    {order.type === "BALANCE" ? (
+                      <>
+                        <small>
+                          {(
+                            order.amountCup || 0
+                          ).toLocaleString("es-ES")}{" "}
+                          CUP ENVIADOS
+                        </small>
+                        <small className="balance-order-credit">
+                          CRÉDITO: $
+                          {(order.balanceAmount || 0).toFixed(4)} USD
+                        </small>
+                      </>
+                    ) : order.type === "GIFT_CARD" ? (
                       <small>TARJETA DIGITAL</small>
                     ) : (
                       <small>ID: {order.playerId}</small>
@@ -1337,9 +1667,15 @@ export default function OrdersPage() {
                 </div>
 
                 <div className="order-card-right">
-                  <strong>
-                    ${(order.total ?? order.price).toFixed(2)}
-                  </strong>
+                  {order.type === "BALANCE" ? (
+                    <strong className="balance-order-price">
+                      +${(order.balanceAmount || 0).toFixed(4)}
+                    </strong>
+                  ) : (
+                    <strong>
+                      ${(order.total ?? order.price).toFixed(2)}
+                    </strong>
+                  )}
 
                   <span
                     className={`order-status ${getOrderStatusClass(
@@ -1369,9 +1705,9 @@ export default function OrdersPage() {
             <strong>TUS ÓRDENES ESTÁN REGISTRADAS</strong>
 
             <p>
-              Guarda el número de orden para consultar
-              cualquier compra. Los códigos digitales solo
-              aparecen cuando han sido guardados por el servidor.
+              Consulta aquí tus compras y solicitudes de
+              acreditación. El saldo se acredita únicamente
+              cuando administración aprueba la solicitud.
             </p>
           </div>
         </div>
@@ -1417,8 +1753,43 @@ export default function OrdersPage() {
           font-weight: 900;
         }
 
+        .balance-order-card {
+          border-color: rgba(50, 217, 151, 0.25) !important;
+        }
+
+        .balance-order-card:hover {
+          border-color: rgba(50, 217, 151, 0.65) !important;
+        }
+
+        .balance-list-icon {
+          width: 100%;
+          height: 100%;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(135deg, #18392c, #17171e);
+          font-size: 27px;
+        }
+
+        .balance-order-credit {
+          color: #55e4a2 !important;
+          font-weight: 900;
+        }
+
+        .balance-order-price {
+          color: #55e4a2 !important;
+        }
+
         .orders-page .order-status.status-pending {
           color: #ffbf36 !important;
+        }
+
+        .orders-page .order-status.status-completed {
+          color: #55e4a2 !important;
+        }
+
+        .orders-page .order-status.status-failed,
+        .orders-page .order-status.status-cancelled {
+          color: #ff7180 !important;
         }
 
         @media (max-width: 380px) {
