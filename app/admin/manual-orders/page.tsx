@@ -14,8 +14,10 @@ type ManualOrder = {
   amount_cup: number;
   exchange_rate: number;
   balance_amount: number;
-  confirmation_number: string;
-  receipt_url: string;
+  confirmation_number?: string | null;
+  receipt_url?: string | null;
+  receipt_signed_url?: string | null;
+  receipt_error?: string | null;
   status: string;
   created_at: string;
   admin_note?: string | null;
@@ -80,9 +82,22 @@ export default function ManualOrdersPage() {
         );
       }
 
-      setOrders(
-        Array.isArray(result.orders) ? result.orders : []
-      );
+      const loadedOrders: ManualOrder[] = Array.isArray(result.orders)
+        ? result.orders
+        : [];
+
+      setOrders(loadedOrders);
+
+      // Actualizar también la solicitud abierta si se renuevan
+      // los enlaces temporales del comprobante.
+      setSelected((current) => {
+        if (!current) return null;
+
+        return (
+          loadedOrders.find((order) => order.id === current.id) ||
+          null
+        );
+      });
     } catch (err) {
       setError(
         err instanceof Error
@@ -130,7 +145,9 @@ export default function ManualOrdersPage() {
 
       if (sessionError || !session?.access_token) {
         router.replace("/login");
-        throw new Error("Tu sesión ha expirado. Inicia sesión nuevamente.");
+        throw new Error(
+          "Tu sesión ha expirado. Inicia sesión nuevamente."
+        );
       }
 
       const response = await fetch("/api/admin/manual-orders", {
@@ -194,7 +211,9 @@ export default function ManualOrdersPage() {
         </button>
 
         <div className="eyebrow">STORE GAMING · ADMINISTRACIÓN</div>
+
         <h1>ÓRDENES ADM</h1>
+
         <p>
           Revisa los depósitos manuales, comprueba los recibos y gestiona
           las solicitudes de tus clientes.
@@ -210,9 +229,11 @@ export default function ManualOrdersPage() {
         <article className="summary-card">
           <span>Solicitudes pendientes</span>
           <strong>
-            {orders.filter((o) =>
-              ["pending", "PENDING"].includes(o.status)
-            ).length}
+            {
+              orders.filter((o) =>
+                ["pending", "PENDING"].includes(o.status)
+              ).length
+            }
           </strong>
         </article>
       </section>
@@ -244,7 +265,9 @@ export default function ManualOrdersPage() {
             <button
               key={item.value}
               type="button"
-              className={filter === item.value ? "filter active" : "filter"}
+              className={
+                filter === item.value ? "filter active" : "filter"
+              }
               onClick={() => setFilter(item.value)}
               disabled={processing}
             >
@@ -383,12 +406,12 @@ export default function ManualOrdersPage() {
             </div>
 
             <div className="receipt-area">
-              {selected.receipt_url ? (
+              {selected.receipt_signed_url ? (
                 <>
                   <p>Comprobante enviado por el cliente</p>
 
                   <a
-                    href={selected.receipt_url}
+                    href={selected.receipt_signed_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="receipt-link"
@@ -398,10 +421,21 @@ export default function ManualOrdersPage() {
 
                   <iframe
                     title="Comprobante de pago"
-                    src={selected.receipt_url}
+                    src={selected.receipt_signed_url}
                     className="receipt-frame"
                   />
                 </>
+              ) : selected.receipt_url ? (
+                <div className="error-message">
+                  El comprobante existe, pero no se pudo generar su enlace
+                  temporal.
+                  {selected.receipt_error && (
+                    <p>{selected.receipt_error}</p>
+                  )}
+                  <p>
+                    Pulsa «Actualizar» para solicitar un enlace nuevo.
+                  </p>
+                </div>
               ) : (
                 <div className="error-message">
                   Esta solicitud no tiene un comprobante disponible.
@@ -473,7 +507,11 @@ export default function ManualOrdersPage() {
                 <button
                   type="button"
                   className="approve-button"
-                  disabled={processing || !selected.receipt_url}
+                  disabled={
+                    processing ||
+                    !selected.receipt_url ||
+                    !selected.receipt_signed_url
+                  }
                   onClick={() => void processOrder(selected, "approve")}
                 >
                   {processing ? "Procesando..." : "Aprobar y acreditar"}
