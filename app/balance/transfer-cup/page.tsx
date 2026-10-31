@@ -25,6 +25,14 @@ type CreatedOrder = {
   created_at: string;
 };
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
 export default function TransferCupPage() {
   const router = useRouter();
 
@@ -35,7 +43,10 @@ export default function TransferCupPage() {
     useState<TransferSettings | null>(null);
 
   const [amount, setAmount] = useState("");
+  const [receipt, setReceipt] = useState<File | null>(null);
+
   const [order, setOrder] = useState<CreatedOrder | null>(null);
+  const [receiptUploaded, setReceiptUploaded] = useState(false);
 
   const [userToken, setUserToken] = useState("");
   const [error, setError] = useState("");
@@ -67,7 +78,7 @@ export default function TransferCupPage() {
 
         if (!response.ok || !result.success) {
           throw new Error(
-            result.error || "No se pudo cargar la tasa."
+            result.error || "No se pudo cargar la configuración."
           );
         }
 
@@ -120,12 +131,73 @@ export default function TransferCupPage() {
     setError("");
   }
 
+  function handleReceiptChange(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0] || null;
+
+    setError("");
+
+    if (!file) {
+      setReceipt(null);
+      return;
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setReceipt(null);
+      event.target.value = "";
+      setError("Selecciona una imagen JPG, PNG o WEBP.");
+      return;
+    }
+
+    if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
+      setReceipt(null);
+      event.target.value = "";
+      setError("La imagen debe pesar como máximo 5 MB.");
+      return;
+    }
+
+    setReceipt(file);
+  }
+
+  async function uploadReceipt(orderId: string) {
+    if (!receipt || !userToken) {
+      throw new Error("Selecciona la fotografía del comprobante.");
+    }
+
+    const formData = new FormData();
+
+    formData.append("order_id", orderId);
+    formData.append("receipt", receipt);
+
+    const response = await fetch(
+      "/api/manual-payment/receipt",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+        body: formData,
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.error || "No se pudo subir el comprobante."
+      );
+    }
+
+    setReceiptUploaded(true);
+  }
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (submitting || order) return;
+    if (submitting || receiptUploaded) return;
 
     setError("");
 
@@ -148,43 +220,57 @@ export default function TransferCupPage() {
       return;
     }
 
+    if (!receipt) {
+      setError("Debes seleccionar la fotografía del comprobante.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const response = await fetch(
-        "/api/transfer-cup/orders",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${userToken}`,
-          },
-          body: JSON.stringify({
-            amount_cup: amountCup,
-          }),
+      let currentOrder = order;
+
+      // Si ya existe una orden, no creamos otra.
+      // Esto permite reintentar solamente la subida del comprobante.
+      if (!currentOrder) {
+        const response = await fetch(
+          "/api/transfer-cup/orders",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${userToken}`,
+            },
+            body: JSON.stringify({
+              amount_cup: amountCup,
+            }),
+          }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.error || "No se pudo registrar la solicitud."
+          );
         }
-      );
 
-      const result = await response.json();
+        if (!result.order?.id) {
+          throw new Error(
+            "El servidor no devolvió el identificador de la orden."
+          );
+        }
 
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.error || "No se pudo registrar el pedido."
-        );
+        currentOrder = result.order as CreatedOrder;
+        setOrder(currentOrder);
       }
 
-      if (!result.order?.id) {
-        throw new Error(
-          "El servidor no devolvió el número de orden."
-        );
-      }
-
-      setOrder(result.order);
+      await uploadReceipt(currentOrder.id);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Ocurrió un error al enviar el pedido."
+          : "Ocurrió un error al enviar la solicitud."
       );
     } finally {
       setSubmitting(false);
@@ -199,7 +285,6 @@ export default function TransferCupPage() {
           <div className="transfer-spinner" />
           <p>CARGANDO TRANSFERENCIA CUP...</p>
         </div>
-
         <TransferStyles />
       </main>
     );
@@ -230,7 +315,7 @@ export default function TransferCupPage() {
     );
   }
 
-  if (order) {
+  if (order && receiptUploaded) {
     return (
       <main className="transfer-page">
         <div className="transfer-background" />
@@ -247,7 +332,7 @@ export default function TransferCupPage() {
           <div>
             <small>STORE GAMING</small>
             <h1>
-              PEDIDO <span>REGISTRADO</span>
+              PEDIDO <span>ENVIADO</span>
             </h1>
           </div>
         </header>
@@ -256,15 +341,16 @@ export default function TransferCupPage() {
           <div className="success-card">
             <div className="success-icon">✓</div>
 
-            <div className="demo-label">
-              REGISTRO DE DEMOSTRACIÓN
+            <div className="success-label">
+              SOLICITUD ENVIADA
             </div>
 
-            <h2>SOLICITUD REGISTRADA</h2>
+            <h2>COMPROBANTE RECIBIDO</h2>
 
             <p>
-              El servidor ha registrado la solicitud y
-              devolvió un identificador de orden.
+              Tu solicitud y la fotografía del comprobante
+              fueron enviadas correctamente. Está pendiente
+              de revisión por el administrador.
             </p>
 
             <div className="reference-box">
@@ -274,7 +360,7 @@ export default function TransferCupPage() {
 
             <div className="summary">
               <div>
-                <span>Importe solicitado</span>
+                <span>Importe enviado</span>
                 <strong>
                   {Number(order.amount_cup).toFixed(2)} CUP
                 </strong>
@@ -288,16 +374,16 @@ export default function TransferCupPage() {
               </div>
 
               <div>
-                <span>Valor de referencia</span>
+                <span>Crédito solicitado</span>
                 <strong>
                   {Number(order.balance_amount).toFixed(4)}
                 </strong>
               </div>
 
               <div>
-                <span>Estado de la orden</span>
+                <span>Estado</span>
                 <strong className="pending-status">
-                  {order.status.toUpperCase()}
+                  PENDIENTE DE REVISIÓN
                 </strong>
               </div>
 
@@ -309,11 +395,12 @@ export default function TransferCupPage() {
               </div>
             </div>
 
-            <div className="demo-warning">
+            <div className="info-warning">
               <span>ℹ️</span>
               <p>
-                Registro de prueba. No representa un pago
-                confirmado ni modifica el balance de la cuenta.
+                El crédito se añadirá a tu billetera de
+                STORE GAMING únicamente después de que
+                el administrador apruebe la solicitud.
               </p>
             </div>
 
@@ -359,14 +446,14 @@ export default function TransferCupPage() {
       <section className="transfer-container">
         <div className="transfer-intro">
           <span className="intro-tag">
-            SOLICITUD DE PRUEBA
+            RECARGA DE BILLETERA
           </span>
 
           <h2>TRANSFERENCIA CUP</h2>
 
           <p>
-            Introduce el importe para registrar una
-            solicitud en STORE GAMING.
+            Realiza la transferencia, adjunta una fotografía
+            del comprobante y envía tu solicitud para revisión.
           </p>
         </div>
 
@@ -377,7 +464,6 @@ export default function TransferCupPage() {
               1 BALANCE = {exchangeRate.toFixed(4)} CUP
             </strong>
           </div>
-
           <span>↔</span>
         </div>
 
@@ -386,7 +472,7 @@ export default function TransferCupPage() {
           onSubmit={handleSubmit}
         >
           <div className="form-heading">
-            <h2>DATOS DE LA SOLICITUD</h2>
+            <h2>DATOS DE LA TRANSFERENCIA</h2>
             <span>TRANSFERENCIA CUP</span>
           </div>
 
@@ -403,16 +489,73 @@ export default function TransferCupPage() {
             placeholder="Ejemplo: 1000"
             value={amount}
             onChange={handleAmountChange}
-            disabled={submitting}
+            disabled={submitting || !!order}
+            required
           />
 
           <div className="calculation-card">
-            <span>VALOR CALCULADO DE REFERENCIA</span>
+            <span>CRÉDITO QUE SOLICITAS</span>
             <strong>{balanceAmount.toFixed(4)}</strong>
             <small>
-              Cálculo informativo de demostración.
+              Se acreditará en tu billetera después de la aprobación.
             </small>
           </div>
+
+          <div className="payment-details">
+            <div className="payment-detail">
+              <span>TARJETA A ENVIAR</span>
+              <strong>{settings.transfer_card}</strong>
+            </div>
+
+            <div className="payment-detail">
+              <span>NÚMERO A CONFIRMAR</span>
+              <strong>{settings.confirmation_number}</strong>
+            </div>
+          </div>
+
+          <label htmlFor="receipt">
+            FOTOGRAFÍA DEL COMPROBANTE
+          </label>
+
+          <div className="receipt-upload">
+            <input
+              id="receipt"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleReceiptChange}
+              disabled={submitting || receiptUploaded}
+              required={!receiptUploaded}
+            />
+
+            <div className="receipt-hint">
+              <span className="receipt-icon">▧</span>
+              <strong>
+                {receipt
+                  ? "COMPROBANTE SELECCIONADO"
+                  : "SELECCIONAR FOTOGRAFÍA"}
+              </strong>
+              <small>
+                JPG, PNG o WEBP · Máximo 5 MB
+              </small>
+
+              {receipt && (
+                <span className="receipt-filename">
+                  {receipt.name}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {order && !receiptUploaded && (
+            <div className="info-warning">
+              <span>!</span>
+              <p>
+                Tu solicitud ya fue creada. Solo falta
+                enviar el comprobante. Al reintentar no
+                se creará otra orden.
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="error-message">
@@ -421,15 +564,6 @@ export default function TransferCupPage() {
             </div>
           )}
 
-          <div className="demo-warning">
-            <span>ℹ️</span>
-            <p>
-              Se registrará una orden de demostración
-              en el servidor. No se procesan pagos
-              ni se acreditan fondos reales.
-            </p>
-          </div>
-
           <button
             type="submit"
             className="primary-button"
@@ -437,12 +571,16 @@ export default function TransferCupPage() {
               submitting ||
               !amount ||
               !Number.isFinite(amountCup) ||
-              amountCup <= 0
+              amountCup <= 0 ||
+              !receipt ||
+              receiptUploaded
             }
           >
             {submitting
-              ? "REGISTRANDO PEDIDO..."
-              : "ENVIAR PEDIDO"}
+              ? "ENVIANDO SOLICITUD..."
+              : order
+                ? "REINTENTAR ENVÍO DEL COMPROBANTE"
+                : "ENVIAR SOLICITUD"}
             <span>→</span>
           </button>
         </form>
@@ -640,7 +778,7 @@ function TransferStyles() {
         margin: 17px 0 8px;
       }
 
-      .transfer-form input {
+      .transfer-form input[type="number"] {
         box-sizing: border-box;
         width: 100%;
         min-height: 48px;
@@ -686,9 +824,98 @@ function TransferStyles() {
       .calculation-card small {
         color: #888;
         font-size: 10px;
+        line-height: 1.5;
       }
 
-      .demo-warning {
+      .payment-details {
+        display: grid;
+        gap: 12px;
+        margin-top: 20px;
+      }
+
+      .payment-detail {
+        padding: 16px;
+        border-radius: 11px;
+        background: #090909;
+        border: 1px solid #343434;
+      }
+
+      .payment-detail span,
+      .payment-detail strong {
+        display: block;
+      }
+
+      .payment-detail span {
+        color: #e04444;
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: 1px;
+        margin-bottom: 9px;
+      }
+
+      .payment-detail strong {
+        color: #fff;
+        font-size: 19px;
+        letter-spacing: 1px;
+        overflow-wrap: anywhere;
+      }
+
+      .receipt-upload {
+        position: relative;
+        min-height: 125px;
+        border: 1px dashed #555;
+        border-radius: 12px;
+        background: #0a0a0a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        box-sizing: border-box;
+      }
+
+      .receipt-upload input[type="file"] {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 2;
+      }
+
+      .receipt-hint {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+        text-align: center;
+        pointer-events: none;
+      }
+
+      .receipt-icon {
+        color: #e04444;
+        font-size: 28px;
+      }
+
+      .receipt-hint strong {
+        color: #eee;
+        font-size: 11px;
+        font-weight: 950;
+      }
+
+      .receipt-hint small {
+        color: #888;
+        font-size: 10px;
+      }
+
+      .receipt-filename {
+        color: #57d6a7;
+        font-size: 10px;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+
+      .info-warning {
         display: flex;
         gap: 10px;
         margin: 18px 0;
@@ -698,7 +925,7 @@ function TransferStyles() {
         background: rgba(230,172,55,.06);
       }
 
-      .demo-warning p {
+      .info-warning p {
         margin: 0;
         color: #c4b58f;
         font-size: 10px;
@@ -730,6 +957,7 @@ function TransferStyles() {
         justify-content: center;
         align-items: center;
         gap: 10px;
+        margin-top: 18px;
         color: white;
         border: 1px solid rgba(255,100,100,.4);
         background: linear-gradient(135deg,#bd3434,#791d1d);
@@ -766,8 +994,8 @@ function TransferStyles() {
         font-weight: 900;
       }
 
-      .demo-label {
-        color: #e9c16d;
+      .success-label {
+        color: #57d6a7;
         font-size: 10px;
         font-weight: 950;
       }
@@ -871,6 +1099,10 @@ function TransferStyles() {
         .transfer-form,
         .success-card {
           padding: 16px;
+        }
+
+        .payment-detail strong {
+          font-size: 16px;
         }
 
         .summary > div {
