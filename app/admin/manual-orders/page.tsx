@@ -21,6 +21,8 @@ type ManualOrder = {
   status: string;
   created_at: string;
   admin_note?: string | null;
+  demo_mode?: boolean;
+  can_process?: boolean;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,8 +42,6 @@ export default function ManualOrdersPage() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("pending");
   const [selected, setSelected] = useState<ManualOrder | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [adminNote, setAdminNote] = useState("");
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -88,14 +88,11 @@ export default function ManualOrdersPage() {
 
       setOrders(loadedOrders);
 
-      // Actualizar también la solicitud abierta si se renuevan
-      // los enlaces temporales del comprobante.
       setSelected((current) => {
         if (!current) return null;
 
         return (
-          loadedOrders.find((order) => order.id === current.id) ||
-          null
+          loadedOrders.find((order) => order.id === current.id) || null
         );
       });
     } catch (err) {
@@ -113,91 +110,15 @@ export default function ManualOrdersPage() {
     void loadOrders();
   }, [loadOrders]);
 
-  async function processOrder(
-    order: ManualOrder,
-    action: "approve" | "reject"
-  ) {
-    if (processing) return;
-
-    if (
-      action === "approve" &&
-      (!order.receipt_url || !order.receipt_url.trim())
-    ) {
-      setError("No se puede aprobar una solicitud sin comprobante.");
-      return;
-    }
-
-    const message =
-      action === "approve"
-        ? "¿Confirmas la aprobación? Se acreditará el balance una sola vez."
-        : "¿Confirmas el rechazo de esta solicitud?";
-
-    if (!window.confirm(message)) return;
-
-    setProcessing(true);
-    setError("");
-
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session?.access_token) {
-        router.replace("/login");
-        throw new Error(
-          "Tu sesión ha expirado. Inicia sesión nuevamente."
-        );
-      }
-
-      const response = await fetch("/api/admin/manual-orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          orderId: order.id,
-          action,
-          adminNote: adminNote.trim(),
-        }),
-      });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          result.error || "No se pudo procesar la solicitud."
-        );
-      }
-
-      setSelected(null);
-      setAdminNote("");
-
-      await loadOrders();
-
-      window.alert(
-        action === "approve"
-          ? "Solicitud aprobada correctamente."
-          : "Solicitud rechazada correctamente."
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error al procesar la solicitud."
-      );
-    } finally {
-      setProcessing(false);
-    }
-  }
-
   const money = (value: number) =>
     Number(value || 0).toLocaleString("es", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
     });
+
+  const isTransferDemo = (order: ManualOrder) =>
+    order.method === "transferencia_cup" ||
+    order.demo_mode === true;
 
   return (
     <main className="manual-admin">
@@ -210,13 +131,15 @@ export default function ManualOrdersPage() {
           ← Volver al inicio
         </button>
 
-        <div className="eyebrow">STORE GAMING · ADMINISTRACIÓN</div>
+        <div className="eyebrow">
+          STORE GAMING · ADMINISTRACIÓN
+        </div>
 
         <h1>ÓRDENES ADM</h1>
 
         <p>
-          Revisa los depósitos manuales, comprueba los recibos y gestiona
-          las solicitudes de tus clientes.
+          Consulta las solicitudes de SALDO CUP y TRANSFERENCIA CUP
+          desde un mismo panel administrativo.
         </p>
       </header>
 
@@ -242,14 +165,16 @@ export default function ManualOrdersPage() {
         <div className="panel-heading">
           <div>
             <h2>Solicitudes de depósitos</h2>
-            <p>Saldo CUP y Transferencia CUP</p>
+            <p>
+              SALDO CUP y TRANSFERENCIA CUP
+            </p>
           </div>
 
           <button
             type="button"
             className="refresh-button"
             onClick={() => void loadOrders()}
-            disabled={loading || processing}
+            disabled={loading}
           >
             ↻ Actualizar
           </button>
@@ -269,7 +194,7 @@ export default function ManualOrdersPage() {
                 filter === item.value ? "filter active" : "filter"
               }
               onClick={() => setFilter(item.value)}
-              disabled={processing}
+              disabled={loading}
             >
               {item.label}
             </button>
@@ -292,7 +217,7 @@ export default function ManualOrdersPage() {
             <div className="empty-icon">▤</div>
             <h3>No hay solicitudes para mostrar</h3>
             <p>
-              Cuando los clientes envíen sus comprobantes, aparecerán aquí.
+              Cuando existan solicitudes, aparecerán aquí.
             </p>
           </div>
         ) : (
@@ -300,13 +225,21 @@ export default function ManualOrdersPage() {
             {orders.map((order) => (
               <article className="order-card" key={order.id}>
                 <div className="order-top">
-                  <span className="order-method">
-                    {order.method === "transferencia_cup"
-                      ? "TRANSFERENCIA CUP"
-                      : order.method === "saldo_cup"
-                        ? "SALDO CUP"
-                        : order.method}
-                  </span>
+                  <div className="method-group">
+                    <span className="order-method">
+                      {order.method === "transferencia_cup"
+                        ? "TRANSFERENCIA CUP"
+                        : order.method === "saldo_cup"
+                          ? "SALDO CUP"
+                          : order.method}
+                    </span>
+
+                    {isTransferDemo(order) && (
+                      <span className="demo-badge">
+                        MODO DEMOSTRACIÓN
+                      </span>
+                    )}
+                  </div>
 
                   <span
                     className={`status status-${String(
@@ -319,17 +252,21 @@ export default function ManualOrdersPage() {
 
                 <div className="order-amount">
                   <strong>{money(order.balance_amount)}</strong>
-                  <span>balance solicitado</span>
+                  <span>
+                    {isTransferDemo(order)
+                      ? "importe de referencia · no acreditable"
+                      : "balance solicitado"}
+                  </span>
                 </div>
 
                 <div className="order-details">
                   <div>
-                    <span>Importe enviado</span>
+                    <span>Importe registrado</span>
                     <strong>{money(order.amount_cup)} CUP</strong>
                   </div>
 
                   <div>
-                    <span>Tasa aplicada</span>
+                    <span>Tasa registrada</span>
                     <strong>{money(order.exchange_rate)} CUP</strong>
                   </div>
 
@@ -357,12 +294,9 @@ export default function ManualOrdersPage() {
                 <button
                   type="button"
                   className="details-button"
-                  onClick={() => {
-                    setSelected(order);
-                    setAdminNote(order.admin_note || "");
-                  }}
+                  onClick={() => setSelected(order)}
                 >
-                  Revisar solicitud →
+                  Consultar solicitud →
                 </button>
               </article>
             ))}
@@ -374,10 +308,7 @@ export default function ManualOrdersPage() {
         <div
           className="modal-backdrop"
           onClick={(event) => {
-            if (
-              event.target === event.currentTarget &&
-              !processing
-            ) {
+            if (event.target === event.currentTarget) {
               setSelected(null);
             }
           }}
@@ -390,72 +321,81 @@ export default function ManualOrdersPage() {
           >
             <div className="modal-heading">
               <div>
-                <span className="eyebrow">REVISIÓN DE PAGO</span>
-                <h2 id="modal-title">Solicitud de depósito</h2>
+                <span className="eyebrow">
+                  CONSULTA ADMINISTRATIVA
+                </span>
+
+                <h2 id="modal-title">
+                  Solicitud de depósito
+                </h2>
               </div>
 
               <button
                 type="button"
                 className="close-button"
-                onClick={() => !processing && setSelected(null)}
+                onClick={() => setSelected(null)}
                 aria-label="Cerrar"
-                disabled={processing}
               >
                 ×
               </button>
             </div>
 
+            {isTransferDemo(selected) && (
+              <div className="demo-notice">
+                <strong>
+                  TRANSFERENCIA CUP · MODO DEMOSTRACIÓN
+                </strong>
+
+                <p>
+                  Esta solicitud es únicamente de prueba.
+                  Los importes son datos de referencia y no
+                  representan un pago verificado.
+                </p>
+
+                <p>
+                  No se permite aprobar, rechazar ni acreditar
+                  balances mediante esta solicitud.
+                </p>
+              </div>
+            )}
+
             <div className="receipt-area">
-              {selected.receipt_signed_url ? (
-                <>
-                  <p>Comprobante enviado por el cliente</p>
+              <p className="receipt-title">
+                Información de la solicitud
+              </p>
 
-                  <a
-                    href={selected.receipt_signed_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="receipt-link"
-                  >
-                    Abrir comprobante en otra pestaña ↗
-                  </a>
-
-                  <iframe
-                    title="Comprobante de pago"
-                    src={selected.receipt_signed_url}
-                    className="receipt-frame"
-                  />
-                </>
-              ) : selected.receipt_url ? (
-                <div className="error-message">
-                  El comprobante existe, pero no se pudo generar su enlace
-                  temporal.
-                  {selected.receipt_error && (
-                    <p>{selected.receipt_error}</p>
-                  )}
-                  <p>
-                    Pulsa «Actualizar» para solicitar un enlace nuevo.
-                  </p>
-                </div>
-              ) : (
-                <div className="error-message">
-                  Esta solicitud no tiene un comprobante disponible.
-                  No la apruebes hasta verificar el pago.
-                </div>
-              )}
+              <p>
+                Los datos mostrados proceden del registro
+                administrativo. Esta pantalla no verifica pagos.
+              </p>
             </div>
 
             <div className="modal-details">
               <p>
                 <span>Usuario:</span>{" "}
-                {selected.email || selected.username || selected.user_id}
+                {selected.email ||
+                  selected.username ||
+                  selected.user_id}
               </p>
 
               <p>
-                <span>Método:</span> {selected.method}
+                <span>Método:</span>{" "}
+                {selected.method === "transferencia_cup"
+                  ? "TRANSFERENCIA CUP"
+                  : selected.method === "saldo_cup"
+                    ? "SALDO CUP"
+                    : selected.method}
               </p>
 
               <p>
-                <span>CUP enviados:</span>{" "}
+                <span>Tipo de registro:</span>{" "}
+                {isTransferDemo(selected)
+                  ? "Demostración"
+                  : "Registro administrativo"}
+              </p>
+
+              <p>
+                <span>CUP registrados:</span>{" "}
                 {money(selected.amount_cup)} CUP
               </p>
 
@@ -465,7 +405,7 @@ export default function ManualOrdersPage() {
               </p>
 
               <p>
-                <span>Balance a acreditar:</span>{" "}
+                <span>Importe de referencia:</span>{" "}
                 {money(selected.balance_amount)}
               </p>
 
@@ -478,51 +418,38 @@ export default function ManualOrdersPage() {
                 <span>Estado:</span>{" "}
                 {STATUS_LABELS[selected.status] || selected.status}
               </p>
+
+              <p>
+                <span>Fecha:</span>{" "}
+                {selected.created_at
+                  ? new Date(selected.created_at).toLocaleString("es")
+                  : "No disponible"}
+              </p>
             </div>
 
-            <label className="note-label" htmlFor="admin-note">
-              Nota del administrador (opcional)
-            </label>
-
-            <textarea
-              id="admin-note"
-              value={adminNote}
-              onChange={(event) => setAdminNote(event.target.value)}
-              placeholder="Escribe una observación..."
-              maxLength={1000}
-              disabled={processing}
-            />
-
-            {["pending", "PENDING"].includes(selected.status) && (
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="reject-button"
-                  disabled={processing}
-                  onClick={() => void processOrder(selected, "reject")}
-                >
-                  {processing ? "Procesando..." : "Rechazar"}
-                </button>
-
-                <button
-                  type="button"
-                  className="approve-button"
-                  disabled={
-                    processing ||
-                    !selected.receipt_url ||
-                    !selected.receipt_signed_url
-                  }
-                  onClick={() => void processOrder(selected, "approve")}
-                >
-                  {processing ? "Procesando..." : "Aprobar y acreditar"}
-                </button>
+            {selected.admin_note && (
+              <div className="admin-note">
+                <strong>Nota administrativa</strong>
+                <p>{selected.admin_note}</p>
               </div>
             )}
 
-            <p className="security-note">
-              La aprobación se valida en el servidor y se procesa de
-              forma atómica para impedir acreditaciones duplicadas.
-            </p>
+            <div className="read-only-notice">
+              <strong>Panel de consulta</strong>
+              <p>
+                Esta versión permite consultar los registros.
+                No ejecuta aprobaciones, rechazos ni movimientos
+                de balance.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="details-button close-modal-button"
+              onClick={() => setSelected(null)}
+            >
+              Cerrar consulta
+            </button>
           </section>
         </div>
       )}
@@ -533,7 +460,11 @@ export default function ManualOrdersPage() {
           padding: 32px;
           color: #f5f5f5;
           background:
-            radial-gradient(ellipse at top right, #3c1018 0%, transparent 38%),
+            radial-gradient(
+              ellipse at top right,
+              #3c1018 0%,
+              transparent 38%
+            ),
             #090909;
           font-family: Arial, Helvetica, sans-serif;
         }
@@ -671,11 +602,30 @@ export default function ManualOrdersPage() {
           min-width: 0;
         }
 
+        .method-group {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+        }
+
         .order-method {
           color: #ff626b;
           font-size: 11px;
           font-weight: 900;
           letter-spacing: 1px;
+        }
+
+        .demo-badge {
+          display: inline-block;
+          padding: 6px 9px;
+          color: #ffd36a;
+          background: #35280d;
+          border: 1px solid #80601d;
+          border-radius: 7px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.5px;
         }
 
         .status {
@@ -730,39 +680,15 @@ export default function ManualOrdersPage() {
           margin: 20px 0;
         }
 
-        .details-button,
-        .approve-button,
-        .reject-button {
-          padding: 12px 15px;
-          border: 0;
-          border-radius: 9px;
-          font-weight: 800;
-          cursor: pointer;
-        }
-
         .details-button {
           width: 100%;
+          padding: 12px 15px;
           color: white;
           background: #262626;
           border: 1px solid #3b3b3b;
-        }
-
-        .approve-button {
-          color: white;
-          background: #168348;
-        }
-
-        .reject-button {
-          color: white;
-          background: #9f202c;
-        }
-
-        .approve-button:disabled,
-        .reject-button:disabled,
-        .refresh-button:disabled,
-        .filter:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
+          border-radius: 9px;
+          font-weight: 800;
+          cursor: pointer;
         }
 
         .empty-state {
@@ -841,6 +767,26 @@ export default function ManualOrdersPage() {
           cursor: pointer;
         }
 
+        .demo-notice {
+          margin: 18px 0;
+          padding: 15px;
+          color: #ffda83;
+          background: #30240e;
+          border: 1px solid #80601d;
+          border-radius: 10px;
+        }
+
+        .demo-notice strong {
+          font-size: 12px;
+        }
+
+        .demo-notice p {
+          margin-bottom: 0;
+          color: #e6d4a8;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
         .receipt-area {
           margin: 20px 0;
           padding: 15px;
@@ -851,21 +797,12 @@ export default function ManualOrdersPage() {
         .receipt-area p {
           color: #bbb;
           font-size: 13px;
+          line-height: 1.5;
         }
 
-        .receipt-link {
-          display: inline-block;
-          margin: 8px 0 14px;
-          color: #ff727b;
-        }
-
-        .receipt-frame {
-          display: block;
-          width: 100%;
-          height: 320px;
-          border: 1px solid #333;
-          border-radius: 8px;
-          background: #080808;
+        .receipt-title {
+          color: #fff !important;
+          font-weight: 800;
         }
 
         .modal-details {
@@ -885,39 +822,41 @@ export default function ManualOrdersPage() {
           color: #999;
         }
 
-        .note-label {
-          display: block;
-          margin-bottom: 8px;
-          font-size: 13px;
-        }
-
-        .order-modal textarea {
-          display: block;
-          width: 100%;
-          min-height: 85px;
-          padding: 12px;
-          color: white;
+        .admin-note,
+        .read-only-notice {
+          margin: 16px 0;
+          padding: 14px;
           background: #1a1a1a;
-          border: 1px solid #373737;
-          border-radius: 9px;
-          resize: vertical;
+          border: 1px solid #333;
+          border-radius: 10px;
         }
 
-        .modal-actions {
-          display: flex;
-          gap: 12px;
-          margin-top: 18px;
+        .admin-note strong,
+        .read-only-notice strong {
+          font-size: 13px;
+          color: #ff727b;
         }
 
-        .modal-actions button {
-          flex: 1;
-        }
-
-        .security-note {
-          color: #999;
-          font-size: 11px;
+        .admin-note p,
+        .read-only-notice p {
+          color: #bbb;
+          font-size: 13px;
           line-height: 1.6;
-          margin-top: 18px;
+          margin-bottom: 0;
+          overflow-wrap: anywhere;
+        }
+
+        .read-only-notice {
+          border-color: #55502b;
+          background: #211e12;
+        }
+
+        .read-only-notice strong {
+          color: #ffd36a;
+        }
+
+        .close-modal-button {
+          margin-top: 12px;
         }
 
         @media (max-width: 700px) {
@@ -947,7 +886,8 @@ export default function ManualOrdersPage() {
             padding: 16px;
           }
 
-          .modal-actions {
+          .order-top {
+            align-items: flex-start;
             flex-direction: column;
           }
         }
