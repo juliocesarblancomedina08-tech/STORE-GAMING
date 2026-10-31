@@ -456,6 +456,9 @@ export default function OrdersPage() {
           .eq("user_id", userId)
           .order("created_at", { ascending: false }),
 
+        // Cargar todas las solicitudes del usuario.
+        // Incluye transferencia_cup, saldo_cup y otros métodos
+        // que se incorporen posteriormente.
         supabase
           .from("manual_orders")
           .select(`
@@ -473,7 +476,6 @@ export default function OrdersPage() {
             processed_at
           `)
           .eq("user_id", userId)
-          .in("method", ["transferencia_cup", "saldo_cup"])
           .order("created_at", { ascending: false }),
       ]);
 
@@ -679,7 +681,12 @@ export default function OrdersPage() {
           game: "STORE GAMING",
           categoryId: "store_balance",
           product: "Acreditación de saldo",
-          displayProduct: "ACREDITACIÓN DE SALDO CUP",
+          displayProduct:
+            row.method === "saldo_cup"
+              ? "SOLICITUD DE SALDO CUP"
+              : row.method === "transferencia_cup"
+                ? "ACREDITACIÓN POR TRANSFERENCIA CUP"
+                : `ACREDITACIÓN DE SALDO (${row.method})`,
           price: balanceAmount,
           total: balanceAmount,
           playerId: "No requiere ID de jugador",
