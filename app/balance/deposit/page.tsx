@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -20,34 +21,28 @@ type NetworkInfo = {
   address: string;
 };
 
+type DepositStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "REJECTED"
+  | "EXPIRED";
+
 const NETWORKS: Record<Network, NetworkInfo> = {
   BEP20: {
     name: "USDT (BEP20)",
-    address:
-      "0xdcdEe992E26cDBe1b024e171a3a980078BeaAC77",
+    address: "0xdcdEe992E26cDBe1b024e171a3a980078BeaAC77",
   },
-
   TRC20: {
     name: "USDT (TRC20)",
-    address:
-      "TTYHTFZJTMisUGZcSEooegLpxYt3zVo6YQ",
+    address: "TTYHTFZJTMisUGZcSEooegLpxYt3zVo6YQ",
   },
-
   TON: {
     name: "USDT (TON)",
-    address:
-      "UQCKwyZB4Ph58WjL78LIYyd3U81nTYGuwWFNGaz2_YAvJJDg",
+    address: "UQCKwyZB4Ph58WjL78LIYyd3U81nTYGuwWFNGaz2_YAvJJDg",
   },
 };
 
 const DEPOSIT_DURATION_MS = 10 * 60 * 1000;
-
-/*
- * TASA DE CAMBIO
- *
- * 1 USDT = 1 BALANCE
- */
-
 const EXCHANGE_RATE = 1;
 
 function UsdtLogo() {
@@ -66,9 +61,7 @@ function DepositContent() {
   const searchParams = useSearchParams();
 
   const [amount, setAmount] = useState("");
-
-  const [network, setNetwork] =
-    useState<Network | null>(null);
+  const [network, setNetwork] = useState<Network | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -82,22 +75,18 @@ function DepositContent() {
   const [error, setError] = useState("");
   const [created, setCreated] = useState(false);
 
-  const [expiresAt, setExpiresAt] =
-    useState<number | null>(null);
+  // Estado de la pantalla de verificación.
+  const [showVerification, setShowVerification] = useState(false);
 
-  const [remainingSeconds, setRemainingSeconds] =
-    useState(0);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
 
   const [depositStatus, setDepositStatus] =
-    useState<
-      "PENDING" |
-      "CONFIRMED" |
-      "REJECTED" |
-      "EXPIRED"
-    >("PENDING");
+    useState<DepositStatus>("PENDING");
 
-  const selectedNetwork =
-    network ? NETWORKS[network] : null;
+  const selectedNetwork = network
+    ? NETWORKS[network]
+    : null;
 
   const numericAmount = Number(amount);
 
@@ -111,6 +100,8 @@ function DepositContent() {
    */
 
   useEffect(() => {
+    let active = true;
+
     async function initializeDeposit() {
       try {
         setLoading(true);
@@ -126,14 +117,13 @@ function DepositContent() {
           return;
         }
 
-        const urlNetwork =
-          searchParams.get("network");
+        const urlNetwork = searchParams.get("network");
 
         if (!urlNetwork) {
-          setError(
-            "No se seleccionó una red de depósito."
-          );
-          setLoading(false);
+          if (active) {
+            setError("No se seleccionó una red de depósito.");
+            setLoading(false);
+          }
           return;
         }
 
@@ -141,22 +131,18 @@ function DepositContent() {
           urlNetwork.toUpperCase() as Network;
 
         if (!NETWORKS[normalizedNetwork]) {
-          setError(
-            "La red seleccionada no es válida."
-          );
-          setLoading(false);
+          if (active) {
+            setError("La red seleccionada no es válida.");
+            setLoading(false);
+          }
           return;
         }
 
+        if (!active) return;
+
         setNetwork(normalizedNetwork);
 
-        /*
-         * Si viene una cantidad desde otra página,
-         * la conservamos como valor inicial.
-         */
-
-        const urlAmount =
-          searchParams.get("amount");
+        const urlAmount = searchParams.get("amount");
 
         if (urlAmount) {
           const parsedAmount = Number(urlAmount);
@@ -171,21 +157,57 @@ function DepositContent() {
 
         setLoading(false);
       } catch (err) {
-        console.error(
-          "ERROR AL PREPARAR DEPÓSITO:",
-          err
-        );
+        console.error("ERROR AL PREPARAR DEPÓSITO:", err);
 
-        setError(
-          "No se pudo preparar el depósito."
-        );
-
-        setLoading(false);
+        if (active) {
+          setError("No se pudo preparar el depósito.");
+          setLoading(false);
+        }
       }
     }
 
     initializeDeposit();
+
+    return () => {
+      active = false;
+    };
   }, [router, searchParams]);
+
+  /*
+   * VALIDAR CANTIDAD
+   */
+
+  function validateAmount() {
+    const value = Number(amount);
+
+    if (
+      !amount.trim() ||
+      !Number.isFinite(value) ||
+      value <= 0
+    ) {
+      setError("Introduce una cantidad válida de USDT.");
+      return false;
+    }
+
+    if (value > 1000000) {
+      setError("La cantidad supera el límite permitido.");
+      return false;
+    }
+
+    setError("");
+    return true;
+  }
+
+  /*
+   * CONTINUAR A VERIFICACIÓN
+   */
+
+  function continueToVerification() {
+    if (!validateAmount()) return;
+
+    setDepositStatus("PENDING");
+    setShowVerification(true);
+  }
 
   /*
    * CREAR DEPÓSITO
@@ -193,6 +215,11 @@ function DepositContent() {
 
   async function createDeposit() {
     if (creating || created) return;
+
+    if (!validateAmount()) {
+      setShowVerification(false);
+      return;
+    }
 
     try {
       setCreating(true);
@@ -213,30 +240,10 @@ function DepositContent() {
         return;
       }
 
-      const numericAmount = Number(amount);
-
-      if (
-        !Number.isFinite(numericAmount) ||
-        numericAmount <= 0
-      ) {
-        setError(
-          "Introduce una cantidad válida de USDT."
-        );
-        return;
-      }
-
-      if (numericAmount > 1000000) {
-        setError(
-          "La cantidad supera el límite permitido."
-        );
-        return;
-      }
+      const depositAmount = Number(amount);
 
       const email = session.user.email || "";
-
-      const username = email
-        .split("@")[0]
-        .replace(/^@/, "");
+      const username = email.split("@")[0].replace(/^@/, "");
 
       const expiration = new Date(
         Date.now() + DEPOSIT_DURATION_MS
@@ -251,7 +258,7 @@ function DepositContent() {
           user_id: session.user.id,
           username,
           email,
-          amount: numericAmount,
+          amount: depositAmount,
           currency: "USDT",
           payment_method: "CRYPTO",
           network,
@@ -269,10 +276,7 @@ function DepositContent() {
         .single();
 
       if (insertError) {
-        console.error(
-          "ERROR CREANDO DEPÓSITO:",
-          insertError
-        );
+        console.error("ERROR CREANDO DEPÓSITO:", insertError);
 
         setError(
           insertError.message ||
@@ -283,9 +287,7 @@ function DepositContent() {
       }
 
       if (!data) {
-        setError(
-          "No se recibió información del depósito."
-        );
+        setError("No se recibió información del depósito.");
         return;
       }
 
@@ -295,17 +297,21 @@ function DepositContent() {
         `DEP-${Date.now().toString().slice(-8)}`
       );
 
-      setExpiresAt(
-        new Date(data.expires_at).getTime()
+      setExpiresAt(new Date(data.expires_at).getTime());
+      setRemainingSeconds(
+        Math.max(
+          0,
+          Math.ceil(
+            (new Date(data.expires_at).getTime() - Date.now()) / 1000
+          )
+        )
       );
 
       setDepositStatus("PENDING");
+      setShowVerification(false);
       setCreated(true);
     } catch (err) {
-      console.error(
-        "ERROR CREANDO DEPÓSITO:",
-        err
-      );
+      console.error("ERROR CREANDO DEPÓSITO:", err);
 
       setError(
         err instanceof Error
@@ -339,25 +345,18 @@ function DepositContent() {
         return;
       }
 
-      setRemainingSeconds(
-        Math.ceil(difference / 1000)
-      );
+      setRemainingSeconds(Math.ceil(difference / 1000));
     }
 
     updateTimer();
 
-    const timer = window.setInterval(
-      updateTimer,
-      1000
-    );
+    const timer = window.setInterval(updateTimer, 1000);
 
-    return () => {
-      window.clearInterval(timer);
-    };
+    return () => window.clearInterval(timer);
   }, [created, expiresAt, depositStatus]);
 
   /*
-   * COMPROBAR ESTADO
+   * COMPROBAR ESTADO DEL DEPÓSITO
    */
 
   useEffect(() => {
@@ -378,52 +377,34 @@ function DepositContent() {
           error: statusError,
         } = await supabase
           .from("deposits")
-          .select(`
-            status,
-            expires_at
-          `)
+          .select("status, expires_at")
           .eq("id", depositId)
           .single();
 
-        if (
-          cancelled ||
-          statusError ||
-          !data
-        ) {
+        if (cancelled || statusError || !data) {
           return;
         }
 
-        const status =
-          String(data.status).toUpperCase();
+        const status = String(data.status).toUpperCase();
 
         if (
           status === "CONFIRMED" ||
           status === "REJECTED" ||
           status === "EXPIRED"
         ) {
-          setDepositStatus(
-            status as
-              | "CONFIRMED"
-              | "REJECTED"
-              | "EXPIRED"
-          );
-
+          setDepositStatus(status as DepositStatus);
           return;
         }
 
         if (data.expires_at) {
-          const expiration =
-            new Date(data.expires_at).getTime();
+          const expiration = new Date(data.expires_at).getTime();
 
           if (Date.now() >= expiration) {
             setDepositStatus("EXPIRED");
           }
         }
       } catch (err) {
-        console.error(
-          "ERROR CONSULTANDO DEPÓSITO:",
-          err
-        );
+        console.error("ERROR CONSULTANDO DEPÓSITO:", err);
       }
     }
 
@@ -447,7 +428,6 @@ function DepositContent() {
   async function copyAmount() {
     try {
       await navigator.clipboard.writeText(amount);
-
       setCopiedAmount(true);
 
       window.setTimeout(() => {
@@ -490,7 +470,7 @@ function DepositContent() {
   }
 
   /*
-   * LOADING
+   * PANTALLA DE CARGA
    */
 
   if (loading) {
@@ -499,12 +479,8 @@ function DepositContent() {
         <div className="balance-background" />
 
         <div className="balance-loading">
-          <div className="balance-loading-logo">
-            🛒🎮
-          </div>
-
+          <div className="balance-loading-logo">🛒🎮</div>
           <div className="balance-spinner" />
-
           <p>PREPARANDO DEPÓSITO...</p>
         </div>
       </main>
@@ -512,10 +488,10 @@ function DepositContent() {
   }
 
   /*
-   * ERROR
+   * PANTALLA DE ERROR
    */
 
-  if (error && !created) {
+  if (error && !created && !showVerification) {
     return (
       <main className="balance-page">
         <div className="balance-background" />
@@ -527,9 +503,7 @@ function DepositContent() {
               <h1>DEPÓSITO</h1>
             </div>
 
-            <div className="deposit-error">
-              {error}
-            </div>
+            <div className="deposit-error">{error}</div>
 
             <button
               type="button"
@@ -547,16 +521,23 @@ function DepositContent() {
 
   /*
    * PANTALLA PARA INTRODUCIR CANTIDAD
+   *
+   * IMPORTANTE:
+   * !showVerification permite que la siguiente pantalla
+   * pueda mostrarse después de pulsar CONTINUAR.
    */
 
-  if (!created && selectedNetwork) {
+  if (
+    !created &&
+    selectedNetwork &&
+    !showVerification
+  ) {
     return (
       <main className="balance-page">
         <div className="balance-background" />
 
         <section className="balance-section">
           <div className="balance-card deposit-input-card">
-
             <div className="deposit-verify-logo">
               <UsdtLogo />
             </div>
@@ -571,20 +552,13 @@ function DepositContent() {
             </div>
 
             <div className="exchange-rate-card">
-              <span className="exchange-rate-icon">
-                ⇄
-              </span>
+              <span className="exchange-rate-icon">⇄</span>
 
               <div>
                 <small>TASA DE CAMBIO</small>
-
-                <strong>
-                  1 USDT = 1 BALANCE
-                </strong>
-
+                <strong>1 USDT = 1 BALANCE</strong>
                 <span>
-                  Tu depósito se convierte
-                  automáticamente.
+                  Tu depósito se convierte automáticamente.
                 </span>
               </div>
             </div>
@@ -604,6 +578,7 @@ function DepositContent() {
                   type="number"
                   inputMode="decimal"
                   min="0.01"
+                  max="1000000"
                   step="0.01"
                   placeholder="Ejemplo: 10"
                   value={amount}
@@ -621,24 +596,17 @@ function DepositContent() {
               <span>RECIBIRÁS EN TU BALANCE</span>
 
               <strong>
-                {balanceToReceive.toLocaleString(
-                  "en-US",
-                  {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  }
-                )}
+                {balanceToReceive.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </strong>
 
-              <small>
-                1 USDT equivale a 1 balance
-              </small>
+              <small>1 USDT equivale a 1 balance</small>
             </div>
 
             {error && (
-              <div className="deposit-error">
-                {error}
-              </div>
+              <div className="deposit-error">{error}</div>
             )}
 
             <button
@@ -647,31 +615,10 @@ function DepositContent() {
               disabled={
                 !amount ||
                 !Number.isFinite(numericAmount) ||
-                numericAmount <= 0
+                numericAmount <= 0 ||
+                numericAmount > 1000000
               }
-              onClick={() => {
-                if (
-                  !Number.isFinite(Number(amount)) ||
-                  Number(amount) <= 0
-                ) {
-                  setError(
-                    "Introduce una cantidad válida."
-                  );
-                  return;
-                }
-
-                setError("");
-                setCreated(false);
-
-                // Continuar a la verificación.
-                setCreated(false);
-
-                // La cantidad ya está preparada.
-                setDepositStatus("PENDING");
-
-                // Mostrar confirmación previa.
-                setShowVerification(true);
-              }}
+              onClick={continueToVerification}
             >
               CONTINUAR
               <span>→</span>
@@ -684,151 +631,6 @@ function DepositContent() {
             >
               CANCELAR
             </button>
-
-            <style jsx global>{`
-              .deposit-input-card {
-                background:
-                  linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.015)),
-                  #0b0b0b;
-                border: 1px solid rgba(38,161,123,.24);
-                box-shadow: 0 24px 70px rgba(0,0,0,.5);
-              }
-
-              .exchange-rate-card {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                padding: 17px;
-                margin: 18px 0;
-                border-radius: 17px;
-                border: 1px solid rgba(38,161,123,.35);
-                background: linear-gradient(135deg, rgba(38,161,123,.17), rgba(38,161,123,.045));
-              }
-
-              .exchange-rate-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 48px;
-                height: 48px;
-                flex-shrink: 0;
-                border-radius: 14px;
-                background: rgba(38,161,123,.2);
-                color: #48d6a6;
-                font-size: 28px;
-                font-weight: 900;
-              }
-
-              .exchange-rate-card div {
-                display: flex;
-                flex-direction: column;
-                gap: 5px;
-              }
-
-              .exchange-rate-card small {
-                color: #8d9e97;
-                font-size: 10px;
-                font-weight: 900;
-                letter-spacing: .12em;
-              }
-
-              .exchange-rate-card strong {
-                color: #45d4a3;
-                font-size: 19px;
-                font-weight: 950;
-              }
-
-              .exchange-rate-card div span {
-                color: #aaa;
-                font-size: 11px;
-              }
-
-              .deposit-input-group {
-                margin: 22px 0 15px;
-              }
-
-              .deposit-input-group label {
-                display: block;
-                margin-bottom: 10px;
-                color: #ddd;
-                font-size: 11px;
-                font-weight: 900;
-                letter-spacing: .08em;
-              }
-
-              .deposit-input-wrapper {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 5px 15px;
-                min-height: 60px;
-                border-radius: 14px;
-                border: 1px solid rgba(38,161,123,.32);
-                background: #070707;
-              }
-
-              .deposit-input-wrapper input {
-                width: 100%;
-                min-width: 0;
-                background: transparent;
-                border: 0;
-                outline: none;
-                color: #fff;
-                font-size: 22px;
-                font-weight: 900;
-              }
-
-              .deposit-input-wrapper input::placeholder {
-                color: #555;
-              }
-
-              .deposit-input-wrapper input::-webkit-inner-spin-button,
-              .deposit-input-wrapper input::-webkit-outer-spin-button {
-                opacity: 1;
-              }
-
-              .deposit-input-wrapper > span {
-                color: #26a17b;
-                font-size: 13px;
-                font-weight: 950;
-              }
-
-              .deposit-calculation-card {
-                display: flex;
-                flex-direction: column;
-                gap: 7px;
-                padding: 17px;
-                margin-bottom: 18px;
-                border-radius: 15px;
-                background: rgba(255,255,255,.035);
-                border: 1px solid rgba(255,255,255,.09);
-              }
-
-              .deposit-calculation-card span {
-                color: #999;
-                font-size: 10px;
-                font-weight: 900;
-                letter-spacing: .08em;
-              }
-
-              .deposit-calculation-card strong {
-                color: #45d4a3;
-                font-size: 29px;
-                font-weight: 950;
-              }
-
-              .deposit-calculation-card small {
-                color: #777;
-                font-size: 11px;
-              }
-
-              .deposit-confirm-button:disabled {
-                opacity: .4;
-                cursor: not-allowed;
-                transform: none;
-              }
-            `}</style>
-
           </div>
         </section>
       </main>
@@ -839,20 +641,23 @@ function DepositContent() {
    * PANTALLA DE VERIFICACIÓN
    */
 
-  if (!created && selectedNetwork && showVerification) {
+  if (
+    !created &&
+    selectedNetwork &&
+    showVerification
+  ) {
     return (
       <main className="balance-page">
         <div className="balance-background" />
 
         <section className="balance-section">
           <div className="balance-card">
-
             <div className="deposit-verify-logo">
               <UsdtLogo />
             </div>
 
             <div className="deposit-verify-content">
-              <h1>Monto a depositar</h1>
+              <h1>MONTO A DEPOSITAR</h1>
 
               <div className="deposit-verify-amount">
                 ${Number(amount).toFixed(2)} USDT
@@ -860,7 +665,7 @@ function DepositContent() {
 
               <p>
                 Verifica cuidadosamente los datos
-                antes de realizar el pago.
+                antes de continuar.
               </p>
             </div>
 
@@ -873,9 +678,7 @@ function DepositContent() {
 
             <div className="deposit-calculation-card">
               <span>BALANCE QUE RECIBIRÁS</span>
-              <strong>
-                {balanceToReceive.toFixed(2)}
-              </strong>
+              <strong>{balanceToReceive.toFixed(2)}</strong>
             </div>
 
             <div className="deposit-network-badge deposit-network-badge-compact">
@@ -885,15 +688,12 @@ function DepositContent() {
             <div className="deposit-warning">
               <span>⚠️</span>
               <p>
-                Comprueba el monto y la red
-                antes de continuar.
+                Comprueba el monto y la red antes de continuar.
               </p>
             </div>
 
             {error && (
-              <div className="deposit-error">
-                {error}
-              </div>
+              <div className="deposit-error">{error}</div>
             )}
 
             <button
@@ -912,11 +712,14 @@ function DepositContent() {
             <button
               type="button"
               className="deposit-back-button"
-              onClick={() => setShowVerification(false)}
+              onClick={() => {
+                setShowVerification(false);
+                setError("");
+              }}
+              disabled={creating}
             >
               MODIFICAR CANTIDAD
             </button>
-
           </div>
         </section>
       </main>
@@ -924,10 +727,10 @@ function DepositContent() {
   }
 
   /*
-   * ESTADOS DEL DEPÓSITO
+   * DEPÓSITO EXPIRADO
    */
 
-  if (depositStatus === "EXPIRED") {
+  if (created && depositStatus === "EXPIRED") {
     return (
       <main className="balance-page">
         <div className="balance-background" />
@@ -966,7 +769,11 @@ function DepositContent() {
     );
   }
 
-  if (depositStatus === "CONFIRMED") {
+  /*
+   * DEPÓSITO CONFIRMADO
+   */
+
+  if (created && depositStatus === "CONFIRMED") {
     return (
       <main className="balance-page">
         <div className="balance-background" />
@@ -1011,7 +818,11 @@ function DepositContent() {
     );
   }
 
-  if (depositStatus === "REJECTED") {
+  /*
+   * DEPÓSITO RECHAZADO
+   */
+
+  if (created && depositStatus === "REJECTED") {
     return (
       <main className="balance-page">
         <div className="balance-background" />
@@ -1060,7 +871,6 @@ function DepositContent() {
 
       <section className="balance-section">
         <div className="balance-card deposit-payment-card">
-
           <div className="deposit-payment-logo-top">
             <UsdtLogo />
           </div>
@@ -1103,9 +913,7 @@ function DepositContent() {
               </span>
 
               <span className="deposit-copy-amount-label">
-                {copiedAmount
-                  ? "✓ COPIADO"
-                  : "COPIAR MONTO"}
+                {copiedAmount ? "✓ COPIADO" : "COPIAR MONTO"}
               </span>
             </button>
           </div>
@@ -1177,15 +985,12 @@ function DepositContent() {
               <strong>IMPORTANTE</strong>
 
               <p>
-                Envía exactamente{" "}
-                <b>${amount} USDT</b>{" "}
-                utilizando la red{" "}
-                <b>{selectedNetwork?.name}</b>.
+                Envía exactamente <b>${amount} USDT</b>{" "}
+                utilizando la red <b>{selectedNetwork?.name}</b>.
                 <br />
                 <br />
-                No utilices otra red.
-                Una transferencia enviada por
-                una red incorrecta puede perderse.
+                No utilices otra red. Una transferencia enviada
+                por una red incorrecta puede perderse.
               </p>
             </div>
           </div>
@@ -1202,11 +1007,9 @@ function DepositContent() {
               <strong>ESPERANDO EL PAGO</strong>
 
               <p>
-                Estamos esperando la confirmación
-                del depósito.
+                Estamos esperando la confirmación del depósito.
                 <br />
-                No cierres esta página hasta
-                completar la transferencia.
+                No cierres esta página hasta completar la transferencia.
               </p>
             </div>
           </div>
@@ -1219,7 +1022,6 @@ function DepositContent() {
             VOLVER A MI BILLETERA
             <span>→</span>
           </button>
-
         </div>
       </section>
 
@@ -1484,6 +1286,148 @@ function DepositContent() {
           to { transform: rotate(360deg); }
         }
 
+        .deposit-input-card {
+          background:
+            linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.015)),
+            #0b0b0b;
+          border: 1px solid rgba(38,161,123,.24);
+          box-shadow: 0 24px 70px rgba(0,0,0,.5);
+        }
+
+        .exchange-rate-card {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          padding: 17px;
+          margin: 18px 0;
+          border-radius: 17px;
+          border: 1px solid rgba(38,161,123,.35);
+          background: linear-gradient(135deg, rgba(38,161,123,.17), rgba(38,161,123,.045));
+        }
+
+        .exchange-rate-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 48px;
+          height: 48px;
+          flex-shrink: 0;
+          border-radius: 14px;
+          background: rgba(38,161,123,.2);
+          color: #48d6a6;
+          font-size: 28px;
+          font-weight: 900;
+        }
+
+        .exchange-rate-card div {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .exchange-rate-card small {
+          color: #8d9e97;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .12em;
+        }
+
+        .exchange-rate-card strong {
+          color: #45d4a3;
+          font-size: 19px;
+          font-weight: 950;
+        }
+
+        .exchange-rate-card div span {
+          color: #aaa;
+          font-size: 11px;
+        }
+
+        .deposit-input-group {
+          margin: 22px 0 15px;
+        }
+
+        .deposit-input-group label {
+          display: block;
+          margin-bottom: 10px;
+          color: #ddd;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: .08em;
+        }
+
+        .deposit-input-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 5px 15px;
+          min-height: 60px;
+          border-radius: 14px;
+          border: 1px solid rgba(38,161,123,.32);
+          background: #070707;
+        }
+
+        .deposit-input-wrapper input {
+          width: 100%;
+          min-width: 0;
+          background: transparent;
+          border: 0;
+          outline: none;
+          color: #fff;
+          font-size: 22px;
+          font-weight: 900;
+        }
+
+        .deposit-input-wrapper input::placeholder {
+          color: #555;
+        }
+
+        .deposit-input-wrapper input::-webkit-inner-spin-button,
+        .deposit-input-wrapper input::-webkit-outer-spin-button {
+          opacity: 1;
+        }
+
+        .deposit-input-wrapper > span {
+          color: #26a17b;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .deposit-calculation-card {
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+          padding: 17px;
+          margin-bottom: 18px;
+          border-radius: 15px;
+          background: rgba(255,255,255,.035);
+          border: 1px solid rgba(255,255,255,.09);
+        }
+
+        .deposit-calculation-card span {
+          color: #999;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .08em;
+        }
+
+        .deposit-calculation-card strong {
+          color: #45d4a3;
+          font-size: 29px;
+          font-weight: 950;
+        }
+
+        .deposit-calculation-card small {
+          color: #777;
+          font-size: 11px;
+        }
+
+        .deposit-confirm-button:disabled {
+          opacity: .4;
+          cursor: not-allowed;
+          transform: none;
+        }
+
         @media (max-width: 600px) {
           .balance-page .deposit-payment-card {
             border-radius: 20px;
@@ -1529,12 +1473,8 @@ export default function DepositPage() {
           <div className="balance-background" />
 
           <div className="balance-loading">
-            <div className="balance-loading-logo">
-              🛒🎮
-            </div>
-
+            <div className="balance-loading-logo">🛒🎮</div>
             <div className="balance-spinner" />
-
             <p>PREPARANDO DEPÓSITO...</p>
           </div>
         </main>
