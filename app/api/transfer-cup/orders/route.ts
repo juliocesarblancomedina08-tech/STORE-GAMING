@@ -4,6 +4,7 @@ import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const MAX_AMOUNT_CUP = 100000000;
 
@@ -16,21 +17,23 @@ async function authenticateUser(request: NextRequest) {
 
   const token = authorization.slice(7).trim();
 
-  if (!token) return null;
+  if (!token) {
+    return null;
+  }
 
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.getUser(token);
+  const { data, error } =
+    await supabaseAdmin.auth.getUser(token);
 
-  if (error || !user) return null;
+  if (error || !data.user) {
+    return null;
+  }
 
-  return user;
+  return data.user;
 }
 
+// Crear solicitud de transferencia CUP.
 export async function POST(request: NextRequest) {
   try {
-    // 1. Verificar usuario
     const user = await authenticateUser(request);
 
     if (!user) {
@@ -38,13 +41,11 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: "Sesión no válida. Inicia sesión nuevamente.",
-          code: "UNAUTHORIZED",
         },
         { status: 401 }
       );
     }
 
-    // 2. Leer importe
     const body = await request.json();
     const amountCup = Number(body.amount_cup);
 
@@ -56,13 +57,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "El importe indicado no es válido.",
+          error: "El importe en CUP no es válido.",
         },
         { status: 400 }
       );
     }
 
-    // 3. Consultar tasa configurada
+    // Consultar la tasa de TRANSFERENCIA CUP.
     const { data: settings, error: settingsError } =
       await supabaseAdmin
         .from("manual_payment_settings")
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     if (settingsError || !settings) {
       console.error(
-        "Error consultando tasa TRANSFERENCIA CUP:",
+        "Error consultando configuración TRANSFERENCIA CUP:",
         settingsError
       );
 
@@ -96,13 +97,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "La tasa de cambio no está configurada correctamente.",
+          error: "La tasa de cambio configurada no es válida.",
         },
         { status: 500 }
       );
     }
 
-    // 4. Calcular crédito de STORE GAMING
+    // Calcular el crédito que recibirá el usuario.
     const balanceAmount = Number(
       (amountCup / exchangeRate).toFixed(4)
     );
@@ -114,13 +115,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "No se pudo calcular el importe del crédito.",
+          error: "No se pudo calcular el crédito.",
         },
         { status: 400 }
       );
     }
 
-    // 5. Crear pedido real pendiente de revisión
+    // Crear solicitud pendiente de revisión administrativa.
     const { data: order, error: insertError } =
       await supabaseAdmin
         .from("manual_orders")
@@ -141,39 +142,36 @@ export async function POST(request: NextRequest) {
 
     if (insertError || !order) {
       console.error(
-        "Error creando pedido TRANSFERENCIA CUP:",
+        "Error creando solicitud TRANSFERENCIA CUP:",
         insertError
       );
 
       return NextResponse.json(
         {
           success: false,
-          error: "No se pudo registrar el pedido.",
+          error: "No se pudo crear la solicitud.",
         },
         { status: 500 }
       );
     }
 
-    // 6. Confirmar registro
     return NextResponse.json(
       {
         success: true,
         message:
-          "Solicitud enviada correctamente. Está pendiente de revisión por el administrador.",
+          "Solicitud creada correctamente. Ahora debes adjuntar el comprobante.",
         order,
       },
       { status: 201 }
     );
+
   } catch (error) {
-    console.error(
-      "Error en API TRANSFERENCIA CUP:",
-      error
-    );
+    console.error("TRANSFERENCIA CUP POST:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error: "Ocurrió un error al registrar la solicitud.",
+        error: "Error interno del servidor.",
       },
       { status: 500 }
     );
