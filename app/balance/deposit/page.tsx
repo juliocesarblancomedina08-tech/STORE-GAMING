@@ -74,8 +74,6 @@ function DepositContent() {
 
   const [error, setError] = useState("");
   const [created, setCreated] = useState(false);
-
-  // Estado de la pantalla de verificación.
   const [showVerification, setShowVerification] = useState(false);
 
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
@@ -94,10 +92,6 @@ function DepositContent() {
     Number.isFinite(numericAmount) && numericAmount > 0
       ? numericAmount * EXCHANGE_RATE
       : 0;
-
-  /*
-   * INICIALIZAR DEPÓSITO
-   */
 
   useEffect(() => {
     let active = true;
@@ -173,10 +167,6 @@ function DepositContent() {
     };
   }, [router, searchParams]);
 
-  /*
-   * VALIDAR CANTIDAD
-   */
-
   function validateAmount() {
     const value = Number(amount);
 
@@ -198,20 +188,12 @@ function DepositContent() {
     return true;
   }
 
-  /*
-   * CONTINUAR A VERIFICACIÓN
-   */
-
   function continueToVerification() {
     if (!validateAmount()) return;
 
     setDepositStatus("PENDING");
     setShowVerification(true);
   }
-
-  /*
-   * CREAR DEPÓSITO
-   */
 
   async function createDeposit() {
     if (creating || created) return;
@@ -298,6 +280,7 @@ function DepositContent() {
       );
 
       setExpiresAt(new Date(data.expires_at).getTime());
+
       setRemainingSeconds(
         Math.max(
           0,
@@ -322,10 +305,6 @@ function DepositContent() {
       setCreating(false);
     }
   }
-
-  /*
-   * CONTADOR
-   */
 
   useEffect(() => {
     if (
@@ -354,10 +333,6 @@ function DepositContent() {
 
     return () => window.clearInterval(timer);
   }, [created, expiresAt, depositStatus]);
-
-  /*
-   * COMPROBAR ESTADO DEL DEPÓSITO
-   */
 
   useEffect(() => {
     if (
@@ -421,10 +396,6 @@ function DepositContent() {
     };
   }, [created, depositId, depositStatus]);
 
-  /*
-   * COPIAR MONTO
-   */
-
   async function copyAmount() {
     try {
       await navigator.clipboard.writeText(amount);
@@ -437,10 +408,6 @@ function DepositContent() {
       console.error("ERROR COPIANDO MONTO:", err);
     }
   }
-
-  /*
-   * COPIAR DIRECCIÓN
-   */
 
   async function copyAddress() {
     if (!selectedNetwork) return;
@@ -469,10 +436,6 @@ function DepositContent() {
     ).padStart(2, "0")}`;
   }
 
-  /*
-   * PANTALLA DE CARGA
-   */
-
   if (loading) {
     return (
       <main className="balance-page">
@@ -486,10 +449,6 @@ function DepositContent() {
       </main>
     );
   }
-
-  /*
-   * PANTALLA DE ERROR
-   */
 
   if (error && !created && !showVerification) {
     return (
@@ -520,11 +479,7 @@ function DepositContent() {
   }
 
   /*
-   * PANTALLA PARA INTRODUCIR CANTIDAD
-   *
-   * IMPORTANTE:
-   * !showVerification permite que la siguiente pantalla
-   * pueda mostrarse después de pulsar CONTINUAR.
+   * INTRODUCIR CANTIDAD
    */
 
   if (
@@ -544,10 +499,8 @@ function DepositContent() {
 
             <div className="deposit-verify-content">
               <h1>INGRESAR BALANCE</h1>
-
               <p>
-                Introduce la cantidad de USDT
-                que deseas depositar.
+                Introduce la cantidad de USDT que deseas depositar.
               </p>
             </div>
 
@@ -567,42 +520,74 @@ function DepositContent() {
               <span>{selectedNetwork.name}</span>
             </div>
 
-            <div className="deposit-input-group">
-              <label htmlFor="deposit-amount">
-                CANTIDAD A INGRESAR
-              </label>
+            <div className="deposit-amount-entry">
+              <div className="deposit-amount-entry-heading">
+                <div>
+                  <span className="deposit-amount-step">01</span>
+                  <div>
+                    <label htmlFor="deposit-amount">
+                      CANTIDAD A ENVIAR
+                    </label>
+                    <small>Introduce el monto de tu depósito</small>
+                  </div>
+                </div>
 
-              <div className="deposit-input-wrapper">
-                <input
-                  id="deposit-amount"
-                  type="number"
-                  inputMode="decimal"
-                  min="0.01"
-                  max="1000000"
-                  step="0.01"
-                  placeholder="Ejemplo: 10"
-                  value={amount}
-                  onChange={(e) => {
-                    setAmount(e.target.value);
-                    setError("");
-                  }}
-                />
-
-                <span>USDT</span>
+                <span className="deposit-amount-network">
+                  {network}
+                </span>
               </div>
-            </div>
 
-            <div className="deposit-calculation-card">
-              <span>RECIBIRÁS EN TU BALANCE</span>
+              <div className="deposit-premium-input">
+                <div className="deposit-premium-input-icon">
+                  <UsdtLogo />
+                </div>
 
-              <strong>
-                {balanceToReceive.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </strong>
+                <div className="deposit-premium-input-field">
+                  <input
+                    id="deposit-amount"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    max="1000000"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => {
+                      setAmount(e.target.value);
+                      setError("");
+                    }}
+                  />
 
-              <small>1 USDT equivale a 1 balance</small>
+                  <span>USDT</span>
+                </div>
+              </div>
+
+              <div className="deposit-amount-hint">
+                <span>ⓘ</span>
+                <p>
+                  Introduce la cantidad exacta que enviarás
+                  desde tu billetera.
+                </p>
+              </div>
+
+              <div className="deposit-calculation-card deposit-calculation-modern">
+                <div>
+                  <span className="deposit-calculation-label">
+                    RECIBIRÁS EN TU BALANCE
+                  </span>
+                  <small>Conversión estimada</small>
+                </div>
+
+                <div className="deposit-calculation-result">
+                  <strong>
+                    {balanceToReceive.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </strong>
+                  <span>BALANCE</span>
+                </div>
+              </div>
             </div>
 
             {error && (
@@ -633,12 +618,263 @@ function DepositContent() {
             </button>
           </div>
         </section>
+
+        <style jsx global>{`
+          .deposit-amount-entry {
+            margin: 24px 0 20px;
+            padding: 18px;
+            border-radius: 20px;
+            background:
+              linear-gradient(145deg, rgba(38,161,123,.075), rgba(255,255,255,.018)),
+              #080b0a;
+            border: 1px solid rgba(38,161,123,.2);
+            box-shadow: inset 0 1px rgba(255,255,255,.035);
+          }
+
+          .deposit-amount-entry-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 17px;
+          }
+
+          .deposit-amount-entry-heading > div {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+          }
+
+          .deposit-amount-step {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            flex-shrink: 0;
+            border-radius: 11px;
+            background: rgba(38,161,123,.14);
+            border: 1px solid rgba(38,161,123,.25);
+            color: #45d4a3;
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .deposit-amount-entry-heading label {
+            display: block;
+            color: #f0f0f0;
+            font-size: 12px;
+            font-weight: 950;
+            letter-spacing: .07em;
+          }
+
+          .deposit-amount-entry-heading small {
+            display: block;
+            margin-top: 4px;
+            color: #858585;
+            font-size: 11px;
+          }
+
+          .deposit-amount-network {
+            padding: 7px 10px;
+            border-radius: 9px;
+            background: rgba(38,161,123,.1);
+            border: 1px solid rgba(38,161,123,.2);
+            color: #45d4a3;
+            font-size: 10px;
+            font-weight: 950;
+          }
+
+          .deposit-premium-input {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            min-height: 82px;
+            padding: 13px 15px;
+            border-radius: 17px;
+            background:
+              linear-gradient(135deg, rgba(38,161,123,.09), transparent 65%),
+              #050706;
+            border: 1px solid rgba(38,161,123,.4);
+            box-shadow:
+              0 0 0 3px rgba(38,161,123,.045),
+              inset 0 1px rgba(255,255,255,.035);
+            transition: border-color .2s, box-shadow .2s;
+          }
+
+          .deposit-premium-input:focus-within {
+            border-color: #35c99a;
+            box-shadow:
+              0 0 0 4px rgba(38,161,123,.12),
+              0 0 24px rgba(38,161,123,.08);
+          }
+
+          .deposit-premium-input-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 47px;
+            height: 47px;
+            flex-shrink: 0;
+            overflow: hidden;
+            border-radius: 50%;
+            background: #26a17b;
+          }
+
+          .deposit-premium-input-icon .usdt-logo {
+            display: flex;
+            width: 100%;
+            height: 100%;
+          }
+
+          .deposit-premium-input-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+
+          .deposit-premium-input-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+          }
+
+          .deposit-premium-input-field input {
+            width: 100%;
+            min-width: 0;
+            padding: 5px 0;
+            border: 0;
+            outline: none;
+            background: transparent;
+            color: #fff;
+            font-size: clamp(25px, 7vw, 34px);
+            font-weight: 950;
+            letter-spacing: -.04em;
+          }
+
+          .deposit-premium-input-field input::placeholder {
+            color: #4b5550;
+          }
+
+          .deposit-premium-input-field input::-webkit-inner-spin-button,
+          .deposit-premium-input-field input::-webkit-outer-spin-button {
+            opacity: 0;
+          }
+
+          .deposit-premium-input-field > span {
+            flex-shrink: 0;
+            padding: 8px 10px;
+            border-radius: 9px;
+            background: rgba(38,161,123,.13);
+            color: #45d4a3;
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .deposit-amount-hint {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 12px 2px 17px;
+          }
+
+          .deposit-amount-hint > span {
+            color: #45d4a3;
+            font-size: 14px;
+          }
+
+          .deposit-amount-hint p {
+            margin: 0;
+            color: #929a96;
+            font-size: 11px;
+            line-height: 1.5;
+          }
+
+          .deposit-calculation-modern {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 0;
+            padding: 15px;
+            border-radius: 15px;
+            background: rgba(38,161,123,.075);
+            border: 1px solid rgba(38,161,123,.2);
+          }
+
+          .deposit-calculation-modern > div:first-child {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+          }
+
+          .deposit-calculation-modern .deposit-calculation-label {
+            color: #d4ded9;
+            font-size: 10px;
+            font-weight: 950;
+            letter-spacing: .045em;
+          }
+
+          .deposit-calculation-modern small {
+            color: #7e8983;
+            font-size: 10px;
+          }
+
+          .deposit-calculation-result {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+          }
+
+          .deposit-calculation-result strong {
+            color: #45d4a3;
+            font-size: 25px;
+            font-weight: 950;
+            line-height: 1.1;
+          }
+
+          .deposit-calculation-result span {
+            color: #8a9b92;
+            font-size: 9px;
+            font-weight: 950;
+            letter-spacing: .1em;
+          }
+
+          @media (max-width: 420px) {
+            .deposit-amount-entry {
+              padding: 14px;
+            }
+
+            .deposit-premium-input {
+              min-height: 72px;
+              padding: 10px;
+              gap: 9px;
+            }
+
+            .deposit-premium-input-icon {
+              width: 40px;
+              height: 40px;
+            }
+
+            .deposit-calculation-modern {
+              align-items: flex-start;
+              flex-direction: column;
+            }
+
+            .deposit-calculation-result {
+              align-items: flex-start;
+            }
+          }
+        `}</style>
       </main>
     );
   }
 
   /*
-   * PANTALLA DE VERIFICACIÓN
+   * VERIFICACIÓN
    */
 
   if (
@@ -664,8 +900,7 @@ function DepositContent() {
               </div>
 
               <p>
-                Verifica cuidadosamente los datos
-                antes de continuar.
+                Verifica cuidadosamente los datos antes de continuar.
               </p>
             </div>
 
@@ -1343,56 +1578,6 @@ function DepositContent() {
           font-size: 11px;
         }
 
-        .deposit-input-group {
-          margin: 22px 0 15px;
-        }
-
-        .deposit-input-group label {
-          display: block;
-          margin-bottom: 10px;
-          color: #ddd;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: .08em;
-        }
-
-        .deposit-input-wrapper {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 5px 15px;
-          min-height: 60px;
-          border-radius: 14px;
-          border: 1px solid rgba(38,161,123,.32);
-          background: #070707;
-        }
-
-        .deposit-input-wrapper input {
-          width: 100%;
-          min-width: 0;
-          background: transparent;
-          border: 0;
-          outline: none;
-          color: #fff;
-          font-size: 22px;
-          font-weight: 900;
-        }
-
-        .deposit-input-wrapper input::placeholder {
-          color: #555;
-        }
-
-        .deposit-input-wrapper input::-webkit-inner-spin-button,
-        .deposit-input-wrapper input::-webkit-outer-spin-button {
-          opacity: 1;
-        }
-
-        .deposit-input-wrapper > span {
-          color: #26a17b;
-          font-size: 13px;
-          font-weight: 950;
-        }
-
         .deposit-calculation-card {
           display: flex;
           flex-direction: column;
@@ -1404,20 +1589,20 @@ function DepositContent() {
           border: 1px solid rgba(255,255,255,.09);
         }
 
-        .deposit-calculation-card span {
+        .deposit-calculation-card > span {
           color: #999;
           font-size: 10px;
           font-weight: 900;
           letter-spacing: .08em;
         }
 
-        .deposit-calculation-card strong {
+        .deposit-calculation-card > strong {
           color: #45d4a3;
           font-size: 29px;
           font-weight: 950;
         }
 
-        .deposit-calculation-card small {
+        .deposit-calculation-card > small {
           color: #777;
           font-size: 11px;
         }
@@ -1460,10 +1645,6 @@ function DepositContent() {
     </main>
   );
 }
-
-/*
- * PÁGINA PRINCIPAL
- */
 
 export default function DepositPage() {
   return (
