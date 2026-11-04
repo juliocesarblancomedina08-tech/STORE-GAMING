@@ -21,6 +21,13 @@ const games: Game[] = [
     tag: "DIAMANTES",
   },
   {
+    name: "GENSHIN IMPACT (GLOBAL)",
+    description: "Cristales génesis para tu cuenta.",
+    image: "/images/genshin-impact-global.jpg",
+    route: "/games/genshin-impact-global",
+    tag: "RECARGAS",
+  },
+  {
     name: "MOBILE LEGENDS (EE.UU)",
     description: "Diamantes para Mobile Legends.",
     image: "/images/mobile-legends.jpg",
