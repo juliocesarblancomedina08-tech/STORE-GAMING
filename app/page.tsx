@@ -4,6 +4,54 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+type ShowcaseProduct = {
+  name: string;
+  image: string;
+  category: string;
+};
+
+const showcaseProducts: ShowcaseProduct[] = [
+  // JUEGOS Y RECARGAS
+  { name: "FREE FIRE LATAM", image: "/images/free-fire-latam.jpg", category: "DIAMANTES" },
+  { name: "GENSHIN IMPACT GLOBAL", image: "/images/genshin-impact-global.jpg", category: "RECARGAS" },
+  { name: "MOBILE LEGENDS EE.UU", image: "/images/mobile-legends.jpg", category: "DIAMANTES" },
+  { name: "LEGENDS MOBILE GLOBAL", image: "/images/mobile-legends.jpg", category: "DIAMANTES" },
+  { name: "BLOOD STRIKE", image: "/images/blood-strike.jpg", category: "RECARGAS" },
+  { name: "ARENA BREAKOUT", image: "/images/arena-breakout.jpg", category: "RECARGAS" },
+  { name: "DELTA FORCE", image: "/images/delta-force.jpg", category: "RECARGAS" },
+  { name: "FC MOBILE ID", image: "/images/fc-mobile.jpg", category: "RECARGAS" },
+  { name: "HONOR OF KINGS", image: "/images/honor-of-kings.jpg", category: "DIAMANTES" },
+  { name: "LEAGUE OF LEGENDS ID", image: "/images/league-of-legends.jpg", category: "RECARGAS" },
+  { name: "GARENA FREE FIRE ID", image: "/images/free-fire-latam.jpg", category: "DIAMANTES" },
+  { name: "MODERN WARSHIPS", image: "/images/modern-warships.jpg", category: "RECARGAS" },
+  { name: "SAUSAGE MAN", image: "/images/sausage-man.jpg", category: "RECARGAS" },
+  { name: "LORDS MOBILE", image: "/images/lords-mobile.jpg", category: "DIAMANTES" },
+
+  // TARJETAS DE REGALO
+  { name: "GARENA FREE FIRE GLOBAL", image: "/images/gift-cards/gift-garena-free-fire-global.jpg", category: "GLOBAL" },
+  { name: "ROBLOX GLOBAL", image: "/images/gift-cards/gift-roblox-global.jpg", category: "GLOBAL" },
+  { name: "ROBLOX RU", image: "/images/gift-cards/gift-roblox-ru.jpg", category: "RUSIA" },
+  { name: "ROBLOX EE.UU", image: "/images/gift-cards/gift-roblox-eeuu.jpg", category: "EE.UU" },
+  { name: "ROBLOX ID", image: "/images/gift-cards/gift-roblox-id.jpg", category: "INDONESIA" },
+  { name: "ARENA BREAKOUT", image: "/images/gift-cards/gift-arena-breakout.jpg", category: "GLOBAL" },
+  { name: "FORTNITE AE", image: "/images/gift-cards/gift-fortnite-ae.jpg", category: "EMIRATOS ÁRABES" },
+  { name: "FORTNITE SUIZA", image: "/images/gift-cards/gift-fortnite-suiza.jpg", category: "SUIZA" },
+  { name: "FORTNITE EE.UU", image: "/images/gift-cards/gift-fortnite-eeuu.jpg", category: "EE.UU" },
+  { name: "FORTNITE DE", image: "/images/gift-cards/gift-fortnite-de.jpg", category: "ALEMANIA" },
+  { name: "FORTNITE UE", image: "/images/gift-cards/gift-fortnite-ue.jpg", category: "EUROPA" },
+  { name: "GOOGLE PLAY EE.UU", image: "/images/gift-cards/gift-google-play-eeuu.jpg", category: "EE.UU" },
+  { name: "GOOGLE PLAY BRASIL", image: "/images/gift-cards/gift-google-play-brasil.jpg", category: "BRASIL" },
+  { name: "GOOGLE PLAY ES", image: "/images/gift-cards/gift-google-play-es.jpg", category: "ESPAÑA" },
+  { name: "GOOGLE PLAY AE", image: "/images/gift-cards/gift-google-play-ae.jpg", category: "EMIRATOS ÁRABES" },
+  { name: "GOOGLE PLAY ID", image: "/images/gift-cards/gift-google-play-id.jpg", category: "INDONESIA" },
+  { name: "LEAGUE OF LEGENDS EE.UU", image: "/images/gift-cards/gift-league-of-legends-eeuu.jpg", category: "EE.UU" },
+  { name: "LEAGUE OF LEGENDS RU", image: "/images/gift-cards/gift-league-of-legends-ru.jpg", category: "RUSIA" },
+  { name: "RAZER GOLD EE.UU", image: "/images/gift-cards/gift-razer-gold-eeuu.jpg", category: "EE.UU" },
+  { name: "RAZER GOLD GLOBAL", image: "/images/gift-cards/gift-razer-gold-global.jpg", category: "GLOBAL" },
+  { name: "RAZER GOLD ID", image: "/images/gift-cards/gift-razer-gold-id.jpg", category: "INDONESIA" },
+  { name: "RAZER GOLD MX", image: "/images/gift-cards/gift-razer-gold-mx.jpg", category: "MÉXICO" },
+];
+
 export default function WelcomePage() {
   const router = useRouter();
 
@@ -172,6 +220,74 @@ export default function WelcomePage() {
             <span>💎</span>
             PRODUCTOS DIGITALES
           </div>
+        </div>
+      </section>
+
+      {/* PRODUCTOS DIGITALES */}
+      <section className="premium-products">
+        <div className="products-heading">
+          <div>
+            <span className="products-eyebrow">
+              <i /> NUESTRO CATÁLOGO
+            </span>
+
+            <h2>
+              PRODUCTOS <span>DIGITALES</span>
+            </h2>
+
+            <p>
+              Descubre algunos de los juegos y tarjetas disponibles en STORE GAMING.
+            </p>
+          </div>
+
+          <div className="products-counter">
+            <strong>{showcaseProducts.length}</strong>
+            <span>PRODUCTOS</span>
+          </div>
+        </div>
+
+        <div className="products-marquee">
+          <div className="products-track">
+            {[0, 1].map((group) => (
+              <div
+                className="products-group"
+                key={group}
+                aria-hidden={group === 1 ? true : undefined}
+              >
+                {showcaseProducts.map((product, index) => (
+                  <article
+                    className="product-showcase-card"
+                    key={`${group}-${index}`}
+                  >
+                    <div className="product-showcase-image">
+                      <img
+                        src={product.image}
+                        alt={group === 1 ? "" : product.name}
+                        loading="lazy"
+                      />
+
+                      <span className="product-showcase-category">
+                        {product.category}
+                      </span>
+
+                      <div className="product-image-overlay" />
+                    </div>
+
+                    <div className="product-showcase-info">
+                      <span>STORE GAMING</span>
+                      <strong>{product.name}</strong>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="products-bottom-line">
+          <span />
+          <p>RECARGAS GAMING · TARJETAS DE REGALO · PRODUCTOS DIGITALES</p>
+          <span />
         </div>
       </section>
 
@@ -773,6 +889,240 @@ const styles = `
   left: -20px;
 }
 
+/* PRODUCTOS DIGITALES */
+
+.premium-products {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1250px;
+  margin: 15px auto 0;
+  padding: 35px 0 30px;
+  overflow: hidden;
+  border-top: 1px solid rgba(255,255,255,.07);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(210,20,45,.12), transparent 65%),
+    rgba(10,5,8,.72);
+}
+
+.products-heading {
+  padding: 0 35px;
+  margin-bottom: 25px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.products-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ff687b;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 2px;
+}
+
+.products-eyebrow i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff334d;
+  box-shadow: 0 0 12px #ff334d;
+}
+
+.products-heading h2 {
+  margin: 10px 0 0;
+  color: white;
+  font-size: clamp(23px, 4vw, 34px);
+  font-weight: 1000;
+  letter-spacing: -1px;
+}
+
+.products-heading h2 span {
+  color: #ff334d;
+}
+
+.products-heading p {
+  margin: 8px 0 0;
+  color: #a99ba0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.products-counter {
+  flex-shrink: 0;
+  min-width: 76px;
+  padding: 10px 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid rgba(255,55,80,.3);
+  border-radius: 12px;
+  background: rgba(100,10,28,.2);
+}
+
+.products-counter strong {
+  color: #ff5269;
+  font-size: 22px;
+  font-weight: 1000;
+}
+
+.products-counter span {
+  color: #b9a6ac;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.products-marquee {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  padding: 5px 0 13px;
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    black 4%,
+    black 96%,
+    transparent
+  );
+}
+
+.products-track {
+  display: flex;
+  width: max-content;
+  animation: productsScroll 115s linear infinite;
+  will-change: transform;
+}
+
+.products-group {
+  display: flex;
+  flex-shrink: 0;
+  gap: 16px;
+  padding-right: 16px;
+}
+
+.product-showcase-card {
+  width: 178px;
+  flex: 0 0 178px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px;
+  background: linear-gradient(145deg,#1b1419,#0e0b0e);
+  box-shadow: 0 7px 22px rgba(0,0,0,.32);
+  user-select: none;
+}
+
+.product-showcase-image {
+  height: 125px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #191116;
+}
+
+.product-showcase-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.product-image-overlay {
+  position: absolute;
+  inset: 35% 0 0;
+  background: linear-gradient(to bottom,transparent,rgba(0,0,0,.48));
+  pointer-events: none;
+}
+
+.product-showcase-category {
+  position: absolute;
+  z-index: 1;
+  top: 9px;
+  left: 9px;
+  max-width: calc(100% - 18px);
+  padding: 5px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 6px;
+  background: rgba(10,7,9,.86);
+  color: #ff9aa7;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: .6px;
+  backdrop-filter: blur(8px);
+}
+
+.product-showcase-info {
+  min-height: 66px;
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+}
+
+.product-showcase-info > span {
+  color: #ff5269;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 1.3px;
+}
+
+.product-showcase-info strong {
+  color: #f5eef0;
+  font-size: 10px;
+  line-height: 1.35;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.products-bottom-line {
+  margin: 20px 35px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+}
+
+.products-bottom-line span {
+  height: 1px;
+  max-width: 75px;
+  flex: 1;
+  background: linear-gradient(90deg,transparent,#a91b34);
+}
+
+.products-bottom-line span:last-child {
+  background: linear-gradient(90deg,#a91b34,transparent);
+}
+
+.products-bottom-line p {
+  margin: 0;
+  color: #8f7c83;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1.3px;
+  text-align: center;
+}
+
+@keyframes productsScroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 /* VENTAJAS */
 
 .premium-benefits {
@@ -925,6 +1275,11 @@ const styles = `
   .premium-benefits {
     gap: 13px;
   }
+
+  .product-showcase-card {
+    width: 165px;
+    flex-basis: 165px;
+  }
 }
 
 /* MÓVILES */
@@ -1041,6 +1396,72 @@ const styles = `
     left: -2px;
   }
 
+  .premium-products {
+    margin-top: 5px;
+    padding: 28px 0 23px;
+  }
+
+  .products-heading {
+    padding: 0 18px;
+    margin-bottom: 20px;
+  }
+
+  .products-heading h2 {
+    font-size: 24px;
+  }
+
+  .products-heading p {
+    max-width: 270px;
+    font-size: 11px;
+  }
+
+  .products-counter {
+    min-width: 62px;
+    padding: 8px 9px;
+  }
+
+  .products-counter strong {
+    font-size: 19px;
+  }
+
+  .products-counter span {
+    font-size: 7px;
+  }
+
+  .products-group {
+    gap: 12px;
+    padding-right: 12px;
+  }
+
+  .product-showcase-card {
+    width: 145px;
+    flex-basis: 145px;
+    border-radius: 12px;
+  }
+
+  .product-showcase-image {
+    height: 108px;
+  }
+
+  .product-showcase-info {
+    min-height: 61px;
+    padding: 9px;
+  }
+
+  .product-showcase-info strong {
+    font-size: 9px;
+  }
+
+  .products-bottom-line {
+    margin: 17px 18px 0;
+    gap: 8px;
+  }
+
+  .products-bottom-line p {
+    font-size: 7px;
+    letter-spacing: .7px;
+  }
+
   .premium-benefits {
     grid-template-columns: 1fr;
     gap: 17px;
@@ -1085,14 +1506,31 @@ const styles = `
   .hero-content h1 {
     font-size: 36px;
   }
+
+  .products-heading {
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+
+  .products-heading h2 {
+    font-size: 21px;
+  }
+
+  .product-showcase-card {
+    width: 132px;
+    flex-basis: 132px;
+  }
 }
+
+/* MOVIMIENTO REDUCIDO */
 
 @media (prefers-reduced-motion: reduce) {
   .hero-content,
   .hero-visual,
   .visual-controller,
   .orbit-two,
-  .visual-energy {
+  .visual-energy,
+  .products-track {
     animation: none;
   }
 
