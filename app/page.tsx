@@ -178,49 +178,6 @@ export default function WelcomePage() {
             </div>
           </div>
         </div>
-
-        <div className="hero-visual">
-          <div className="visual-orbit orbit-one" />
-          <div className="visual-orbit orbit-two" />
-
-          <div className="visual-main-card">
-            <div className="visual-card-top">
-              <span className="visual-logo">SG</span>
-
-              <div>
-                <small>STORE GAMING</small>
-                <strong>PREMIUM EXPERIENCE</strong>
-              </div>
-
-              <span className="visual-star">✦</span>
-            </div>
-
-            <div className="visual-center">
-              <div className="visual-controller">🎮</div>
-              <div className="visual-energy" />
-              <div className="visual-energy energy-two" />
-            </div>
-
-            <div className="visual-card-bottom">
-              <div>
-                <small>PREPÁRATE PARA</small>
-                <strong>JUGAR SIN LÍMITES</strong>
-              </div>
-
-              <span>SG.</span>
-            </div>
-          </div>
-
-          <div className="floating-tag tag-top">
-            <span>⚡</span>
-            GAMING STORE
-          </div>
-
-          <div className="floating-tag tag-bottom">
-            <span>💎</span>
-            PRODUCTOS DIGITALES
-          </div>
-        </div>
       </section>
 
       {/* PRODUCTOS DIGITALES */}
@@ -511,7 +468,7 @@ const styles = `
   margin: auto;
   padding: 70px 35px 55px;
   display: grid;
-  grid-template-columns: 1.1fr .9fr;
+  grid-template-columns: 1fr;
   align-items: center;
   gap: 30px;
   position: relative;
@@ -682,211 +639,6 @@ const styles = `
   height: 18px;
   width: 1px;
   background: rgba(255,255,255,.2);
-}
-
-/* PANEL VISUAL */
-
-.hero-visual {
-  min-height: 390px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: visualAppear 1s ease both;
-}
-
-.visual-main-card {
-  width: min(100%, 360px);
-  height: 340px;
-  padding: 23px;
-  position: relative;
-  z-index: 2;
-  overflow: hidden;
-  border-radius: 25px;
-  border: 1px solid rgba(255,65,90,.48);
-  background:
-    radial-gradient(circle at 50% 45%, rgba(190,20,45,.25), transparent 58%),
-    linear-gradient(145deg,rgba(48,12,22,.96),rgba(12,7,11,.98));
-  box-shadow:
-    0 25px 80px rgba(0,0,0,.6),
-    0 0 45px rgba(220,25,48,.15),
-    inset 0 0 35px rgba(255,45,65,.06);
-  transform: rotate(2deg);
-  transition: .35s ease;
-}
-
-.visual-main-card:hover {
-  transform: rotate(0deg) translateY(-6px);
-  box-shadow:
-    0 30px 90px rgba(0,0,0,.65),
-    0 0 55px rgba(220,25,48,.23);
-}
-
-.visual-card-top {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  position: relative;
-  z-index: 2;
-}
-
-.visual-logo {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: linear-gradient(145deg,#f03b55,#850d27);
-  border: 1px solid rgba(255,100,120,.35);
-  color: white;
-  font-size: 15px;
-  font-weight: 1000;
-  box-shadow: 0 0 20px rgba(255,40,65,.25);
-}
-
-.visual-card-top div {
-  flex: 1;
-}
-
-.visual-card-top small,
-.visual-card-top strong {
-  display: block;
-}
-
-.visual-card-top small {
-  color: #fff;
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 1px;
-}
-
-.visual-card-top strong {
-  color: #ff667a;
-  font-size: 8px;
-  margin-top: 5px;
-  letter-spacing: 1.5px;
-}
-
-.visual-star {
-  color: #ff465f;
-  font-size: 23px;
-}
-
-.visual-center {
-  position: absolute;
-  inset: 70px 0 65px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.visual-controller {
-  position: relative;
-  z-index: 2;
-  font-size: 112px;
-  filter: drop-shadow(0 10px 25px rgba(0,0,0,.65));
-  animation: controllerFloat 4s ease-in-out infinite;
-}
-
-.visual-energy {
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  border: 1px solid rgba(255,65,90,.3);
-  border-radius: 50%;
-  box-shadow: 0 0 50px rgba(220,25,48,.15);
-  animation: energyPulse 4s ease-in-out infinite;
-}
-
-.energy-two {
-  width: 150px;
-  height: 150px;
-  border-style: dashed;
-  animation-direction: reverse;
-}
-
-.visual-card-bottom {
-  position: absolute;
-  bottom: 23px;
-  left: 23px;
-  right: 23px;
-  padding-top: 15px;
-  border-top: 1px solid rgba(255,255,255,.12);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.visual-card-bottom small,
-.visual-card-bottom strong {
-  display: block;
-}
-
-.visual-card-bottom small {
-  color: #b4a0a5;
-  font-size: 8px;
-  letter-spacing: 1.5px;
-}
-
-.visual-card-bottom strong {
-  color: #ff536b;
-  margin-top: 5px;
-  font-size: 12px;
-  letter-spacing: 1px;
-}
-
-.visual-card-bottom > span {
-  color: #ff334d;
-  font-size: 25px;
-  font-weight: 1000;
-}
-
-.visual-orbit {
-  position: absolute;
-  width: 390px;
-  height: 390px;
-  border: 1px solid rgba(255,65,90,.17);
-  border-radius: 50%;
-}
-
-.orbit-two {
-  width: 460px;
-  height: 460px;
-  border-style: dashed;
-  border-color: rgba(255,65,90,.1);
-  animation: orbitRotate 45s linear infinite;
-}
-
-.floating-tag {
-  position: absolute;
-  z-index: 3;
-  padding: 12px 15px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  border: 1px solid rgba(255,65,90,.4);
-  border-radius: 11px;
-  background: rgba(25,8,13,.96);
-  color: white;
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: 1px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 20px rgba(200,20,45,.08);
-}
-
-.floating-tag span {
-  font-size: 16px;
-}
-
-.tag-top {
-  top: 28px;
-  right: -8px;
-}
-
-.tag-bottom {
-  bottom: 22px;
-  left: -20px;
 }
 
 /* PRODUCTOS DIGITALES */
@@ -1225,51 +977,17 @@ const styles = `
   }
 }
 
-@keyframes visualAppear {
-  from {
-    opacity: 0;
-    transform: translateX(25px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes controllerFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
-}
-
-@keyframes energyPulse {
-  0%, 100% { transform: scale(.94); opacity: .5; }
-  50% { transform: scale(1.08); opacity: 1; }
-}
-
-@keyframes orbitRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
 /* TABLETS */
 
 @media (max-width: 900px) {
   .premium-hero {
-    grid-template-columns: 1fr .8fr;
+    grid-template-columns: 1fr;
     padding-top: 55px;
     gap: 10px;
   }
 
   .hero-content h1 {
     font-size: clamp(37px, 6vw, 53px);
-  }
-
-  .visual-main-card {
-    height: 300px;
-  }
-
-  .visual-controller {
-    font-size: 90px;
   }
 
   .premium-benefits {
@@ -1353,47 +1071,6 @@ const styles = `
 
   .category-item small {
     font-size: 8px;
-  }
-
-  .hero-visual {
-    min-height: 340px;
-    margin-top: 15px;
-  }
-
-  .visual-main-card {
-    width: min(82%, 340px);
-    height: 285px;
-    padding: 18px;
-  }
-
-  .visual-card-bottom {
-    left: 18px;
-    right: 18px;
-    bottom: 18px;
-  }
-
-  .visual-controller {
-    font-size: 88px;
-  }
-
-  .visual-orbit {
-    width: 300px;
-    height: 300px;
-  }
-
-  .orbit-two {
-    width: 350px;
-    height: 350px;
-  }
-
-  .tag-top {
-    top: 12px;
-    right: -2px;
-  }
-
-  .tag-bottom {
-    bottom: 5px;
-    left: -2px;
   }
 
   .premium-products {
@@ -1526,15 +1203,10 @@ const styles = `
 
 @media (prefers-reduced-motion: reduce) {
   .hero-content,
-  .hero-visual,
-  .visual-controller,
-  .orbit-two,
-  .visual-energy,
   .products-track {
     animation: none;
   }
 
-  .visual-main-card,
   .hero-button {
     transition: none;
   }
