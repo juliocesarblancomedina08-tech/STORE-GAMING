@@ -182,39 +182,6 @@ export default function BalancePage() {
 
         </div>
 
-        {/* HISTORIAL */}
-
-        <div className="balance-history-heading">
-          <div>
-            <strong>ACTIVIDAD</strong>
-            <small>TUS OPERACIONES EN STORE GAMING</small>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => router.push("/balance/history")}
-          >
-            VER TODO →
-          </button>
-        </div>
-
-        <button
-          type="button"
-          className="balance-history-card"
-          onClick={() => router.push("/balance/history")}
-        >
-          <div className="history-icon">▣</div>
-
-          <div className="history-text">
-            <strong>HISTORIAL DE MOVIMIENTOS</strong>
-            <span>
-              Consulta tus depósitos, compras y operaciones.
-            </span>
-          </div>
-
-          <div className="history-arrow">→</div>
-        </button>
-
         {/* SEGURIDAD */}
 
         <div className="balance-security-card">
@@ -560,78 +527,6 @@ const styles = `
   position: absolute;
   right: 14px;
   top: 18px;
-  color: #36c997;
-}
-
-.balance-page .balance-history-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 32px 2px 13px;
-}
-
-.balance-page .balance-history-heading small {
-  display: block;
-  margin-top: 5px;
-  font-size: 9px;
-  color: #77857c;
-}
-
-.balance-page .balance-history-heading button {
-  background: none;
-  border: none;
-  color: #36c997;
-  font-size: 10px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.balance-page .balance-history-card {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 17px;
-  text-align: left;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,.09);
-  background: linear-gradient(145deg,#141b17,#0a0e0c);
-  border-radius: 15px;
-  cursor: pointer;
-}
-
-.balance-page .history-icon {
-  width: 43px;
-  height: 43px;
-  flex: 0 0 43px;
-  border-radius: 12px;
-  background: rgba(38,161,123,.13);
-  color: #36c997;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-}
-
-.balance-page .history-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.balance-page .history-text strong {
-  display: block;
-  font-size: 11px;
-}
-
-.balance-page .history-text span {
-  display: block;
-  margin-top: 5px;
-  color: #89968e;
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.balance-page .history-arrow {
   color: #36c997;
 }
 
