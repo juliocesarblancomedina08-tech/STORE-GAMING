@@ -14,10 +14,16 @@ const FAZER_API_KEY =
 const CATEGORY_ID = "arena_breakout";
 
 /*
- * STORE GAMING gana $0.20 sobre
- * el precio real de FazerCards.
+ * ============================================================
+ * MÁRGENES DE STORE GAMING
+ * ============================================================
+ *
+ * Usuario normal: proveedor + 0.20
+ * Usuario VIP:    proveedor + 0.08
  */
+
 const STORE_MARGIN = 0.20;
+const VIP_MARKUP = 0.08;
 
 /*
  * ============================================================
@@ -25,7 +31,7 @@ const STORE_MARGIN = 0.20;
  * ============================================================
  *
  * supplierPrice = precio real de FazerCards
- * price         = precio que paga el cliente
+ * price         = precio normal del cliente
  */
 
 const OFFERS = [
@@ -150,9 +156,7 @@ function getBearerToken(
     "";
 
   if (
-    !authorization.startsWith(
-      "Bearer "
-    )
+    !authorization.startsWith("Bearer ")
   ) {
     return null;
   }
@@ -292,38 +296,39 @@ function isSupplierCompleted(
 
 /*
  * ============================================================
- * PRECIO
+ * CALCULAR PRECIO
  * ============================================================
  */
 
 function getRetailPrice(
-  offer: (typeof OFFERS)[number]
+  offer: (typeof OFFERS)[number],
+  vipActive = false
 ) {
+  const margin = vipActive
+    ? VIP_MARKUP
+    : STORE_MARGIN;
+
   return Number(
-    Number(
-      offer.supplierPrice +
-        STORE_MARGIN
-    ).toFixed(4)
+    (offer.supplierPrice + margin).toFixed(4)
   );
 }
 
 /*
  * ============================================================
- * POST
+ * GET - CATÁLOGO
  * ============================================================
+ *
+ * Devuelve los precios normales.
+ * El frontend calcula el precio VIP para mostrarlo.
  */
 
-/**
- * Devuelve el catálogo de Arena Breakout que consume la página.
- * GET /api/topups/arena-breakout
- */
 export async function GET() {
   const offers = OFFERS.map((offer) => ({
     id: offer.id,
     name: offer.name,
     displayName: offer.displayName,
     supplierPrice: offer.supplierPrice,
-    price: getRetailPrice(offer),
+    price: getRetailPrice(offer, false),
   }));
 
   return NextResponse.json(
@@ -341,6 +346,12 @@ export async function GET() {
     }
   );
 }
+
+/*
+ * ============================================================
+ * POST - CREAR PEDIDO
+ * ============================================================
+ */
 
 export async function POST(
   request: NextRequest
@@ -376,10 +387,9 @@ export async function POST(
     const {
       data: userData,
       error: userError,
-    } =
-      await supabaseAdmin.auth.getUser(
-        accessToken
-      );
+    } = await supabaseAdmin.auth.getUser(
+      accessToken
+    );
 
     if (
       userError ||
@@ -396,8 +406,7 @@ export async function POST(
       );
     }
 
-    const user =
-      userData.user;
+    const user = userData.user;
 
     /*
      * ========================================================
@@ -405,28 +414,19 @@ export async function POST(
      * ========================================================
      */
 
-    const body =
-      await request.json();
+    const body = await request.json();
 
     const offerId =
-      String(
-        body?.offerId || ""
-      ).trim();
+      String(body?.offerId || "").trim();
 
     const playerId =
-      String(
-        body?.playerId || ""
-      ).trim();
+      String(body?.playerId || "").trim();
 
     const idempotencyKey =
-      String(
-        body?.idempotencyKey || ""
-      ).trim();
+      String(body?.idempotencyKey || "").trim();
 
     const requestedRetailPrice =
-      Number(
-        body?.retailPrice
-      );
+      Number(body?.retailPrice);
 
     /*
      * ========================================================
@@ -464,11 +464,7 @@ export async function POST(
       );
     }
 
-    if (
-      !/^[0-9]+$/.test(
-        playerId
-      )
-    ) {
+    if (!/^[0-9]+$/.test(playerId)) {
       return NextResponse.json(
         {
           error:
@@ -480,9 +476,7 @@ export async function POST(
       );
     }
 
-    if (
-      playerId.length < 4
-    ) {
+    if (playerId.length < 4) {
       return NextResponse.json(
         {
           error:
@@ -494,9 +488,7 @@ export async function POST(
       );
     }
 
-    if (
-      playerId.length > 32
-    ) {
+    if (playerId.length > 32) {
       return NextResponse.json(
         {
           error:
@@ -532,12 +524,9 @@ export async function POST(
      * ========================================================
      */
 
-    const offer =
-      OFFERS.find(
-        (item) =>
-          item.id ===
-          offerId
-      );
+    const offer = OFFERS.find(
+      (item) => item.id === offerId
+    );
 
     if (!offer) {
       return NextResponse.json(
@@ -553,14 +542,58 @@ export async function POST(
 
     /*
      * ========================================================
+     * COMPROBAR MEMBRESÍA VIP
+     * ========================================================
+     *
+     * La comprobación se realiza en el servidor.
+     * No confiamos en el estado enviado por el frontend.
+     */
+
+    const {
+      data: vipProfile,
+      error: vipProfileError,
+    } = await supabaseAdmin
+      .from("profiles")
+      .select("vip_expires_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (vipProfileError) {
+      console.error(
+        "Error comprobando membresía VIP:",
+        vipProfileError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo comprobar la membresía VIP.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const vipExpiresAt =
+      vipProfile?.vip_expires_at
+        ? new Date(
+            vipProfile.vip_expires_at
+          ).getTime()
+        : 0;
+
+    const vipActive =
+      Number.isFinite(vipExpiresAt) &&
+      vipExpiresAt > Date.now();
+
+    /*
+     * ========================================================
      * VALIDAR PRECIO
      * ========================================================
      */
 
     if (
-      !Number.isFinite(
-        offer.supplierPrice
-      ) ||
+      !Number.isFinite(offer.supplierPrice) ||
       offer.supplierPrice <= 0
     ) {
       return NextResponse.json(
@@ -575,14 +608,10 @@ export async function POST(
     }
 
     const retailPrice =
-      getRetailPrice(
-        offer
-      );
+      getRetailPrice(offer, vipActive);
 
     if (
-      !Number.isFinite(
-        requestedRetailPrice
-      )
+      !Number.isFinite(requestedRetailPrice)
     ) {
       return NextResponse.json(
         {
@@ -597,16 +626,15 @@ export async function POST(
 
     if (
       Math.abs(
-        requestedRetailPrice -
-          retailPrice
+        requestedRetailPrice - retailPrice
       ) > 0.0001
     ) {
       return NextResponse.json(
         {
           error:
             "El precio de la oferta no coincide.",
-          expected:
-            retailPrice,
+          expected: retailPrice,
+          vipActive,
         },
         {
           status: 400,
@@ -622,27 +650,17 @@ export async function POST(
 
     const {
       data: existingOrder,
-      error:
-        existingOrderError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .select(
-          "id,status,supplier_order_id,retail_price"
-        )
-        .eq(
-          "user_id",
-          user.id
-        )
-        .eq(
-          "idempotency_key",
-          idempotencyKey
-        )
-        .maybeSingle();
+      error: existingOrderError,
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .select(
+        "id,status,supplier_order_id,retail_price"
+      )
+      .eq("user_id", user.id)
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
 
-    if (
-      existingOrderError
-    ) {
+    if (existingOrderError) {
       console.error(
         "Error comprobando idempotencia:",
         existingOrderError
@@ -666,10 +684,8 @@ export async function POST(
         {
           ok: true,
           duplicate: true,
-          order:
-            existingOrder,
-          orderNumber:
-            existingOrder.id,
+          order: existingOrder,
+          orderNumber: existingOrder.id,
         },
         {
           status: 200,
@@ -681,28 +697,18 @@ export async function POST(
      * ========================================================
      * PERFIL / BALANCE
      * ========================================================
-     *
-     * ESTA PARTE ES IGUAL A DELTA FORCE.
      */
 
     const {
       data: profile,
       error: profileError,
-    } =
-      await supabaseAdmin
-        .from("profiles")
-        .select(
-          "id,email,balance"
-        )
-        .eq(
-          "id",
-          user.id
-        )
-        .maybeSingle();
+    } = await supabaseAdmin
+      .from("profiles")
+      .select("id,email,balance")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    if (
-      profileError
-    ) {
+    if (profileError) {
       console.error(
         "Error obteniendo perfil:",
         profileError
@@ -734,14 +740,10 @@ export async function POST(
     }
 
     const balance =
-      Number(
-        profile.balance || 0
-      );
+      Number(profile.balance || 0);
 
     if (
-      !Number.isFinite(
-        balance
-      ) ||
+      !Number.isFinite(balance) ||
       balance < retailPrice
     ) {
       return NextResponse.json(
@@ -749,8 +751,7 @@ export async function POST(
           error:
             "Saldo insuficiente.",
           balance,
-          required:
-            retailPrice,
+          required: retailPrice,
         },
         {
           status: 400,
@@ -767,54 +768,40 @@ export async function POST(
     const {
       data: insertedOrder,
       error: insertError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .insert({
-          user_id:
-            user.id,
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .insert({
+        user_id: user.id,
 
-          game:
-            "Arena Breakout",
+        game: "Arena Breakout",
 
-          category_id:
-            CATEGORY_ID,
+        category_id: CATEGORY_ID,
 
-          offer_id:
-            offer.id,
+        offer_id: offer.id,
 
-          offer_name:
-            offer.name,
+        offer_name: offer.name,
 
-          player_id:
-            playerId,
+        player_id: playerId,
 
-          currency:
-            "USD",
+        currency: "USD",
 
-          retail_price:
-            retailPrice,
+        retail_price: retailPrice,
 
-          supplier_price:
-            Number(
-              offer.supplierPrice
-            ),
+        supplier_price: Number(
+          offer.supplierPrice
+        ),
 
-          status:
-            "RESERVED",
+        status: "RESERVED",
 
-          idempotency_key:
-            idempotencyKey,
+        idempotency_key: idempotencyKey,
 
-          supplier_fields: {
-            player_id:
-              playerId,
-          },
-        })
-        .select(
-          "*"
-        )
-        .single();
+        supplier_fields: {
+          player_id: playerId,
+          vip_active: vipActive,
+        },
+      })
+      .select("*")
+      .single();
 
     if (
       insertError ||
@@ -838,35 +825,26 @@ export async function POST(
       );
     }
 
-    insertedOrderId =
-      insertedOrder.id;
+    insertedOrderId = insertedOrder.id;
 
     /*
      * ========================================================
      * RESERVAR SALDO
      * ========================================================
-     *
-     * EXACTAMENTE EL MISMO FORMATO QUE DELTA FORCE.
      */
 
     const {
       data: reserveResult,
       error: reserveError,
-    } =
-      await supabaseAdmin.rpc(
-        "reserve_topup_balance",
-        {
-          p_user_id:
-            user.id,
+    } = await supabaseAdmin.rpc(
+      "reserve_topup_balance",
+      {
+        p_user_id: user.id,
+        p_amount: retailPrice,
+      }
+    );
 
-          p_amount:
-            retailPrice,
-        }
-      );
-
-    if (
-      reserveError
-    ) {
+    if (reserveError) {
       console.error(
         "Error reservando saldo:",
         reserveError
@@ -875,8 +853,7 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "FAILED",
+          status: "FAILED",
 
           supplier_response: {
             reserve_error:
@@ -886,10 +863,7 @@ export async function POST(
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       return NextResponse.json(
         {
@@ -903,27 +877,19 @@ export async function POST(
       );
     }
 
-    if (
-      reserveResult === false
-    ) {
+    if (reserveResult === false) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "FAILED",
-
+          status: "FAILED",
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       return NextResponse.json(
         {
-          error:
-            "Saldo insuficiente.",
+          error: "Saldo insuficiente.",
         },
         {
           status: 400,
@@ -944,16 +910,10 @@ export async function POST(
         "Falta FAZERCARDS_API_KEY."
       );
 
-      /*
-       * Devolver el saldo porque todavía
-       * no hemos enviado nada al proveedor.
-       */
-
       await supabaseAdmin.rpc(
         "refund_topup_balance",
         {
-          p_order_id:
-            insertedOrderId,
+          p_order_id: insertedOrderId,
         }
       );
 
@@ -962,16 +922,11 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "REFUNDED",
-
+          status: "REFUNDED",
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       return NextResponse.json(
         {
@@ -989,25 +944,17 @@ export async function POST(
      * PAYLOAD PARA FAZERCARDS
      * ========================================================
      *
-     * NO mandamos:
-     *
-     * - retailPrice
-     * - supplierPrice
-     * - offerName
-     *
-     * Solo lo que necesita FazerCards.
+     * Solo enviamos los datos que necesita
+     * el proveedor.
      */
 
     const supplierPayload = {
-      category_id:
-        CATEGORY_ID,
+      category_id: CATEGORY_ID,
 
-      offer_id:
-        offer.id,
+      offer_id: offer.id,
 
       fields: {
-        player_id:
-          playerId,
+        player_id: playerId,
       },
     };
 
@@ -1025,42 +972,34 @@ export async function POST(
     let supplierResponse: Response;
 
     try {
-      supplierResponse =
-        await fetch(
-          `${FAZER_API_BASE}/topups/order`,
-          {
-            method:
-              "POST",
+      supplierResponse = await fetch(
+        `${FAZER_API_BASE}/topups/order`,
+        {
+          method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json",
+          headers: {
+            "Content-Type":
+              "application/json",
 
-              Accept:
-                "application/json",
+            Accept: "application/json",
 
-              "X-API-Key":
-                FAZER_API_KEY,
+            "X-API-Key": FAZER_API_KEY,
 
-              "Idempotency-Key":
-                idempotencyKey,
+            "Idempotency-Key":
+              idempotencyKey,
 
-              "User-Agent":
-                "STORE-GAMING/1.0",
-            },
+            "User-Agent":
+              "STORE-GAMING/1.0",
+          },
 
-            body:
-              JSON.stringify(
-                supplierPayload
-              ),
+          body: JSON.stringify(
+            supplierPayload
+          ),
 
-            cache:
-              "no-store",
-          }
-        );
-    } catch (
-      supplierNetworkError
-    ) {
+          cache: "no-store",
+        }
+      );
+    } catch (supplierNetworkError) {
       /*
        * No hacemos refund porque no sabemos
        * si FazerCards recibió el pedido.
@@ -1074,29 +1013,21 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "SUPPLIER_PENDING",
+          status: "SUPPLIER_PENDING",
 
           supplier_response: {
             network_error:
-              supplierNetworkError instanceof
-              Error
+              supplierNetworkError instanceof Error
                 ? supplierNetworkError.message
-                : String(
-                    supplierNetworkError
-                  ),
+                : String(supplierNetworkError),
 
-            request:
-              supplierPayload,
+            request: supplierPayload,
           },
 
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       reserved = false;
 
@@ -1106,8 +1037,7 @@ export async function POST(
 
           pending: true,
 
-          orderNumber:
-            insertedOrder.id,
+          orderNumber: insertedOrder.id,
 
           message:
             "El pedido quedó pendiente de confirmación del proveedor.",
@@ -1127,20 +1057,15 @@ export async function POST(
     const responseText =
       await supplierResponse.text();
 
-    let supplierData: any =
-      null;
+    let supplierData: any = null;
 
     try {
-      supplierData =
-        responseText
-          ? JSON.parse(
-              responseText
-            )
-          : null;
+      supplierData = responseText
+        ? JSON.parse(responseText)
+        : null;
     } catch {
       supplierData = {
-        raw:
-          responseText,
+        raw: responseText,
       };
     }
 
@@ -1155,14 +1080,10 @@ export async function POST(
     );
 
     const supplierOrderId =
-      getSupplierOrderId(
-        supplierData
-      );
+      getSupplierOrderId(supplierData);
 
     const supplierStatus =
-      getSupplierStatus(
-        supplierData
-      );
+      getSupplierStatus(supplierData);
 
     /*
      * ========================================================
@@ -1182,10 +1103,7 @@ export async function POST(
         updated_at:
           new Date().toISOString(),
       })
-      .eq(
-        "id",
-        insertedOrderId
-      );
+      .eq("id", insertedOrderId);
 
     /*
      * ========================================================
@@ -1195,9 +1113,7 @@ export async function POST(
 
     if (
       !supplierResponse.ok ||
-      isSupplierRejected(
-        supplierStatus
-      )
+      isSupplierRejected(supplierStatus)
     ) {
       console.error(
         "FAZERCARDS RECHAZÓ ARENA BREAKOUT:",
@@ -1211,27 +1127,16 @@ export async function POST(
         }
       );
 
-      /*
-       * Reembolsar únicamente cuando tenemos
-       * una respuesta explícita del proveedor
-       * indicando que rechazó.
-       */
-
       const {
-        error:
-          refundError,
-      } =
-        await supabaseAdmin.rpc(
-          "refund_topup_balance",
-          {
-            p_order_id:
-              insertedOrderId,
-          }
-        );
+        error: refundError,
+      } = await supabaseAdmin.rpc(
+        "refund_topup_balance",
+        {
+          p_order_id: insertedOrderId,
+        }
+      );
 
-      if (
-        refundError
-      ) {
+      if (refundError) {
         console.error(
           "Error haciendo refund:",
           refundError
@@ -1240,8 +1145,7 @@ export async function POST(
         await supabaseAdmin
           .from("topup_orders")
           .update({
-            status:
-              "REFUND_PENDING",
+            status: "REFUND_PENDING",
 
             supplier_order_id:
               supplierOrderId,
@@ -1252,10 +1156,7 @@ export async function POST(
             updated_at:
               new Date().toISOString(),
           })
-          .eq(
-            "id",
-            insertedOrderId
-          );
+          .eq("id", insertedOrderId);
 
         reserved = false;
 
@@ -1264,8 +1165,7 @@ export async function POST(
             error:
               "El proveedor rechazó la orden y el reembolso quedó pendiente.",
 
-            supplier:
-              supplierData,
+            supplier: supplierData,
           },
           {
             status: 502,
@@ -1278,8 +1178,7 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "REFUNDED",
+          status: "REFUNDED",
 
           supplier_order_id:
             supplierOrderId,
@@ -1293,15 +1192,7 @@ export async function POST(
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
-
-      /*
-       * Intentamos mostrar el mensaje real
-       * del proveedor.
-       */
+        .eq("id", insertedOrderId);
 
       const supplierMessage =
         supplierData?.error ||
@@ -1314,11 +1205,9 @@ export async function POST(
           error:
             `El proveedor rechazó la orden: ${supplierMessage}. El saldo fue reembolsado.`,
 
-          supplier:
-            supplierData,
+          supplier: supplierData,
 
-          orderNumber:
-            insertedOrder.id,
+          orderNumber: insertedOrder.id,
         },
         {
           status: 502,
@@ -1339,8 +1228,7 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "SUPPLIER_PENDING",
+          status: "SUPPLIER_PENDING",
 
           supplier_response:
             supplierData,
@@ -1348,10 +1236,7 @@ export async function POST(
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       reserved = false;
 
@@ -1361,8 +1246,7 @@ export async function POST(
 
           pending: true,
 
-          orderNumber:
-            insertedOrder.id,
+          orderNumber: insertedOrder.id,
 
           message:
             "El pedido fue enviado al proveedor y quedó pendiente de confirmación.",
@@ -1380,25 +1264,19 @@ export async function POST(
      */
 
     if (
-      isSupplierCompleted(
-        supplierStatus
-      )
+      isSupplierCompleted(supplierStatus)
     ) {
       const {
-        error:
-          completeError,
-      } =
-        await supabaseAdmin.rpc(
-          "complete_topup_order",
-          {
-            p_supplier_order_id:
-              supplierOrderId,
-          }
-        );
+        error: completeError,
+      } = await supabaseAdmin.rpc(
+        "complete_topup_order",
+        {
+          p_supplier_order_id:
+            supplierOrderId,
+        }
+      );
 
-      if (
-        completeError
-      ) {
+      if (completeError) {
         console.error(
           "Error completando orden:",
           completeError
@@ -1412,8 +1290,7 @@ export async function POST(
         await supabaseAdmin
           .from("topup_orders")
           .update({
-            status:
-              "SUPPLIER_PENDING",
+            status: "SUPPLIER_PENDING",
 
             supplier_order_id:
               supplierOrderId,
@@ -1424,10 +1301,7 @@ export async function POST(
             updated_at:
               new Date().toISOString(),
           })
-          .eq(
-            "id",
-            insertedOrderId
-          );
+          .eq("id", insertedOrderId);
 
         reserved = false;
 
@@ -1460,8 +1334,7 @@ export async function POST(
           supplier_response:
             supplierData,
 
-          status:
-            "COMPLETED",
+          status: "COMPLETED",
 
           completed_at:
             new Date().toISOString(),
@@ -1469,10 +1342,7 @@ export async function POST(
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       reserved = false;
 
@@ -1480,8 +1350,7 @@ export async function POST(
         {
           ok: true,
 
-          status:
-            "COMPLETED",
+          status: "COMPLETED",
 
           orderNumber:
             supplierOrderId,
@@ -1491,8 +1360,7 @@ export async function POST(
           order: {
             ...insertedOrder,
 
-            status:
-              "COMPLETED",
+            status: "COMPLETED",
 
             supplier_order_id:
               supplierOrderId,
@@ -1513,8 +1381,7 @@ export async function POST(
     await supabaseAdmin
       .from("topup_orders")
       .update({
-        status:
-          "SUPPLIER_PENDING",
+        status: "SUPPLIER_PENDING",
 
         supplier_order_id:
           supplierOrderId,
@@ -1525,10 +1392,7 @@ export async function POST(
         updated_at:
           new Date().toISOString(),
       })
-      .eq(
-        "id",
-        insertedOrderId
-      );
+      .eq("id", insertedOrderId);
 
     reserved = false;
 
@@ -1538,8 +1402,7 @@ export async function POST(
 
         pending: true,
 
-        status:
-          "SUPPLIER_PENDING",
+        status: "SUPPLIER_PENDING",
 
         orderNumber:
           supplierOrderId,
@@ -1549,8 +1412,7 @@ export async function POST(
         order: {
           ...insertedOrder,
 
-          status:
-            "SUPPLIER_PENDING",
+          status: "SUPPLIER_PENDING",
 
           supplier_order_id:
             supplierOrderId,
@@ -1584,26 +1446,19 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "SUPPLIER_PENDING",
+          status: "SUPPLIER_PENDING",
 
           supplier_response: {
             internal_error:
-              error instanceof
-              Error
+              error instanceof Error
                 ? error.message
-                : String(
-                    error
-                  ),
+                : String(error),
           },
 
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
     }
 
     return NextResponse.json(
