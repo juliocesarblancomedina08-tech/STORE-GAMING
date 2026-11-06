@@ -64,6 +64,7 @@ export default function BalancePage() {
     return (
       <main className="balance-page">
         <div className="balance-background" />
+
         <div className="balance-loading">
           <div className="balance-loading-logo">🛒🎮</div>
           <div className="balance-spinner" />
@@ -118,12 +119,63 @@ export default function BalancePage() {
               </div>
             </div>
 
+            {/* ICONO PREMIUM DE BILLETERA */}
+
             <div className="balance-wallet-symbol">
-              <span className="wallet-line-icon">
-                <i />
-                <i />
-                <i />
-              </span>
+              <svg
+                viewBox="0 0 48 48"
+                className="wallet-premium-icon"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 14.5C8 12.57 9.57 11 11.5 11H37"
+                  stroke="currentColor"
+                  strokeWidth="2.8"
+                  strokeLinecap="round"
+                />
+
+                <path
+                  d="M8 15.5C8 13.57 9.57 12 11.5 12H36C38.21 12 40 13.79 40 16V36C40 38.21 38.21 40 36 40H12C9.79 40 8 38.21 8 36V15.5Z"
+                  fill="url(#walletGradient)"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                />
+
+                <path
+                  d="M8 20H40"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  opacity=".55"
+                />
+
+                <path
+                  d="M31 25H40V33H31C28.79 33 27 31.21 27 29C27 26.79 28.79 25 31 25Z"
+                  fill="#160909"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+
+                <circle
+                  cx="32"
+                  cy="29"
+                  r="1.8"
+                  fill="#FF4545"
+                />
+
+                <defs>
+                  <linearGradient
+                    id="walletGradient"
+                    x1="8"
+                    y1="12"
+                    x2="40"
+                    y2="40"
+                  >
+                    <stop stopColor="#FF4545" />
+                    <stop offset="1" stopColor="#8F1010" />
+                  </linearGradient>
+                </defs>
+              </svg>
             </div>
           </div>
 
@@ -137,6 +189,7 @@ export default function BalancePage() {
               <small>CUENTA STORE GAMING</small>
               <strong>{email}</strong>
             </div>
+
             <span>✦</span>
           </div>
         </div>
@@ -189,6 +242,7 @@ export default function BalancePage() {
 
           <div>
             <strong>TU DINERO ESTÁ PROTEGIDO</strong>
+
             <p>
               Tu balance está vinculado exclusivamente
               a tu cuenta de STORE GAMING.
@@ -227,8 +281,8 @@ const styles = `
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(38,161,123,.15), transparent 48%),
-    linear-gradient(180deg, #080e0b, #050706 55%);
+    radial-gradient(ellipse at 50% 0%, rgba(180,25,25,.16), transparent 48%),
+    linear-gradient(180deg, #100808, #050505 55%);
 }
 
 .balance-page .balance-header,
@@ -250,11 +304,17 @@ const styles = `
   width: 43px;
   height: 43px;
   border-radius: 13px;
-  border: 1px solid #263c32;
-  background: #101b15;
+  border: 1px solid #492020;
+  background: #1b1010;
   color: #fff;
   font-size: 23px;
   cursor: pointer;
+  transition: .2s ease;
+}
+
+.balance-page .balance-back-button:hover {
+  background: #321313;
+  border-color: #e33b3b;
 }
 
 .balance-page .balance-header-title {
@@ -262,7 +322,7 @@ const styles = `
 }
 
 .balance-page .balance-header-title small {
-  color: #26a17b;
+  color: #ff4545;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 3px;
@@ -276,7 +336,7 @@ const styles = `
 }
 
 .balance-page .balance-header-title h1 span {
-  color: #26a17b;
+  color: #ff4545;
 }
 
 .balance-page .balance-header-icon {
@@ -295,11 +355,13 @@ const styles = `
   padding: 25px;
   min-height: 220px;
   border-radius: 22px;
-  border: 1px solid rgba(38,161,123,.45);
+  border: 1px solid rgba(255,65,65,.42);
   background:
-    radial-gradient(circle at 90% 10%, rgba(38,161,123,.25), transparent 40%),
-    linear-gradient(135deg, #142a20, #08120d 70%);
-  box-shadow: 0 18px 50px rgba(0,0,0,.4), 0 0 30px rgba(38,161,123,.08);
+    radial-gradient(circle at 90% 10%, rgba(255,50,50,.22), transparent 40%),
+    linear-gradient(135deg, #291111, #100909 70%);
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.4),
+    0 0 30px rgba(255,40,40,.08);
 }
 
 .balance-page .balance-card-glow {
@@ -309,7 +371,7 @@ const styles = `
   right: -70px;
   bottom: -100px;
   border-radius: 50%;
-  background: rgba(38,161,123,.16);
+  background: rgba(255,40,40,.16);
   filter: blur(35px);
 }
 
@@ -323,7 +385,7 @@ const styles = `
   display: block;
   font-size: 11px;
   letter-spacing: 1.5px;
-  color: #a4c6b5;
+  color: #d5b5b5;
   font-weight: 900;
 }
 
@@ -346,58 +408,39 @@ const styles = `
   box-shadow: 0 0 10px #32d69a;
 }
 
+/* BILLETERA PREMIUM ROJA */
+
 .balance-page .balance-wallet-symbol {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 62px;
+  height: 62px;
+  flex-shrink: 0;
+  border-radius: 19px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(38,161,123,.14);
-  color: #42d6a1;
-  border: 1px solid rgba(38,161,123,.3);
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,75,75,.22), transparent 65%),
+    linear-gradient(145deg, #251010, #100909);
+  color: #ff5555;
+  border: 1px solid rgba(255,65,65,.55);
+  box-shadow:
+    0 8px 22px rgba(0,0,0,.35),
+    0 0 18px rgba(255,40,40,.13),
+    inset 0 1px 0 rgba(255,255,255,.08);
+  transition: transform .25s ease, box-shadow .25s ease;
 }
 
-.balance-page .wallet-line-icon {
-  width: 30px;
-  height: 22px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
+.balance-page .balance-wallet-symbol:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 12px 25px rgba(0,0,0,.4),
+    0 0 25px rgba(255,40,40,.25);
 }
 
-.balance-page .wallet-line-icon::before {
-  content: "";
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  top: 1px;
-  height: 13px;
-  border: 2px solid currentColor;
-  border-radius: 4px;
-}
-
-.balance-page .wallet-line-icon::after {
-  content: "";
-  position: absolute;
-  right: 2px;
-  bottom: 1px;
-  width: 9px;
-  height: 6px;
-  border: 2px solid currentColor;
-  border-radius: 3px;
-}
-
-.balance-page .wallet-line-icon i {
-  display: block;
-  width: 19px;
-  height: 2px;
-  background: currentColor;
-  border-radius: 2px;
-  position: relative;
-  z-index: 2;
+.balance-page .wallet-premium-icon {
+  width: 39px;
+  height: 39px;
+  filter: drop-shadow(0 2px 5px rgba(255,35,35,.3));
 }
 
 .balance-page .balance-amount {
@@ -410,7 +453,7 @@ const styles = `
 }
 
 .balance-page .balance-amount span {
-  color: #36c997;
+  color: #ff4545;
   margin-right: 4px;
 }
 
@@ -427,7 +470,7 @@ const styles = `
 
 .balance-page .balance-card-bottom small {
   display: block;
-  color: #83a493;
+  color: #b99595;
   font-size: 9px;
   letter-spacing: 1px;
   margin-bottom: 5px;
@@ -440,7 +483,7 @@ const styles = `
 }
 
 .balance-page .balance-card-bottom > span {
-  color: #36c997;
+  color: #ff5555;
   font-size: 25px;
 }
 
@@ -458,7 +501,7 @@ const styles = `
 }
 
 .balance-page .balance-section-heading span {
-  color: #718279;
+  color: #918080;
   font-size: 9px;
   font-weight: 800;
 }
@@ -477,7 +520,7 @@ const styles = `
   min-height: 145px;
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,.09);
-  background: linear-gradient(145deg,#141c17,#0b100d);
+  background: linear-gradient(145deg,#1c1515,#100b0b);
   color: white;
   cursor: pointer;
   transition: .2s ease;
@@ -488,7 +531,7 @@ const styles = `
 }
 
 .balance-page .deposit-action {
-  border-color: rgba(38,161,123,.35);
+  border-color: rgba(255,65,65,.35);
 }
 
 .balance-page .balance-action-icon {
@@ -498,8 +541,8 @@ const styles = `
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: rgba(38,161,123,.16);
-  color: #38d49f;
+  background: rgba(255,65,65,.14);
+  color: #ff5555;
   font-size: 26px;
   margin-bottom: 15px;
 }
@@ -520,14 +563,14 @@ const styles = `
   display: block;
   margin-top: 6px;
   font-size: 10px;
-  color: #829188;
+  color: #a09292;
 }
 
 .balance-page .balance-action-arrow {
   position: absolute;
   right: 14px;
   top: 18px;
-  color: #36c997;
+  color: #ff5555;
 }
 
 .balance-page .balance-security-card {
@@ -536,8 +579,8 @@ const styles = `
   gap: 13px;
   padding: 17px;
   margin-top: 20px;
-  border: 1px solid rgba(38,161,123,.18);
-  background: rgba(38,161,123,.055);
+  border: 1px solid rgba(255,65,65,.18);
+  background: rgba(255,50,50,.045);
   border-radius: 15px;
 }
 
@@ -547,13 +590,13 @@ const styles = `
 
 .balance-page .balance-security-card strong {
   font-size: 11px;
-  color: #42d6a1;
+  color: #ff6262;
 }
 
 .balance-page .balance-security-card p {
   margin: 7px 0 0;
   font-size: 11px;
-  color: #a0aea5;
+  color: #b2a2a2;
   line-height: 1.6;
 }
 
@@ -562,12 +605,18 @@ const styles = `
   margin-top: 22px;
   padding: 15px;
   border-radius: 12px;
-  border: 1px solid rgba(38,161,123,.2);
-  background: #101913;
-  color: #36c997;
+  border: 1px solid rgba(255,65,65,.25);
+  background: #180d0d;
+  color: #ff5555;
   font-weight: 900;
   font-size: 11px;
   cursor: pointer;
+  transition: .2s ease;
+}
+
+.balance-page .balance-home-button:hover {
+  background: #281010;
+  border-color: #ff4545;
 }
 
 .balance-page .balance-loading {
@@ -585,7 +634,7 @@ const styles = `
 }
 
 .balance-page .balance-loading p {
-  color: #36c997;
+  color: #ff5555;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 2px;
@@ -594,14 +643,16 @@ const styles = `
 .balance-page .balance-spinner {
   width: 34px;
   height: 34px;
-  border: 3px solid #183126;
-  border-top-color: #36c997;
+  border: 3px solid #351919;
+  border-top-color: #ff4545;
   border-radius: 50%;
   animation: balanceSpin .8s linear infinite;
 }
 
 @keyframes balanceSpin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media(max-width:480px) {
