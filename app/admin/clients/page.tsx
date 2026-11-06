@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -9,7 +10,15 @@ type Client = {
   email: string;
   created_at: string;
   name: string;
+  username: string;
+  avatar_url: string | null;
   email_confirmed: boolean;
+  vip_started_at: string | null;
+  vip_expires_at: string | null;
+  vip_active: boolean;
+  vip_source: "purchase" | "manual" | null;
+  vip_purchased: boolean;
+  vip_manual: boolean;
 };
 
 export default function AdminClientsPage() {
@@ -92,7 +101,6 @@ export default function AdminClientsPage() {
 
   useEffect(() => {
     void loadClients();
-
   }, [loadClients]);
 
   const filteredClients = clients.filter((client) => {
@@ -102,7 +110,8 @@ export default function AdminClientsPage() {
 
     return (
       client.email.toLowerCase().includes(query) ||
-      client.name.toLowerCase().includes(query)
+      client.name.toLowerCase().includes(query) ||
+      client.username.toLowerCase().includes(query)
     );
   });
 
@@ -118,9 +127,14 @@ export default function AdminClientsPage() {
     }).format(new Date(date));
   }
 
+  function openClient(clientId: string) {
+    router.push(`/admin/clients/${clientId}`);
+  }
+
   return (
     <main className="clients-page">
       <div className="container">
+
         <button
           type="button"
           className="back-button"
@@ -163,7 +177,8 @@ export default function AdminClientsPage() {
 
           <p>
             Consulta los usuarios registrados en STORE GAMING,
-            busca sus correos y revisa cuándo se registraron.
+            sus fotografías de perfil, membresías VIP y fechas
+            de registro.
           </p>
         </section>
 
@@ -188,6 +203,7 @@ export default function AdminClientsPage() {
             <div>
               <span className="eyebrow">BASE DE DATOS</span>
               <h3>Lista de clientes</h3>
+
               <p>
                 {loading
                   ? "Consultando usuarios..."
@@ -201,7 +217,7 @@ export default function AdminClientsPage() {
 
             <input
               type="search"
-              placeholder="Buscar por nombre o correo..."
+              placeholder="Buscar por usuario o correo..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               aria-label="Buscar clientes"
@@ -252,7 +268,10 @@ export default function AdminClientsPage() {
             <div className="clients-list">
               {filteredClients.map((client, index) => {
                 const displayName =
-                  client.name.trim() || client.email || "Usuario";
+                  client.username ||
+                  client.name ||
+                  client.email ||
+                  "Usuario";
 
                 const initial = displayName
                   .charAt(0)
@@ -262,18 +281,46 @@ export default function AdminClientsPage() {
                   <article
                     className="client-card"
                     key={client.id}
+                    onClick={() => openClient(client.id)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Administrar cliente ${displayName}`}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" ||
+                        event.key === " "
+                      ) {
+                        event.preventDefault();
+                        openClient(client.id);
+                      }
+                    }}
                   >
                     <div className="client-avatar">
-                      {initial}
+                      {client.avatar_url ? (
+                        <img
+                          src={client.avatar_url}
+                          alt={`Foto de ${displayName}`}
+                        />
+                      ) : (
+                        initial
+                      )}
                     </div>
 
                     <div className="client-info">
                       <div className="client-title">
                         <h4>{displayName}</h4>
 
-                        <span className="client-number">
-                          #{String(index + 1).padStart(2, "0")}
-                        </span>
+                        <div className="client-badges">
+                          {client.vip_active && (
+                            <span className="vip-badge">
+                              👑 VIP
+                            </span>
+                          )}
+
+                          <span className="client-number">
+                            #{String(index + 1).padStart(2, "0")}
+                          </span>
+                        </div>
                       </div>
 
                       <p className="client-email">
@@ -293,12 +340,23 @@ export default function AdminClientsPage() {
                           }
                         >
                           <span className="verification-dot" />
+
                           {client.email_confirmed
                             ? "Correo verificado"
                             : "Correo sin verificar"}
                         </span>
+
+                        {client.vip_active && (
+                          <span className="vip-origin">
+                            {client.vip_manual
+                              ? "VIP manual"
+                              : "VIP comprado"}
+                          </span>
+                        )}
                       </div>
                     </div>
+
+                    <span className="client-arrow">›</span>
                   </article>
                 );
               })}
@@ -310,6 +368,7 @@ export default function AdminClientsPage() {
           <strong>🎮 STORE GAMING</strong>
           <span>Centro de administración · Clientes</span>
         </footer>
+
       </div>
 
       <style jsx>{`
@@ -604,20 +663,40 @@ export default function AdminClientsPage() {
           border: 1px solid #292a34;
           border-radius: 13px;
           background: linear-gradient(135deg, #171820, #101116);
+          cursor: pointer;
+          transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .client-card:hover {
+          border-color: #ff5267;
+          transform: translateY(-2px);
+        }
+
+        .client-card:focus-visible {
+          outline: 2px solid #ff5267;
+          outline-offset: 3px;
         }
 
         .client-avatar {
           display: grid;
           place-items: center;
-          width: 43px;
-          height: 43px;
+          width: 48px;
+          height: 48px;
           flex-shrink: 0;
+          overflow: hidden;
           border: 1px solid #49303a;
-          border-radius: 12px;
+          border-radius: 50%;
           background: #251923;
           color: #ff6477;
           font-size: 18px;
           font-weight: 900;
+        }
+
+        .client-avatar img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .client-info {
@@ -642,8 +721,24 @@ export default function AdminClientsPage() {
           font-weight: 800;
         }
 
-        .client-number {
+        .client-badges {
+          display: flex;
+          align-items: center;
           flex-shrink: 0;
+          gap: 8px;
+        }
+
+        .vip-badge {
+          padding: 5px 9px;
+          border: 1px solid #a8792d;
+          border-radius: 20px;
+          background: #352719;
+          color: #ffd477;
+          font-size: 9px;
+          font-weight: 900;
+        }
+
+        .client-number {
           color: #737480;
           font-size: 10px;
           font-weight: 900;
@@ -688,6 +783,19 @@ export default function AdminClientsPage() {
           flex-shrink: 0;
           border-radius: 50%;
           background: currentColor;
+        }
+
+        .vip-origin {
+          color: #ffd477;
+          font-weight: 800;
+        }
+
+        .client-arrow {
+          align-self: center;
+          flex-shrink: 0;
+          color: #ff5267;
+          font-size: 25px;
+          font-weight: 900;
         }
 
         .state-box {
@@ -830,14 +938,27 @@ export default function AdminClientsPage() {
           .client-card {
             padding: 12px;
           }
+
+          .client-avatar {
+            width: 43px;
+            height: 43px;
+          }
+
+          .client-number {
+            display: none;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .loader {
             animation: none;
           }
+
+          .client-card {
+            transition: none;
+          }
         }
       `}</style>
     </main>
   );
-    }
+}
