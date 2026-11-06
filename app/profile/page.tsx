@@ -32,6 +32,12 @@ export default function ProfilePage() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
 
+  const [vipExpiresAt, setVipExpiresAt] = useState<string | null>(null);
+
+  const vipActive =
+    Boolean(vipExpiresAt) &&
+    new Date(vipExpiresAt as string).getTime() > Date.now();
+
   useEffect(() => {
     let mounted = true;
 
@@ -66,7 +72,7 @@ export default function ProfilePage() {
       setLoading(false);
     }
 
-    loadProfile();
+    void loadProfile();
 
     const {
       data: { subscription },
@@ -102,7 +108,7 @@ export default function ProfilePage() {
 
   /*
    * =========================
-   * BALANCE
+   * BALANCE Y MEMBRESÍA VIP
    * =========================
    */
 
@@ -110,17 +116,20 @@ export default function ProfilePage() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("balance")
+        .select("balance, vip_expires_at")
         .eq("id", userId)
         .single();
 
       if (!error && data) {
         setBalance(Number(data.balance) || 0);
+        setVipExpiresAt(data.vip_expires_at || null);
       } else {
         setBalance(0);
+        setVipExpiresAt(null);
       }
     } catch {
       setBalance(0);
+      setVipExpiresAt(null);
     }
   }
 
@@ -209,6 +218,28 @@ export default function ProfilePage() {
 
   /*
    * =========================
+   * FECHA VIP
+   * =========================
+   */
+
+  function formatVipDate(date: string | null) {
+    if (!date) return "";
+
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "No disponible";
+    }
+
+    return new Intl.DateTimeFormat("es", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }).format(parsedDate);
+  }
+
+  /*
+   * =========================
    * EDITAR PERFIL
    * =========================
    */
@@ -272,8 +303,20 @@ export default function ProfilePage() {
 
       <section className="profile-card">
 
-        <div className="profile-avatar">
-          @
+        <div className="profile-avatar-container">
+          <div
+            className={`profile-avatar ${
+              vipActive ? "profile-avatar-vip" : ""
+            }`}
+          >
+            @
+          </div>
+
+          {vipActive && (
+            <span className="profile-avatar-vip-star">
+              ★
+            </span>
+          )}
         </div>
 
         <h2>
@@ -288,6 +331,13 @@ export default function ProfilePage() {
           Cliente STORE GAMING
         </span>
 
+        {vipActive && (
+          <div className="profile-vip-active-label">
+            <span>★</span>
+            MIEMBRO VIP ACTIVO
+          </div>
+        )}
+
         <button
           type="button"
           onClick={editProfile}
@@ -301,7 +351,11 @@ export default function ProfilePage() {
           STORE GAMING VIP
       ========================== */}
 
-      <section className="profile-vip-card">
+      <section
+        className={`profile-vip-card ${
+          vipActive ? "profile-vip-card-active" : ""
+        }`}
+      >
 
         <div className="vip-card-decoration" />
 
@@ -312,7 +366,9 @@ export default function ProfilePage() {
           </div>
 
           <span className="vip-status">
-            MEMBRESÍA EXCLUSIVA
+            {vipActive
+              ? "★ MEMBRESÍA VIP ACTIVA"
+              : "MEMBRESÍA EXCLUSIVA"}
           </span>
 
         </div>
@@ -359,6 +415,18 @@ export default function ProfilePage() {
 
         </div>
 
+        {vipActive && (
+          <div className="vip-member-expiration">
+            <span>★</span>
+            <div>
+              <small>MEMBRESÍA VÁLIDA HASTA</small>
+              <strong>
+                {formatVipDate(vipExpiresAt)}
+              </strong>
+            </div>
+          </div>
+        )}
+
         <div className="vip-card-footer">
 
           <div className="vip-price">
@@ -371,7 +439,7 @@ export default function ProfilePage() {
             onClick={openVIP}
             className="vip-button"
           >
-            DESCUBRIR VIP
+            {vipActive ? "MI MEMBRESÍA" : "DESCUBRIR VIP"}
             <span>→</span>
           </button>
 
@@ -599,6 +667,60 @@ export default function ProfilePage() {
       {/* ESTILOS VIP */}
 
       <style jsx global>{`
+        .profile-avatar-container {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto;
+        }
+
+        .profile-avatar-vip {
+          border: 3px solid #f5c75e !important;
+          outline: 3px solid rgba(245, 199, 94, 0.17);
+          outline-offset: 3px;
+          box-shadow:
+            0 0 12px rgba(245, 199, 94, 0.35),
+            0 0 25px rgba(245, 199, 94, 0.15);
+          color: #ffdf91 !important;
+        }
+
+        .profile-avatar-vip-star {
+          position: absolute;
+          right: -5px;
+          bottom: -3px;
+          z-index: 3;
+          display: grid;
+          place-items: center;
+          width: 23px;
+          height: 23px;
+          border: 2px solid #17100a;
+          border-radius: 50%;
+          background: linear-gradient(145deg, #ffe99b, #d6a52d);
+          color: #49320a;
+          font-size: 13px;
+          box-shadow: 0 0 12px rgba(245, 199, 94, 0.4);
+        }
+
+        .profile-vip-active-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-top: 10px;
+          padding: 6px 11px;
+          border: 1px solid #96742f;
+          border-radius: 20px;
+          background: linear-gradient(120deg, #4b3817, #281e0d);
+          color: #ffe19a;
+          font-size: 9px;
+          font-weight: 900;
+          letter-spacing: 0.7px;
+        }
+
+        .profile-vip-active-label span {
+          font-size: 13px;
+        }
+
         .profile-vip-card {
           position: relative;
           overflow: hidden;
@@ -618,6 +740,13 @@ export default function ProfilePage() {
             0 12px 35px rgba(0,0,0,.3),
             0 0 22px rgba(255,40,40,.07);
           color: white;
+        }
+
+        .profile-vip-card-active {
+          border-color: rgba(245, 199, 94, 0.7);
+          box-shadow:
+            0 12px 35px rgba(0,0,0,.3),
+            0 0 20px rgba(245, 199, 94, 0.12);
         }
 
         .vip-card-decoration {
@@ -655,11 +784,21 @@ export default function ProfilePage() {
           font-size: 29px;
         }
 
+        .profile-vip-card-active .vip-crown {
+          border-color: #96742f;
+          background: rgba(245, 199, 94, 0.12);
+          color: #ffdc82;
+        }
+
         .vip-status {
           color: #ff7777;
           font-size: 9px;
           font-weight: 900;
           letter-spacing: 1.4px;
+        }
+
+        .profile-vip-card-active .vip-status {
+          color: #ffdc82;
         }
 
         .vip-card-content {
@@ -684,6 +823,10 @@ export default function ProfilePage() {
 
         .vip-card-content h2 span {
           color: #ff5555;
+        }
+
+        .profile-vip-card-active .vip-card-content h2 span {
+          color: #ffdc82;
         }
 
         .vip-card-content p {
@@ -729,6 +872,42 @@ export default function ProfilePage() {
           color: #e3d2d2;
           font-size: 11px;
           font-weight: 700;
+        }
+
+        .vip-member-expiration {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 0 0 18px;
+          padding: 11px;
+          border: 1px solid rgba(245, 199, 94, 0.35);
+          border-radius: 10px;
+          background: rgba(245, 199, 94, 0.07);
+          color: #ffdc82;
+        }
+
+        .vip-member-expiration > span {
+          font-size: 22px;
+        }
+
+        .vip-member-expiration div {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .vip-member-expiration small {
+          color: #c9ad70;
+          font-size: 8px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .vip-member-expiration strong {
+          color: #ffe6a7;
+          font-size: 11px;
         }
 
         .vip-price strong {
