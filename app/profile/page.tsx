@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -57,11 +58,12 @@ export default function ProfilePage() {
       setUsername(userName);
 
       await loadBalance(user.id);
+
+      if (!mounted) return;
+
       loadOrders(user.id, userEmail);
 
-      if (mounted) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
 
     loadProfile();
@@ -85,7 +87,10 @@ export default function ProfilePage() {
         setUsername(userName);
 
         await loadBalance(user.id);
-        loadOrders(user.id, userEmail);
+
+        if (mounted) {
+          loadOrders(user.id, userEmail);
+        }
       }
     );
 
@@ -147,20 +152,6 @@ export default function ProfilePage() {
       orders = [];
     }
 
-    /*
-     * =========================
-     * FILTRAR PEDIDOS DEL USUARIO
-     * =========================
-     *
-     * Primero usamos user_id.
-     *
-     * Como respaldo usamos email para pedidos
-     * que tengan email pero no user_id.
-     *
-     * Los pedidos que no tengan ninguna identificación
-     * del usuario NO se muestran.
-     */
-
     const userOrders = orders.filter((order) => {
       if (
         order.user_id &&
@@ -181,17 +172,7 @@ export default function ProfilePage() {
       return false;
     });
 
-    /*
-     * PEDIDOS TOTALES
-     */
-
     setTotalOrders(userOrders.length);
-
-    /*
-     * GASTO TOTAL
-     *
-     * Solo contamos órdenes completadas.
-     */
 
     const completedStatuses = [
       "COMPLETADA",
@@ -238,6 +219,16 @@ export default function ProfilePage() {
 
   /*
    * =========================
+   * ABRIR VIP
+   * =========================
+   */
+
+  function openVIP() {
+    router.push("/vip");
+  }
+
+  /*
+   * =========================
    * CARGANDO
    * =========================
    */
@@ -245,7 +236,6 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <main className="store-loading">
-
         <div className="loading-logo">
           STORE GAMING
         </div>
@@ -255,7 +245,6 @@ export default function ProfilePage() {
         <p>
           CARGANDO PERFIL...
         </p>
-
       </main>
     );
   }
@@ -263,12 +252,9 @@ export default function ProfilePage() {
   return (
     <main className="service-page">
 
-      {/* =========================
-          HEADER
-      ========================== */}
+      {/* HEADER */}
 
       <header className="service-header">
-
         <button
           className="back-button"
           onClick={() => router.push("/home")}
@@ -280,13 +266,9 @@ export default function ProfilePage() {
         <h1>
           ♙ PERFIL
         </h1>
-
       </header>
 
-
-      {/* =========================
-          PERFIL
-      ========================== */}
+      {/* PERFIL */}
 
       <section className="profile-card">
 
@@ -294,21 +276,17 @@ export default function ProfilePage() {
           @
         </div>
 
-
         <h2>
           @{username}
         </h2>
-
 
         <p>
           {email}
         </p>
 
-
         <span className="profile-client-label">
           Cliente STORE GAMING
         </span>
-
 
         <button
           type="button"
@@ -319,10 +297,93 @@ export default function ProfilePage() {
 
       </section>
 
-
       {/* =========================
-          ACCESOS
+          STORE GAMING VIP
       ========================== */}
+
+      <section className="profile-vip-card">
+
+        <div className="vip-card-decoration" />
+
+        <div className="vip-card-top">
+
+          <div className="vip-crown">
+            ♛
+          </div>
+
+          <span className="vip-status">
+            MEMBRESÍA EXCLUSIVA
+          </span>
+
+        </div>
+
+        <div className="vip-card-content">
+
+          <span className="vip-brand">
+            STORE GAMING
+          </span>
+
+          <h2>
+            VIP <span>MEMBER</span>
+          </h2>
+
+          <p>
+            Desbloquea ventajas, mejores precios
+            y oportunidades exclusivas.
+          </p>
+
+        </div>
+
+        <div className="vip-benefits">
+
+          <div>
+            <span>％</span>
+            <p>
+              Descuentos especiales en ofertas
+            </p>
+          </div>
+
+          <div>
+            <span>✦</span>
+            <p>
+              Promociones exclusivas para VIP
+            </p>
+          </div>
+
+          <div>
+            <span>◆</span>
+            <p>
+              Acceso a futuras ventajas premium
+            </p>
+          </div>
+
+        </div>
+
+        <div className="vip-card-footer">
+
+          <div className="vip-price">
+            <strong>5.00</strong>
+            <span>CRÉDITOS / MES</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={openVIP}
+            className="vip-button"
+          >
+            DESCUBRIR VIP
+            <span>→</span>
+          </button>
+
+        </div>
+
+        <div className="vip-duration">
+          SUSCRIPCIÓN MENSUAL · 30 DÍAS
+        </div>
+
+      </section>
+
+      {/* ACCESOS */}
 
       <section className="profile-menu">
 
@@ -331,7 +392,6 @@ export default function ProfilePage() {
           className="profile-menu-item"
           onClick={() => router.push("/orders")}
         >
-
           <span className="profile-menu-icon">
             ▣
           </span>
@@ -349,16 +409,13 @@ export default function ProfilePage() {
           <span className="profile-menu-arrow">
             →
           </span>
-
         </button>
-
 
         <button
           type="button"
           className="profile-menu-item"
           onClick={() => router.push("/balance")}
         >
-
           <span className="profile-menu-icon">
             $
           </span>
@@ -376,16 +433,13 @@ export default function ProfilePage() {
           <span className="profile-menu-arrow">
             →
           </span>
-
         </button>
-
 
         <button
           type="button"
           className="profile-menu-item"
           onClick={() => router.push("/statistics")}
         >
-
           <span className="profile-menu-icon">
             ▥
           </span>
@@ -403,16 +457,13 @@ export default function ProfilePage() {
           <span className="profile-menu-arrow">
             →
           </span>
-
         </button>
-
 
         <button
           type="button"
           className="profile-menu-item"
           onClick={() => router.push("/support")}
         >
-
           <span className="profile-menu-icon">
             🎧
           </span>
@@ -430,24 +481,17 @@ export default function ProfilePage() {
           <span className="profile-menu-arrow">
             →
           </span>
-
         </button>
 
       </section>
 
-
-      {/* =========================
-          ESTADÍSTICAS
-      ========================== */}
+      {/* ESTADÍSTICAS */}
 
       <section className="profile-statistics">
-
-        {/* BALANCE */}
 
         <div className="profile-stat-card profile-stat-balance">
 
           <div className="profile-stat-top">
-
             <span className="profile-stat-icon">
               $
             </span>
@@ -455,9 +499,7 @@ export default function ProfilePage() {
             <span>
               BALANCE
             </span>
-
           </div>
-
 
           <strong>
             ${balance.toFixed(4)}
@@ -465,13 +507,9 @@ export default function ProfilePage() {
 
         </div>
 
-
-        {/* PEDIDOS TOTALES */}
-
         <div className="profile-stat-card">
 
           <div className="profile-stat-top">
-
             <span className="profile-stat-icon">
               ▣
             </span>
@@ -479,14 +517,11 @@ export default function ProfilePage() {
             <span>
               PEDIDOS TOTALES
             </span>
-
           </div>
-
 
           <strong>
             {totalOrders}
           </strong>
-
 
           <button
             type="button"
@@ -497,13 +532,9 @@ export default function ProfilePage() {
 
         </div>
 
-
-        {/* GASTO TOTAL */}
-
         <div className="profile-stat-card profile-stat-wide">
 
           <div className="profile-stat-top">
-
             <span className="profile-stat-icon">
               💳
             </span>
@@ -511,14 +542,11 @@ export default function ProfilePage() {
             <span>
               GASTO TOTAL
             </span>
-
           </div>
-
 
           <strong>
             ${totalSpent.toFixed(4)}
           </strong>
-
 
           <small>
             TODOS LOS TIEMPOS
@@ -528,10 +556,7 @@ export default function ProfilePage() {
 
       </section>
 
-
-      {/* =========================
-          INFORMACIÓN
-      ========================== */}
+      {/* INFORMACIÓN */}
 
       <section className="profile-account-info">
 
@@ -545,7 +570,6 @@ export default function ProfilePage() {
           </strong>
         </div>
 
-
         <div>
           <span>
             CORREO ELECTRÓNICO
@@ -558,10 +582,7 @@ export default function ProfilePage() {
 
       </section>
 
-
-      {/* =========================
-          FOOTER
-      ========================== */}
+      {/* FOOTER */}
 
       <footer className="service-footer">
 
@@ -575,6 +596,214 @@ export default function ProfilePage() {
 
       </footer>
 
+      {/* ESTILOS VIP */}
+
+      <style jsx global>{`
+        .profile-vip-card {
+          position: relative;
+          overflow: hidden;
+          max-width: 620px;
+          margin: 22px auto;
+          padding: 21px;
+          border-radius: 20px;
+          border: 1px solid rgba(255,65,65,.45);
+          background:
+            radial-gradient(
+              circle at 90% 5%,
+              rgba(255,45,45,.22),
+              transparent 42%
+            ),
+            linear-gradient(135deg,#291010,#100909 75%);
+          box-shadow:
+            0 12px 35px rgba(0,0,0,.3),
+            0 0 22px rgba(255,40,40,.07);
+          color: white;
+        }
+
+        .vip-card-decoration {
+          position: absolute;
+          width: 180px;
+          height: 180px;
+          right: -80px;
+          bottom: -100px;
+          border-radius: 50%;
+          background: rgba(255,40,40,.15);
+          filter: blur(35px);
+          pointer-events: none;
+        }
+
+        .vip-card-top,
+        .vip-card-footer {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .vip-crown {
+          width: 43px;
+          height: 43px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 13px;
+          background: rgba(255,55,55,.15);
+          border: 1px solid rgba(255,75,75,.4);
+          color: #ff6262;
+          font-size: 29px;
+        }
+
+        .vip-status {
+          color: #ff7777;
+          font-size: 9px;
+          font-weight: 900;
+          letter-spacing: 1.4px;
+        }
+
+        .vip-card-content {
+          position: relative;
+          z-index: 1;
+          margin-top: 17px;
+        }
+
+        .vip-brand {
+          color: #c18b8b;
+          font-size: 9px;
+          font-weight: 900;
+          letter-spacing: 3px;
+        }
+
+        .vip-card-content h2 {
+          margin: 5px 0;
+          font-size: 32px;
+          font-weight: 950;
+          letter-spacing: 1px;
+        }
+
+        .vip-card-content h2 span {
+          color: #ff5555;
+        }
+
+        .vip-card-content p {
+          max-width: 390px;
+          margin: 7px 0 0;
+          color: #c5aaaa;
+          font-size: 11px;
+          line-height: 1.6;
+        }
+
+        .vip-benefits {
+          position: relative;
+          z-index: 1;
+          display: grid;
+          gap: 10px;
+          margin: 20px 0;
+          padding: 15px 0;
+          border-top: 1px solid rgba(255,255,255,.09);
+          border-bottom: 1px solid rgba(255,255,255,.09);
+        }
+
+        .vip-benefits > div {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+        }
+
+        .vip-benefits > div > span {
+          width: 25px;
+          height: 25px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 8px;
+          background: rgba(255,55,55,.13);
+          color: #ff6565;
+          font-size: 15px;
+          flex-shrink: 0;
+        }
+
+        .vip-benefits p {
+          margin: 0;
+          color: #e3d2d2;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .vip-price strong {
+          display: block;
+          color: #fff;
+          font-size: 26px;
+          font-weight: 950;
+        }
+
+        .vip-price > span {
+          display: block;
+          margin-top: 3px;
+          color: #c18b8b;
+          font-size: 8px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .vip-button {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 12px 15px;
+          border: 0;
+          border-radius: 10px;
+          background: linear-gradient(135deg,#ff5555,#b71919);
+          color: white;
+          font-size: 10px;
+          font-weight: 950;
+          cursor: pointer;
+          box-shadow: 0 5px 18px rgba(255,40,40,.2);
+          transition: .2s ease;
+        }
+
+        .vip-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 22px rgba(255,40,40,.3);
+        }
+
+        .vip-button:active {
+          transform: scale(.97);
+        }
+
+        .vip-button span {
+          font-size: 16px;
+        }
+
+        .vip-duration {
+          position: relative;
+          z-index: 1;
+          margin-top: 16px;
+          color: #997b7b;
+          font-size: 8px;
+          font-weight: 900;
+          letter-spacing: 1.2px;
+          text-align: center;
+        }
+
+        @media(max-width:420px) {
+          .profile-vip-card {
+            padding: 17px;
+          }
+
+          .vip-card-content h2 {
+            font-size: 28px;
+          }
+
+          .vip-button {
+            padding: 11px;
+            font-size: 9px;
+          }
+        }
+      `}</style>
+
     </main>
   );
-    }
+}
