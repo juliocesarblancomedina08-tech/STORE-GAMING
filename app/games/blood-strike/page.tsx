@@ -1,4 +1,3 @@
-Archivo: "app/.../blood-strike/page.tsx"
 
 "use client";
 
