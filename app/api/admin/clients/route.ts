@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -31,10 +32,7 @@ export async function GET(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Sesión no autorizada.",
-        },
+        { success: false, error: "Sesión no autorizada." },
         { status: 401 }
       );
     }
@@ -50,7 +48,6 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    // Verificar el token con Supabase Auth.
     const {
       data: { user },
       error: authError,
@@ -78,8 +75,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener todos los usuarios de Auth.
-    const clients: {
+    // Consultar todos los usuarios registrados en Auth.
+    const authClients: {
       id: string;
       email: string;
       created_at: string;
@@ -100,10 +97,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (error) {
-        console.error(
-          "Error consultando usuarios:",
-          error.message
-        );
+        console.error("Error consultando usuarios:", error.message);
 
         return NextResponse.json(
           {
@@ -115,7 +109,7 @@ export async function GET(request: NextRequest) {
       }
 
       for (const client of users) {
-        clients.push({
+        authClients.push({
           id: client.id,
           email: client.email || "",
           created_at: client.created_at,
@@ -129,11 +123,58 @@ export async function GET(request: NextRequest) {
       }
 
       if (users.length < perPage) break;
-
       page++;
     }
 
-    // Ordenar desde el registro más reciente.
+    // Consultar los datos VIP de los perfiles.
+    const { data: profiles, error: profilesError } =
+      await supabaseAdmin
+        .from("profiles")
+        .select("id, vip_started_at, vip_expires_at");
+
+    if (profilesError) {
+      console.error(
+        "Error consultando membresías VIP:",
+        profilesError.message
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "No se pudieron consultar las membresías VIP. Comprueba que ejecutaste el SQL de configuración.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const profilesById = new Map(
+      (profiles || []).map((profile) => [
+        profile.id,
+        profile,
+      ])
+    );
+
+    const now = Date.now();
+
+    const clients = authClients.map((client) => {
+      const profile = profilesById.get(client.id);
+
+      const vipStartedAt = profile?.vip_started_at || null;
+      const vipExpiresAt = profile?.vip_expires_at || null;
+
+      const vipActive =
+        Boolean(vipExpiresAt) &&
+        new Date(vipExpiresAt as string).getTime() > now;
+
+      return {
+        ...client,
+        vip_started_at: vipStartedAt,
+        vip_expires_at: vipExpiresAt,
+        vip_active: vipActive,
+      };
+    });
+
     clients.sort(
       (a, b) =>
         new Date(b.created_at).getTime() -
@@ -164,4 +205,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-            }
+}
