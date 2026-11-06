@@ -27,6 +27,7 @@ export default function ProfilePage() {
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
 
   const [balance, setBalance] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
@@ -55,20 +56,15 @@ export default function ProfilePage() {
       }
 
       const user = session.user;
-
       const userEmail = user.email || "";
-      const userName =
-        userEmail.split("@")[0] || "usuario";
 
       setEmail(userEmail);
-      setUsername(userName);
 
-      await loadBalance(user.id);
+      await loadProfileData(user.id, userEmail);
 
       if (!mounted) return;
 
       loadOrders(user.id, userEmail);
-
       setLoading(false);
     }
 
@@ -84,18 +80,15 @@ export default function ProfilePage() {
         }
 
         const user = session.user;
-
         const userEmail = user.email || "";
-        const userName =
-          userEmail.split("@")[0] || "usuario";
 
         setEmail(userEmail);
-        setUsername(userName);
 
-        await loadBalance(user.id);
+        await loadProfileData(user.id, userEmail);
 
         if (mounted) {
           loadOrders(user.id, userEmail);
+          setLoading(false);
         }
       }
     );
@@ -108,26 +101,41 @@ export default function ProfilePage() {
 
   /*
    * =========================
-   * BALANCE Y MEMBRESÍA VIP
+   * DATOS DEL PERFIL
    * =========================
    */
 
-  async function loadBalance(userId: string) {
+  async function loadProfileData(
+    userId: string,
+    userEmail: string
+  ) {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("balance, vip_expires_at")
+        .select("username, avatar_url, balance, vip_expires_at")
         .eq("id", userId)
         .single();
 
       if (!error && data) {
+        const fallbackUsername =
+          userEmail.split("@")[0] || "usuario";
+
+        setUsername(
+          data.username?.trim() || fallbackUsername
+        );
+
+        setAvatarUrl(data.avatar_url || "");
         setBalance(Number(data.balance) || 0);
         setVipExpiresAt(data.vip_expires_at || null);
       } else {
+        setUsername(userEmail.split("@")[0] || "usuario");
+        setAvatarUrl("");
         setBalance(0);
         setVipExpiresAt(null);
       }
     } catch {
+      setUsername(userEmail.split("@")[0] || "usuario");
+      setAvatarUrl("");
       setBalance(0);
       setVipExpiresAt(null);
     }
@@ -309,7 +317,15 @@ export default function ProfilePage() {
               vipActive ? "profile-avatar-vip" : ""
             }`}
           >
-            @
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Foto de perfil"
+                className="profile-avatar-image"
+              />
+            ) : (
+              username.charAt(0).toUpperCase() || "@"
+            )}
           </div>
 
           {vipActive && (
@@ -347,9 +363,7 @@ export default function ProfilePage() {
 
       </section>
 
-      {/* =========================
-          STORE GAMING VIP
-      ========================== */}
+      {/* STORE GAMING VIP */}
 
       <section
         className={`profile-vip-card ${
@@ -465,18 +479,11 @@ export default function ProfilePage() {
           </span>
 
           <div>
-            <strong>
-              ÓRDENES
-            </strong>
-
-            <small>
-              Consulta tus pedidos
-            </small>
+            <strong>ÓRDENES</strong>
+            <small>Consulta tus pedidos</small>
           </div>
 
-          <span className="profile-menu-arrow">
-            →
-          </span>
+          <span className="profile-menu-arrow">→</span>
         </button>
 
         <button
@@ -484,23 +491,14 @@ export default function ProfilePage() {
           className="profile-menu-item"
           onClick={() => router.push("/balance")}
         >
-          <span className="profile-menu-icon">
-            $
-          </span>
+          <span className="profile-menu-icon">$</span>
 
           <div>
-            <strong>
-              BALANCE
-            </strong>
-
-            <small>
-              Administra tu saldo
-            </small>
+            <strong>BALANCE</strong>
+            <small>Administra tu saldo</small>
           </div>
 
-          <span className="profile-menu-arrow">
-            →
-          </span>
+          <span className="profile-menu-arrow">→</span>
         </button>
 
         <button
@@ -508,23 +506,14 @@ export default function ProfilePage() {
           className="profile-menu-item"
           onClick={() => router.push("/statistics")}
         >
-          <span className="profile-menu-icon">
-            ▥
-          </span>
+          <span className="profile-menu-icon">▥</span>
 
           <div>
-            <strong>
-              ACTAS
-            </strong>
-
-            <small>
-              Actividad de tu cuenta
-            </small>
+            <strong>ACTAS</strong>
+            <small>Actividad de tu cuenta</small>
           </div>
 
-          <span className="profile-menu-arrow">
-            →
-          </span>
+          <span className="profile-menu-arrow">→</span>
         </button>
 
         <button
@@ -532,23 +521,14 @@ export default function ProfilePage() {
           className="profile-menu-item"
           onClick={() => router.push("/support")}
         >
-          <span className="profile-menu-icon">
-            🎧
-          </span>
+          <span className="profile-menu-icon">🎧</span>
 
           <div>
-            <strong>
-              APOYO
-            </strong>
-
-            <small>
-              Contacta con soporte
-            </small>
+            <strong>APOYO</strong>
+            <small>Contacta con soporte</small>
           </div>
 
-          <span className="profile-menu-arrow">
-            →
-          </span>
+          <span className="profile-menu-arrow">→</span>
         </button>
 
       </section>
@@ -560,13 +540,8 @@ export default function ProfilePage() {
         <div className="profile-stat-card profile-stat-balance">
 
           <div className="profile-stat-top">
-            <span className="profile-stat-icon">
-              $
-            </span>
-
-            <span>
-              BALANCE
-            </span>
+            <span className="profile-stat-icon">$</span>
+            <span>BALANCE</span>
           </div>
 
           <strong>
@@ -578,13 +553,8 @@ export default function ProfilePage() {
         <div className="profile-stat-card">
 
           <div className="profile-stat-top">
-            <span className="profile-stat-icon">
-              ▣
-            </span>
-
-            <span>
-              PEDIDOS TOTALES
-            </span>
+            <span className="profile-stat-icon">▣</span>
+            <span>PEDIDOS TOTALES</span>
           </div>
 
           <strong>
@@ -603,22 +573,15 @@ export default function ProfilePage() {
         <div className="profile-stat-card profile-stat-wide">
 
           <div className="profile-stat-top">
-            <span className="profile-stat-icon">
-              💳
-            </span>
-
-            <span>
-              GASTO TOTAL
-            </span>
+            <span className="profile-stat-icon">💳</span>
+            <span>GASTO TOTAL</span>
           </div>
 
           <strong>
             ${totalSpent.toFixed(4)}
           </strong>
 
-          <small>
-            TODOS LOS TIEMPOS
-          </small>
+          <small>TODOS LOS TIEMPOS</small>
 
         </div>
 
@@ -629,23 +592,13 @@ export default function ProfilePage() {
       <section className="profile-account-info">
 
         <div>
-          <span>
-            USUARIO
-          </span>
-
-          <strong>
-            @{username}
-          </strong>
+          <span>USUARIO</span>
+          <strong>@{username}</strong>
         </div>
 
         <div>
-          <span>
-            CORREO ELECTRÓNICO
-          </span>
-
-          <strong>
-            {email}
-          </strong>
+          <span>CORREO ELECTRÓNICO</span>
+          <strong>{email}</strong>
         </div>
 
       </section>
@@ -654,17 +607,13 @@ export default function ProfilePage() {
 
       <footer className="service-footer">
 
-        <strong>
-          STORE GAMING
-        </strong>
+        <strong>STORE GAMING</strong>
 
-        <span>
-          PERFIL DEL CLIENTE
-        </span>
+        <span>PERFIL DEL CLIENTE</span>
 
       </footer>
 
-      {/* ESTILOS VIP */}
+      {/* ESTILOS VIP Y AVATAR */}
 
       <style jsx global>{`
         .profile-avatar-container {
@@ -673,6 +622,14 @@ export default function ProfilePage() {
           align-items: center;
           justify-content: center;
           margin: 0 auto;
+        }
+
+        .profile-avatar-image {
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: cover;
+          border-radius: 50%;
         }
 
         .profile-avatar-vip {
@@ -730,23 +687,15 @@ export default function ProfilePage() {
           border-radius: 20px;
           border: 1px solid rgba(255,65,65,.45);
           background:
-            radial-gradient(
-              circle at 90% 5%,
-              rgba(255,45,45,.22),
-              transparent 42%
-            ),
+            radial-gradient(circle at 90% 5%, rgba(255,45,45,.22), transparent 42%),
             linear-gradient(135deg,#291010,#100909 75%);
-          box-shadow:
-            0 12px 35px rgba(0,0,0,.3),
-            0 0 22px rgba(255,40,40,.07);
+          box-shadow: 0 12px 35px rgba(0,0,0,.3), 0 0 22px rgba(255,40,40,.07);
           color: white;
         }
 
         .profile-vip-card-active {
           border-color: rgba(245, 199, 94, 0.7);
-          box-shadow:
-            0 12px 35px rgba(0,0,0,.3),
-            0 0 20px rgba(245, 199, 94, 0.12);
+          box-shadow: 0 12px 35px rgba(0,0,0,.3), 0 0 20px rgba(245, 199, 94, 0.12);
         }
 
         .vip-card-decoration {
