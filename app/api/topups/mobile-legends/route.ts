@@ -358,7 +358,7 @@ export async function POST(request: NextRequest) {
     }
 
     const existingOrder =
-      existingOrderData as ExistingOrder | null;
+      existingOrderData as unknown as ExistingOrder | null;
 
     if (existingOrder) {
       if (
