@@ -1,12 +1,16 @@
+Archivo: "app/.../blood-strike/page.tsx"
+
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import {
   BLOOD_STRIKE,
   type BloodStrikeOffer,
 } from "../../../lib/games/blood-strike";
+
+const VIP_MARKUP = 0.08;
 
 export default function BloodStrikePage() {
   const router = useRouter();
@@ -24,6 +28,88 @@ export default function BloodStrikePage() {
   const [orderNumber, setOrderNumber] = useState("");
   const [supplierOrderId, setSupplierOrderId] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
+
+  const [vipActive, setVipActive] = useState(false);
+
+  /*
+   * ============================================================
+   * COMPROBAR VIP
+   * ============================================================
+   */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkVip() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user) {
+          if (!cancelled) setVipActive(false);
+          return;
+        }
+
+        const { data: profile, error: profileError } =
+          await supabase
+            .from("profiles")
+            .select("vip_expires_at")
+            .eq("id", session.user.id)
+            .maybeSingle();
+
+        if (profileError) {
+          console.error("Error comprobando VIP:", profileError);
+          if (!cancelled) setVipActive(false);
+          return;
+        }
+
+        const expiresAt = profile?.vip_expires_at
+          ? new Date(profile.vip_expires_at).getTime()
+          : 0;
+
+        if (!cancelled) {
+          setVipActive(
+            Number.isFinite(expiresAt) &&
+              expiresAt > Date.now()
+          );
+        }
+      } catch (error) {
+        console.error("Error cargando membresía VIP:", error);
+        if (!cancelled) setVipActive(false);
+      }
+    }
+
+    void checkVip();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /*
+   * ============================================================
+   * PRECIO SEGÚN MEMBRESÍA
+   * ============================================================
+   */
+
+  function getOfferPrice(offer: BloodStrikeOffer) {
+    if (vipActive) {
+      return Number(
+        (
+          Number(offer.supplierPrice) + VIP_MARKUP
+        ).toFixed(4)
+      );
+    }
+
+    return Number(offer.price);
+  }
+
+  function formatOfferPrice(offer: BloodStrikeOffer) {
+    return `$${getOfferPrice(offer).toFixed(
+      vipActive ? 4 : 2
+    )}`;
+  }
 
   function selectOffer(offer: BloodStrikeOffer) {
     setSelectedOffer(offer);
@@ -88,6 +174,7 @@ export default function BloodStrikePage() {
             offerId: selectedOffer.id,
             playerId: cleanPlayerId,
             idempotencyKey,
+            retailPrice: getOfferPrice(selectedOffer),
           }),
         }
       );
@@ -201,6 +288,12 @@ export default function BloodStrikePage() {
           de crear la orden.
         </div>
 
+        {vipActive && (
+          <div className="blood-strike-vip-notice">
+            ★ PRECIO VIP ACTIVO · PRECIO ESPECIAL
+          </div>
+        )}
+
         <button
           type="button"
           className={`blood-strike-offers-toggle ${
@@ -248,7 +341,7 @@ export default function BloodStrikePage() {
                   </div>
 
                   <div className="blood-strike-offer-price">
-                    ${Number(offer.price).toFixed(2)}
+                    {formatOfferPrice(offer)}
                   </div>
                 </button>
               ))}
@@ -308,7 +401,7 @@ export default function BloodStrikePage() {
                   <span>Total</span>
 
                   <strong>
-                    ${Number(selectedOffer.price).toFixed(2)}
+                    {formatOfferPrice(selectedOffer)}
                   </strong>
                 </div>
 
@@ -538,6 +631,19 @@ export default function BloodStrikePage() {
           line-height: 1.45;
         }
 
+        .blood-strike-vip-notice {
+          margin: 0 0 14px;
+          padding: 10px 12px;
+          border: 1px solid rgba(255, 65, 65, 0.4);
+          border-radius: 11px;
+          background: rgba(125, 0, 0, 0.22);
+          color: #ffb1b1;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 900;
+          letter-spacing: 0.4px;
+        }
+
         .blood-strike-offers-toggle {
           width: 100%;
           min-height: 52px;
@@ -755,7 +861,7 @@ export default function BloodStrikePage() {
           font-weight: 950;
         }
 
-                .blood-strike-create-order-button {
+        .blood-strike-create-order-button {
           width: 100%;
           min-height: 52px;
           border: 0;
