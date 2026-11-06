@@ -120,17 +120,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const offer = DELTA_FORCE_OFFERS.find(
-      (item) => item.id === offerId,
-    );
-
-    if (!offer) {
-      return NextResponse.json(
-        { ok: false, error: "La oferta seleccionada no existe." },
-        { status: 400 },
-      );
-    }
-
     if (
       typeof idempotencyKey !== "string" ||
       idempotencyKey.length < 10 ||
@@ -138,6 +127,17 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { ok: false, error: "La clave de la orden no es válida." },
+        { status: 400 },
+      );
+    }
+
+    const offer = DELTA_FORCE_OFFERS.find(
+      (item) => item.id === offerId,
+    );
+
+    if (!offer) {
+      return NextResponse.json(
+        { ok: false, error: "La oferta seleccionada no existe." },
         { status: 400 },
       );
     }
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       Number.isFinite(vipExpiresAt) &&
       vipExpiresAt > Date.now();
 
-    // Precio calculado exclusivamente en el servidor.
+    // El precio se calcula exclusivamente en el servidor.
     const supplierPrice = Number(offer.supplierPrice);
 
     const retailPrice = vipActive
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Revisar si ya existe una orden con esta clave.
+    // Comprobar si ya existe una orden con esta clave.
     const { data: previousOrder, error: previousError } =
       await supabaseAdmin
         .from("topup_orders")
@@ -247,6 +247,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      if (previousOrder.status === "REJECTED") {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "Esta orden fue rechazada. Genera una nueva solicitud para volver a intentarlo.",
+          },
+          { status: 409 },
+        );
+      }
+
       return NextResponse.json({
         ok: true,
         order: previousOrder,
@@ -258,28 +269,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Reservar el balance usando el precio calculado en el servidor.
-    const { error: reserveError } = await supabaseAdmin.rpc(
-      "store_gaming_reserve_balance",
-      {
-        p_user_id: user.id,
-        p_amount: retailPrice,
-      },
-    );
-
-    if (reserveError) {
-      console.error("Error reservando saldo:", reserveError);
-
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "No se pudo reservar el saldo. Comprueba tu balance o contacta con soporte.",
-        },
-        { status: 400 },
-      );
-    }
-
+    // Crear primero la orden. Todavía no se ha descontado saldo.
     const { data: order, error: insertError } =
       await supabaseAdmin
         .from("topup_orders")
@@ -316,12 +306,65 @@ export async function POST(request: NextRequest) {
         {
           ok: false,
           error:
-            "No se pudo registrar la orden. Comprueba el saldo antes de volver a intentarlo.",
+            "No se pudo registrar la orden. No se ha reservado tu saldo.",
         },
         { status: 500 },
       );
     }
 
+    // Reservar el saldo usando el precio calculado en el servidor.
+    const { error: reserveError } = await supabaseAdmin.rpc(
+      "store_gaming_reserve_balance",
+      {
+        p_user_id: user.id,
+        p_amount: retailPrice,
+      },
+    );
+
+    if (reserveError) {
+      console.error("Error reservando saldo:", reserveError);
+
+      // Si no se pudo reservar, intentar eliminar la orden.
+      const { error: deleteError } = await supabaseAdmin
+        .from("topup_orders")
+        .delete()
+        .eq("id", order.id)
+        .eq("user_id", user.id);
+
+      if (deleteError) {
+        console.error(
+          "No se pudo eliminar la orden sin saldo reservado:",
+          deleteError,
+        );
+
+        // Evitar que quede como una orden en proceso.
+        const { error: statusError } = await supabaseAdmin
+          .from("topup_orders")
+          .update({
+            status: "REJECTED",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id);
+
+        if (statusError) {
+          console.error(
+            "No se pudo marcar la orden como REJECTED:",
+            statusError,
+          );
+        }
+      }
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "No se pudo reservar el saldo. Comprueba tu balance antes de volver a intentarlo.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Enviar la compra al proveedor.
     const response = await fetch(
       `${FAZER_API_BASE}/topups/order`,
       {
