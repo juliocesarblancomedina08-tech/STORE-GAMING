@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -18,6 +17,8 @@ const FAZER_API_BASE = (
 const FAZER_API_KEY = process.env.FAZERCARDS_API_KEY;
 const FAZERCARDS_ORIGIN = process.env.FAZERCARDS_ORIGIN?.trim();
 const CATEGORY_ID = "free_fire_latam";
+
+const VIP_MARKUP = 0.08;
 
 const supabaseAdmin = createClient(
   SUPABASE_URL || "https://example.supabase.co",
@@ -282,8 +283,6 @@ export async function POST(request: NextRequest) {
     const offerId = String(body.offerId ?? "").trim();
     const playerId = String(body.playerId ?? "").trim();
 
-    // El frontend debe reutilizar esta misma clave si reintenta
-    // la misma compra. No generar una clave nueva en cada reintento.
     const idempotencyKey = String(
       request.headers.get("idempotency-key") ??
       body.idempotencyKey ??
@@ -326,10 +325,74 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const retailPrice = Number(offer.price);
+    // ============================================================
+    // VERIFICAR MEMBRESÍA VIP DIRECTAMENTE EN SUPABASE
+    // ============================================================
+
+    const { data: profile, error: profileError } =
+      await supabaseAdmin
+        .from("profiles")
+        .select("vip_expires_at")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (profileError) {
+      console.error("Error verificando VIP:", profileError);
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "No se pudo verificar tu membresía VIP.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const vipExpiresAt = profile?.vip_expires_at
+      ? new Date(profile.vip_expires_at).getTime()
+      : 0;
+
+    const vipActive =
+      Number.isFinite(vipExpiresAt) &&
+      vipExpiresAt > Date.now();
+
+    // ============================================================
+    // CALCULAR PRECIO
+    // ============================================================
+
     const supplierPrice = Number(offer.supplierPrice);
 
-    // Crear la orden y descontar el saldo en una única transacción SQL.
+    const retailPrice = vipActive
+      ? Number((supplierPrice + VIP_MARKUP).toFixed(4))
+      : Number(offer.price);
+
+    if (
+      !Number.isFinite(supplierPrice) ||
+      !Number.isFinite(retailPrice) ||
+      supplierPrice <= 0 ||
+      retailPrice <= 0
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "No se pudo calcular correctamente el precio.",
+        },
+        { status: 500 }
+      );
+    }
+
+    console.info("Precio calculado para Free Fire", {
+      userId: user.id,
+      offerId: offer.id,
+      vipActive,
+      supplierPrice,
+      retailPrice,
+    });
+
+    // ============================================================
+    // CREAR ORDEN Y RESERVAR SALDO
+    // ============================================================
+
     const { data: reservation, error: reservationError } =
       await supabaseAdmin.rpc("create_topup_order_and_reserve_balance", {
         p_user_id: user.id,
@@ -351,6 +414,7 @@ export async function POST(request: NextRequest) {
         p_supplier_fields: {
           player_id: playerId,
           supplier_offer_id: offer.supplierOfferId,
+          vip_active: vipActive,
         },
       });
 
@@ -406,8 +470,6 @@ export async function POST(request: NextRequest) {
 
     orderId = reservationRow.order_id;
 
-    // Una clave repetida devuelve la orden existente y nunca reenvía
-    // la compra al proveedor.
     if (!reservationRow.created) {
       return responseForExistingOrder(
         orderId,
@@ -437,8 +499,6 @@ export async function POST(request: NextRequest) {
       categoryId: CATEGORY_ID,
     });
 
-    // Desde aquí el resultado puede ser incierto ante timeout o error de red.
-    // No se reenvía automáticamente una solicitud incierta.
     providerRequestStarted = true;
 
     const response = await fetch(`${FAZER_API_BASE}/topups/order`, {
@@ -479,8 +539,6 @@ export async function POST(request: NextRequest) {
         response.status === 429 ||
         response.status >= 500;
 
-      // Una respuesta ambigua, o con ID de proveedor, nunca provoca
-      // un reembolso automático aquí.
       if (ambiguous || supplierId) {
         const values: Obj = {
           status: "SUPPLIER_PENDING",
@@ -509,8 +567,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // No se devuelve el saldo basándose únicamente en un HTTP no exitoso:
-      // primero se conserva la respuesta para revisión segura.
       await setPending(
         orderId,
         "HTTP_ERROR_WITHOUT_SUPPLIER_ID",
@@ -548,7 +604,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Guardar el ID de proveedor y verificar que quedó persistido.
     await updateOrder(orderId, {
       supplier_order_id: supplierId,
       supplier_response: result,
@@ -656,8 +711,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Un estado fallido no genera reembolso inmediato: se verifica
-    // el estado real con el proceso de reconciliación.
     const failedStatuses = [
       "FAILED",
       "FAILURE",
