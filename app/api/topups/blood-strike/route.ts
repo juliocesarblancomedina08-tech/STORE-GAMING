@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
@@ -13,10 +14,12 @@ const FAZERCARDS_BASE_URL =
 const FAZERCARDS_API_KEY =
   process.env.FAZERCARDS_API_KEY || "";
 
-const CATEGORY_ID =
-  BLOOD_STRIKE.categoryId;
+const CATEGORY_ID = BLOOD_STRIKE.categoryId;
 
 const REQUEST_TIMEOUT = 30000;
+
+// Precio adicional para clientes VIP.
+const VIP_MARKUP = 0.08;
 
 /*
  * ================================================================
@@ -36,19 +39,12 @@ type SupplierResponse = {
   error?: string;
   code?: string;
   message?: string;
-
   order?: SupplierOrder;
-
   data?: SupplierOrder;
-
   result?: SupplierOrder;
-
   id?: string;
-
   order_id?: string;
-
   status?: string;
-
   state?: string;
 };
 
@@ -69,9 +65,7 @@ function jsonError(
       error: message,
       ...extra,
     },
-    {
-      status,
-    }
+    { status }
   );
 }
 
@@ -84,9 +78,7 @@ function jsonSuccess(
       ok: true,
       ...data,
     },
-    {
-      status,
-    }
+    { status }
   );
 }
 
@@ -96,76 +88,41 @@ function jsonSuccess(
  * ================================================================
  */
 
-function normalizeString(
-  value: unknown
-): string {
-  if (
-    typeof value !==
-    "string"
-  ) {
+function normalizeString(value: unknown): string {
+  if (typeof value !== "string") {
     return "";
   }
 
   return value.trim();
 }
 
-function normalizePlayerId(
-  value: unknown
-): string {
-  return normalizeString(
-    value
-  ).replace(/\s+/g, "");
+function normalizePlayerId(value: unknown): string {
+  return normalizeString(value).replace(/\s+/g, "");
 }
 
-function normalizeIdempotencyKey(
-  value: unknown
-): string {
-  return normalizeString(
-    value
-  );
+function normalizeIdempotencyKey(value: unknown): string {
+  return normalizeString(value);
 }
 
-function isValidPlayerId(
-  value: string
-): boolean {
-  return /^[A-Za-z0-9_-]{4,32}$/.test(
-    value
-  );
+function isValidPlayerId(value: string): boolean {
+  return /^[A-Za-z0-9_-]{4,32}$/.test(value);
 }
 
-function isValidIdempotencyKey(
-  value: string
-): boolean {
-  return (
-    value.length >= 8 &&
-    value.length <= 200
-  );
+function isValidIdempotencyKey(value: string): boolean {
+  return value.length >= 8 && value.length <= 200;
 }
 
-function roundMoney(
-  value: number
-): number {
-  return (
-    Math.round(
-      value * 10000
-    ) / 10000
-  );
+function roundMoney(value: number): number {
+  return Math.round(value * 10000) / 10000;
 }
 
-function toNumber(
-  value: unknown
-): number {
+function toNumber(value: unknown): number {
   const parsed =
-    typeof value ===
-    "number"
+    typeof value === "number"
       ? value
       : Number(value);
 
-  return Number.isFinite(
-    parsed
-  )
-    ? parsed
-    : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 /*
@@ -201,12 +158,9 @@ function extractSupplierOrder(
   ) {
     return {
       id: data.id,
-      order_id:
-        data.order_id,
-      status:
-        data.status,
-      state:
-        data.state,
+      order_id: data.order_id,
+      status: data.status,
+      state: data.state,
     };
   }
 
@@ -216,29 +170,19 @@ function extractSupplierOrder(
 function extractSupplierOrderId(
   data: SupplierResponse | null
 ): string | null {
-  const order =
-    extractSupplierOrder(
-      data
-    );
+  const order = extractSupplierOrder(data);
 
   if (!order) {
     return null;
   }
 
-  return (
-    order.id ||
-    order.order_id ||
-    null
-  );
+  return order.id || order.order_id || null;
 }
 
 function extractSupplierStatus(
   data: SupplierResponse | null
 ): string {
-  const order =
-    extractSupplierOrder(
-      data
-    );
+  const order = extractSupplierOrder(data);
 
   return (
     order?.status ||
@@ -260,24 +204,18 @@ async function fetchWithTimeout(
   options: RequestInit = {},
   timeout = REQUEST_TIMEOUT
 ) {
-  const controller =
-    new AbortController();
+  const controller = new AbortController();
 
-  const timer =
-    setTimeout(() => {
-      controller.abort();
-    }, timeout);
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeout);
 
   try {
-    return await fetch(
-      url,
-      {
-        ...options,
-        signal:
-          controller.signal,
-        cache: "no-store",
-      }
-    );
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      cache: "no-store",
+    });
   } finally {
     clearTimeout(timer);
   }
@@ -293,54 +231,37 @@ async function getAuthenticatedUser(
   request: NextRequest
 ) {
   const authorization =
-    request.headers.get(
-      "authorization"
-    ) || "";
+    request.headers.get("authorization") || "";
 
   if (!authorization) {
     return {
       user: null,
-      error:
-        "Falta el token de autenticación.",
+      error: "Falta el token de autenticación.",
     };
   }
 
-  const match =
-    authorization.match(
-      /^Bearer\s+(.+)$/i
-    );
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
 
   if (!match) {
     return {
       user: null,
-      error:
-        "Token de autenticación inválido.",
+      error: "Token de autenticación inválido.",
     };
   }
 
-  const accessToken =
-    match[1].trim();
+  const accessToken = match[1].trim();
 
   if (!accessToken) {
     return {
       user: null,
-      error:
-        "Token de autenticación vacío.",
+      error: "Token de autenticación vacío.",
     };
   }
 
-  const {
-    data,
-    error,
-  } =
-    await supabaseAdmin.auth.getUser(
-      accessToken
-    );
+  const { data, error } =
+    await supabaseAdmin.auth.getUser(accessToken);
 
-  if (
-    error ||
-    !data.user
-  ) {
+  if (error || !data.user) {
     return {
       user: null,
       error:
@@ -361,20 +282,14 @@ async function getAuthenticatedUser(
  * ================================================================
  */
 
-async function refundOrder(
-  orderId: string
-) {
+async function refundOrder(orderId: string) {
   try {
-    const {
-      error,
-    } =
-      await supabaseAdmin.rpc(
-        "store_gaming_refund_balance",
-        {
-          p_order_id:
-            orderId,
-        }
-      );
+    const { error } = await supabaseAdmin.rpc(
+      "store_gaming_refund_balance",
+      {
+        p_order_id: orderId,
+      }
+    );
 
     if (error) {
       console.error(
@@ -406,56 +321,28 @@ export async function GET() {
   try {
     return jsonSuccess({
       category: {
-        id:
-          BLOOD_STRIKE.categoryId,
-
-        name:
-          BLOOD_STRIKE.name,
-
-        note:
-          BLOOD_STRIKE.note,
+        id: BLOOD_STRIKE.categoryId,
+        name: BLOOD_STRIKE.name,
+        note: BLOOD_STRIKE.note,
       },
 
       fields: [
         {
-          key:
-            BLOOD_STRIKE.playerField.name,
-
-          label:
-            BLOOD_STRIKE.playerField.label,
-
-          type:
-            BLOOD_STRIKE.playerField.type,
+          key: BLOOD_STRIKE.playerField.name,
+          label: BLOOD_STRIKE.playerField.label,
+          type: BLOOD_STRIKE.playerField.type,
         },
       ],
 
-      offers:
-        BLOOD_STRIKE.offers.map(
-          (offer) => ({
-            id:
-              offer.id,
-
-            offer_id:
-              offer.supplierOfferId,
-
-            name:
-              offer.name,
-
-            displayName:
-              offer.displayName,
-
-            price:
-              offer.price,
-
-            price_usd:
-              offer.price.toFixed(
-                2
-              ),
-
-            supplier_price:
-              offer.supplierPrice,
-          })
-        ),
+      offers: BLOOD_STRIKE.offers.map((offer) => ({
+        id: offer.id,
+        offer_id: offer.supplierOfferId,
+        name: offer.name,
+        displayName: offer.displayName,
+        price: offer.price,
+        price_usd: offer.price.toFixed(2),
+        supplier_price: offer.supplierPrice,
+      })),
     });
   } catch (error: any) {
     console.error(
@@ -477,15 +364,10 @@ export async function GET() {
  * ================================================================
  */
 
-export async function POST(
-  request: NextRequest
-) {
-  let reservedBalance =
-    false;
+export async function POST(request: NextRequest) {
+  let reservedBalance = false;
 
-  let insertedOrderId:
-    | string
-    | null = null;
+  let insertedOrderId: string | null = null;
 
   try {
     /*
@@ -509,17 +391,12 @@ export async function POST(
 
     const {
       user,
-      error:
-        authError,
-    } =
-      await getAuthenticatedUser(
-        request
-      );
+      error: authError,
+    } = await getAuthenticatedUser(request);
 
     if (!user) {
       return jsonError(
-        authError ||
-          "No autorizado.",
+        authError || "No autorizado.",
         401
       );
     }
@@ -533,8 +410,7 @@ export async function POST(
     let body: any;
 
     try {
-      body =
-        await request.json();
+      body = await request.json();
     } catch {
       return jsonError(
         "El cuerpo de la solicitud no es JSON válido.",
@@ -542,20 +418,12 @@ export async function POST(
       );
     }
 
-    const offerId =
-      normalizeString(
-        body?.offerId
-      );
+    const offerId = normalizeString(body?.offerId);
 
-    const playerId =
-      normalizePlayerId(
-        body?.playerId
-      );
+    const playerId = normalizePlayerId(body?.playerId);
 
     const idempotencyKey =
-      normalizeIdempotencyKey(
-        body?.idempotencyKey
-      );
+      normalizeIdempotencyKey(body?.idempotencyKey);
 
     /*
      * --------------------------------------------------------------
@@ -564,17 +432,12 @@ export async function POST(
      */
 
     if (!offerId) {
-      return jsonError(
-        "Falta offerId."
-      );
+      return jsonError("Falta offerId.");
     }
 
-    const selectedOffer =
-      BLOOD_STRIKE.offers.find(
-        (offer) =>
-          offer.id ===
-          offerId
-      );
+    const selectedOffer = BLOOD_STRIKE.offers.find(
+      (offer) => offer.id === offerId
+    );
 
     if (!selectedOffer) {
       return jsonError(
@@ -590,16 +453,10 @@ export async function POST(
      */
 
     if (!playerId) {
-      return jsonError(
-        "Falta el Player ID."
-      );
+      return jsonError("Falta el Player ID.");
     }
 
-    if (
-      !isValidPlayerId(
-        playerId
-      )
-    ) {
+    if (!isValidPlayerId(playerId)) {
       return jsonError(
         "El Player ID debe tener entre 4 y 32 caracteres y solo puede contener letras, números, guion o guion bajo."
       );
@@ -611,38 +468,64 @@ export async function POST(
      * --------------------------------------------------------------
      */
 
-    if (
-      !isValidIdempotencyKey(
-        idempotencyKey
-      )
-    ) {
-      return jsonError(
-        "idempotencyKey inválida."
-      );
+    if (!isValidIdempotencyKey(idempotencyKey)) {
+      return jsonError("idempotencyKey inválida.");
     }
 
     /*
      * --------------------------------------------------------------
-     * 7. PRECIO
+     * 7. VERIFICAR VIP Y CALCULAR PRECIO
+     * --------------------------------------------------------------
+     *
+     * El servidor consulta la fecha de vencimiento directamente
+     * en Supabase. No confía en el estado VIP del navegador.
      * --------------------------------------------------------------
      */
 
-    const retailPrice =
-      roundMoney(
-        toNumber(
-          selectedOffer.price
-        )
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabaseAdmin
+      .from("profiles")
+      .select("vip_expires_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error(
+        "BLOOD STRIKE VIP PROFILE ERROR:",
+        profileError
       );
 
-    const supplierPrice =
-      roundMoney(
-        toNumber(
-          selectedOffer.supplierPrice
-        )
+      return jsonError(
+        "No se pudo verificar la membresía del usuario.",
+        500
       );
+    }
+
+    const vipExpiration = profile?.vip_expires_at
+      ? new Date(profile.vip_expires_at).getTime()
+      : 0;
+
+    const vipActive =
+      Number.isFinite(vipExpiration) &&
+      vipExpiration > Date.now();
+
+    const supplierPrice = roundMoney(
+      toNumber(selectedOffer.supplierPrice)
+    );
+
+    const retailPrice = roundMoney(
+      vipActive
+        ? supplierPrice + VIP_MARKUP
+        : toNumber(selectedOffer.price)
+    );
 
     if (
-      retailPrice <= 0
+      !Number.isFinite(retailPrice) ||
+      retailPrice <= 0 ||
+      !Number.isFinite(supplierPrice) ||
+      supplierPrice <= 0
     ) {
       return jsonError(
         "El precio de la oferta no es válido.",
@@ -658,25 +541,15 @@ export async function POST(
 
     const {
       data: existingOrder,
-      error:
-        existingOrderError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .select("*")
-        .eq(
-          "user_id",
-          user.id
-        )
-        .eq(
-          "idempotency_key",
-          idempotencyKey
-        )
-        .maybeSingle();
+      error: existingOrderError,
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
 
-    if (
-      existingOrderError
-    ) {
+    if (existingOrderError) {
       console.error(
         "CHECK EXISTING BLOOD STRIKE ORDER ERROR:",
         existingOrderError
@@ -690,21 +563,17 @@ export async function POST(
 
     if (existingOrder) {
       return jsonSuccess({
-        message:
-          "La orden ya había sido creada.",
+        message: "La orden ya había sido creada.",
 
         order: {
           ...existingOrder,
-
-          order_number:
-            existingOrder.id,
+          order_number: existingOrder.id,
         },
 
         supplierOrderId:
           existingOrder.supplier_order_id,
 
-        duplicate:
-          true,
+        duplicate: true,
       });
     }
 
@@ -712,22 +581,12 @@ export async function POST(
      * --------------------------------------------------------------
      * 9. DATOS DEL USUARIO
      * --------------------------------------------------------------
-     *
-     * No consultamos profiles.
-     *
-     * El saldo será controlado mediante
-     * store_gaming_reserve_balance.
-     * --------------------------------------------------------------
      */
 
     const username =
-      user.user_metadata
-        ?.username ||
-      null;
+      user.user_metadata?.username || null;
 
-    const email =
-      user.email ||
-      null;
+    const email = user.email || null;
 
     /*
      * --------------------------------------------------------------
@@ -736,71 +595,37 @@ export async function POST(
      */
 
     const supplierFields = {
-      player_id:
-        playerId,
+      player_id: playerId,
+      vip_active: vipActive,
     };
 
     const {
       data: insertedOrder,
-      error:
-        insertOrderError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .insert({
-          user_id:
-            user.id,
+      error: insertOrderError,
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .insert({
+        user_id: user.id,
+        username,
+        email,
+        game: BLOOD_STRIKE.name,
+        category_id: CATEGORY_ID,
+        offer_id: selectedOffer.id,
+        offer_name: selectedOffer.name,
+        player_id: playerId,
+        retail_price: retailPrice,
+        supplier_price: supplierPrice,
+        currency: "USDT",
+        status: "RESERVED",
+        idempotency_key: idempotencyKey,
+        supplier_fields: supplierFields,
+        supplier_order_id: null,
+        supplier_response: null,
+      })
+      .select("*")
+      .single();
 
-          username,
-
-          email,
-
-          game:
-            BLOOD_STRIKE.name,
-
-          category_id:
-            CATEGORY_ID,
-
-          offer_id:
-            selectedOffer.id,
-
-          offer_name:
-            selectedOffer.name,
-
-          player_id:
-            playerId,
-
-          retail_price:
-            retailPrice,
-
-          supplier_price:
-            supplierPrice,
-
-          currency:
-            "USDT",
-
-          status:
-            "RESERVED",
-
-          idempotency_key:
-            idempotencyKey,
-
-          supplier_fields:
-            supplierFields,
-
-          supplier_order_id:
-            null,
-
-          supplier_response:
-            null,
-        })
-        .select("*")
-        .single();
-
-    if (
-      insertOrderError ||
-      !insertedOrder
-    ) {
+    if (insertOrderError || !insertedOrder) {
       console.error(
         "INSERT BLOOD STRIKE TOPUP ORDER ERROR:",
         insertOrderError
@@ -812,8 +637,7 @@ export async function POST(
       );
     }
 
-    insertedOrderId =
-      insertedOrder.id;
+    insertedOrderId = insertedOrder.id;
 
     /*
      * --------------------------------------------------------------
@@ -823,19 +647,14 @@ export async function POST(
 
     const {
       data: reserveResult,
-      error:
-        reserveError,
-    } =
-      await supabaseAdmin.rpc(
-        "store_gaming_reserve_balance",
-        {
-          p_user_id:
-            user.id,
-
-          p_amount:
-            retailPrice,
-        }
-      );
+      error: reserveError,
+    } = await supabaseAdmin.rpc(
+      "store_gaming_reserve_balance",
+      {
+        p_user_id: user.id,
+        p_amount: retailPrice,
+      }
+    );
 
     if (reserveError) {
       console.error(
@@ -846,16 +665,10 @@ export async function POST(
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "REJECTED",
-
-          failed_at:
-            new Date().toISOString(),
+          status: "REJECTED",
+          failed_at: new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       return jsonError(
         "No tienes saldo suficiente para realizar esta compra.",
@@ -863,54 +676,33 @@ export async function POST(
       );
     }
 
-    let reserveOk =
-      true;
+    let reserveOk = true;
 
-    if (
-      typeof reserveResult ===
-      "boolean"
-    ) {
-      reserveOk =
-        reserveResult;
+    if (typeof reserveResult === "boolean") {
+      reserveOk = reserveResult;
     }
 
     if (
       reserveResult &&
-      typeof reserveResult ===
-        "object" &&
+      typeof reserveResult === "object" &&
       "success" in
-        (
-          reserveResult as Record<
-            string,
-            unknown
-          >
-        )
+        (reserveResult as Record<string, unknown>)
     ) {
-      reserveOk =
-        Boolean(
-          (
-            reserveResult as Record<
-              string,
-              unknown
-            >
-          ).success
-        );
+      reserveOk = Boolean(
+        (
+          reserveResult as Record<string, unknown>
+        ).success
+      );
     }
 
     if (!reserveOk) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "REJECTED",
-
-          failed_at:
-            new Date().toISOString(),
+          status: "REJECTED",
+          failed_at: new Date().toISOString(),
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       return jsonError(
         "No tienes saldo suficiente para realizar esta compra.",
@@ -918,8 +710,7 @@ export async function POST(
       );
     }
 
-    reservedBalance =
-      true;
+    reservedBalance = true;
 
     /*
      * --------------------------------------------------------------
@@ -931,104 +722,70 @@ export async function POST(
       `${FAZERCARDS_BASE_URL}/topups/order`;
 
     const supplierBody = {
-      category_id:
-        CATEGORY_ID,
+      category_id: CATEGORY_ID,
 
-      offer_id:
-        selectedOffer.supplierOfferId,
+      offer_id: selectedOffer.supplierOfferId,
 
       fields: {
-        player_id:
-          playerId,
+        player_id: playerId,
       },
     };
 
     console.log(
       "BLOOD STRIKE → FAZERCARDS:",
       {
-        category_id:
-          CATEGORY_ID,
-
-        offer_id:
-          selectedOffer.supplierOfferId,
-
+        category_id: CATEGORY_ID,
+        offer_id: selectedOffer.supplierOfferId,
         fields: {
-          player_id:
-            playerId,
+          player_id: playerId,
         },
       }
     );
 
-    let supplierResponse:
-      Response;
+    let supplierResponse: Response;
 
-    let supplierData:
-      SupplierResponse | null =
-      null;
+    let supplierData: SupplierResponse | null = null;
 
     try {
-      supplierResponse =
-        await fetchWithTimeout(
-          supplierUrl,
-          {
-            method:
-              "POST",
+      supplierResponse = await fetchWithTimeout(
+        supplierUrl,
+        {
+          method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-API-Key": FAZERCARDS_API_KEY,
+            "Idempotency-Key": idempotencyKey,
 
-              Accept:
-                "application/json",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
 
-              "X-API-Key":
-                FAZERCARDS_API_KEY,
+            Referer: "https://reseller.fazercards.com/",
+            Origin: "https://reseller.fazercards.com",
+          },
 
-              "Idempotency-Key":
-                idempotencyKey,
+          body: JSON.stringify(supplierBody),
+        }
+      );
 
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
-
-              Referer:
-                "https://reseller.fazercards.com/",
-
-              Origin:
-                "https://reseller.fazercards.com",
-            },
-
-            body:
-              JSON.stringify(
-                supplierBody
-              ),
-          }
-        );
-
-      const supplierText =
-        await supplierResponse.text();
+      const supplierText = await supplierResponse.text();
 
       console.log(
         "FAZERCARDS BLOOD STRIKE RESPONSE:",
         {
-          status:
-            supplierResponse.status,
-
-          body:
-            supplierText,
+          status: supplierResponse.status,
+          body: supplierText,
         }
       );
 
       try {
-        supplierData =
-          supplierText
-            ? JSON.parse(
-                supplierText
-              )
-            : null;
+        supplierData = supplierText
+          ? JSON.parse(supplierText)
+          : null;
       } catch {
         supplierData = {
           ok: false,
-
           message:
             supplierText ||
             "Respuesta no JSON del proveedor.",
@@ -1041,32 +798,21 @@ export async function POST(
       );
 
       /*
-       * No sabemos si FazerCards recibió
-       * la solicitud.
-       *
-       * Por seguridad no reenviamos ni
-       * liberamos inmediatamente el saldo.
-       *
-       * La orden queda pendiente para
-       * evitar cobrar y posteriormente
-       * ejecutar una segunda recarga.
+       * No sabemos si FazerCards recibió la solicitud.
+       * La orden queda pendiente para evitar duplicados.
        */
 
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "SUPPLIER_PENDING",
+          status: "SUPPLIER_PENDING",
 
           supplier_response: {
             error:
               "No se pudo confirmar la respuesta de FazerCards.",
           },
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       return jsonSuccess(
         {
@@ -1075,12 +821,8 @@ export async function POST(
 
           order: {
             ...insertedOrder,
-
-            order_number:
-              insertedOrder.id,
-
-            status:
-              "SUPPLIER_PENDING",
+            order_number: insertedOrder.id,
+            status: "SUPPLIER_PENDING",
           },
         },
         202
@@ -1096,15 +838,11 @@ export async function POST(
     await supabaseAdmin
       .from("topup_orders")
       .update({
-        supplier_response:
-          supplierData,
+        supplier_response: supplierData,
       })
-      .eq(
-        "id",
-        insertedOrderId
-      );
+      .eq("id", insertedOrderId);
 
-     /*
+    /*
      * --------------------------------------------------------------
      * 14. ERROR DEL PROVEEDOR
      * --------------------------------------------------------------
@@ -1112,48 +850,29 @@ export async function POST(
 
     if (
       !supplierResponse.ok ||
-      supplierData?.ok ===
-        false
+      supplierData?.ok === false
     ) {
       console.error(
         "FAZERCARDS BLOOD STRIKE ERROR:",
         {
-          status:
-            supplierResponse.status,
-
-          response:
-            supplierData,
+          status: supplierResponse.status,
+          response: supplierData,
         }
       );
 
-      if (
-        reservedBalance &&
-        insertedOrderId
-      ) {
-        await refundOrder(
-          insertedOrderId
-        );
-
-        reservedBalance =
-          false;
+      if (reservedBalance && insertedOrderId) {
+        await refundOrder(insertedOrderId);
+        reservedBalance = false;
       }
 
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          status:
-            "REJECTED",
-
-          failed_at:
-            new Date().toISOString(),
-
-          supplier_response:
-            supplierData,
+          status: "REJECTED",
+          failed_at: new Date().toISOString(),
+          supplier_response: supplierData,
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       return jsonError(
         supplierData?.error ||
@@ -1161,11 +880,8 @@ export async function POST(
           "FazerCards rechazó la orden.",
         502,
         {
-          supplierStatus:
-            supplierResponse.status,
-
-          supplier:
-            supplierData,
+          supplierStatus: supplierResponse.status,
+          supplier: supplierData,
         }
       );
     }
@@ -1177,19 +893,13 @@ export async function POST(
      */
 
     const supplierOrderId =
-      extractSupplierOrderId(
-        supplierData
-      );
+      extractSupplierOrderId(supplierData);
 
     const supplierStatus =
-      extractSupplierStatus(
-        supplierData
-      );
+      extractSupplierStatus(supplierData);
 
     const normalizedStatus =
-      supplierStatus
-        .toLowerCase()
-        .trim();
+      supplierStatus.toLowerCase().trim();
 
     /*
      * --------------------------------------------------------------
@@ -1216,14 +926,10 @@ export async function POST(
     ];
 
     const isCompleted =
-      completedStatuses.includes(
-        normalizedStatus
-      );
+      completedStatuses.includes(normalizedStatus);
 
     const isFailed =
-      failedStatuses.includes(
-        normalizedStatus
-      );
+      failedStatuses.includes(normalizedStatus);
 
     /*
      * --------------------------------------------------------------
@@ -1234,16 +940,13 @@ export async function POST(
     if (isCompleted) {
       if (supplierOrderId) {
         const {
-          error:
-            completeError,
-        } =
-          await supabaseAdmin.rpc(
-            "store_gaming_complete_order",
-            {
-              p_supplier_order_id:
-                supplierOrderId,
-            }
-          );
+          error: completeError,
+        } = await supabaseAdmin.rpc(
+          "store_gaming_complete_order",
+          {
+            p_supplier_order_id: supplierOrderId,
+          }
+        );
 
         if (completeError) {
           console.error(
@@ -1253,8 +956,7 @@ export async function POST(
         }
       }
 
-      reservedBalance =
-        false;
+      reservedBalance = false;
     }
 
     /*
@@ -1268,12 +970,8 @@ export async function POST(
       reservedBalance &&
       insertedOrderId
     ) {
-      await refundOrder(
-        insertedOrderId
-      );
-
-      reservedBalance =
-        false;
+      await refundOrder(insertedOrderId);
+      reservedBalance = false;
     }
 
     /*
@@ -1282,26 +980,15 @@ export async function POST(
      * --------------------------------------------------------------
      */
 
-    if (
-      !isCompleted &&
-      !isFailed
-    ) {
+    if (!isCompleted && !isFailed) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
-          supplier_order_id:
-            supplierOrderId,
-
-          supplier_response:
-            supplierData,
-
-          status:
-            "SUPPLIER_PENDING",
+          supplier_order_id: supplierOrderId,
+          supplier_response: supplierData,
+          status: "SUPPLIER_PENDING",
         })
-        .eq(
-          "id",
-          insertedOrderId
-        );
+        .eq("id", insertedOrderId);
 
       return jsonSuccess(
         {
@@ -1310,22 +997,13 @@ export async function POST(
 
           order: {
             ...insertedOrder,
-
-            order_number:
-              insertedOrder.id,
-
-            supplier_order_id:
-              supplierOrderId,
-
-            status:
-              "SUPPLIER_PENDING",
+            order_number: insertedOrder.id,
+            supplier_order_id: supplierOrderId,
+            status: "SUPPLIER_PENDING",
           },
 
-          supplier:
-            supplierData,
-
-          supplierOrderId:
-            supplierOrderId,
+          supplier: supplierData,
+          supplierOrderId,
         },
         202
       );
@@ -1338,9 +1016,7 @@ export async function POST(
      */
 
     const localStatus =
-      isCompleted
-        ? "COMPLETED"
-        : "REJECTED";
+      isCompleted ? "COMPLETED" : "REJECTED";
 
     /*
      * --------------------------------------------------------------
@@ -1350,52 +1026,31 @@ export async function POST(
 
     const {
       data: updatedOrder,
-      error:
-        updateOrderError,
-    } =
-      await supabaseAdmin
-        .from("topup_orders")
-        .update({
-          supplier_order_id:
-            supplierOrderId,
+      error: updateOrderError,
+    } = await supabaseAdmin
+      .from("topup_orders")
+      .update({
+        supplier_order_id: supplierOrderId,
+        supplier_response: supplierData,
+        status: localStatus,
 
-          supplier_response:
-            supplierData,
+        completed_at: isCompleted
+          ? new Date().toISOString()
+          : null,
 
-          status:
-            localStatus,
+        failed_at: isFailed
+          ? new Date().toISOString()
+          : null,
+      })
+      .eq("id", insertedOrderId)
+      .select("*")
+      .single();
 
-          completed_at:
-            isCompleted
-              ? new Date().toISOString()
-              : null,
-
-          failed_at:
-            isFailed
-              ? new Date().toISOString()
-              : null,
-        })
-        .eq(
-          "id",
-          insertedOrderId
-        )
-        .select("*")
-        .single();
-
-    if (
-      updateOrderError
-    ) {
+    if (updateOrderError) {
       console.error(
         "UPDATE BLOOD STRIKE ORDER ERROR:",
         updateOrderError
       );
-
-      /*
-       * FazerCards ya recibió
-       * la orden.
-       *
-       * NO volver a enviarla.
-       */
 
       return jsonSuccess({
         message:
@@ -1403,22 +1058,13 @@ export async function POST(
 
         order: {
           ...insertedOrder,
-
-          order_number:
-            insertedOrder.id,
-
-          supplier_order_id:
-            supplierOrderId,
-
-          status:
-            localStatus,
+          order_number: insertedOrder.id,
+          supplier_order_id: supplierOrderId,
+          status: localStatus,
         },
 
-        supplier:
-          supplierData,
-
-        supplierOrderId:
-          supplierOrderId,
+        supplier: supplierData,
+        supplierOrderId,
       });
     }
 
@@ -1429,23 +1075,17 @@ export async function POST(
      */
 
     return jsonSuccess({
-      message:
-        isCompleted
-          ? "Orden de Blood Strike completada correctamente."
-          : "Orden de Blood Strike procesada.",
+      message: isCompleted
+        ? "Orden de Blood Strike completada correctamente."
+        : "Orden de Blood Strike procesada.",
 
       order: {
         ...updatedOrder,
-
-        order_number:
-          updatedOrder.id,
+        order_number: updatedOrder.id,
       },
 
-      supplier:
-        supplierData,
-
-      supplierOrderId:
-        supplierOrderId,
+      supplier: supplierData,
+      supplierOrderId,
     });
   } catch (error: any) {
     console.error(
@@ -1454,36 +1094,21 @@ export async function POST(
     );
 
     /*
-     * Solo hacemos reembolso en un error
-     * inesperado si todavía sabemos que
+     * Solo hacemos reembolso si todavía sabemos que
      * el saldo fue reservado.
-     *
-     * Si FazerCards ya pudo haber recibido
-     * la orden, evitamos reenviarla.
      */
 
-    if (
-      reservedBalance &&
-      insertedOrderId
-    ) {
-      await refundOrder(
-        insertedOrderId
-      );
+    if (reservedBalance && insertedOrderId) {
+      await refundOrder(insertedOrderId);
 
       try {
         await supabaseAdmin
           .from("topup_orders")
           .update({
-            status:
-              "REJECTED",
-
-            failed_at:
-              new Date().toISOString(),
+            status: "REJECTED",
+            failed_at: new Date().toISOString(),
           })
-          .eq(
-            "id",
-            insertedOrderId
-          );
+          .eq("id", insertedOrderId);
       } catch (updateError) {
         console.error(
           "BLOOD STRIKE FINAL ORDER UPDATE ERROR:",
