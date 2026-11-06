@@ -5,9 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
@@ -17,17 +15,14 @@ export async function GET(request: NextRequest) {
   try {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Falta configurar Supabase en el servidor.",
-        },
+        { success: false, error: "Falta configurar Supabase." },
         { status: 500 }
       );
     }
 
     const authorization = request.headers.get("authorization");
     const token = authorization?.startsWith("Bearer ")
-      ? authorization.slice(7)
+      ? authorization.slice(7).trim()
       : "";
 
     if (!token) {
@@ -55,34 +50,19 @@ export async function GET(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "La sesión ha caducado o no es válida.",
-        },
+        { success: false, error: "Sesión inválida." },
         { status: 401 }
       );
     }
 
-    if (
-      user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()
-    ) {
+    if (user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "No tienes permiso para consultar los clientes.",
-        },
+        { success: false, error: "No tienes permisos." },
         { status: 403 }
       );
     }
 
-    // Consultar todos los usuarios registrados en Auth.
-    const authClients: {
-      id: string;
-      email: string;
-      created_at: string;
-      name: string;
-      email_confirmed: boolean;
-    }[] = [];
+    const authClients: any[] = [];
 
     let page = 1;
     const perPage = 1000;
@@ -97,62 +77,41 @@ export async function GET(request: NextRequest) {
       });
 
       if (error) {
-        console.error("Error consultando usuarios:", error.message);
+        console.error("Error consultando usuarios:", error);
 
         return NextResponse.json(
-          {
-            success: false,
-            error: "No se pudieron cargar los clientes.",
-          },
+          { success: false, error: "No se pudieron cargar los clientes." },
           { status: 500 }
         );
       }
 
-      for (const client of users) {
-        authClients.push({
-          id: client.id,
-          email: client.email || "",
-          created_at: client.created_at,
-          name:
-            client.user_metadata?.full_name ||
-            client.user_metadata?.name ||
-            client.user_metadata?.username ||
-            "",
-          email_confirmed: Boolean(client.email_confirmed_at),
-        });
-      }
+      authClients.push(...users);
 
       if (users.length < perPage) break;
       page++;
     }
 
-    // Consultar los datos VIP de los perfiles.
     const { data: profiles, error: profilesError } =
       await supabaseAdmin
         .from("profiles")
-        .select("id, vip_started_at, vip_expires_at");
+        .select(
+          "id, username, avatar_url, vip_started_at, vip_expires_at, vip_source"
+        );
 
     if (profilesError) {
-      console.error(
-        "Error consultando membresías VIP:",
-        profilesError.message
-      );
+      console.error("Error consultando perfiles:", profilesError);
 
       return NextResponse.json(
         {
           success: false,
-          error:
-            "No se pudieron consultar las membresías VIP. Comprueba que ejecutaste el SQL de configuración.",
+          error: "No se pudieron consultar los perfiles y membresías VIP.",
         },
         { status: 500 }
       );
     }
 
     const profilesById = new Map(
-      (profiles || []).map((profile) => [
-        profile.id,
-        profile,
-      ])
+      (profiles || []).map((profile) => [profile.id, profile])
     );
 
     const now = Date.now();
@@ -165,13 +124,38 @@ export async function GET(request: NextRequest) {
 
       const vipActive =
         Boolean(vipExpiresAt) &&
-        new Date(vipExpiresAt as string).getTime() > now;
+        new Date(vipExpiresAt).getTime() > now;
+
+      const metadata = client.user_metadata || {};
+
+      const username =
+        profile?.username ||
+        metadata.username ||
+        metadata.user_name ||
+        metadata.full_name ||
+        metadata.name ||
+        client.email?.split("@")[0] ||
+        "Usuario";
+
+      const vipSource = vipActive
+        ? profile?.vip_source || "purchase"
+        : null;
 
       return {
-        ...client,
+        id: client.id,
+        email: client.email || "",
+        created_at: client.created_at,
+        name: username,
+        username,
+        avatar_url: profile?.avatar_url || metadata.avatar_url || null,
+        email_confirmed: Boolean(client.email_confirmed_at),
+
         vip_started_at: vipStartedAt,
         vip_expires_at: vipExpiresAt,
         vip_active: vipActive,
+        vip_source: vipSource,
+        vip_purchased: vipActive && vipSource === "purchase",
+        vip_manual: vipActive && vipSource === "manual",
       };
     });
 
