@@ -23,11 +23,16 @@ type ActivationResult = {
 };
 
 const VIP_PRICE = 5;
+const VIP_DAYS = 30;
 
 function formatDate(value: string | null) {
   if (!value) return "No disponible";
 
-  return new Date(value).toLocaleDateString("es-ES", {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "No disponible";
+
+  return date.toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -44,18 +49,16 @@ export default function VipPage() {
   const [loading, setLoading] = useState(true);
   const [activating, setActivating] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [confirming, setConfirming] = useState(false);
-
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+
+  const balance = Number(profile?.balance ?? 0);
 
   const vipActive =
     !!profile?.vip_expires_at &&
     new Date(profile.vip_expires_at).getTime() > Date.now();
-
-  const balance = Number(profile?.balance ?? 0);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -72,8 +75,6 @@ export default function VipPage() {
         return;
       }
 
-      setUserId(session.user.id);
-
       const { data, error: profileError } = await supabase
         .from("profiles")
         .select("balance, vip_started_at, vip_expires_at")
@@ -83,9 +84,16 @@ export default function VipPage() {
       if (profileError) throw profileError;
 
       setProfile(data as Profile);
+
+      // Recuperar una operación pendiente si se recargó la página.
+      const savedKey = localStorage.getItem(
+        `store-gaming-vip-pending:${session.user.id}`
+      );
+
+      setPendingKey(savedKey);
     } catch (err) {
       console.error("VIP profile error:", err);
-      setError("No se pudo cargar la información de tu membresía.");
+      setError("No se pudo cargar tu información. Inténtalo nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -114,13 +122,22 @@ export default function VipPage() {
         error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError || !session?.access_token) {
+      if (sessionError || !session?.user || !session.access_token) {
+        router.replace("/");
         throw new Error("Tu sesión ha expirado. Inicia sesión nuevamente.");
       }
 
-      // Se conserva la misma clave durante los reintentos.
-      const key = pendingKey || createIdempotencyKey();
-      setPendingKey(key);
+      const storageKey = `store-gaming-vip-pending:${session.user.id}`;
+
+      // La misma clave se conserva para que un reintento
+      // no pueda generar un segundo cobro.
+      let key = pendingKey;
+
+      if (!key) {
+        key = createIdempotencyKey();
+        localStorage.setItem(storageKey, key);
+        setPendingKey(key);
+      }
 
       const response = await fetch("/api/vip/activate", {
         method: "POST",
@@ -131,9 +148,18 @@ export default function VipPage() {
         body: JSON.stringify({
           idempotencyKey: key,
         }),
+        cache: "no-store",
       });
 
-      const result: ActivationResult = await response.json();
+      let result: ActivationResult;
+
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error(
+          "El servidor respondió de forma inesperada. Puedes reintentar sin generar otro cobro."
+        );
+      }
 
       if (!response.ok || !result.success) {
         const messages: Record<string, string> = {
@@ -143,22 +169,27 @@ export default function VipPage() {
             "No encontramos tu perfil de STORE GAMING.",
           INVALID_SESSION:
             "Tu sesión ha expirado. Inicia sesión nuevamente.",
+          INVALID_IDEMPOTENCY_KEY:
+            "La clave de la operación no es válida. Actualiza la página.",
           IDEMPOTENCY_KEY_ALREADY_USED:
-            "La clave de esta operación ya fue utilizada. Actualiza la página antes de continuar.",
+            "La clave de esta operación pertenece a otra operación.",
         };
 
         throw new Error(
           messages[result.error || ""] ||
-            "No se pudo completar la activación VIP."
+            result.message ||
+            "No se pudo completar la activación VIP. Puedes intentarlo nuevamente."
         );
       }
 
+      // El servidor confirmó la operación.
+      localStorage.removeItem(storageKey);
       setPendingKey(null);
       setConfirming(false);
 
       setSuccess(
         result.created === false
-          ? "Esta operación ya había sido procesada. No se realizó otro cobro."
+          ? "Esta operación ya estaba procesada. No se realizó otro cobro."
           : "¡Tu membresía VIP se ha activado correctamente!"
       );
 
@@ -226,12 +257,12 @@ export default function VipPage() {
         <header className="vip-header">
           <div className="vip-logo">SG</div>
           <p>STORE GAMING PRESENTA</p>
+
           <h1>
             MEMBRESÍA <span>VIP</span>
           </h1>
-          <p className="subtitle">
-            ELEVA TU EXPERIENCIA GAMING
-          </p>
+
+          <p className="subtitle">ELEVA TU EXPERIENCIA GAMING</p>
         </header>
 
         <section className="vip-card">
@@ -254,14 +285,17 @@ export default function VipPage() {
               <span>✓</span>
               Descuentos exclusivos en productos seleccionados.
             </div>
+
             <div>
               <span>✓</span>
               Acceso a promociones especiales.
             </div>
+
             <div>
               <span>✓</span>
               Acceso a productos y ventajas VIP.
             </div>
+
             <div>
               <span>✓</span>
               Beneficios especiales para miembros.
@@ -289,8 +323,23 @@ export default function VipPage() {
             <strong>{balance.toFixed(2)} créditos</strong>
           </div>
 
-          {error && <div className="message error">{error}</div>}
-          {success && <div className="message success">{success}</div>}
+          {error && (
+            <div className="message error">
+              {error}
+              {!profile && (
+                <button
+                  className="retry-button"
+                  onClick={loadProfile}
+                >
+                  VOLVER A INTENTAR
+                </button>
+              )}
+            </div>
+          )}
+
+          {success && (
+            <div className="message success">{success}</div>
+          )}
 
           {!confirming ? (
             <button
@@ -300,23 +349,28 @@ export default function VipPage() {
                 setSuccess("");
                 setConfirming(true);
               }}
-              disabled={activating}
+              disabled={!profile || activating}
             >
-              {vipActive ? "RENOVAR MEMBRESÍA VIP" : "ACTIVAR MEMBRESÍA VIP"}
+              {vipActive
+                ? "RENOVAR MEMBRESÍA VIP"
+                : "ACTIVAR MEMBRESÍA VIP"}
               <span>→</span>
             </button>
           ) : (
             <div className="confirmation">
               <h3>CONFIRMAR OPERACIÓN</h3>
+
               <p>
                 Se descontarán <strong>5.00 créditos</strong> de tu
                 balance y se añadirán 30 días a tu membresía.
+                {!vipActive &&
+                  " La membresía comenzará desde el momento de la activación."}
               </p>
 
               <button
                 className="confirm-button"
                 onClick={activateVip}
-                disabled={activating}
+                disabled={activating || !profile}
               >
                 {activating ? "PROCESANDO..." : "CONFIRMAR Y PAGAR"}
               </button>
@@ -572,7 +626,8 @@ export default function VipPage() {
           color: #ccc;
         }
 
-        .cancel-button {
+        .cancel-button,
+        .retry-button {
           display: block;
           width: 100%;
           margin-top: 10px;
