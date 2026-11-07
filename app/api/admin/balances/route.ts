@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 import { isAdminUser } from "../../../../lib/admin";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 function getBearerToken(request: NextRequest) {
   const authorization =
     request.headers.get("authorization") || "";
@@ -15,73 +18,48 @@ function getBearerToken(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const accessToken =
-      getBearerToken(request);
+    const accessToken = getBearerToken(request);
 
     if (!accessToken) {
       return NextResponse.json(
-        {
-          error: "No autorizado.",
-        },
+        { error: "No autorizado." },
         { status: 401 }
       );
     }
 
-    const authorized =
-      await isAdminUser(accessToken);
+    const authorized = await isAdminUser(accessToken);
 
     if (!authorized) {
       return NextResponse.json(
-        {
-          error: "Acceso denegado.",
-        },
+        { error: "Acceso denegado." },
         { status: 403 }
       );
     }
 
-    const {
-      data,
-      error,
-    } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("profiles")
-      .select(
-        "id,email,balance"
-      )
-      .order("email", {
-        ascending: true,
-      });
+      .select("id,email,balance")
+      .order("email", { ascending: true });
 
     if (error) {
-      console.error(
-        "ERROR CARGANDO BALANCES:",
-        error
-      );
+      console.error("ERROR CARGANDO BALANCES:", error);
 
       return NextResponse.json(
-        {
-          error:
-            "No se pudieron cargar los balances.",
-        },
+        { error: "No se pudieron cargar los balances." },
         { status: 500 }
       );
     }
 
-    const balances = (data || []).map(
-      (profile) => ({
-        id: profile.id,
-        email:
-          profile.email || "Sin correo",
-        balance:
-          Number(profile.balance) || 0,
-      })
-    );
+    const balances = (data || []).map((profile) => ({
+      id: profile.id,
+      email: profile.email || "Sin correo",
+      balance: Number(profile.balance) || 0,
+    }));
 
-    const totalBalance =
-      balances.reduce(
-        (total, profile) =>
-          total + profile.balance,
-        0
-      );
+    const totalBalance = balances.reduce(
+      (total, profile) => total + profile.balance,
+      0
+    );
 
     return NextResponse.json({
       ok: true,
@@ -90,17 +68,11 @@ export async function GET(request: NextRequest) {
       totalBalance,
     });
   } catch (error) {
-    console.error(
-      "ERROR API ADMIN BALANCES:",
-      error
-    );
+    console.error("ERROR API ADMIN BALANCES:", error);
 
     return NextResponse.json(
-      {
-        error:
-          "Error interno del servidor.",
-      },
+      { error: "Error interno del servidor." },
       { status: 500 }
     );
   }
-  }
+}
