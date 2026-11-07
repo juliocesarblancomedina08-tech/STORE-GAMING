@@ -1,16 +1,27 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type Offer = {
-  offer_id: string;
+  id: string;
   name: string;
-  supplier_price: number;
-  retail_price: number;
-  vip_active: boolean;
+  price: number;
+  supplierPrice: number;
+  vipActive: boolean;
 };
 
 type OrderResult = {
@@ -18,33 +29,246 @@ type OrderResult = {
   error?: string;
   message?: string;
   orderNumber?: string;
-  supplierOrderId?: string;
+  supplierOrderId?: string | null;
   status?: string;
   retailPrice?: number;
+  reused?: boolean;
 };
+
+const API_URL = "/api/topups/mobile-legends";
 
 export default function MobileLegendsPage() {
   const router = useRouter();
 
+  const idempotencyKeyRef = useRef<string | null>(null);
+
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [vipActive, setVipActive] = useState(false);
+  const [vipLoading, setVipLoading] = useState(true);
+
+  const [showOffers, setShowOffers] = useState(false);
+  const [selectedOffer, setSelectedOffer] =
+    useState<Offer | null>(null);
+
   const [playerId, setPlayerId] = useState("");
   const [serverId, setServerId] = useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [buying, setBuying] = useState(false);
+  const [error, setError] = useState("");
+  const [catalogError, setCatalogError] = useState("");
 
-  const [vipActive, setVipActive] = useState(false);
-  const [accessToken, setAccessToken] = useState("");
+  const [showConfirmation, setShowConfirmation] =
+    useState(false);
 
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<
-    "success" | "error" | "pending" | ""
-  >("");
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [supplierOrderId, setSupplierOrderId] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
 
-  const loadCatalog = useCallback(async () => {
-    setLoading(true);
-    setMessage("");
+  const [processing, setProcessing] = useState(false);
+
+  /*
+   * CARGAR CATÁLOGO Y ESTADO VIP DESDE EL BACKEND
+   */
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCatalog() {
+      try {
+        setVipLoading(true);
+        setCatalogError("");
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          if (active) {
+            setCatalogError(
+              "Inicia sesión para consultar las ofertas."
+            );
+          }
+          return;
+        }
+
+        const response = await fetch(API_URL, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          cache: "no-store",
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data?.ok) {
+          throw new Error(
+            data?.error || "No se pudo cargar el catálogo."
+          );
+        }
+
+        if (!Array.isArray(data.offers)) {
+          throw new Error(
+            "El catálogo recibido no tiene un formato válido."
+          );
+        }
+
+        const loadedOffers: Offer[] = data.offers.map(
+          (offer: any) => ({
+            id: String(offer.offer_id),
+            name: String(offer.name),
+            price: Number(offer.retail_price),
+            supplierPrice: Number(offer.supplier_price),
+            vipActive: Boolean(offer.vip_active),
+          })
+        );
+
+        const validOffers = loadedOffers.filter(
+          (offer) =>
+            offer.id &&
+            offer.name &&
+            Number.isFinite(offer.price) &&
+            Number.isFinite(offer.supplierPrice)
+        );
+
+        if (validOffers.length === 0) {
+          throw new Error(
+            "No hay ofertas disponibles en este momento."
+          );
+        }
+
+        if (active) {
+          setOffers(validOffers);
+          setVipActive(Boolean(data.vip_active));
+        }
+      } catch (err) {
+        console.error(
+          "ERROR CARGANDO MOBILE LEGENDS:",
+          err
+        );
+
+        if (active) {
+          setCatalogError(
+            err instanceof Error
+              ? err.message
+              : "No se pudo cargar el catálogo."
+          );
+        }
+      } finally {
+        if (active) {
+          setVipLoading(false);
+        }
+      }
+    }
+
+    loadCatalog();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /*
+   * FORMATEAR PRECIOS
+   *
+   * Se utilizan los precios exactos del backend.
+   * No se vuelven a calcular en el navegador.
+   */
+
+  function formatPrice(offer: Offer): string {
+    return `$${offer.price.toFixed(4)}`;
+  }
+
+  /*
+   * SELECCIONAR OFERTA
+   */
+
+  function selectOffer(offer: Offer) {
+    setSelectedOffer(offer);
+
+    setError("");
+    setShowConfirmation(false);
+    setOrderCreated(false);
+
+    setOrderNumber("");
+    setSupplierOrderId("");
+    setOrderStatus("");
+
+    idempotencyKeyRef.current = null;
+
+    setTimeout(() => {
+      document
+        .getElementById("order-section")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 100);
+  }
+
+  /*
+   * VALIDAR DATOS DEL JUGADOR
+   */
+
+  function handleFinishPurchase(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    setError("");
+
+    const cleanPlayerId = playerId.trim();
+    const cleanServerId = serverId.trim();
+
+    if (!selectedOffer) {
+      setError("Seleccione una oferta.");
+      return;
+    }
+
+    if (!cleanPlayerId) {
+      setError("Introduzca el ID del jugador.");
+      return;
+    }
+
+    if (!/^[0-9]{3,20}$/.test(cleanPlayerId)) {
+      setError(
+        "El ID del jugador debe contener entre 3 y 20 números."
+      );
+      return;
+    }
+
+    if (!cleanServerId) {
+      setError("Introduzca el ID del servidor.");
+      return;
+    }
+
+    if (!/^[0-9]{1,20}$/.test(cleanServerId)) {
+      setError(
+        "El ID del servidor no es válido."
+      );
+      return;
+    }
+
+    setPlayerId(cleanPlayerId);
+    setServerId(cleanServerId);
+
+    setShowConfirmation(true);
+  }
+
+  /*
+   * CREAR PEDIDO
+   */
+
+  async function createOrder() {
+    if (!selectedOffer) {
+      setError("Seleccione una oferta.");
+      return;
+    }
+
+    if (processing) return;
+
+    setProcessing(true);
+    setError("");
 
     try {
       const {
@@ -52,679 +276,1069 @@ export default function MobileLegendsPage() {
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        router.replace("/");
+        throw new Error(
+          "Su sesión ha expirado. Inicie sesión nuevamente."
+        );
+      }
+
+      /*
+       * La clave se conserva si ocurre un error de conexión.
+       * Así, un reintento no crea una segunda orden.
+       */
+
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current =
+          crypto.randomUUID();
+      }
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          offerId: selectedOffer.id,
+          playerId: playerId.trim(),
+          serverId: serverId.trim(),
+          idempotencyKey: idempotencyKeyRef.current,
+        }),
+      });
+
+      let data: OrderResult;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          "No se pudo interpretar la respuesta del servidor. Reintente con el mismo pedido."
+        );
+      }
+
+      /*
+       * El proveedor pudo rechazar el pedido y devolver
+       * un estado REFUNDED. También debemos mostrarlo.
+       */
+
+      if (
+        data?.orderNumber &&
+        data?.status
+      ) {
+        setOrderNumber(data.orderNumber);
+        setSupplierOrderId(
+          data.supplierOrderId || ""
+        );
+        setOrderStatus(data.status);
+
+        setOrderCreated(true);
+        setShowConfirmation(false);
+
+        setTimeout(() => {
+          document
+            .getElementById("success-section")
+            ?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+        }, 100);
+
+        if (
+          data.status === "COMPLETED" ||
+          data.status === "REFUNDED" ||
+          data.status === "FAILED"
+        ) {
+          idempotencyKeyRef.current = null;
+        }
+
+        if (!response.ok && data.status === "FAILED") {
+          setError(
+            data.error || "El pedido no pudo completarse."
+          );
+        }
+
         return;
       }
 
-      setAccessToken(session.access_token);
-
-      const response = await fetch(
-        "/api/topups/mobile-legends",
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            Accept: "application/json",
-          },
-          cache: "no-store",
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.ok) {
+      if (!response.ok || !data?.ok) {
         throw new Error(
-          result.error || "No se pudo cargar el catálogo."
+          data?.error ||
+          "No se pudo crear el pedido."
         );
       }
 
-      setOffers(result.offers || []);
-      setVipActive(Boolean(result.vip_active));
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Error cargando las ofertas."
+      throw new Error(
+        "El servidor no devolvió un número de pedido. Comprueba el estado antes de volver a intentarlo."
       );
-      setMessageType("error");
+    } catch (err) {
+      console.error(
+        "ERROR CREANDO ORDEN MOBILE LEGENDS:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la orden."
+      );
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
-  }, [router]);
+  }
 
-  useEffect(() => {
-    loadCatalog();
-  }, [loadCatalog]);
+  /*
+   * INFORMACIÓN DEL ESTADO
+   */
 
-  const buyOffer = async () => {
-    if (!selectedOffer) {
-      return;
+  function getStatusTitle(): string {
+    switch (orderStatus.toUpperCase()) {
+      case "COMPLETED":
+        return "Compra completada";
+
+      case "SUPPLIER_PENDING":
+      case "PENDING":
+      case "RESERVED":
+        return "Pedido pendiente";
+
+      case "REFUNDED":
+        return "Saldo devuelto";
+
+      case "FAILED":
+      case "REJECTED":
+        return "Pedido no completado";
+
+      default:
+        return "Estado del pedido";
     }
+  }
 
-    if (!accessToken) {
-      setMessage("Tu sesión ha expirado. Inicia sesión nuevamente.");
-      setMessageType("error");
-      return;
+  function getStatusMessage(): string {
+    switch (orderStatus.toUpperCase()) {
+      case "COMPLETED":
+        return "El pedido aparece como completado.";
+
+      case "SUPPLIER_PENDING":
+      case "PENDING":
+      case "RESERVED":
+        return "El proveedor todavía no ha confirmado la entrega. Tu pedido permanece pendiente de verificación. No realices otra compra para los mismos datos.";
+
+      case "REFUNDED":
+        return "El proveedor rechazó el pedido y el saldo ha sido devuelto.";
+
+      case "FAILED":
+      case "REJECTED":
+        return "El pedido no pudo completarse. Comprueba el estado de tu saldo.";
+
+      default:
+        return "Consulta el estado actualizado de tu pedido.";
     }
+  }
 
-    if (!/^[0-9]{3,20}$/.test(playerId.trim())) {
-      setMessage("Introduce un Player ID válido.");
-      setMessageType("error");
-      return;
+  function getStatusIcon(): string {
+    switch (orderStatus.toUpperCase()) {
+      case "COMPLETED":
+        return "✓";
+
+      case "REFUNDED":
+        return "↩";
+
+      case "FAILED":
+      case "REJECTED":
+        return "!";
+
+      default:
+        return "⌛";
     }
+  }
 
-    if (!/^[0-9]{1,20}$/.test(serverId.trim())) {
-      setMessage("Introduce un Server ID válido.");
-      setMessageType("error");
-      return;
-    }
+  function goToOrders() {
+    router.push("/orders");
+  }
 
-    const confirmed = window.confirm(
-      `¿Confirmas la compra de ${selectedOffer.name} por ${Number(
-        selectedOffer.retail_price
-      ).toFixed(4)} créditos?`
-    );
+  /*
+   * VOLVER A LA TIENDA
+   */
 
-    if (!confirmed) return;
+  function goToStore() {
+    router.push("/top-up");
+  }
 
-    setBuying(true);
-    setMessage("");
-    setMessageType("");
-
-    try {
-      const response = await fetch(
-        "/api/topups/mobile-legends",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            offerId: selectedOffer.offer_id,
-            playerId: playerId.trim(),
-            serverId: serverId.trim(),
-            idempotencyKey: crypto.randomUUID(),
-          }),
-        }
-      );
-
-      const result: OrderResult = await response.json();
-
-      if (!response.ok || !result.ok) {
-        throw new Error(
-          result.error || "No se pudo procesar la compra."
-        );
-      }
-
-      if (result.status === "COMPLETED") {
-        setMessage(
-          `¡Compra completada! Número de pedido: ${result.orderNumber || "Confirmado"}`
-        );
-        setMessageType("success");
-      } else {
-        setMessage(
-          `Tu pedido está pendiente de confirmación. Número: ${
-            result.orderNumber || "Pendiente"
-          }. No repitas la compra mientras se verifica.`
-        );
-        setMessageType("pending");
-      }
-
-      setSelectedOffer(null);
-      setPlayerId("");
-      setServerId("");
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Ocurrió un error al realizar la compra."
-      );
-      setMessageType("error");
-    } finally {
-      setBuying(false);
-    }
-  };
-
-  const formatPrice = (price: number) => {
-    return Number(price).toFixed(4);
-  };
+  /*
+   * INTERFAZ
+   */
 
   return (
-    <main className="ml-page">
-      <div className="ml-container">
-
+    <main className="mobile-legends-page">
+      <header className="mobile-legends-header">
         <button
-          className="back-button"
-          onClick={() => router.back()}
+          type="button"
+          className="mobile-legends-back-button"
+          onClick={goToStore}
         >
-          ← Volver
+          ←
         </button>
 
-        <header className="hero">
-          <div className="game-icon">⚔️</div>
+        <div className="mobile-legends-header-title">
+          <span>Mobile Legends</span>
+          <small>United States</small>
+        </div>
 
-          <div>
-            <span className="region">UNITED STATES</span>
-            <h1>Mobile Legends</h1>
-            <p>Recarga de diamantes y Weekly Diamond Pass</p>
+        <button
+          type="button"
+          className="mobile-legends-orders-button"
+          onClick={goToOrders}
+          aria-label="Ver pedidos"
+        >
+          📋
+        </button>
+      </header>
+
+      <section className="mobile-legends-content">
+        <div className="mobile-legends-banner">
+          <img
+            src="/images/mobile-legends.jpg"
+            alt="Mobile Legends"
+          />
+
+          <div className="mobile-legends-banner-overlay">
+            <div className="mobile-legends-banner-text">
+              <strong>MOBILE LEGENDS</strong>
+              <span>United States</span>
+            </div>
           </div>
-        </header>
+        </div>
+
+        <div className="mobile-legends-note">
+          <span>ℹ️</span>
+          <p>
+            Introduzca correctamente su ID de jugador y su ID
+            de servidor antes de realizar la compra.
+          </p>
+        </div>
 
         {vipActive && (
-          <div className="vip-banner">
-            <span>⭐</span>
-            <div>
-              <strong>BENEFICIO VIP ACTIVO</strong>
-              <p>Estás disfrutando de precios especiales.</p>
-            </div>
+          <div className="mobile-legends-vip-notice">
+            ⭐ PRECIO VIP ACTIVADO
           </div>
         )}
 
-        <section className="player-card">
-          <h2>Datos del jugador</h2>
-          <p className="section-description">
-            Introduce los datos de tu cuenta para recibir tu recarga.
-          </p>
+        <button
+          type="button"
+          className="mobile-legends-offers-toggle"
+          onClick={() => setShowOffers((value) => !value)}
+        >
+          <span>
+            {showOffers
+              ? "Ocultar ofertas"
+              : "Presione para ver ofertas"}
+          </span>
 
-          <label htmlFor="playerId">Player ID</label>
-          <input
-            id="playerId"
-            type="text"
-            inputMode="numeric"
-            placeholder="Introduce tu Player ID"
-            value={playerId}
-            onChange={(e) => setPlayerId(e.target.value)}
-            maxLength={20}
-          />
+          <span className="mobile-legends-offers-arrow">
+            {showOffers ? "▲" : "▼"}
+          </span>
+        </button>
 
-          <label htmlFor="serverId">Server ID</label>
-          <input
-            id="serverId"
-            type="text"
-            inputMode="numeric"
-            placeholder="Introduce tu Server ID"
-            value={serverId}
-            onChange={(e) => setServerId(e.target.value)}
-            maxLength={20}
-          />
+        {catalogError && (
+          <div className="mobile-legends-warning">
+            ⚠️ {catalogError}
 
-          <div className="info-note">
-            Comprueba cuidadosamente tu Player ID y Server ID antes de comprar.
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+            >
+              VOLVER A INTENTAR
+            </button>
           </div>
-        </section>
+        )}
 
-        <section className="offers-section">
-          <div className="section-heading">
-            <div>
-              <h2>Ofertas disponibles</h2>
-              <p>Selecciona la recarga que deseas comprar.</p>
-            </div>
-
-            <span className="offer-count">
-              {offers.length} ofertas
-            </span>
-          </div>
-
-          {loading ? (
-            <div className="loading">
-              <div className="spinner" />
-              <p>Cargando ofertas...</p>
-            </div>
-          ) : offers.length === 0 ? (
-            <div className="empty">
-              No hay ofertas disponibles en este momento.
-            </div>
-          ) : (
-            <div className="offers-grid">
-              {offers.map((offer) => {
-                const active =
-                  selectedOffer?.offer_id === offer.offer_id;
-
-                return (
+        {showOffers && (
+          <section className="mobile-legends-offers-section">
+            {vipLoading ? (
+              <div className="mobile-legends-loading">
+                CARGANDO OFERTAS...
+              </div>
+            ) : (
+              <div className="mobile-legends-offers-list">
+                {offers.map((offer) => (
                   <button
-                    key={offer.offer_id}
                     type="button"
-                    className={`offer-card ${active ? "selected" : ""}`}
-                    onClick={() => {
-                      setSelectedOffer(offer);
-                      setMessage("");
-                      setMessageType("");
-                    }}
+                    key={offer.id}
+                    className={`mobile-legends-offer ${
+                      selectedOffer?.id === offer.id
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() => selectOffer(offer)}
                   >
-                    <span className="diamond">💎</span>
+                    <div className="mobile-legends-offer-left">
+                      <div className="mobile-legends-offer-icon">
+                        💎
+                      </div>
 
-                    <strong className="offer-name">
-                      {offer.name}
-                    </strong>
+                      <div>
+                        <strong>{offer.name}</strong>
+                        <span>Mobile Legends</span>
+                      </div>
+                    </div>
 
-                    <span className="offer-price">
-                      {formatPrice(offer.retail_price)}
-                      <small> créditos</small>
-                    </span>
-
-                    {vipActive && (
-                      <span className="vip-price-label">
-                        PRECIO VIP
-                      </span>
-                    )}
-
-                    <span className="select-label">
-                      {active ? "✓ Seleccionado" : "Seleccionar"}
-                    </span>
+                    <div className="mobile-legends-offer-price">
+                      {formatPrice(offer)}
+                    </div>
                   </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {selectedOffer && (
-          <section className="checkout-card">
-            <h2>Confirmar compra</h2>
-
-            <div className="checkout-row">
-              <span>Producto</span>
-              <strong>{selectedOffer.name}</strong>
-            </div>
-
-            <div className="checkout-row">
-              <span>Player ID</span>
-              <strong>{playerId || "Pendiente"}</strong>
-            </div>
-
-            <div className="checkout-row">
-              <span>Server ID</span>
-              <strong>{serverId || "Pendiente"}</strong>
-            </div>
-
-            <div className="checkout-total">
-              <span>Total</span>
-              <strong>
-                {formatPrice(selectedOffer.retail_price)} créditos
-              </strong>
-            </div>
-
-            <button
-              className="buy-button"
-              onClick={buyOffer}
-              disabled={buying || loading}
-            >
-              {buying ? "PROCESANDO PEDIDO..." : "CONFIRMAR Y COMPRAR"}
-            </button>
-
-            <button
-              className="cancel-button"
-              onClick={() => setSelectedOffer(null)}
-              disabled={buying}
-            >
-              Cancelar
-            </button>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
-        {message && (
-          <div className={`message ${messageType}`}>
-            {message}
-          </div>
+        {selectedOffer && (
+          <section
+            id="order-section"
+            className="mobile-legends-order-section"
+          >
+            <div className="mobile-legends-selected-offer">
+              <span>Oferta seleccionada</span>
+
+              <strong>{selectedOffer.name}</strong>
+
+              <b>{formatPrice(selectedOffer)}</b>
+            </div>
+
+            {error && (
+              <div className="mobile-legends-warning">
+                ⚠️ {error}
+              </div>
+            )}
+
+            {!showConfirmation && !orderCreated && (
+              <form
+                className="mobile-legends-order-form"
+                onSubmit={handleFinishPurchase}
+              >
+                <label>ID del jugador</label>
+
+                <div className="mobile-legends-input-wrapper">
+                  <span>👤</span>
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={playerId}
+                    onChange={(event) => {
+                      setPlayerId(
+                        event.target.value.replace(
+                          /[^0-9]/g,
+                          ""
+                        )
+                      );
+
+                      idempotencyKeyRef.current = null;
+                    }}
+                    placeholder="Ej: 123456789"
+                    maxLength={20}
+                  />
+                </div>
+
+                <label>ID del servidor</label>
+
+                <div className="mobile-legends-input-wrapper">
+                  <span>🌐</span>
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={serverId}
+                    onChange={(event) => {
+                      setServerId(
+                        event.target.value.replace(
+                          /[^0-9]/g,
+                          ""
+                        )
+                      );
+
+                      idempotencyKeyRef.current = null;
+                    }}
+                    placeholder="Ej: 1234"
+                    maxLength={20}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="mobile-legends-create-order-button"
+                  disabled={vipLoading}
+                >
+                  CONTINUAR
+                </button>
+              </form>
+            )}
+
+            {showConfirmation && !orderCreated && (
+              <section className="mobile-legends-confirmation-section">
+                <div className="mobile-legends-confirmation-card">
+                  <h3>Confirmar pedido</h3>
+
+                  <div className="mobile-legends-confirmation-row">
+                    <span>Oferta</span>
+                    <strong>{selectedOffer.name}</strong>
+                  </div>
+
+                  <div className="mobile-legends-confirmation-row">
+                    <span>ID del jugador</span>
+                    <strong>{playerId}</strong>
+                  </div>
+
+                  <div className="mobile-legends-confirmation-row">
+                    <span>ID del servidor</span>
+                    <strong>{serverId}</strong>
+                  </div>
+
+                  <div className="mobile-legends-confirmation-total">
+                    <span>Total</span>
+                    <strong>
+                      {formatPrice(selectedOffer)}
+                    </strong>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mobile-legends-confirm-button"
+                    onClick={createOrder}
+                    disabled={processing || vipLoading}
+                  >
+                    {processing
+                      ? "PROCESANDO PEDIDO..."
+                      : "CONFIRMAR PEDIDO"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="mobile-legends-cancel-button"
+                    onClick={() =>
+                      setShowConfirmation(false)
+                    }
+                    disabled={processing}
+                  >
+                    CANCELAR
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {orderCreated && (
+              <section
+                id="success-section"
+                className="mobile-legends-success-section"
+              >
+                <div
+                  className={`mobile-legends-success-icon ${
+                    orderStatus.toUpperCase() !== "COMPLETED"
+                      ? "pending"
+                      : ""
+                  }`}
+                >
+                  {getStatusIcon()}
+                </div>
+
+                <h2>{getStatusTitle()}</h2>
+
+                <p>{getStatusMessage()}</p>
+
+                <div className="mobile-legends-order-number">
+                  <span>Número de orden</span>
+                  <strong>{orderNumber}</strong>
+                </div>
+
+                {supplierOrderId && (
+                  <div className="mobile-legends-order-number">
+                    <span>Orden del proveedor</span>
+                    <strong>{supplierOrderId}</strong>
+                  </div>
+                )}
+
+                <div className="mobile-legends-order-number">
+                  <span>Estado</span>
+                  <strong>{orderStatus}</strong>
+                </div>
+
+                <button
+                  type="button"
+                  className="mobile-legends-review-button"
+                  onClick={goToOrders}
+                >
+                  REVISAR ORDEN
+                </button>
+
+                <button
+                  type="button"
+                  className="mobile-legends-store-button"
+                  onClick={goToStore}
+                >
+                  VOLVER A LA TIENDA
+                </button>
+              </section>
+            )}
+          </section>
         )}
 
-        <footer>
-          <p>STORE GAMING · Mobile Legends United States</p>
-          <span>Recargas procesadas mediante FazerCards</span>
-        </footer>
+        <section className="mobile-legends-service-info">
+          <h3>Información del servicio</h3>
 
-      </div>
+          <p>
+            La recarga se realiza utilizando el ID del jugador
+            y el ID del servidor proporcionados.
+          </p>
+
+          <p>
+            Verifique cuidadosamente ambos datos antes de
+            confirmar el pedido.
+          </p>
+        </section>
+      </section>
+
+      <footer className="mobile-legends-footer">
+        STORE GAMING
+      </footer>
 
       <style jsx>{`
-        .ml-page {
+        .mobile-legends-page {
           min-height: 100vh;
-          padding: 25px 15px 50px;
           background:
-            radial-gradient(ellipse at top, #183d58 0%, transparent 45%),
-            linear-gradient(145deg, #07111e, #0b1728 55%, #101b2d);
+            linear-gradient(
+              rgba(0, 0, 0, 0.78),
+              rgba(0, 0, 0, 0.9)
+            ),
+            url("/images/battle-royale-bg.jpg")
+              center / cover fixed;
+          color: #fff;
+          padding-bottom: 30px;
+        }
+
+        .mobile-legends-header {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          height: 64px;
+          display: grid;
+          grid-template-columns: 48px 1fr 48px;
+          align-items: center;
+          padding: 0 10px;
+          background: rgba(0, 0, 0, 0.92);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(12px);
+        }
+
+        .mobile-legends-back-button,
+        .mobile-legends-orders-button {
+          width: 42px;
+          height: 42px;
+          border: 0;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.08);
+          color: #fff;
+          font-size: 21px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+
+        .mobile-legends-header-title {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .mobile-legends-header-title span {
+          font-size: 17px;
+          font-weight: 900;
+        }
+
+        .mobile-legends-header-title small {
+          margin-top: 2px;
+          color: #aaa;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .mobile-legends-content {
+          width: 100%;
+          max-width: 560px;
+          margin: 0 auto;
+          padding: 0 12px;
+        }
+
+        .mobile-legends-banner {
+          position: relative;
+          width: calc(100% + 24px);
+          margin-left: -12px;
+          overflow: hidden;
+        }
+
+        .mobile-legends-banner img {
+          display: block;
+          width: 100%;
+          height: 230px;
+          object-fit: cover;
+        }
+
+        .mobile-legends-banner-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: flex-end;
+          padding: 20px;
+          background: linear-gradient(
+            transparent 30%,
+            rgba(0, 0, 0, 0.85)
+          );
+        }
+
+        .mobile-legends-banner-text strong {
+          font-size: 25px;
+          font-weight: 1000;
+          letter-spacing: 1px;
+        }
+
+        .mobile-legends-banner-text span {
+          display: block;
+          margin-top: 3px;
+          color: #ddd;
+          font-size: 12px;
+        }
+
+        .mobile-legends-note {
+          display: flex;
+          gap: 10px;
+          margin-top: 14px;
+          padding: 13px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.07);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .mobile-legends-note span {
+          font-size: 18px;
+        }
+
+        .mobile-legends-note p {
+          margin: 0;
+          color: #ccc;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+
+        .mobile-legends-vip-notice {
+          margin-top: 12px;
+          padding: 12px;
+          border: 1px solid rgba(255, 190, 50, 0.4);
+          border-radius: 11px;
+          background: rgba(255, 180, 30, 0.1);
+          color: #ffd36a;
+          font-size: 12px;
+          font-weight: 900;
+          text-align: center;
+        }
+
+        .mobile-legends-offers-toggle {
+          width: 100%;
+          margin-top: 14px;
+          padding: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 13px;
+          background: rgba(0, 0, 0, 0.75);
+          color: #fff;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .mobile-legends-offers-arrow {
+          font-size: 12px;
+          color: #d71920;
+        }
+
+        .mobile-legends-offers-section {
+          margin-top: 10px;
+        }
+
+        .mobile-legends-offers-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .mobile-legends-loading {
+          padding: 20px;
+          text-align: center;
+          color: #aaa;
+          font-size: 12px;
+        }
+
+        .mobile-legends-offer {
+          width: 100%;
+          min-height: 67px;
+          padding: 11px 13px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 13px;
+          background: rgba(0, 0, 0, 0.82);
+          color: #fff;
+          text-align: left;
+          cursor: pointer;
+          transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .mobile-legends-offer:hover {
+          transform: translateY(-1px);
+          border-color: rgba(215, 25, 32, 0.7);
+        }
+
+        .mobile-legends-offer.selected {
+          border-color: #d71920;
+          box-shadow: 0 0 0 1px rgba(215, 25, 32, 0.25);
+        }
+
+        .mobile-legends-offer-left {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          min-width: 0;
+        }
+
+        .mobile-legends-offer-icon {
+          width: 43px;
+          height: 43px;
+          flex: 0 0 43px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.08);
+          font-size: 21px;
+        }
+
+        .mobile-legends-offer-left strong {
+          display: block;
+          font-size: 14px;
+        }
+
+        .mobile-legends-offer-left span {
+          display: block;
+          margin-top: 3px;
+          color: #888;
+          font-size: 10px;
+        }
+
+        .mobile-legends-offer-price {
+          flex: 0 0 auto;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 900;
+        }
+
+        .mobile-legends-order-section {
+          margin-top: 15px;
+        }
+
+        .mobile-legends-selected-offer {
+          padding: 15px;
+          border-radius: 14px;
+          background: rgba(0, 0, 0, 0.84);
+          border: 1px solid rgba(215, 25, 32, 0.45);
+        }
+
+        .mobile-legends-selected-offer span {
+          display: block;
+          color: #888;
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+
+        .mobile-legends-selected-offer strong {
+          display: block;
+          margin-top: 5px;
+          font-size: 16px;
+        }
+
+        .mobile-legends-selected-offer b {
+          display: block;
+          margin-top: 6px;
+          color: #ff3038;
+          font-size: 20px;
+        }
+
+        .mobile-legends-warning {
+          margin-top: 10px;
+          padding: 11px;
+          border-radius: 10px;
+          background: rgba(215, 25, 32, 0.12);
+          border: 1px solid rgba(215, 25, 32, 0.35);
+          color: #ffb0b3;
+          font-size: 12px;
+        }
+
+        .mobile-legends-warning button {
+          display: block;
+          margin-top: 10px;
+          padding: 8px 12px;
+          border: 0;
+          border-radius: 8px;
+          background: #d71920;
+          color: #fff;
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .mobile-legends-order-form {
+          margin-top: 10px;
+          padding: 16px;
+          border-radius: 14px;
+          background: rgba(0, 0, 0, 0.84);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .mobile-legends-order-form label {
+          display: block;
+          margin: 0 0 7px;
+          color: #ccc;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .mobile-legends-input-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          height: 48px;
+          margin-bottom: 13px;
+          padding: 0 13px;
+          border-radius: 11px;
+          background: rgba(255, 255, 255, 0.07);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .mobile-legends-input-wrapper span {
+          font-size: 16px;
+        }
+
+        .mobile-legends-input-wrapper input {
+          width: 100%;
+          height: 100%;
+          border: 0;
+          outline: 0;
+          background: transparent;
+          color: #fff;
+          font-size: 14px;
+        }
+
+        .mobile-legends-input-wrapper input::placeholder {
+          color: #666;
+        }
+
+        .mobile-legends-create-order-button,
+        .mobile-legends-confirm-button,
+        .mobile-legends-review-button,
+        .mobile-legends-store-button,
+        .mobile-legends-cancel-button {
+          width: 100%;
+          min-height: 48px;
+          border: 0;
+          border-radius: 11px;
+          font-size: 13px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .mobile-legends-create-order-button,
+        .mobile-legends-confirm-button {
+          background: #d71920;
           color: #fff;
         }
 
-        .ml-container {
-          max-width: 950px;
-          margin: 0 auto;
+        .mobile-legends-confirmation-section {
+          margin-top: 10px;
         }
 
-        .back-button {
-          background: #ffffff12;
-          border: 1px solid #ffffff20;
-          color: white;
-          padding: 10px 17px;
-          border-radius: 10px;
-          cursor: pointer;
-          margin-bottom: 25px;
-        }
-
-        .hero {
-          display: flex;
-          align-items: center;
-          gap: 20px;
-          padding: 25px;
-          border: 1px solid #ffffff20;
-          border-radius: 20px;
-          background: linear-gradient(120deg, #183d58, #14243a);
-          margin-bottom: 20px;
-        }
-
-        .game-icon {
-          width: 75px;
-          height: 75px;
-          display: grid;
-          place-items: center;
-          font-size: 39px;
-          background: #ffffff15;
-          border-radius: 18px;
-          flex-shrink: 0;
-        }
-
-        .region {
-          color: #5fd6ff;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 2px;
-        }
-
-        h1 {
-          font-size: clamp(25px, 5vw, 36px);
-          margin: 5px 0;
-        }
-
-        .hero p,
-        .section-description,
-        .section-heading p {
-          color: #aabbd0;
-          font-size: 13px;
-          margin: 5px 0 0;
-        }
-
-        .vip-banner {
-          display: flex;
-          gap: 14px;
-          align-items: center;
-          padding: 16px;
-          margin-bottom: 20px;
-          border: 1px solid #d8ad48;
+        .mobile-legends-confirmation-card {
+          padding: 17px;
           border-radius: 14px;
-          background: #b78b241c;
+          background: rgba(0, 0, 0, 0.88);
+          border: 1px solid rgba(255, 255, 255, 0.09);
         }
 
-        .vip-banner > span {
-          font-size: 27px;
+        .mobile-legends-confirmation-card h3 {
+          margin: 0 0 15px;
+          font-size: 18px;
         }
 
-        .vip-banner strong {
-          color: #ffd46b;
-          font-size: 13px;
-        }
-
-        .vip-banner p {
-          color: #d4c49d;
-          margin: 5px 0 0;
-          font-size: 12px;
-        }
-
-        .player-card,
-        .checkout-card {
-          padding: 22px;
-          border-radius: 17px;
-          border: 1px solid #ffffff18;
-          background: #142238;
-          margin-bottom: 28px;
-        }
-
-        h2 {
-          font-size: 19px;
-          margin: 0 0 7px;
-        }
-
-        .player-card label {
-          display: block;
-          font-size: 13px;
-          font-weight: 700;
-          margin: 20px 0 8px;
-        }
-
-        .player-card input {
-          box-sizing: border-box;
-          width: 100%;
-          padding: 14px;
-          background: #091525;
-          color: white;
-          border: 1px solid #34465d;
-          border-radius: 10px;
-          outline: none;
-          font-size: 14px;
-        }
-
-        .player-card input:focus {
-          border-color: #32b8ed;
-        }
-
-        .info-note {
-          margin-top: 15px;
-          padding: 12px;
-          background: #1d4760;
-          border-radius: 9px;
-          color: #c6eaff;
-          font-size: 12px;
-        }
-
-        .section-heading {
+        .mobile-legends-confirmation-row {
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 17px;
-        }
-
-        .offer-count {
-          color: #8edfff;
-          font-size: 12px;
-          background: #1b4560;
-          padding: 8px 12px;
-          border-radius: 20px;
-          white-space: nowrap;
-        }
-
-        .offers-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 13px;
-        }
-
-        .offer-card {
-          min-width: 0;
-          text-align: left;
-          padding: 17px 13px;
-          color: white;
-          border: 1px solid #30435b;
-          background: linear-gradient(145deg, #172b43, #101e31);
-          border-radius: 14px;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          gap: 9px;
-          transition: border-color .2s, background .2s;
-        }
-
-        .offer-card.selected {
-          border: 2px solid #35c5ff;
-          background: #17415a;
-        }
-
-        .diamond {
-          font-size: 25px;
-        }
-
-        .offer-name {
-          font-size: 14px;
-          min-height: 34px;
-        }
-
-        .offer-price {
-          color: #64d7ff;
-          font-size: 17px;
-          font-weight: 900;
-          overflow-wrap: anywhere;
-        }
-
-        .offer-price small {
-          font-size: 10px;
-          color: #b8c9d9;
-        }
-
-        .vip-price-label {
-          color: #ffd46b;
-          font-size: 10px;
-          font-weight: 900;
-        }
-
-        .select-label {
-          color: #a8c5d8;
-          font-size: 11px;
-        }
-
-        .checkout-card {
-          border-color: #36bde9;
-        }
-
-        .checkout-row,
-        .checkout-total {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
           gap: 15px;
-          padding: 13px 0;
-          border-bottom: 1px solid #ffffff17;
-          font-size: 13px;
+          padding: 10px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
-        .checkout-row span,
-        .checkout-total span {
-          color: #aabbd0;
+        .mobile-legends-confirmation-row span {
+          color: #888;
+          font-size: 11px;
         }
 
-        .checkout-row strong {
+        .mobile-legends-confirmation-row strong {
+          max-width: 60%;
           text-align: right;
-          overflow-wrap: anywhere;
-        }
-
-        .checkout-total strong {
-          color: #60d5ff;
-          font-size: 17px;
-          text-align: right;
-        }
-
-        .buy-button {
-          width: 100%;
-          margin-top: 20px;
-          padding: 16px;
-          border: none;
-          border-radius: 11px;
-          color: #061522;
-          background: linear-gradient(90deg, #45cfff, #77e3ff);
-          font-weight: 900;
-          cursor: pointer;
-        }
-
-        .buy-button:disabled {
-          opacity: .5;
-          cursor: not-allowed;
-        }
-
-        .cancel-button {
-          width: 100%;
-          padding: 12px;
-          margin-top: 8px;
-          color: #c6d2df;
-          background: transparent;
-          border: none;
-          cursor: pointer;
-        }
-
-        .message {
-          padding: 15px;
-          border-radius: 11px;
-          margin: 20px 0;
-          font-size: 13px;
-          overflow-wrap: anywhere;
-        }
-
-        .message.success {
-          background: #12452f;
-          border: 1px solid #2dba79;
-        }
-
-        .message.error {
-          background: #521e29;
-          border: 1px solid #d65b70;
-        }
-
-        .message.pending {
-          background: #59451c;
-          border: 1px solid #d9ae48;
-        }
-
-        .loading,
-        .empty {
-          text-align: center;
-          padding: 45px 15px;
-          color: #aabbd0;
-          background: #142238;
-          border-radius: 15px;
-        }
-
-        .spinner {
-          width: 30px;
-          height: 30px;
-          margin: 0 auto 12px;
-          border: 3px solid #ffffff25;
-          border-top-color: #42caff;
-          border-radius: 50%;
-          animation: spin .8s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        footer {
-          text-align: center;
-          margin-top: 45px;
-          color: #8196ad;
           font-size: 12px;
         }
 
-        footer span {
-          font-size: 10px;
+        .mobile-legends-confirmation-total {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin: 14px 0;
         }
 
-        @media (min-width: 650px) {
-          .offers-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
+        .mobile-legends-confirmation-total span {
+          color: #aaa;
+          font-size: 12px;
         }
 
-        @media (max-width: 380px) {
-          .hero {
-            padding: 17px;
-            gap: 12px;
+        .mobile-legends-confirmation-total strong {
+          color: #ff3038;
+          font-size: 21px;
+        }
+
+        .mobile-legends-cancel-button {
+          margin-top: 8px;
+          background: rgba(255, 255, 255, 0.08);
+          color: #fff;
+        }
+
+        .mobile-legends-confirm-button:disabled,
+        .mobile-legends-create-order-button:disabled,
+        .mobile-legends-cancel-button:disabled {
+          opacity: 0.55;
+          cursor: wait;
+        }
+
+        .mobile-legends-success-section {
+          margin-top: 12px;
+          padding: 22px 16px;
+          border-radius: 16px;
+          background: rgba(0, 0, 0, 0.86);
+          border: 1px solid rgba(50, 255, 100, 0.2);
+          text-align: center;
+        }
+
+        .mobile-legends-success-icon {
+          width: 58px;
+          height: 58px;
+          margin: 0 auto 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: #19a957;
+          color: #fff;
+          font-size: 31px;
+          font-weight: 900;
+        }
+
+        .mobile-legends-success-icon.pending {
+          background: #b7791f;
+        }
+
+        .mobile-legends-success-section h2 {
+          margin: 0;
+          font-size: 21px;
+        }
+
+        .mobile-legends-success-section p {
+          margin: 8px 0;
+          color: #cfcfcf;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        .mobile-legends-order-number {
+          margin-top: 10px;
+          padding: 12px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .mobile-legends-order-number span {
+          display: block;
+          color: #999;
+          font-size: 11px;
+        }
+
+        .mobile-legends-order-number strong {
+          display: block;
+          margin-top: 4px;
+          font-size: 15px;
+          word-break: break-word;
+        }
+
+        .mobile-legends-review-button {
+          margin-top: 13px;
+          background: #19a957;
+          color: #fff;
+        }
+
+        .mobile-legends-store-button {
+          margin-top: 8px;
+          background: rgba(255, 255, 255, 0.1);
+          color: #fff;
+        }
+
+        .mobile-legends-service-info {
+          margin-top: 18px;
+          padding: 16px;
+          border-radius: 14px;
+          background: rgba(0, 0, 0, 0.72);
+          border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .mobile-legends-service-info h3 {
+          margin: 0 0 8px;
+          font-size: 14px;
+        }
+
+        .mobile-legends-service-info p {
+          margin: 6px 0;
+          color: #999;
+          font-size: 11px;
+          line-height: 1.5;
+        }
+
+        .mobile-legends-footer {
+          padding: 25px 12px 5px;
+          color: #777;
+          font-size: 11px;
+          text-align: center;
+        }
+
+        @media (max-width: 480px) {
+          .mobile-legends-banner img {
+            height: 185px;
           }
 
-          .game-icon {
-            width: 55px;
-            height: 55px;
-            font-size: 29px;
+          .mobile-legends-offer {
+            min-height: 64px;
           }
 
-          .offer-card {
-            padding: 13px 10px;
+          .mobile-legends-banner-text strong {
+            font-size: 22px;
           }
         }
       `}</style>
