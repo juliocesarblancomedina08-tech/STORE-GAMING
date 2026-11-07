@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 const ADMIN_EMAIL =
   "juliocesarblancomedina08@gmail.com";
 
@@ -60,26 +63,19 @@ function getSupabaseClients() {
   };
 }
 
-export async function GET(
-  request: NextRequest
-) {
+export async function GET(request: NextRequest) {
   try {
     const authorization =
       request.headers.get("authorization");
 
     if (!authorization?.startsWith("Bearer ")) {
       return NextResponse.json(
-        {
-          error: "No autorizado.",
-        },
-        {
-          status: 401,
-        }
+        { error: "No autorizado." },
+        { status: 401 }
       );
     }
 
-    const token =
-      authorization.substring(7);
+    const token = authorization.substring(7);
 
     const {
       supabaseAuth,
@@ -89,8 +85,7 @@ export async function GET(
     const {
       data: { user },
       error: userError,
-    } =
-      await supabaseAuth.auth.getUser(token);
+    } = await supabaseAuth.auth.getUser(token);
 
     if (userError || !user) {
       console.error(
@@ -99,12 +94,8 @@ export async function GET(
       );
 
       return NextResponse.json(
-        {
-          error: "Sesión inválida.",
-        },
-        {
-          status: 401,
-        }
+        { error: "Sesión inválida." },
+        { status: 401 }
       );
     }
 
@@ -117,9 +108,7 @@ export async function GET(
           error:
             "No tienes permisos de administrador.",
         },
-        {
-          status: 403,
-        }
+        { status: 403 }
       );
     }
 
@@ -129,19 +118,13 @@ export async function GET(
     const view =
       searchParams.get("view") || "pending";
 
-    /*
-     * PENDIENTES
-     *
-     * Solo depósitos PENDING.
-     */
     if (view === "pending") {
       const {
         data: deposits,
         error: depositsError,
       } = await supabaseAdmin
         .from("deposits")
-        .select(
-          `
+        .select(`
           id,
           user_id,
           username,
@@ -157,8 +140,7 @@ export async function GET(
           confirmed_at,
           credited_at,
           expires_at
-          `
-        )
+        `)
         .eq("status", "PENDING")
         .order("created_at", {
           ascending: false,
@@ -175,39 +157,28 @@ export async function GET(
             error:
               "No se pudieron cargar los depósitos.",
           },
-          {
-            status: 500,
-          }
+          { status: 500 }
         );
       }
 
       const formattedDeposits =
-        (deposits || []).map(
-          (deposit) => ({
-            ...deposit,
-            address:
-              deposit.wallet_address,
-          })
-        );
+        (deposits || []).map((deposit) => ({
+          ...deposit,
+          address: deposit.wallet_address,
+        }));
 
       return NextResponse.json({
         deposits: formattedDeposits,
       });
     }
 
-    /*
-     * HISTORIAL
-     *
-     * Todo lo que ya no está PENDING.
-     */
     if (view === "history") {
       const {
         data: deposits,
         error: depositsError,
       } = await supabaseAdmin
         .from("deposits")
-        .select(
-          `
+        .select(`
           id,
           user_id,
           username,
@@ -223,8 +194,7 @@ export async function GET(
           confirmed_at,
           credited_at,
           expires_at
-          `
-        )
+        `)
         .neq("status", "PENDING")
         .order("created_at", {
           ascending: false,
@@ -241,20 +211,15 @@ export async function GET(
             error:
               "No se pudo cargar el historial.",
           },
-          {
-            status: 500,
-          }
+          { status: 500 }
         );
       }
 
       const formattedDeposits =
-        (deposits || []).map(
-          (deposit) => ({
-            ...deposit,
-            address:
-              deposit.wallet_address,
-          })
-        );
+        (deposits || []).map((deposit) => ({
+          ...deposit,
+          address: deposit.wallet_address,
+        }));
 
       return NextResponse.json({
         deposits: formattedDeposits,
@@ -262,12 +227,8 @@ export async function GET(
     }
 
     return NextResponse.json(
-      {
-        error: "Vista inválida.",
-      },
-      {
-        status: 400,
-      }
+      { error: "Vista inválida." },
+      { status: 400 }
     );
   } catch (error) {
     console.error(
@@ -282,9 +243,7 @@ export async function GET(
             ? error.message
             : "Error interno del servidor.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
-        }
+}
