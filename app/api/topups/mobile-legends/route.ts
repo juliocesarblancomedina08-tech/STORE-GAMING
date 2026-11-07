@@ -23,6 +23,13 @@ type Offer = {
   supplierPrice: number;
 };
 
+type ExistingOrder = {
+  id: string;
+  status: string;
+  supplier_order_id: string | null;
+  retail_price: number | null;
+};
+
 const OFFERS: Offer[] = [
   { id: "51_5_diamonds", name: "51 + 5 Diamonds", supplierPrice: 0.8665 },
   { id: "weekly_diamond_pass", name: "Weekly Diamond Pass", supplierPrice: 1.7430 },
@@ -37,10 +44,7 @@ const OFFERS: Offer[] = [
 ];
 
 function jsonError(message: string, status = 400) {
-  return NextResponse.json(
-    { ok: false, error: message },
-    { status }
-  );
+  return NextResponse.json({ ok: false, error: message }, { status });
 }
 
 function calculatePrice(supplierPrice: number, vip: boolean) {
@@ -94,10 +98,7 @@ async function authenticate(request: NextRequest) {
   } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !user) {
-    return {
-      user: null,
-      error: "Sesión inválida o expirada.",
-    };
+    return { user: null, error: "Sesión inválida o expirada." };
   }
 
   return { user, error: null };
@@ -121,9 +122,6 @@ async function getVipStatus(userId: string) {
   return Number.isFinite(expiration) && expiration > Date.now();
 }
 
-/*
- * GET: catálogo y precios según el usuario.
- */
 export async function GET(request: NextRequest) {
   try {
     const { user, error } = await authenticate(request);
@@ -138,10 +136,7 @@ export async function GET(request: NextRequest) {
       offer_id: offer.id,
       name: offer.name,
       supplier_price: offer.supplierPrice,
-      retail_price: calculatePrice(
-        offer.supplierPrice,
-        vipActive
-      ),
+      retail_price: calculatePrice(offer.supplierPrice, vipActive),
       vip_active: vipActive,
     }));
 
@@ -159,20 +154,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("ERROR CATÁLOGO MOBILE LEGENDS:", error);
-
-    return jsonError(
-      "No se pudo cargar el catálogo.",
-      500
-    );
+    return jsonError("No se pudo cargar el catálogo.", 500);
   }
 }
 
-/*
- * POST: crear y procesar una compra.
- */
 export async function POST(request: NextRequest) {
   let internalOrderId: string | null = null;
-  let reserved = false;
 
   try {
     const { user, error } = await authenticate(request);
@@ -182,29 +169,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (!process.env.FAZERCARDS_API_KEY) {
-      return jsonError(
-        "El servicio de recargas no está configurado.",
-        500
-      );
+      return jsonError("El servicio de recargas no está configurado.", 500);
     }
 
     const body = await request.json();
 
     const offerId =
-      typeof body?.offerId === "string"
-        ? body.offerId.trim()
-        : "";
-
+      typeof body?.offerId === "string" ? body.offerId.trim() : "";
     const playerId =
-      typeof body?.playerId === "string"
-        ? body.playerId.trim()
-        : "";
-
+      typeof body?.playerId === "string" ? body.playerId.trim() : "";
     const serverId =
-      typeof body?.serverId === "string"
-        ? body.serverId.trim()
-        : "";
-
+      typeof body?.serverId === "string" ? body.serverId.trim() : "";
     const idempotencyKey =
       typeof body?.idempotencyKey === "string"
         ? body.idempotencyKey.trim()
@@ -212,29 +187,18 @@ export async function POST(request: NextRequest) {
 
     const offer = getOffer(offerId);
 
-    if (!offer) {
-      return jsonError("La oferta seleccionada no existe.");
-    }
-
+    if (!offer) return jsonError("La oferta seleccionada no existe.");
     if (!/^[0-9]{3,20}$/.test(playerId)) {
       return jsonError("El Player ID no es válido.");
     }
-
     if (!/^[0-9]{1,20}$/.test(serverId)) {
       return jsonError("El Server ID no es válido.");
     }
-
-    if (
-      !idempotencyKey ||
-      idempotencyKey.length > 150
-    ) {
+    if (!idempotencyKey || idempotencyKey.length > 150) {
       return jsonError("Falta la clave de seguridad del pedido.");
     }
 
-    /*
-     * Comprobar si el pedido ya existe.
-     */
-    const { data: existingOrder, error: existingError } =
+    const { data: existingOrderData, error: existingError } =
       await supabaseAdmin
         .from("topup_orders")
         .select("id,status,supplier_order_id,retail_price")
@@ -247,6 +211,9 @@ export async function POST(request: NextRequest) {
       return jsonError("No se pudo comprobar el pedido.", 500);
     }
 
+    const existingOrder =
+      existingOrderData as unknown as ExistingOrder | null;
+
     if (existingOrder) {
       return NextResponse.json({
         ok: true,
@@ -258,24 +225,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    /*
-     * Precio calculado exclusivamente en el servidor.
-     */
     const vipActive = await getVipStatus(user.id);
     const supplierPrice = offer.supplierPrice;
-    const retailPrice = calculatePrice(
-      supplierPrice,
-      vipActive
-    );
+    const retailPrice = calculatePrice(supplierPrice, vipActive);
 
     const username =
       user.user_metadata?.username ??
       user.user_metadata?.user_name ??
       null;
 
-    /*
-     * Crear registro interno.
-     */
     const { data: insertedOrder, error: insertError } =
       await supabaseAdmin
         .from("topup_orders")
@@ -309,9 +267,6 @@ export async function POST(request: NextRequest) {
 
     internalOrderId = insertedOrder.id;
 
-    /*
-     * Reservar el saldo.
-     */
     const { error: reserveError } = await supabaseAdmin.rpc(
       "reserve_topup_balance",
       {
@@ -331,23 +286,13 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", internalOrderId);
 
-      if (
-        reserveError.message?.toLowerCase().includes("saldo")
-      ) {
+      if (reserveError.message?.toLowerCase().includes("saldo")) {
         return jsonError("SALDO INSUFICIENTE.", 400);
       }
 
-      return jsonError(
-        "No se pudo reservar el saldo.",
-        400
-      );
+      return jsonError("No se pudo reservar el saldo.", 400);
     }
 
-    reserved = true;
-
-    /*
-     * Enviar pedido a FazerCards.
-     */
     let supplierResponse: Response;
 
     try {
@@ -374,10 +319,6 @@ export async function POST(request: NextRequest) {
         }
       );
     } catch (networkError) {
-      /*
-       * Resultado incierto: no devolver saldo automáticamente.
-       * El proveedor podría haber recibido el pedido.
-       */
       console.error("ERROR DE RED FAZERCARDS:", networkError);
 
       await supabaseAdmin
@@ -405,9 +346,7 @@ export async function POST(request: NextRequest) {
     let supplierData: any = {};
 
     try {
-      supplierData = supplierText
-        ? JSON.parse(supplierText)
-        : {};
+      supplierData = supplierText ? JSON.parse(supplierText) : {};
     } catch {
       supplierData = { raw: supplierText };
     }
@@ -433,9 +372,6 @@ export async function POST(request: NextRequest) {
       supplierData
     );
 
-    /*
-     * Si el proveedor confirma un rechazo, devolver el saldo.
-     */
     if (isRejectedSupplierStatus(supplierStatus)) {
       await supabaseAdmin
         .from("topup_orders")
@@ -455,8 +391,6 @@ export async function POST(request: NextRequest) {
 
       if (refundError) {
         console.error("ERROR DEVOLVIENDO SALDO:", refundError);
-      } else {
-        reserved = false;
       }
 
       return NextResponse.json(
@@ -470,14 +404,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    /*
-     * Sin confirmación clara: mantener el pedido pendiente.
-     */
-    if (
-      !supplierResponse.ok ||
-      !supplierOrderId ||
-      !supplierStatus
-    ) {
+    if (!supplierResponse.ok || !supplierOrderId || !supplierStatus) {
       await supabaseAdmin
         .from("topup_orders")
         .update({
@@ -501,9 +428,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    /*
-     * Guardar estado confirmado.
-     */
     if (isSuccessfulSupplierStatus(supplierStatus)) {
       const { error: completeError } = await supabaseAdmin.rpc(
         "complete_topup_order",
@@ -514,8 +438,6 @@ export async function POST(request: NextRequest) {
 
       if (completeError) {
         console.error("ERROR COMPLETANDO ORDEN:", completeError);
-      } else {
-        reserved = false;
       }
 
       return NextResponse.json({
@@ -554,10 +476,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("ERROR MOBILE LEGENDS US:", error);
 
-    /*
-     * No se reembolsa automáticamente en un error inesperado
-     * después de enviar el pedido al proveedor.
-     */
     if (internalOrderId) {
       await supabaseAdmin
         .from("topup_orders")
