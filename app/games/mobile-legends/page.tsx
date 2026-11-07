@@ -8,13 +8,7 @@ import {
 } from "react";
 
 import { useRouter } from "next/navigation";
-
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "../../../lib/supabase";
 
 type Offer = {
   id: string;
@@ -46,18 +40,24 @@ export default function MobileLegendsPage() {
 
   const [showOffers, setShowOffers] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+
   const [playerId, setPlayerId] = useState("");
   const [serverId, setServerId] = useState("");
+
   const [error, setError] = useState("");
+
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [orderCreated, setOrderCreated] = useState(false);
+
   const [orderNumber, setOrderNumber] = useState("");
   const [supplierOrderId, setSupplierOrderId] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
+
   const [processing, setProcessing] = useState(false);
 
+  // Consultar el VIP del usuario autenticado.
   useEffect(() => {
-    let active = true;
+    let cancelled = false;
 
     async function checkVip() {
       try {
@@ -66,63 +66,77 @@ export default function MobileLegendsPage() {
         } = await supabase.auth.getSession();
 
         if (!session?.user) {
-          if (active) setVipActive(false);
+          if (!cancelled) setVipActive(false);
           return;
         }
 
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("vip_expires_at")
-          .eq("id", session.user.id)
-          .maybeSingle();
+        const { data: profile, error: profileError } =
+          await supabase
+            .from("profiles")
+            .select("vip_expires_at")
+            .eq("id", session.user.id)
+            .maybeSingle();
 
-        if (error) {
-          console.error("ERROR CONSULTANDO VIP:", error);
-          if (active) setVipActive(false);
+        if (cancelled) return;
+
+        if (profileError) {
+          console.error("ERROR CONSULTANDO VIP:", profileError);
+          setVipActive(false);
           return;
         }
 
-        const expiresAt = data?.vip_expires_at
-          ? new Date(data.vip_expires_at).getTime()
+        const expiration = profile?.vip_expires_at
+          ? new Date(profile.vip_expires_at).getTime()
           : 0;
 
-        if (active) {
-          setVipActive(expiresAt > Date.now());
-        }
+        setVipActive(
+          Number.isFinite(expiration) &&
+            expiration > Date.now()
+        );
       } catch (err) {
         console.error("ERROR VERIFICANDO VIP:", err);
-        if (active) setVipActive(false);
+
+        if (!cancelled) {
+          setVipActive(false);
+        }
       } finally {
-        if (active) setVipLoading(false);
+        if (!cancelled) {
+          setVipLoading(false);
+        }
       }
     }
 
-    checkVip();
+    void checkVip();
 
     return () => {
-      active = false;
+      cancelled = true;
     };
   }, []);
 
+  // Calcular el precio que corresponde mostrar.
   function getOfferPrice(offer: Offer): number {
-    if (vipActive) {
-      return Number(
-        (offer.supplierPrice + VIP_MARKUP).toFixed(2)
-      );
+    if (!vipActive) {
+      return offer.price;
     }
 
-    return offer.price;
+    return Number(
+      (offer.supplierPrice + VIP_MARKUP).toFixed(4)
+    );
   }
 
   function formatPrice(offer: Offer): string {
-    return `$${getOfferPrice(offer).toFixed(2)}`;
+    return vipActive
+      ? `${getOfferPrice(offer).toFixed(4)}$`
+      : `${getOfferPrice(offer).toFixed(2)}$`;
   }
 
   function selectOffer(offer: Offer) {
     setSelectedOffer(offer);
+
     setError("");
     setShowConfirmation(false);
     setOrderCreated(false);
+
     setOrderNumber("");
     setSupplierOrderId("");
     setOrderStatus("");
@@ -137,14 +151,18 @@ export default function MobileLegendsPage() {
     }, 100);
   }
 
+  // Validar los datos antes de mostrar la confirmación.
   function handleFinishPurchase(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
+    if (processing) return;
+
     setError("");
 
-    const cleanPlayerId = playerId.trim();
-    const cleanServerId = serverId.trim();
+    const cleanPlayerId = playerId.trim().replace(/\s+/g, "");
+    const cleanServerId = serverId.trim().replace(/\s+/g, "");
 
     if (!selectedOffer) {
       setError("Seleccione una oferta.");
@@ -157,11 +175,16 @@ export default function MobileLegendsPage() {
     }
 
     if (!/^[0-9]+$/.test(cleanPlayerId)) {
-      setError("El ID del jugador debe contener solamente números.");
+      setError(
+        "El ID del jugador debe contener solamente números."
+      );
       return;
     }
 
-    if (cleanPlayerId.length < 3 || cleanPlayerId.length > 20) {
+    if (
+      cleanPlayerId.length < 3 ||
+      cleanPlayerId.length > 20
+    ) {
       setError("El ID del jugador no es válido.");
       return;
     }
@@ -172,7 +195,9 @@ export default function MobileLegendsPage() {
     }
 
     if (!/^[0-9]+$/.test(cleanServerId)) {
-      setError("El ID del servidor debe contener solamente números.");
+      setError(
+        "El ID del servidor debe contener solamente números."
+      );
       return;
     }
 
@@ -186,9 +211,9 @@ export default function MobileLegendsPage() {
     setShowConfirmation(true);
   }
 
+  // Crear la orden mediante la API del servidor.
   async function createOrder() {
-    if (!selectedOffer) {
-      setError("Seleccione una oferta.");
+    if (!selectedOffer || processing) {
       return;
     }
 
@@ -198,12 +223,23 @@ export default function MobileLegendsPage() {
     try {
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (!session?.access_token) {
+      if (sessionError || !session?.user) {
         setError(
           "Su sesión ha expirado. Inicie sesión nuevamente."
         );
+
+        router.replace("/");
+        return;
+      }
+
+      const cleanPlayerId = playerId.trim();
+      const cleanServerId = serverId.trim();
+
+      if (!cleanPlayerId || !cleanServerId) {
+        setError("Compruebe el ID del jugador y del servidor.");
         return;
       }
 
@@ -219,24 +255,50 @@ export default function MobileLegendsPage() {
           },
           body: JSON.stringify({
             offerId: selectedOffer.id,
-            playerId: playerId.trim(),
-            serverId: serverId.trim(),
+            playerId: cleanPlayerId,
+            serverId: cleanServerId,
             idempotencyKey,
           }),
         }
       );
 
-      const data = await response.json();
+      let data: any = {};
 
-      if (!response.ok || !data?.ok) {
-        throw new Error(
-          data?.error || "No se pudo crear la orden."
-        );
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
       }
 
-      setOrderNumber(data.orderNumber || "");
-      setSupplierOrderId(data.supplierOrderId || "");
-      setOrderStatus(data.status || "SUPPLIER_PENDING");
+      if (!response.ok || !data?.ok) {
+        setError(
+          data?.error || "No se pudo crear la orden."
+        );
+        return;
+      }
+
+      const order = data.order || {};
+
+      setOrderNumber(
+        data.orderNumber ||
+          order.order_number ||
+          order.id ||
+          data.id ||
+          ""
+      );
+
+      setSupplierOrderId(
+        data.supplierOrderId ||
+          order.supplier_order_id ||
+          ""
+      );
+
+      setOrderStatus(
+        data.status ||
+          order.status ||
+          order.supplier_status ||
+          "processing"
+      );
 
       setOrderCreated(true);
       setShowConfirmation(false);
@@ -256,9 +318,7 @@ export default function MobileLegendsPage() {
       );
 
       setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo crear la orden."
+        "No se pudo conectar con el servidor. Si la compra fue enviada, no vuelva a intentarla hasta revisar el estado de la orden."
       );
     } finally {
       setProcessing(false);
@@ -327,7 +387,10 @@ export default function MobileLegendsPage() {
         <button
           type="button"
           className="mobile-legends-offers-toggle"
-          onClick={() => setShowOffers((value) => !value)}
+          onClick={() => {
+            setShowOffers((value) => !value);
+            setError("");
+          }}
         >
           <span>
             {showOffers
@@ -347,7 +410,7 @@ export default function MobileLegendsPage() {
                 <button
                   type="button"
                   key={offer.id}
-                  disabled={vipLoading}
+                  disabled={vipLoading || processing}
                   className={`mobile-legends-offer ${
                     selectedOffer?.id === offer.id
                       ? "selected"
@@ -384,7 +447,9 @@ export default function MobileLegendsPage() {
               <span>Oferta seleccionada</span>
               <strong>{selectedOffer.name}</strong>
               <b>
-                {vipLoading ? "..." : formatPrice(selectedOffer)}
+                {vipLoading
+                  ? "..."
+                  : formatPrice(selectedOffer)}
               </b>
             </div>
 
@@ -399,13 +464,17 @@ export default function MobileLegendsPage() {
                 className="mobile-legends-order-form"
                 onSubmit={handleFinishPurchase}
               >
-                <label>ID del jugador</label>
+                <label htmlFor="mobile-player-id">
+                  ID del jugador
+                </label>
 
                 <div className="mobile-legends-input-wrapper">
                   <span>👤</span>
                   <input
+                    id="mobile-player-id"
                     type="text"
                     inputMode="numeric"
+                    autoComplete="off"
                     value={playerId}
                     onChange={(event) =>
                       setPlayerId(
@@ -414,16 +483,21 @@ export default function MobileLegendsPage() {
                     }
                     placeholder="Ej: 123456789"
                     maxLength={20}
+                    disabled={processing}
                   />
                 </div>
 
-                <label>ID del servidor</label>
+                <label htmlFor="mobile-server-id">
+                  ID del servidor
+                </label>
 
                 <div className="mobile-legends-input-wrapper">
                   <span>🌐</span>
                   <input
+                    id="mobile-server-id"
                     type="text"
                     inputMode="numeric"
+                    autoComplete="off"
                     value={serverId}
                     onChange={(event) =>
                       setServerId(
@@ -432,12 +506,14 @@ export default function MobileLegendsPage() {
                     }
                     placeholder="Ej: 1234"
                     maxLength={20}
+                    disabled={processing}
                   />
                 </div>
 
                 <button
                   type="submit"
                   className="mobile-legends-create-order-button"
+                  disabled={processing || vipLoading}
                 >
                   CONTINUAR
                 </button>
@@ -467,7 +543,9 @@ export default function MobileLegendsPage() {
                   <div className="mobile-legends-confirmation-total">
                     <span>Total</span>
                     <strong>
-                      {vipLoading ? "..." : formatPrice(selectedOffer)}
+                      {vipLoading
+                        ? "..."
+                        : formatPrice(selectedOffer)}
                     </strong>
                   </div>
 
@@ -504,12 +582,16 @@ export default function MobileLegendsPage() {
                 </div>
 
                 <h2>Orden creada</h2>
-                <p>Tu pedido fue enviado correctamente.</p>
+                <p>
+                  Tu pedido fue enviado correctamente.
+                </p>
 
-                <div className="mobile-legends-order-number">
-                  <span>Número de orden</span>
-                  <strong>{orderNumber}</strong>
-                </div>
+                {orderNumber && (
+                  <div className="mobile-legends-order-number">
+                    <span>Número de orden</span>
+                    <strong>{orderNumber}</strong>
+                  </div>
+                )}
 
                 {supplierOrderId && (
                   <div className="mobile-legends-order-number">
