@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 // ======================================================
 // VARIABLES DE ENTORNO
 // ======================================================
@@ -40,17 +43,9 @@ const USDT_DECIMALS = 18;
 // CONFIGURACIÓN DEL DETECTOR
 // ======================================================
 
-// BSC tiene un tiempo de bloque aproximado de 3 segundos.
-// 800 bloques cubren aproximadamente 40 minutos.
-//
-// Esto es intencionalmente mayor que los 10 minutos
-// de duración de un depósito.
 const BLOCK_LOOKBACK = 800;
-
-// Exigimos al menos 2 confirmaciones.
 const MIN_CONFIRMATIONS = 2;
 
-// Evento ERC-20 Transfer(address,address,uint256)
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
@@ -151,9 +146,11 @@ type ProcessResult = {
 function isAuthorized(
   request: NextRequest
 ): boolean {
-  // El secreto solo se lee desde Vercel. Nunca se imprime en los logs.
-  const secret = process.env.CRON_SECRET?.trim() ?? "";
-  const authorization = request.headers.get("authorization")?.trim() ?? "";
+  const secret =
+    process.env.CRON_SECRET?.trim() ?? "";
+
+  const authorization =
+    request.headers.get("authorization")?.trim() ?? "";
 
   const parts = authorization.split(/\s+/);
   const scheme = parts[0]?.toLowerCase() ?? "";
@@ -161,10 +158,16 @@ function isAuthorized(
 
   const hasSecret = secret.length > 0;
   const hasAuthorization = authorization.length > 0;
-  const secretMatches = hasSecret && providedSecret.length > 0 && providedSecret === secret;
-  const authorized = scheme === "bearer" && secretMatches;
 
-  // Diagnóstico seguro: no registra el secreto ni el encabezado completo.
+  const secretMatches =
+    hasSecret &&
+    providedSecret.length > 0 &&
+    providedSecret === secret;
+
+  const authorized =
+    scheme === "bearer" &&
+    secretMatches;
+
   console.log("CRON DEBUG:", {
     hasSecret,
     secretLength: secret.length,
@@ -184,15 +187,13 @@ function isAuthorized(
 function normalizeAddress(
   address: string | null | undefined
 ): string {
-  return (
-    address ?? ""
-  )
+  return (address ?? "")
     .trim()
     .toLowerCase();
 }
 
 // ======================================================
-// PADDEAR DIRECCIÓN PARA TOPIC
+// PONER DIRECCIÓN EN FORMATO TOPIC
 // ======================================================
 
 function addressToTopic(
@@ -204,19 +205,13 @@ function addressToTopic(
       .toLowerCase()
       .replace(/^0x/, "");
 
-  if (
-    !/^[0-9a-f]{40}$/.test(clean)
-  ) {
+  if (!/^[0-9a-f]{40}$/.test(clean)) {
     throw new Error(
       "DIRECCIÓN BSC INVÁLIDA"
     );
   }
 
-  return (
-    "0x" +
-    "0".repeat(24) +
-    clean
-  );
+  return "0x" + "0".repeat(24) + clean;
 }
 
 // ======================================================
@@ -226,53 +221,34 @@ function addressToTopic(
 function usdtToRaw(
   amount: number | string
 ): string {
-  const text =
-    String(amount).trim();
+  const text = String(amount).trim();
 
-  if (
-    !/^\d+(\.\d+)?$/.test(text)
-  ) {
+  if (!/^\d+(\.\d+)?$/.test(text)) {
     throw new Error(
       `CANTIDAD USDT INVÁLIDA: ${text}`
     );
   }
 
-  const parts =
-    text.split(".");
+  const parts = text.split(".");
 
-  const whole =
-    parts[0] ?? "0";
+  const whole = parts[0] ?? "0";
+  const fraction = parts[1] ?? "";
 
-  const fraction =
-    parts[1] ?? "";
-
-  if (
-    fraction.length >
-    USDT_DECIMALS
-  ) {
+  if (fraction.length > USDT_DECIMALS) {
     throw new Error(
       "LA CANTIDAD TIENE DEMASIADOS DECIMALES"
     );
   }
 
-  const paddedFraction =
-    (
-      fraction +
-      "0".repeat(
-        USDT_DECIMALS
-      )
-    ).slice(
-      0,
-      USDT_DECIMALS
-    );
+  const paddedFraction = (
+    fraction +
+    "0".repeat(USDT_DECIMALS)
+  ).slice(0, USDT_DECIMALS);
 
   const rawText =
-    whole +
-    paddedFraction;
+    whole + paddedFraction;
 
-  return BigInt(
-    rawText || "0"
-  ).toString();
+  return BigInt(rawText || "0").toString();
 }
 
 // ======================================================
@@ -289,27 +265,22 @@ async function rpcCall<T>(
     );
   }
 
-  const response =
-    await fetch(
-      BSC_RPC_URL,
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method,
-          params,
-        }),
-
-        cache: "no-store",
-      }
-    );
+  const response = await fetch(
+    BSC_RPC_URL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method,
+        params,
+      }),
+      cache: "no-store",
+    }
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -329,9 +300,7 @@ async function rpcCall<T>(
     );
   }
 
-  if (
-    data.result === undefined
-  ) {
+  if (data.result === undefined) {
     throw new Error(
       "ANKR RPC NO DEVOLVIÓ RESULTADO"
     );
@@ -351,9 +320,7 @@ async function getLatestBlockNumber(): Promise<number> {
       []
     );
 
-  return Number(
-    BigInt(blockHex)
-  );
+  return Number(BigInt(blockHex));
 }
 
 // ======================================================
@@ -364,8 +331,7 @@ async function getBlockByNumber(
   blockNumber: number
 ): Promise<RpcBlock | null> {
   const blockHex =
-    "0x" +
-    blockNumber.toString(16);
+    "0x" + blockNumber.toString(16);
 
   return rpcCall<RpcBlock | null>(
     "eth_getBlockByNumber",
@@ -385,9 +351,7 @@ async function getTransactionReceipt(
 ): Promise<RpcReceipt | null> {
   return rpcCall<RpcReceipt | null>(
     "eth_getTransactionReceipt",
-    [
-      txHash,
-    ]
+    [txHash]
   );
 }
 
@@ -398,38 +362,28 @@ async function getTransactionReceipt(
 async function getBep20Transfers(
   deposits: Deposit[]
 ): Promise<Bep20Transfer[]> {
-  if (
-    deposits.length === 0
-  ) {
+  if (deposits.length === 0) {
     return [];
   }
 
   const latestBlock =
     await getLatestBlockNumber();
 
-  const fromBlock =
-    Math.max(
-      0,
-      latestBlock -
-        BLOCK_LOOKBACK
-    );
+  const fromBlock = Math.max(
+    0,
+    latestBlock - BLOCK_LOOKBACK
+  );
 
-  // Cantidades que estamos esperando.
   const expectedAmounts =
     new Set<string>();
 
-  for (
-    const deposit of deposits
-  ) {
+  for (const deposit of deposits) {
     try {
       expectedAmounts.add(
-        usdtToRaw(
-          deposit.amount
-        )
+        usdtToRaw(deposit.amount)
       );
     } catch {
-      // Si una cantidad está corrupta,
-      // no detenemos todo el detector.
+      // Una cantidad incorrecta no detiene el detector.
     }
   }
 
@@ -443,60 +397,39 @@ async function getBep20Transfers(
       [
         {
           fromBlock:
-            "0x" +
-            fromBlock.toString(16),
+            "0x" + fromBlock.toString(16),
 
           toBlock:
-            "0x" +
-            latestBlock.toString(16),
+            "0x" + latestBlock.toString(16),
 
-          address:
-            USDT_CONTRACT,
+          address: USDT_CONTRACT,
 
           topics: [
             TRANSFER_TOPIC,
-
             null,
-
-            addressToTopic(
-              RECEIVING_WALLET
-            ),
+            addressToTopic(RECEIVING_WALLET),
           ],
         },
       ]
     );
 
-  const transfers:
-    Bep20Transfer[] = [];
+  const transfers: Bep20Transfer[] = [];
 
   // ====================================================
   // PROCESAR LOGS
   // ====================================================
 
-  for (
-    const log of logs
-  ) {
+  for (const log of logs) {
     try {
-      if (
-        log.removed
-      ) {
+      if (log.removed) {
         continue;
       }
 
-      const txHash =
-        log.transactionHash;
-
-      const blockHex =
-        log.blockNumber;
-
-      const contractAddress =
-        log.address;
-
-      const topics =
-        log.topics ?? [];
-
-      const data =
-        log.data;
+      const txHash = log.transactionHash;
+      const blockHex = log.blockNumber;
+      const contractAddress = log.address;
+      const topics = log.topics ?? [];
+      const data = log.data;
 
       if (
         !txHash ||
@@ -507,207 +440,126 @@ async function getBep20Transfers(
         continue;
       }
 
+      if (topics.length < 3) {
+        continue;
+      }
+
       if (
-        topics.length < 3
+        normalizeAddress(contractAddress) !==
+        normalizeAddress(USDT_CONTRACT)
       ) {
         continue;
       }
 
       if (
-        normalizeAddress(
-          contractAddress
-        ) !==
-        normalizeAddress(
-          USDT_CONTRACT
-        )
+        normalizeAddress(topics[0]) !==
+        normalizeAddress(TRANSFER_TOPIC)
       ) {
         continue;
       }
 
-      if (
-        normalizeAddress(
-          topics[0]
-        ) !==
-        normalizeAddress(
-          TRANSFER_TOPIC
-        )
-      ) {
-        continue;
-      }
-
-      // ================================================
       // FROM
-      // ================================================
 
-      const fromTopic =
-        topics[1];
+      const fromTopic = topics[1];
 
-      if (
-        !fromTopic ||
-        fromTopic.length < 42
-      ) {
+      if (!fromTopic || fromTopic.length < 42) {
         continue;
       }
 
       const from =
         "0x" +
-        fromTopic
-          .slice(-40)
-          .toLowerCase();
+        fromTopic.slice(-40).toLowerCase();
 
-      // ================================================
       // TO
-      // ================================================
 
-      const toTopic =
-        topics[2];
+      const toTopic = topics[2];
 
-      if (
-        !toTopic ||
-        toTopic.length < 42
-      ) {
+      if (!toTopic || toTopic.length < 42) {
         continue;
       }
 
       const to =
         "0x" +
-        toTopic
-          .slice(-40)
-          .toLowerCase();
+        toTopic.slice(-40).toLowerCase();
 
       if (
         normalizeAddress(to) !==
-        normalizeAddress(
-          RECEIVING_WALLET
-        )
+        normalizeAddress(RECEIVING_WALLET)
       ) {
         continue;
       }
 
-      // ================================================
       // VALOR RAW
-      // ================================================
 
       let rawValue: string;
 
       try {
-        rawValue =
-          BigInt(data).toString();
+        rawValue = BigInt(data).toString();
       } catch {
         continue;
       }
 
-      // Solo seguimos si la cantidad
-      // coincide con algún depósito pendiente.
-      if (
-        !expectedAmounts.has(
-          rawValue
-        )
-      ) {
+      if (!expectedAmounts.has(rawValue)) {
         continue;
       }
 
       const blockNumber =
-        Number(
-          BigInt(blockHex)
-        );
+        Number(BigInt(blockHex));
 
-      // ================================================
       // BLOQUE DE LA TRANSFERENCIA
-      // ================================================
 
       const block =
-        await getBlockByNumber(
-          blockNumber
-        );
+        await getBlockByNumber(blockNumber);
 
-      if (
-        !block ||
-        !block.timestamp
-      ) {
+      if (!block || !block.timestamp) {
         continue;
       }
 
       const timestamp =
-        Number(
-          BigInt(
-            block.timestamp
-          )
-        ) * 1000;
+        Number(BigInt(block.timestamp)) * 1000;
 
-      // ================================================
       // RECEIPT
-      // ================================================
 
       const receipt =
-        await getTransactionReceipt(
-          txHash
-        );
+        await getTransactionReceipt(txHash);
 
       if (!receipt) {
         continue;
       }
 
       const successful =
-        normalizeAddress(
-          receipt.status
-        ) === "0x1";
+        normalizeAddress(receipt.status) === "0x1";
 
       if (!successful) {
         continue;
       }
 
-      // El receipt debe corresponder
-      // al mismo bloque del log.
-      if (
-        receipt.blockNumber
-      ) {
+      if (receipt.blockNumber) {
         const receiptBlock =
-          Number(
-            BigInt(
-              receipt.blockNumber
-            )
-          );
+          Number(BigInt(receipt.blockNumber));
 
-        if (
-          receiptBlock !==
-          blockNumber
-        ) {
+        if (receiptBlock !== blockNumber) {
           continue;
         }
       }
 
-      // ================================================
       // CONFIRMACIONES
-      // ================================================
 
       const confirmations =
-        latestBlock -
-        blockNumber +
-        1;
+        latestBlock - blockNumber + 1;
 
       transfers.push({
         hash: txHash,
-
         blockNumber,
-
         timestamp,
-
         from,
-
         to,
-
         contractAddress,
-
         rawValue,
-
         confirmations,
-
         successful,
       });
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.error(
         "ERROR PROCESANDO LOG BEP20:",
         error
@@ -723,13 +575,9 @@ async function getBep20Transfers(
 // ======================================================
 
 async function expireDeposits(): Promise<number> {
-  const now =
-    new Date().toISOString();
+  const now = new Date().toISOString();
 
-  const {
-    data,
-    error,
-  } =
+  const { data, error } =
     await supabaseAdmin
       .from("deposits")
       .update({
@@ -745,9 +593,7 @@ async function expireDeposits(): Promise<number> {
     );
   }
 
-  return (
-    data?.length ?? 0
-  );
+  return data?.length ?? 0;
 }
 
 // ======================================================
@@ -755,21 +601,15 @@ async function expireDeposits(): Promise<number> {
 // ======================================================
 
 async function getPendingDeposits(): Promise<Deposit[]> {
-  const {
-    data,
-    error,
-  } =
+  const { data, error } =
     await supabaseAdmin
       .from("deposits")
       .select("*")
       .eq("status", "PENDING")
       .eq("network", "BEP20")
-      .order(
-        "created_at",
-        {
-          ascending: true,
-        }
-      );
+      .order("created_at", {
+        ascending: true,
+      });
 
   if (error) {
     throw new Error(
@@ -777,9 +617,7 @@ async function getPendingDeposits(): Promise<Deposit[]> {
     );
   }
 
-  return (
-    (data || []) as unknown as Deposit[]
-  );
+  return (data || []) as unknown as Deposit[];
 }
 
 // ======================================================
@@ -790,64 +628,30 @@ function isValidTransfer(
   transfer: Bep20Transfer,
   deposit: Deposit
 ): boolean {
-  // ----------------------------------------------------
-  // WALLET DEL DEPÓSITO
-  // ----------------------------------------------------
-
   if (
-    normalizeAddress(
-      deposit.wallet_address
-    ) !==
-    normalizeAddress(
-      RECEIVING_WALLET
-    )
+    normalizeAddress(deposit.wallet_address) !==
+    normalizeAddress(RECEIVING_WALLET)
   ) {
     return false;
   }
 
-  // ----------------------------------------------------
-  // WALLET DESTINO
-  // ----------------------------------------------------
-
   if (
-    normalizeAddress(
-      transfer.to
-    ) !==
-    normalizeAddress(
-      RECEIVING_WALLET
-    )
+    normalizeAddress(transfer.to) !==
+    normalizeAddress(RECEIVING_WALLET)
   ) {
     return false;
   }
 
-  // ----------------------------------------------------
-  // CONTRATO USDT
-  // ----------------------------------------------------
-
   if (
-    normalizeAddress(
-      transfer.contractAddress
-    ) !==
-    normalizeAddress(
-      USDT_CONTRACT
-    )
+    normalizeAddress(transfer.contractAddress) !==
+    normalizeAddress(USDT_CONTRACT)
   ) {
     return false;
   }
 
-  // ----------------------------------------------------
-  // TRANSFERENCIA EXITOSA
-  // ----------------------------------------------------
-
-  if (
-    !transfer.successful
-  ) {
+  if (!transfer.successful) {
     return false;
   }
-
-  // ----------------------------------------------------
-  // CONFIRMACIONES
-  // ----------------------------------------------------
 
   if (
     transfer.confirmations <
@@ -856,74 +660,36 @@ function isValidTransfer(
     return false;
   }
 
-  // ----------------------------------------------------
-  // CANTIDAD EXACTA
-  // ----------------------------------------------------
-
   let expectedRaw: string;
 
   try {
-    expectedRaw =
-      usdtToRaw(
-        deposit.amount
-      );
+    expectedRaw = usdtToRaw(deposit.amount);
   } catch {
     return false;
   }
 
-  if (
-    transfer.rawValue !==
-    expectedRaw
-  ) {
+  if (transfer.rawValue !== expectedRaw) {
     return false;
   }
-
-  // ----------------------------------------------------
-  // FECHA DE CREACIÓN
-  // ----------------------------------------------------
 
   const createdAt =
-    new Date(
-      deposit.created_at
-    ).getTime();
+    new Date(deposit.created_at).getTime();
 
-  if (
-    !Number.isFinite(
-      createdAt
-    )
-  ) {
+  if (!Number.isFinite(createdAt)) {
     return false;
   }
 
-  // ----------------------------------------------------
-  // FECHA DE EXPIRACIÓN
-  // ----------------------------------------------------
+  const expiresAt = deposit.expires_at
+    ? new Date(deposit.expires_at).getTime()
+    : createdAt + 10 * 60 * 1000;
 
-  const expiresAt =
-    deposit.expires_at
-      ? new Date(
-          deposit.expires_at
-        ).getTime()
-      : createdAt +
-        10 * 60 * 1000;
-
-  if (
-    !Number.isFinite(
-      expiresAt
-    )
-  ) {
+  if (!Number.isFinite(expiresAt)) {
     return false;
   }
 
-  // ----------------------------------------------------
-  // TRANSFERENCIA DENTRO DE LA VENTANA
-  // ----------------------------------------------------
-
   if (
-    transfer.timestamp <
-      createdAt ||
-    transfer.timestamp >
-      expiresAt
+    transfer.timestamp < createdAt ||
+    transfer.timestamp > expiresAt
   ) {
     return false;
   }
@@ -940,52 +706,29 @@ async function confirmDeposit(
   transfer: Bep20Transfer
 ): Promise<ProcessResult> {
   try {
-    const {
-      data,
-      error,
-    } =
+    const { data, error } =
       await supabaseAdmin.rpc(
         "confirm_deposit_chain",
         {
-          p_deposit_id:
-            deposit.id,
-
-          p_tx_hash:
-            transfer.hash,
+          p_deposit_id: deposit.id,
+          p_tx_hash: transfer.hash,
         }
       );
 
     if (error) {
-      throw new Error(
-        error.message
-      );
+      throw new Error(error.message);
     }
 
     return {
-      deposit_id:
-        deposit.id,
-
-      status:
-        "CONFIRMED",
-
-      tx_hash:
-        transfer.hash,
-
-      amount:
-        Number(
-          deposit.amount
-        ),
+      deposit_id: deposit.id,
+      status: "CONFIRMED",
+      tx_hash: transfer.hash,
+      amount: Number(deposit.amount),
     };
-  } catch (
-    error
-  ) {
+  } catch (error) {
     return {
-      deposit_id:
-        deposit.id,
-
-      status:
-        "ERROR",
-
+      deposit_id: deposit.id,
+      status: "ERROR",
       error:
         error instanceof Error
           ? error.message
@@ -1002,65 +745,34 @@ async function processDeposits(
   deposits: Deposit[],
   transfers: Bep20Transfer[]
 ): Promise<ProcessResult[]> {
-  const results:
-    ProcessResult[] = [];
+  const results: ProcessResult[] = [];
 
-  // Transferencias ya utilizadas
-  // durante esta ejecución.
   const usedTransactions =
     new Set<string>();
 
-  // ----------------------------------------------------
-  // CADA DEPÓSITO
-  // ----------------------------------------------------
-
-  for (
-    const deposit of deposits
-  ) {
+  for (const deposit of deposits) {
     const matchingTransfers =
       transfers.filter(
         (transfer) =>
           !usedTransactions.has(
             transfer.hash.toLowerCase()
           ) &&
-          isValidTransfer(
-            transfer,
-            deposit
-          )
+          isValidTransfer(transfer, deposit)
       );
 
-    // --------------------------------------------------
-    // NO ENCONTRADO
-    // --------------------------------------------------
-
-    if (
-      matchingTransfers.length === 0
-    ) {
+    if (matchingTransfers.length === 0) {
       results.push({
-        deposit_id:
-          deposit.id,
-
-        status:
-          "WAITING",
+        deposit_id: deposit.id,
+        status: "WAITING",
       });
 
       continue;
     }
 
-    // --------------------------------------------------
-    // MÁS DE UNA TRANSACCIÓN EXACTA
-    // --------------------------------------------------
-
-    if (
-      matchingTransfers.length > 1
-    ) {
+    if (matchingTransfers.length > 1) {
       results.push({
-        deposit_id:
-          deposit.id,
-
-        status:
-          "MULTIPLE_MATCHES",
-
+        deposit_id: deposit.id,
+        status: "MULTIPLE_MATCHES",
         error:
           "SE ENCONTRARON VARIAS TRANSACCIONES CON LA MISMA CANTIDAD DENTRO DE LA VENTANA DEL DEPÓSITO.",
       });
@@ -1068,26 +780,16 @@ async function processDeposits(
       continue;
     }
 
-    // --------------------------------------------------
-    // CONFIRMAR
-    // --------------------------------------------------
-
-    const transfer =
-      matchingTransfers[0];
+    const transfer = matchingTransfers[0];
 
     usedTransactions.add(
       transfer.hash.toLowerCase()
     );
 
     const result =
-      await confirmDeposit(
-        deposit,
-        transfer
-      );
+      await confirmDeposit(deposit, transfer);
 
-    results.push(
-      result
-    );
+    results.push(result);
   }
 
   return results;
@@ -1101,30 +803,19 @@ export async function GET(
   request: NextRequest
 ) {
   try {
-    // ==================================================
     // AUTORIZACIÓN
-    // ==================================================
 
-    if (
-      !isAuthorized(
-        request
-      )
-    ) {
+    if (!isAuthorized(request)) {
       return NextResponse.json(
         {
           ok: false,
-          error:
-            "NO AUTORIZADO",
+          error: "NO AUTORIZADO",
         },
-        {
-          status: 401,
-        }
+        { status: 401 }
       );
     }
 
-    // ==================================================
     // VERIFICAR CONFIGURACIÓN
-    // ==================================================
 
     if (
       !SUPABASE_URL ||
@@ -1133,78 +824,51 @@ export async function GET(
       return NextResponse.json(
         {
           ok: false,
-          error:
-            "FALTAN VARIABLES DE SUPABASE",
+          error: "FALTAN VARIABLES DE SUPABASE",
         },
-        {
-          status: 500,
-        }
+        { status: 500 }
       );
     }
 
-    if (
-      !ANKR_API_KEY
-    ) {
+    if (!ANKR_API_KEY) {
       return NextResponse.json(
         {
           ok: false,
-          error:
-            "FALTA ANKR_API_KEY",
+          error: "FALTA ANKR_API_KEY",
         },
-        {
-          status: 500,
-        }
+        { status: 500 }
       );
     }
 
-    // ==================================================
     // EXPIRAR DEPÓSITOS
-    // ==================================================
 
     const expired =
       await expireDeposits();
 
-    // ==================================================
     // OBTENER PENDIENTES
-    // ==================================================
 
     const deposits =
       await getPendingDeposits();
 
-    // ==================================================
     // SI NO HAY DEPÓSITOS
-    // ==================================================
 
-    if (
-      deposits.length === 0
-    ) {
+    if (deposits.length === 0) {
       return NextResponse.json({
         ok: true,
-
         expired,
-
         pending: 0,
-
         transfers: 0,
-
         processed: 0,
-
         results: [],
       });
     }
 
-    // ==================================================
     // BUSCAR TRANSFERENCIAS EN BSC
-    // ==================================================
 
     const transfers =
-      await getBep20Transfers(
-        deposits
-      );
+      await getBep20Transfers(deposits);
 
-    // ==================================================
     // PROCESAR
-    // ==================================================
 
     const results =
       await processDeposits(
@@ -1212,33 +876,19 @@ export async function GET(
         transfers
       );
 
-    // ==================================================
     // RESPUESTA
-    // ==================================================
 
     return NextResponse.json({
       ok: true,
-
       expired,
-
-      pending:
-        deposits.length,
-
-      transfers:
-        transfers.length,
-
-      processed:
-        results.filter(
-          (result) =>
-            result.status ===
-            "CONFIRMED"
-        ).length,
-
+      pending: deposits.length,
+      transfers: transfers.length,
+      processed: results.filter(
+        (result) => result.status === "CONFIRMED"
+      ).length,
       results,
     });
-  } catch (
-    error
-  ) {
+  } catch (error) {
     console.error(
       "CHECK BEP20 ERROR:",
       error
@@ -1247,15 +897,12 @@ export async function GET(
     return NextResponse.json(
       {
         ok: false,
-
         error:
           error instanceof Error
             ? error.message
             : "ERROR INTERNO",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
-        }
+}
