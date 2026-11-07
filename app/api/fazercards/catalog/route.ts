@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,227 +11,100 @@ const FAZERCARDS_API = (
 
 const API_KEY = process.env.FAZERCARDS_API_KEY;
 
-const REQUEST_TIMEOUT = 30000;
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return "Error desconocido";
-  }
-}
-
-type JsonObject = Record<string, unknown>;
-
-function isObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null;
-}
-
-function extractArray(
-  data: unknown,
-  possibleKeys: string[]
-): unknown[] {
-  if (Array.isArray(data)) return data;
-
-  if (!isObject(data)) return [];
-
-  for (const key of possibleKeys) {
-    const value = data[key];
-
-    if (Array.isArray(value)) {
-      return value;
-    }
-  }
-
-  return [];
-}
-
-function getString(
-  object: JsonObject,
-  keys: string[]
-): string | null {
-  for (const key of keys) {
-    const value = object[key];
-
-    if (
-      typeof value === "string" ||
-      typeof value === "number"
-    ) {
-      return String(value);
-    }
-  }
-
-  return null;
-}
-
-async function fazerCardsFetch(endpoint: string) {
-  const controller = new AbortController();
-
-  const timer = setTimeout(() => {
-    controller.abort();
-  }, REQUEST_TIMEOUT);
-
-  try {
-    const response = await fetch(
-      `${FAZERCARDS_API}${endpoint}`,
-      {
-        method: "GET",
-        headers: {
-          "X-API-Key": API_KEY!,
-          Accept: "application/json",
-          "User-Agent": "STORE-GAMING/1.0",
-        },
-        cache: "no-store",
-        signal: controller.signal,
-      }
-    );
-
-    const raw = await response.text();
-
-    let data: unknown = null;
-
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      data = null;
-    }
-
-    return {
-      ok: response.ok,
-      status: response.status,
-      data,
-      raw,
-    };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     if (!API_KEY) {
       return NextResponse.json(
         {
           ok: false,
-          supplier: "FazerCards",
-          error: "Falta FAZERCARDS_API_KEY.",
+          error: "Falta FAZERCARDS_API_KEY",
         },
         { status: 500 }
       );
     }
 
-    // Consultar categorías reales de FazerCards.
-    const response = await fazerCardsFetch("/topups");
+    const categoryId =
+      request.nextUrl.searchParams.get("category_id");
 
-    if (!response.ok) {
-      console.error(
-        "[FazerCards Categories Error]",
-        response.status,
-        response.data ?? response.raw
-      );
-
+    if (!categoryId) {
       return NextResponse.json(
         {
           ok: false,
-          supplier: "FazerCards",
-          step: "categories",
-          status: response.status,
-          error:
-            response.data ??
-            response.raw.slice(0, 5000),
+          error: "Debes indicar category_id",
+          example:
+            "/api/fazercards/catalog?category_id=mobile_legends_united_states",
         },
-        { status: 502 }
+        { status: 400 }
       );
     }
 
-    if (response.data === null) {
-      return NextResponse.json(
-        {
-          ok: false,
-          supplier: "FazerCards",
-          error: "FazerCards no devolvió JSON válido.",
-          raw: response.raw.slice(0, 5000),
-        },
-        { status: 502 }
-      );
-    }
-
-    const categories = extractArray(
-      response.data,
-      [
-        "categories",
-        "data",
-        "results",
-        "items",
-        "topups",
-      ]
-    );
-
-    const games = categories
-      .filter(isObject)
-      .map((category) => {
-        const categoryId = getString(category, [
-          "category_id",
-          "categoryId",
-          "id",
-        ]);
-
-        const categoryName = getString(category, [
-          "category_name",
-          "categoryName",
-          "name",
-          "title",
-        ]);
-
-        if (!categoryId || !categoryName) {
-          return null;
-        }
-
-        return {
-          category_id: categoryId,
-          category_name: categoryName,
-        };
-      })
-      .filter(
-        (
-          game
-        ): game is {
-          category_id: string;
-          category_name: string;
-        } => game !== null
-      );
-
-    console.log(
-      "[FazerCards Categories]",
+    const response = await fetch(
+      `${FAZERCARDS_API}/topups`,
       {
-        total: games.length,
+        method: "GET",
+        headers: {
+          "X-API-Key": API_KEY,
+          Accept: "application/json",
+          "User-Agent": "STORE-GAMING/1.0",
+        },
+        cache: "no-store",
       }
     );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          supplier: "FazerCards",
+          status: response.status,
+          error: data,
+        },
+        { status: 502 }
+      );
+    }
+
+    const catalog =
+      data?.data ??
+      data?.catalog ??
+      data;
+
+    const items = Array.isArray(catalog?.items)
+      ? catalog.items
+      : [];
+
+    const game = items.find(
+      (item: any) =>
+        item?.category_id === categoryId
+    );
+
+    if (!game) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Juego no encontrado",
+          category_id: categoryId,
+        },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       ok: true,
       supplier: "FazerCards",
-      total_games: games.length,
-      games,
-
-      // Respuesta original para identificar
-      // correctamente los campos del proveedor.
-      catalog: response.data,
+      game,
     });
   } catch (error) {
-    console.error(
-      "[FazerCards Games]",
-      error
-    );
+    console.error("[FazerCards Catalog]", error);
 
     return NextResponse.json(
       {
         ok: false,
-        supplier: "FazerCards",
-        error: getErrorMessage(error),
+        error:
+          error instanceof Error
+            ? error.message
+            : "Error desconocido",
       },
       { status: 500 }
     );
