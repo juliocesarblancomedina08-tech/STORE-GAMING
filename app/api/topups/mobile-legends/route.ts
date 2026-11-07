@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase-admin";
 
@@ -211,6 +210,7 @@ export async function POST(request: NextRequest) {
       return jsonError("No se pudo comprobar el pedido.", 500);
     }
 
+    // CORRECCIÓN: conversión de tipo compatible con TypeScript.
     const existingOrder =
       existingOrderData as unknown as ExistingOrder | null;
 
