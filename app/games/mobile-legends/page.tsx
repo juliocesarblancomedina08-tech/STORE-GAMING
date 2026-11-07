@@ -66,10 +66,6 @@ export default function MobileLegendsPage() {
 
   const [processing, setProcessing] = useState(false);
 
-  /*
-   * CARGAR CATÁLOGO Y ESTADO VIP DESDE EL BACKEND
-   */
-
   useEffect(() => {
     let active = true;
 
@@ -168,20 +164,9 @@ export default function MobileLegendsPage() {
     };
   }, []);
 
-  /*
-   * FORMATEAR PRECIOS
-   *
-   * Se utilizan los precios exactos del backend.
-   * No se vuelven a calcular en el navegador.
-   */
-
   function formatPrice(offer: Offer): string {
     return `$${offer.price.toFixed(4)}`;
   }
-
-  /*
-   * SELECCIONAR OFERTA
-   */
 
   function selectOffer(offer: Offer) {
     setSelectedOffer(offer);
@@ -205,10 +190,6 @@ export default function MobileLegendsPage() {
         });
     }, 100);
   }
-
-  /*
-   * VALIDAR DATOS DEL JUGADOR
-   */
 
   function handleFinishPurchase(
     event: FormEvent<HTMLFormElement>
@@ -255,10 +236,6 @@ export default function MobileLegendsPage() {
     setShowConfirmation(true);
   }
 
-  /*
-   * CREAR PEDIDO
-   */
-
   async function createOrder() {
     if (!selectedOffer) {
       setError("Seleccione una oferta.");
@@ -280,11 +257,6 @@ export default function MobileLegendsPage() {
           "Su sesión ha expirado. Inicie sesión nuevamente."
         );
       }
-
-      /*
-       * La clave se conserva si ocurre un error de conexión.
-       * Así, un reintento no crea una segunda orden.
-       */
 
       if (!idempotencyKeyRef.current) {
         idempotencyKeyRef.current =
@@ -315,11 +287,6 @@ export default function MobileLegendsPage() {
           "No se pudo interpretar la respuesta del servidor. Reintente con el mismo pedido."
         );
       }
-
-      /*
-       * El proveedor pudo rechazar el pedido y devolver
-       * un estado REFUNDED. También debemos mostrarlo.
-       */
 
       if (
         data?.orderNumber &&
@@ -386,10 +353,6 @@ export default function MobileLegendsPage() {
     }
   }
 
-  /*
-   * INFORMACIÓN DEL ESTADO
-   */
-
   function getStatusTitle(): string {
     switch (orderStatus.toUpperCase()) {
       case "COMPLETED":
@@ -455,17 +418,9 @@ export default function MobileLegendsPage() {
     router.push("/orders");
   }
 
-  /*
-   * VOLVER A LA TIENDA
-   */
-
   function goToStore() {
     router.push("/top-up");
   }
-
-  /*
-   * INTERFAZ
-   */
 
   return (
     <main className="mobile-legends-page">
